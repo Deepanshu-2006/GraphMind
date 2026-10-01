@@ -7,6 +7,7 @@ import type { RecentMaterial } from '../types';
 import { extractText } from './textExtraction';
 
 export * from './textExtraction';
+export * from './conceptExtraction';
 
 export const SUPPORTED_EXTENSIONS = ['pdf', 'txt', 'md', 'markdown'];
 export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB

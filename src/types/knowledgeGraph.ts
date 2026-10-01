@@ -114,6 +114,44 @@ export interface ExtractionResult {
 }
 
 /**
+ * Concept Extraction Models (Day 2 Step 4)
+ * Flow: SOURCE → TEXT → CHUNKS → CONCEPTS
+ */
+export type ConceptCandidateType =
+  | 'concept'
+  | 'topic'
+  | 'method'
+  | 'algorithm'
+  | 'architecture'
+  | 'theory'
+  | 'application'
+  | 'dataset'
+  | 'technology'
+  | 'paradigm'
+  | string;
+
+export interface ConceptCandidate {
+  name: string;
+  type: ConceptCandidateType;
+  description: string;
+  sourceId: string;
+  sourceChunkId: string;
+  
+  // Deduplication & Normalization metadata for Day 2 Step 5 (Prompt 17)
+  sourceChunkIds?: string[];
+  occurrences?: number;
+  confidence?: number;
+}
+
+export interface ConceptExtractionResult {
+  success: boolean;
+  sourceId: string;
+  concepts: ConceptCandidate[];
+  chunkCount?: number;
+  error?: string;
+}
+
+/**
  * Knowledge Graph Query & Traversal Utilities
  */
 
