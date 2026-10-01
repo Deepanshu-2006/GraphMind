@@ -1,0 +1,57 @@
+export type NavSection = 'overview' | 'graph' | 'paths' | 'sources' | 'settings';
+
+export interface ConceptConnection {
+  targetId: string;
+  targetName: string;
+  relationType: 'generalizes' | 'powers' | 'utilizes' | 'hierarchical' | 'synthesizes';
+  strength: number; // 0 to 1
+}
+
+export interface ConceptNode {
+  id: string;
+  name: string;
+  code: string;
+  category: 'Foundation' | 'Architecture' | 'Technique' | 'Application' | 'Paradigm';
+  depth: number;
+  synapseCount: number;
+  summary: string;
+  connections: ConceptConnection[];
+  x: number; // coordinate for visual graph canvas (0-100%)
+  y: number;
+  size: number;
+  accentColor: string;
+  status: 'synapsed' | 'active' | 'referenced';
+  documentsSourceCount: number;
+}
+
+export interface MetricItem {
+  id: string;
+  label: string;
+  value: string;
+  numericalValue: number;
+  unit?: string;
+  delta: string;
+  deltaDirection: 'up' | 'stable' | 'down';
+  subtitle: string;
+  telemetryCode: string;
+}
+
+export interface ProjectWorkspace {
+  id: string;
+  name: string;
+  code: string;
+  domain: string;
+  activeNodes: number;
+  density: string;
+  lastUpdated: string;
+}
+
+export interface RecentMaterial {
+  id: string;
+  title: string;
+  format: 'PDF' | 'ARXIV' | 'NOTE' | 'TRANSCRIPT';
+  size: string;
+  conceptsExtracted: number;
+  timestamp: string;
+  status: 'synced' | 'indexing';
+}
