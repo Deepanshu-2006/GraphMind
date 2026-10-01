@@ -5,7 +5,8 @@ import type {
   KnowledgeSource,
   ConceptCategory,
   GraphConceptData,
-  ConceptRelationship
+  ConceptRelationship,
+  ConceptSourceReference
 } from '../types';
 
 export * from '../types/knowledgeGraph';
@@ -359,21 +360,33 @@ export function knowledgeGraphToReactFlow(graph: KnowledgeGraph): {
     const tgtNode = nodeMap.get(rel.target);
     const relLabel = rel.label || rel.type;
 
+    const sourceNames: string[] = (rel.sourceIds || [])
+      .map(id => sourceMap.get(id)?.fileName || sourceMap.get(id)?.name)
+      .filter((name): name is string => Boolean(name));
+
     if (srcNode && tgtNode) {
       // Outgoing from source to target
       nodeRelMap.get(rel.source)?.push({
+        id: rel.id,
         type: relLabel,
         targetId: rel.target,
         targetName: tgtNode.name,
-        direction: 'outgoing'
+        direction: 'outgoing',
+        description: rel.description,
+        sourceChunkIds: rel.sourceChunkIds,
+        sourceNames
       });
 
       // Incoming into target from source
       nodeRelMap.get(rel.target)?.push({
+        id: rel.id,
         type: relLabel,
         targetId: rel.source,
         targetName: srcNode.name,
-        direction: 'incoming'
+        direction: 'incoming',
+        description: rel.description,
+        sourceChunkIds: rel.sourceChunkIds,
+        sourceNames
       });
     }
   }
@@ -382,8 +395,20 @@ export function knowledgeGraphToReactFlow(graph: KnowledgeGraph): {
   const conceptDetails: Record<string, GraphConceptData> = {};
 
   for (const n of graph.nodes) {
-    const primarySource = n.sourceIds[0] ? sourceMap.get(n.sourceIds[0]) : undefined;
-    const sourceDisplay = primarySource ? (primarySource.fileName || primarySource.name) : 'Indexed Material';
+    const sourceRefs: ConceptSourceReference[] = [];
+    for (const id of n.sourceIds || []) {
+      const s = sourceMap.get(id);
+      if (s) {
+        sourceRefs.push({
+          id: s.id,
+          name: s.fileName || s.name,
+          chunkIds: n.sourceChunkIds
+        });
+      }
+    }
+
+    const primarySource = sourceRefs[0]?.name || (n.sourceIds[0] ? sourceMap.get(n.sourceIds[0])?.name : undefined);
+    const sourceDisplay = primarySource || 'Indexed Material';
     const category = normalizeCategory(n.type);
     const relationships = nodeRelMap.get(n.id) || [];
 
@@ -397,6 +422,8 @@ export function knowledgeGraphToReactFlow(graph: KnowledgeGraph): {
       relationships,
       confidence: n.confidence || 95,
       source: sourceDisplay,
+      sources: sourceRefs,
+      sourceChunkIds: n.sourceChunkIds,
       synapseCount: relationships.length,
       isPrerequisite: category === 'Foundation' || category === 'Paradigm',
       isMethod: category === 'Method' || category === 'Architecture',
@@ -432,6 +459,10 @@ export function knowledgeGraphToReactFlow(graph: KnowledgeGraph): {
       : (rel.id.startsWith('e-') ? rel.id : `e-${rel.source}-${rel.target}`);
     const label = rel.label || rel.type;
 
+    const sourceNames: string[] = (rel.sourceIds || [])
+      .map(id => sourceMap.get(id)?.fileName || sourceMap.get(id)?.name)
+      .filter((name): name is string => Boolean(name));
+
     return {
       id: edgeId,
       source: rel.source,
@@ -439,8 +470,12 @@ export function knowledgeGraphToReactFlow(graph: KnowledgeGraph): {
       type: 'custom',
       label,
       data: { 
+        id: rel.id,
         relation: label,
-        description: rel.description 
+        description: rel.description,
+        sourceIds: rel.sourceIds,
+        sourceChunkIds: rel.sourceChunkIds,
+        sourceNames
       }
     };
   });

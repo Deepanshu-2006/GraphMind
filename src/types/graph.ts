@@ -12,10 +12,32 @@ export type FilterCategory = 'ALL' | 'CONCEPTS' | 'PREREQUISITES' | 'APPLICATION
 export type GraphLayoutMode = 'hierarchical' | 'organic' | 'focus';
 
 export interface ConceptRelationship {
+  id?: string;
   type: string;
   targetId: string;
   targetName: string;
   direction: 'outgoing' | 'incoming';
+  description?: string;
+  sourceChunkIds?: string[];
+  sourceNames?: string[];
+}
+
+export interface ConceptSourceReference {
+  id: string;
+  name: string;
+  chunkIds?: string[];
+}
+
+export interface SelectedRelationshipData {
+  id: string;
+  sourceId: string;
+  sourceName: string;
+  targetId: string;
+  targetName: string;
+  type: string;
+  description?: string;
+  sourceNames?: string[];
+  sourceChunkIds?: string[];
 }
 
 export interface GraphConceptData extends Record<string, unknown> {
@@ -28,6 +50,8 @@ export interface GraphConceptData extends Record<string, unknown> {
   relationships: ConceptRelationship[];
   confidence: number; // e.g. 94
   source: string;
+  sources?: ConceptSourceReference[];
+  sourceChunkIds?: string[];
   synapseCount: number;
   highlighted?: boolean;
   dimmed?: boolean;

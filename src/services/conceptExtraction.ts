@@ -70,7 +70,8 @@ const GENERIC_ADJECTIVES = new Set([
   'main', 'key', 'good', 'bad', 'better', 'best', 'new', 'modern', 'current',
   'standard', 'typical', 'general', 'specific', 'such', 'many', 'several',
   'first', 'second', 'third', 'high', 'low', 'great', 'small', 'large',
-  'efficient', 'effective', 'successful', 'popular', 'common', 'traditional'
+  'efficient', 'effective', 'successful', 'popular', 'common', 'traditional',
+  'deep', 'neural', 'artificial', 'supervised', 'unsupervised', 'convolutional', 'recurrent'
 ]);
 
 const GENERIC_STANDALONE_NOUNS = new Set([
@@ -84,6 +85,14 @@ const GENERIC_STANDALONE_NOUNS = new Set([
 
 const APPROVED_TECHNICAL_ACRONYMS = new Set([
   'cnn', 'rnn', 'gan', 'svm', 'lstm', 'gru', 'llm', 'nlp', 'mlp', 'gnn', 'vae', 'sgd', 'pca', 'bert', 'gpt'
+]);
+
+const TECHNICAL_COMPOUND_EXCEPTIONS = new Set([
+  'deep learning', 'neural network', 'neural networks', 'machine learning',
+  'convolutional network', 'convolutional networks', 'recurrent network', 'recurrent networks',
+  'linear regression', 'logistic regression', 'random forest', 'decision tree',
+  'support vector', 'artificial intelligence', 'computer vision', 'reinforcement learning',
+  'supervised learning', 'unsupervised learning', 'gradient descent', 'generative model', 'generative models'
 ]);
 
 /**
@@ -142,7 +151,7 @@ export function isValidConceptName(name: string): boolean {
   }
 
   // 2-word generic combination check: generic adjective + generic noun (e.g. "Various Methods", "Novel Approach")
-  if (words.length === 2) {
+  if (words.length === 2 && !TECHNICAL_COMPOUND_EXCEPTIONS.has(lower)) {
     if (GENERIC_ADJECTIVES.has(words[0]) && GENERIC_STANDALONE_NOUNS.has(words[1])) {
       return false;
     }
@@ -408,8 +417,8 @@ export class HeuristicConceptExtractor implements ConceptExtractionProvider {
       }
     }
 
-    // 3. Technical compound nouns & capitalized terms: e.g. "Convolutional Neural Networks", "Gradient Descent", "Transformer"
-    const titleCaseRegex = /\b([A-Z][a-zA-Z0-9]*(?:[- ][A-Z][a-zA-Z0-9]*){0,3}|[A-Z]{2,6})\b/g;
+    // 3. Technical compound nouns & capitalized terms: e.g. "Convolutional Neural Networks", "Gradient Descent", "Transformer", "Deep learning"
+    const titleCaseRegex = /\b([A-Z][a-zA-Z0-9]*(?:[- ](?:[A-Z][a-zA-Z0-9]*|learning|networks?|models?|architectures?|algorithms?|vision|attention)){0,3}|[A-Z]{2,6})\b/g;
     let match: RegExpExecArray | null;
 
     while ((match = titleCaseRegex.exec(text)) !== null) {

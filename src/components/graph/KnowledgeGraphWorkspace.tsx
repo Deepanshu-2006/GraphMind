@@ -9,7 +9,7 @@ import {
   ReactFlowProvider,
   MarkerType
 } from '@xyflow/react';
-import type { Node, NodeMouseHandler } from '@xyflow/react';
+import type { Node, NodeMouseHandler, EdgeMouseHandler } from '@xyflow/react';
 import { Plus } from 'lucide-react';
 import { ThinkingOrb } from 'thinking-orbs';
 
@@ -25,7 +25,7 @@ import {
   knowledgeGraphToReactFlow 
 } from '../../data/graphData';
 import type { KnowledgeGraph } from '../../types/knowledgeGraph';
-import type { GraphConceptData } from '../../types/graph';
+import type { GraphConceptData, SelectedRelationshipData } from '../../types/graph';
 
 const nodeTypes = {
   conceptNode: ConceptNode
@@ -120,6 +120,7 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive', graph }: Knowle
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<GraphConceptData>>(effectiveNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(effectiveEdges);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(() => effectiveNodes[0]?.id || 'dl');
+  const [selectedRelationship, setSelectedRelationship] = useState<SelectedRelationshipData | null>(null);
   const [isInspectorOpen, setIsInspectorOpen] = useState<boolean>(true);
 
   const craftingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -359,15 +360,41 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive', graph }: Knowle
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_, node) => {
       if (mode !== 'interactive') return;
+      setSelectedRelationship(null);
       setSelectedNodeId(node.id);
       setIsInspectorOpen(true);
     },
     [mode]
   );
 
+  // Edge / Relationship Click handler (Prompt 20, Requirement 4)
+  const handleEdgeClick: EdgeMouseHandler = useCallback(
+    (_, edge) => {
+      if (mode !== 'interactive') return;
+      const srcNode = effectiveNodes.find(n => n.id === edge.source);
+      const tgtNode = effectiveNodes.find(n => n.id === edge.target);
+      const edgeData = edge.data as Record<string, unknown> | undefined;
+
+      setSelectedRelationship({
+        id: edge.id,
+        sourceId: edge.source,
+        sourceName: srcNode?.data?.label || edge.source,
+        targetId: edge.target,
+        targetName: tgtNode?.data?.label || edge.target,
+        type: (edge.label as string) || (edgeData?.relation as string) || 'related-to',
+        description: edgeData?.description as string | undefined,
+        sourceNames: edgeData?.sourceNames as string[] | undefined,
+        sourceChunkIds: edgeData?.sourceChunkIds as string[] | undefined
+      });
+      setIsInspectorOpen(true);
+    },
+    [mode, effectiveNodes]
+  );
+
   // Pane Click handler
   const handlePaneClick = useCallback(() => {
     if (mode !== 'interactive') return;
+    setSelectedRelationship(null);
     setSelectedNodeId(null);
   }, [mode]);
 
@@ -375,6 +402,7 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive', graph }: Knowle
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && mode === 'interactive') {
+        setSelectedRelationship(null);
         setSelectedNodeId(null);
       }
     };
@@ -515,6 +543,7 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive', graph }: Knowle
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           onNodeClick={handleNodeClick}
+          onEdgeClick={handleEdgeClick}
           onPaneClick={handlePaneClick}
           defaultViewport={{ x: 100, y: 80, zoom: 0.88 }}
           minZoom={0.2}
@@ -610,12 +639,17 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive', graph }: Knowle
       )}
 
 
-      {/* 4. Inspector Context Panel (Interactive mode only) */}
-      {mode === 'interactive' && isInspectorOpen && activeConceptData && (
+      {/* 4. Inspector Context Panel (Interactive mode only: Concept or Relationship) */}
+      {mode === 'interactive' && isInspectorOpen && (activeConceptData || selectedRelationship) && (
         <NodeContextPanel
           concept={activeConceptData}
-          onClose={() => setIsInspectorOpen(false)}
+          selectedRelationship={selectedRelationship}
+          onClose={() => {
+            setIsInspectorOpen(false);
+            setSelectedRelationship(null);
+          }}
           onSelectConcept={(conceptId) => {
+            setSelectedRelationship(null);
             setSelectedNodeId(conceptId);
             const targetNode = nodes.find((n) => n.id === conceptId);
             if (targetNode) {
@@ -626,6 +660,7 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive', graph }: Knowle
             }
           }}
           onFocusNode={(conceptId) => {
+            setSelectedRelationship(null);
             setSelectedNodeId(conceptId);
             const targetNode = nodes.find((n) => n.id === conceptId);
             if (targetNode) {

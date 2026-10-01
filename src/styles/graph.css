@@ -596,6 +596,34 @@
   font-size: 11.5px;
 }
 
+.inspector-sources-container {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 10px;
+  margin-top: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inspector-sources-compact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inspector-source-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #A0A0A0;
+}
+
+.inspector-source-bullet {
+  color: #6E706D;
+  font-size: 11px;
+}
+
 /* ==================================================
    15. EMPTY, LOADING, & CRAFTING STATES (Prompt 8)
    ================================================== */
