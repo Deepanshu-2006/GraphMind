@@ -33,6 +33,8 @@ export interface GraphConceptData extends Record<string, unknown> {
   isPrerequisite?: boolean;
   isApplication?: boolean;
   isMethod?: boolean;
+  craftingNew?: boolean;
+  craftingActive?: boolean;
 }
 
 export interface SearchResultItem {

@@ -232,63 +232,23 @@
   background-color: rgba(255, 92, 92, 0.08);
 }
 
-/* Processing State */
-.processing-sequence-wrap {
+/* Modal Loading State (ThinkingOrb - Prompt 8, Section 2) */
+.modal-loading-wrap {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 8px 0;
-}
-
-.processing-progress-bar {
-  width: 100%;
-  height: 2px;
-  background-color: var(--border-default);
-  border-radius: 1px;
-  overflow: hidden;
-}
-
-.processing-progress-fill {
-  height: 100%;
-  background-color: var(--accent);
-  transition: width 0.3s ease;
-}
-
-.processing-steps-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.processing-step-item {
-  display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  color: var(--text-muted);
-  transition: color var(--transition-fast);
+  justify-content: center;
+  text-align: center;
+  padding: 36px 16px;
+  gap: 16px;
 }
 
-.processing-step-item.active {
-  color: var(--text-primary);
+.modal-loading-message {
+  font-family: var(--font-body);
+  font-size: 13.5px;
   font-weight: 500;
-}
-
-.processing-step-item.completed {
   color: var(--text-secondary);
-}
-
-.processing-step-pip {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: var(--border-default);
-  flex-shrink: 0;
-  transition: background-color var(--transition-fast);
-}
-
-.processing-step-item.active .processing-step-pip {
-  background-color: var(--accent);
+  letter-spacing: 0.01em;
 }
 
 /* Error State */

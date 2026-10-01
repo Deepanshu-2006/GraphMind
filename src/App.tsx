@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { AppShell } from './components/layout/AppShell';
 import { OverviewView } from './components/overview/OverviewView';
 import { KnowledgeGraphWorkspace } from './components/graph/KnowledgeGraphWorkspace';
+import type { WorkspaceMode } from './components/graph/KnowledgeGraphWorkspace';
 import { CreateGraphModal } from './components/modals/CreateGraphModal';
 import { CommandPalette } from './components/modals/CommandPalette';
 import { SourcesView } from './components/sources/SourcesView';
@@ -31,6 +32,7 @@ export function App() {
   const [searchPaletteOpen, setSearchPaletteOpen] = useState(false);
   const [hasGraphContent, setHasGraphContent] = useState(true);
   const [sources, setSources] = useState<RecentMaterial[]>(mockRecentMaterials);
+  const [graphMode, setGraphMode] = useState<WorkspaceMode>('interactive');
 
   const navigateToSection = (section: NavSection) => {
     setCurrentSection(section);
@@ -79,6 +81,7 @@ export function App() {
       },
       ...prev
     ]);
+    setGraphMode('loading');
     navigateToSection('graph');
   };
 
@@ -106,7 +109,10 @@ export function App() {
 
         {/* Dedicated Knowledge Graph Workspace (/graph) */}
         {currentSection === 'graph' && (
-          <KnowledgeGraphWorkspace onOpenUpload={() => setCreateModalOpen(true)} />
+          <KnowledgeGraphWorkspace 
+            onOpenUpload={() => setCreateModalOpen(true)} 
+            initialMode={graphMode}
+          />
         )}
 
         {/* Learning Paths View (Section 14) */}

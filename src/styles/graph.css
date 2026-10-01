@@ -72,11 +72,46 @@
 }
 
 /* 1. Small concept-type label */
+.node-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
 .node-card-type {
   font-size: 11px;
   color: #707070;
   font-weight: 450;
   line-height: 1.2;
+}
+
+.node-crafting-pip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 100px;
+  background: rgba(163, 255, 18, 0.1);
+  border: 1px solid rgba(163, 255, 18, 0.28);
+}
+
+.crafting-pip-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #A3FF12;
+  box-shadow: 0 0 6px #A3FF12;
+  animation: pulseDot 1s ease-in-out infinite;
+}
+
+.crafting-pip-text {
+  font-family: var(--font-body);
+  font-size: 9.5px;
+  font-weight: 500;
+  color: #A3FF12;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 /* 2. Concept name row */
@@ -144,24 +179,39 @@
   filter: grayscale(30%) !important;
 }
 
-/* Discrete Handles on all 4 sides */
+/* Discrete Handles on all 4 sides (hidden during passive crafting, visible on interaction) */
 .node-handle {
   width: 5px !important;
   height: 5px !important;
   border-radius: 50% !important;
   background: #2C2C2C !important;
   border: 1px solid #131413 !important;
-  opacity: 0.35;
+  opacity: 0 !important;
   transition: opacity 150ms ease, background 150ms ease;
 }
 
 .knowledge-node-card:hover .node-handle,
 .knowledge-node-card.selected .node-handle {
-  opacity: 0.85;
+  opacity: 0.85 !important;
 }
 
 .knowledge-node-card.selected .node-handle {
   background: #A3FF12 !important;
+}
+
+/* Filament animation during discovery */
+@keyframes filamentDash {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.crafting-filament-edge path {
+  stroke-dasharray: 6 6 !important;
+  animation: filamentDash 1.2s linear infinite !important;
 }
 
 /* ==================================================
@@ -489,20 +539,77 @@
 }
 
 /* ==================================================
-   15. MINIMAL EMPTY STATE
+   15. EMPTY, LOADING, & CRAFTING STATES (Prompt 8)
    ================================================== */
 
-.graph-empty-canvas-container {
-  height: calc(100vh - var(--topbar-height));
+/* 1. Canvas Overlay for Empty & Loading States */
+.graph-canvas-overlay {
+  position: absolute;
+  inset: 0;
   width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 10;
+  overflow: hidden;
+}
+
+.graph-canvas-overlay.empty-overlay {
   background-color: #0A0A0A;
+  pointer-events: auto;
+}
+
+.graph-canvas-overlay.loading-overlay {
+  background: radial-gradient(circle at center, rgba(10, 10, 10, 0.42) 0%, rgba(10, 10, 10, 0.16) 60%, rgba(10, 10, 10, 0.04) 100%);
+  pointer-events: none;
+  z-index: 15;
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 700ms cubic-bezier(0.16, 1, 0.3, 1), transform 700ms cubic-bezier(0.16, 1, 0.3, 1), filter 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.graph-canvas-overlay.loading-overlay.fade-out {
+  opacity: 0;
+  transform: scale(0.94);
+  filter: blur(4px);
+  pointer-events: none;
+}
+
+/* Canvas Wrapper with smooth dimming under loading */
+.freeform-canvas-wrapper {
+  width: 100%;
+  height: 100%;
+  transition: opacity 750ms cubic-bezier(0.16, 1, 0.3, 1), filter 750ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.freeform-canvas-wrapper.dimmed-crafting {
+  opacity: 0.86;
+  filter: brightness(1);
+}
+
+.freeform-canvas-wrapper.dimmed-crafting .knowledge-node-card {
+  border-color: rgba(163, 255, 18, 0.45);
+  box-shadow: 0 0 20px rgba(163, 255, 18, 0.18), 0 8px 24px rgba(0, 0, 0, 0.6);
+  background: rgba(18, 19, 18, 0.94);
+}
+
+.empty-canvas-ghost-svg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 720px;
+  max-width: 90vw;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
 }
 
 .graph-empty-box {
-  max-width: 420px;
+  position: relative;
+  z-index: 2;
+  max-width: 440px;
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -517,13 +624,209 @@
   font-weight: 600;
   color: #F5F5F5;
   letter-spacing: -0.015em;
+  line-height: 1.25;
 }
 
 .graph-empty-desc {
-  font-size: 14px;
+  font-size: 13.5px;
   color: #888888;
   line-height: 1.5;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+}
+
+/* 2. Full Graph Canvas Loading HUD (Sleek Horizontal Glass Pill Capsule) */
+.graph-loading-hud-pill {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 22px 10px 14px;
+  background: rgba(14, 15, 14, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 100px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(163, 255, 18, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  animation: hudGentleFloat 4s ease-in-out infinite alternate;
+}
+
+@keyframes hudGentleFloat {
+  0% { transform: translateY(0px); }
+  100% { transform: translateY(-3px); }
+}
+
+.graph-loading-orb-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orb-ambient-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(163, 255, 18, 0.25) 0%, transparent 70%);
+  filter: blur(8px);
+  pointer-events: none;
+}
+
+.hud-pill-divider {
+  width: 1px;
+  height: 26px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.graph-loading-text-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  text-align: left;
+}
+
+.hud-pill-title-row {
+  display: flex;
+  align-items: center;
+}
+
+.graph-loading-title {
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #FFFFFF;
+  letter-spacing: -0.01em;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.graph-loading-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badge-pulse-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #A3FF12;
+  box-shadow: 0 0 6px #A3FF12;
+  animation: pulseDot 1.4s ease-in-out infinite;
+}
+
+.badge-text {
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #A3FF12;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+
+/* 3. Crafting State Indicator & Animations */
+.graph-crafting-indicator {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 100px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  animation: fadeIn 200ms ease;
+}
+
+.crafting-indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  animation: pulseDot 1.4s ease-in-out infinite;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 0.6; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+.crafting-indicator-text {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.knowledge-node-card.crafting-new {
+  border-color: rgba(163, 255, 18, 0.65);
+  box-shadow: 0 0 20px rgba(163, 255, 18, 0.24), 0 4px 16px rgba(0, 0, 0, 0.5);
+  animation: nodeEmerge 450ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.knowledge-node-card.crafting-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 24px rgba(163, 255, 18, 0.28), 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes nodeEmerge {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Mode Controls Pill Group */
+.workspace-mode-controls {
+  position: absolute;
+  top: 16px;
+  left: 270px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  background: rgba(16, 16, 16, 0.85);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-btn);
+}
+
+.mode-btn {
+  padding: 4px 9px;
+  font-size: 11.5px;
+  font-weight: 450;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.mode-btn:hover {
+  color: var(--text-primary);
+}
+
+.mode-btn.active {
+  color: var(--text-primary);
+  background-color: var(--bg-surface-elevated);
+  border-color: var(--border-default);
+  font-weight: 500;
 }
 
 /* Responsive adjustments (Section 3: bottom sheet or compact overlay on smaller screens) */
@@ -532,6 +835,11 @@
     left: 12px;
     top: 12px;
     padding: 4px 6px;
+  }
+
+  .workspace-mode-controls {
+    top: 56px;
+    left: 12px;
   }
 
   .floating-search-input {

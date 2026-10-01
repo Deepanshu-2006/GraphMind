@@ -4,9 +4,7 @@ import {
   UploadCloud, 
   FileText, 
   AlertCircle, 
-  ArrowRight,
-  Trash2,
-  Check
+  Trash2
 } from 'lucide-react';
 
 interface CreateGraphModalProps {
@@ -15,20 +13,13 @@ interface CreateGraphModalProps {
   onSuccess: () => void;
 }
 
-type UploadStep = 'select' | 'processing' | 'ready' | 'error';
+type UploadStep = 'select' | 'error';
 
 interface SelectedFileInfo {
   name: string;
   size: string;
   type: string;
 }
-
-const processingSteps = [
-  'Reading material',
-  'Extracting concepts',
-  'Mapping relationships',
-  'Building graph'
-];
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -55,7 +46,6 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
   const [step, setStep] = useState<UploadStep>('select');
   const [selectedFile, setSelectedFile] = useState<SelectedFileInfo | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [processingStage, setProcessingStage] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Close and reset modal state
@@ -63,7 +53,6 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
     setStep('select');
     setSelectedFile(null);
     setIsDragging(false);
-    setProcessingStage(0);
     onClose();
   }, [onClose]);
 
@@ -78,25 +67,6 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, handleClose]);
 
-  // Handle stage transitions during processing (Section 5)
-  useEffect(() => {
-    if (step !== 'processing') return;
-
-    const interval = setInterval(() => {
-      setProcessingStage((prev) => {
-        if (prev < processingSteps.length - 1) {
-          return prev + 1;
-        } else {
-          clearInterval(interval);
-          setStep('ready');
-          return prev;
-        }
-      });
-    }, 550);
-
-    return () => clearInterval(interval);
-  }, [step]);
-
   if (!isOpen) return null;
 
   // Handle selecting or dropping a file
@@ -104,7 +74,7 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
     const validExtensions = ['pdf', 'txt', 'md', 'markdown'];
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
 
-    // Error state validation (Section 7)
+    // Error state validation
     if (!validExtensions.includes(ext) || file.size === 0) {
       setStep('error');
       return;
@@ -152,13 +122,9 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
     }
   };
 
+  // Submit and immediately transition to the full Knowledge Graph experience
   const handleStartProcessing = () => {
     if (!selectedFile) return;
-    setStep('processing');
-    setProcessingStage(0);
-  };
-
-  const handleFinish = () => {
     handleClose();
     onSuccess();
   };
@@ -183,7 +149,7 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
   return (
     <div className="modal-backdrop" onClick={handleClose} role="dialog" aria-modal="true">
       <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-        {/* Hidden Native File Picker (Section 2 & 9) */}
+        {/* Hidden Native File Picker */}
         <input
           type="file"
           ref={fileInputRef}
@@ -197,18 +163,10 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
         <div className="modal-header">
           <div>
             <h3 className="modal-title">
-              {step === 'ready' 
-                ? 'Your knowledge graph is ready.' 
-                : step === 'error'
-                ? 'Upload failed'
-                : 'Add learning material'}
+              {step === 'error' ? 'Upload failed' : 'Add learning material'}
             </h3>
             <p className="modal-subtitle">
-              {step === 'ready'
-                ? 'Concepts and connections mapped from your material.'
-                : step === 'processing'
-                ? 'Processing learning material...'
-                : step === 'error'
+              {step === 'error'
                 ? 'There was an issue reading the provided file.'
                 : 'Upload papers, lecture notes, transcripts, or other learning material.'}
             </p>
@@ -229,7 +187,7 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
           {step === 'select' && (
             <>
               {!selectedFile ? (
-                /* Dropzone (Section 3) */
+                /* Dropzone */
                 <div
                   className={`upload-dropzone ${isDragging ? 'dragging' : ''}`}
                   onDragOver={handleDragOver}
@@ -245,46 +203,48 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
                   tabIndex={0}
                   role="button"
                   aria-label="Drag and drop file here, or click to browse"
+                  id="modal-upload-dropzone"
                 >
                   <div className="upload-dropzone-icon">
                     <UploadCloud size={20} />
                   </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                    <span className="upload-dropzone-instruction">
-                      {isDragging ? 'Drop file to upload' : 'Drag & drop file here, or click to browse'}
+                  <div className="upload-dropzone-text">
+                    <span className="upload-dropzone-primary">
+                      Drag and drop your file here, or browse
                     </span>
-                    <span className="upload-dropzone-formats">
-                      Supported formats: PDF, TXT, MD
+                    <span className="upload-dropzone-secondary">
+                      Supports PDF, TXT, Markdown (up to 50MB)
                     </span>
                   </div>
 
-                  <button
-                    type="button"
-                    className="demo-file-pill-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSelectDemo();
-                    }}
-                    title="Or test with an example lecture PDF"
-                  >
-                    Load sample lecture paper
-                  </button>
+                  <div style={{ marginTop: '12px' }}>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectDemo();
+                      }}
+                      style={{ fontSize: '11.5px', padding: '4px 10px' }}
+                    >
+                      Use sample lecture note
+                    </button>
+                  </div>
                 </div>
               ) : (
-                /* Selected File Card (Section 4) */
-                <div className="selected-file-card">
+                /* Selected File Card */
+                <div className="selected-file-card" id="selected-file-card">
                   <div className="selected-file-info">
                     <div className="selected-file-icon">
                       <FileText size={18} />
                     </div>
                     <div className="selected-file-details">
-                      <span className="selected-file-name" title={selectedFile.name}>
+                      <span className="selected-file-name">
                         {selectedFile.name}
                       </span>
                       <div className="selected-file-meta">
                         <span>{selectedFile.type}</span>
-                        <span>·</span>
+                        <span className="meta-separator">•</span>
                         <span>{selectedFile.size}</span>
                       </div>
                     </div>
@@ -304,65 +264,7 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
             </>
           )}
 
-          {/* STEP 2: PROCESSING SEQUENCE (Section 5) */}
-          {step === 'processing' && (
-            <div className="processing-sequence-wrap">
-              {/* Minimal Progress Bar */}
-              <div className="processing-progress-bar">
-                <div
-                  className="processing-progress-fill"
-                  style={{
-                    width: `${((processingStage + 1) / processingSteps.length) * 100}%`
-                  }}
-                />
-              </div>
-
-              {/* 4-Step Sequence */}
-              <div className="processing-steps-list">
-                {processingSteps.map((stg, index) => {
-                  const isDone = index < processingStage;
-                  const isCurrent = index === processingStage;
-
-                  return (
-                    <div
-                      key={stg}
-                      className={`processing-step-item ${isCurrent ? 'active' : ''} ${isDone ? 'completed' : ''}`}
-                    >
-                      {isDone ? (
-                        <Check size={13} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-                      ) : (
-                        <span className="processing-step-pip" />
-                      )}
-                      <span>{stg}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: SUCCESS STATE (Section 6) */}
-          {step === 'ready' && selectedFile && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '8px 0' }}>
-              <div className="selected-file-card" style={{ borderColor: 'rgba(163, 255, 18, 0.3)' }}>
-                <div className="selected-file-info">
-                  <div className="selected-file-icon" style={{ color: 'var(--accent)' }}>
-                    <Check size={18} />
-                  </div>
-                  <div className="selected-file-details">
-                    <span className="selected-file-name">
-                      {selectedFile.name}
-                    </span>
-                    <div className="selected-file-meta">
-                      <span>Concepts and relationships ready for exploration</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 4: ERROR STATE (Section 7) */}
+          {/* STEP 2: ERROR STATE */}
           {step === 'error' && (
             <div className="upload-error-box">
               <AlertCircle size={24} style={{ color: '#FF4D4D' }} />
@@ -383,34 +285,22 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="modal-footer">
-          {step === 'select' && (
-            <>
-              <button className="btn-secondary" onClick={handleClose}>
-                Cancel
-              </button>
-              <button
-                className="btn-primary"
-                onClick={handleStartProcessing}
-                disabled={!selectedFile}
-                style={{ opacity: selectedFile ? 1 : 0.45 }}
-              >
-                <span>Create knowledge graph</span>
-              </button>
-            </>
-          )}
-
-          {step === 'ready' && (
+        {step === 'select' && (
+          <div className="modal-footer">
+            <button className="btn-secondary" onClick={handleClose}>
+              Cancel
+            </button>
             <button
               className="btn-primary"
-              onClick={handleFinish}
-              style={{ width: '100%', justifyContent: 'center' }}
+              onClick={handleStartProcessing}
+              disabled={!selectedFile}
+              style={{ opacity: selectedFile ? 1 : 0.45 }}
+              id="btn-modal-create-graph"
             >
-              <span>Explore knowledge graph</span>
-              <ArrowRight size={14} />
+              <span>Create knowledge graph</span>
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

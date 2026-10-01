@@ -11,7 +11,9 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
     'knowledge-node-card',
     isSelected ? 'selected' : '',
     concept.highlighted ? 'highlighted' : '',
-    concept.dimmed ? 'dimmed' : ''
+    concept.dimmed ? 'dimmed' : '',
+    concept.craftingNew ? 'crafting-new' : '',
+    concept.craftingActive ? 'crafting-active' : ''
   ].filter(Boolean).join(' ');
 
   return (
@@ -42,8 +44,16 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
         className="node-handle"
       />
 
-      {/* 1. Small concept-type label */}
-      <span className="node-card-type">{concept.category}</span>
+      {/* 1. Concept-type label + Active crafting pip */}
+      <div className="node-card-header">
+        <span className="node-card-type">{concept.category}</span>
+        {concept.craftingActive && (
+          <span className="node-crafting-pip" title="Synthesizing concept">
+            <span className="crafting-pip-dot" />
+            <span className="crafting-pip-text">Extracting</span>
+          </span>
+        )}
+      </div>
 
       {/* 2. Concept name */}
       <div className="node-card-name-row">
