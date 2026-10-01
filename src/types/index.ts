@@ -33,7 +33,7 @@ export interface MetricItem {
   delta: string;
   deltaDirection: 'up' | 'stable' | 'down';
   subtitle: string;
-  telemetryCode: string;
+  telemetryCode?: string;
 }
 
 export interface ProjectWorkspace {

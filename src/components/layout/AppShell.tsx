@@ -17,7 +17,6 @@ export const AppShell: React.FC<AppShellProps> = ({
   currentSection,
   onSelectSection,
   project,
-  recentMaterials,
   onOpenSearch,
   onOpenCreateModal,
   children
@@ -40,16 +39,13 @@ export const AppShell: React.FC<AppShellProps> = ({
         currentSection={currentSection}
         onSelectSection={onSelectSection}
         project={project}
-        recentMaterials={recentMaterials}
         isOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
-        onOpenCreateModal={onOpenCreateModal}
       />
 
       {/* Main Content Area */}
       <div className="app-main">
         <TopBar 
-          currentSection={currentSection}
           project={project}
           onOpenSearch={onOpenSearch}
           onToggleMobileMenu={() => setMobileMenuOpen(prev => !prev)}

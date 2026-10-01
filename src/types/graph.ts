@@ -10,7 +10,7 @@ export type FilterCategory = 'ALL' | 'CONCEPTS' | 'PREREQUISITES' | 'APPLICATION
 export type GraphLayoutMode = 'hierarchical' | 'organic' | 'focus';
 
 export interface ConceptRelationship {
-  type: 'USED_FOR' | 'BASED_ON' | 'SPECIALIZES' | 'EXTENDS' | 'INTEGRATES' | 'SUBFIELD_OF';
+  type: string;
   targetId: string;
   targetName: string;
   direction: 'outgoing' | 'incoming';

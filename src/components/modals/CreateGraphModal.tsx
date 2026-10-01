@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X, UploadCloud, Sparkles, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, UploadCloud, FileText, CheckCircle2, ArrowRight } from 'lucide-react';
 
 interface CreateGraphModalProps {
   isOpen: boolean;
@@ -7,133 +7,311 @@ interface CreateGraphModalProps {
   onSuccess: () => void;
 }
 
+type ModalTab = 'upload' | 'paste';
+type ModalStep = 'input' | 'processing' | 'ready';
+
 export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
   isOpen,
   onClose,
   onSuccess
 }) => {
+  const [tab, setTab] = useState<ModalTab>('upload');
+  const [step, setStep] = useState<ModalStep>('input');
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [isSynthesizing, setIsSynthesizing] = useState(false);
-  const [graphDensity, setGraphDensity] = useState<'hierarchical' | 'balanced' | 'dense'>('balanced');
+  const [pastedNotes, setPastedNotes] = useState<string>('');
+  const [processingStage, setProcessingStage] = useState<number>(0);
+
+  const processingStages = [
+    'Reading your material',
+    'Extracting concepts',
+    'Connecting related ideas',
+    'Building your knowledge graph'
+  ];
+
+  const handleClose = () => {
+    setStep('input');
+    setProcessingStage(0);
+    setSelectedFile(null);
+    setPastedNotes('');
+    onClose();
+  };
+
+  // Handle stage transitions during processing
+  useEffect(() => {
+    if (step !== 'processing') return;
+
+    const interval = setInterval(() => {
+      setProcessingStage((prev) => {
+        if (prev < processingStages.length - 1) {
+          return prev + 1;
+        } else {
+          clearInterval(interval);
+          setStep('ready');
+          return prev;
+        }
+      });
+    }, 600);
+
+    return () => clearInterval(interval);
+  }, [step, processingStages.length]);
 
   if (!isOpen) return null;
 
-  const handleSimulatedUpload = () => {
-    setSelectedFile('Attention_Is_All_You_Need_Research_Paper.pdf');
+  const handleStartProcessing = () => {
+    setStep('processing');
+    setProcessingStage(0);
   };
 
-  const handleSynthesize = () => {
-    setIsSynthesizing(true);
-    setTimeout(() => {
-      setIsSynthesizing(false);
-      onSuccess();
-      onClose();
-    }, 1200);
+  const handleFinish = () => {
+    handleClose();
+    onSuccess();
   };
+
+  const hasContent = Boolean(selectedFile || pastedNotes.trim());
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" onClick={handleClose}>
       <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-        {/* Modal Header */}
+        {/* Header */}
         <div className="modal-header">
-          <div className="modal-title-group">
-            <h3 className="modal-title">Create Knowledge Graph</h3>
-            <span className="modal-subtitle">
-              Convert unstructured papers, notes, or slides into connected conceptual nodes
-            </span>
+          <div>
+            <h3 className="modal-title">
+              {step === 'ready' ? 'Your knowledge graph is ready.' : 'Create a knowledge graph'}
+            </h3>
+            <p className="modal-subtitle">
+              {step === 'ready' 
+                ? 'Concepts and relationships extracted from your learning material' 
+                : step === 'processing' 
+                ? 'Processing your material...' 
+                : 'Upload your learning material'}
+            </p>
           </div>
-          <button className="modal-close-btn" onClick={onClose} aria-label="Close modal">
-            <X size={18} />
+          <button className="modal-close-btn" onClick={handleClose} aria-label="Close">
+            <X size={16} />
           </button>
         </div>
 
-        {/* Modal Body */}
+        {/* Body */}
         <div className="modal-body">
-          {/* File Dropzone */}
-          <div 
-            className="ingestion-dropzone" 
-            onClick={handleSimulatedUpload}
-            title="Click to select sample file"
-          >
-            {isSynthesizing && <div className="laser-line" />}
-
-            <div className="dropzone-icon-box">
-              {selectedFile ? (
-                <CheckCircle2 size={24} style={{ color: 'var(--accent-emerald)' }} />
-              ) : (
-                <UploadCloud size={24} />
-              )}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div className="dropzone-title">
-                {selectedFile ? selectedFile : 'Click to select or drag & drop learning material'}
-              </div>
-              <div className="dropzone-hint">
-                {selectedFile 
-                  ? 'Ready for semantic extraction • 1.42 MB' 
-                  : 'Automated entity discovery, relation extraction & path synthesis'}
-              </div>
-            </div>
-
-            <div className="dropzone-formats">
-              <span className="format-tag">PDF</span>
-              <span className="format-tag">ARXIV</span>
-              <span className="format-tag">MARKDOWN</span>
-              <span className="format-tag">TRANSCRIPTS</span>
-            </div>
-          </div>
-
-          {/* Graph Configuration Controls */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                TOPOLOGY CONFIGURATION
-              </span>
-              <span className="mono" style={{ fontSize: '11px', color: 'var(--accent-cyan)' }}>
-                CONFIDENCE &gt; 0.85
-              </span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-              {(['hierarchical', 'balanced', 'dense'] as const).map((mode) => (
+          {step === 'input' && (
+            <>
+              {/* Tab Selector */}
+              <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-default)', paddingBottom: '12px' }}>
                 <button
-                  key={mode}
                   type="button"
-                  onClick={() => setGraphDensity(mode)}
+                  onClick={() => setTab('upload')}
                   style={{
-                    padding: '8px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: graphDensity === mode ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
-                    background: graphDensity === mode ? 'var(--accent-cyan-dim)' : 'var(--bg-surface-elevated)',
-                    color: graphDensity === mode ? 'var(--accent-cyan)' : 'var(--text-tertiary)',
-                    fontSize: '12px',
-                    fontFamily: 'var(--font-mono)',
-                    textTransform: 'capitalize',
-                    textAlign: 'center'
+                    padding: '6px 12px',
+                    borderRadius: 'var(--radius-btn)',
+                    fontSize: '13px',
+                    fontWeight: tab === 'upload' ? 500 : 400,
+                    color: tab === 'upload' ? 'var(--text-primary)' : 'var(--text-muted)',
+                    backgroundColor: tab === 'upload' ? 'var(--bg-surface-elevated)' : 'transparent',
+                    transition: 'all var(--transition-fast)'
                   }}
                 >
-                  {mode}
+                  Upload files
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setTab('paste')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 'var(--radius-btn)',
+                    fontSize: '13px',
+                    fontWeight: tab === 'paste' ? 500 : 400,
+                    color: tab === 'paste' ? 'var(--text-primary)' : 'var(--text-muted)',
+                    backgroundColor: tab === 'paste' ? 'var(--bg-surface-elevated)' : 'transparent',
+                    transition: 'all var(--transition-fast)'
+                  }}
+                >
+                  Paste notes
+                </button>
+              </div>
+
+              {tab === 'upload' ? (
+                <div
+                  className="ingestion-dropzone"
+                  onClick={() => setSelectedFile('Attention_Is_All_You_Need.pdf')}
+                  title="Click to select file"
+                >
+                  <div className="dropzone-icon-box">
+                    {selectedFile ? (
+                      <CheckCircle2 size={20} style={{ color: 'var(--accent)' }} />
+                    ) : (
+                      <UploadCloud size={20} />
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div className="dropzone-title">
+                      {selectedFile ? selectedFile : 'Drag & drop files here'}
+                    </div>
+                    <div className="dropzone-hint">
+                      {selectedFile 
+                        ? '1.4 MB · Ready to process' 
+                        : 'or click to browse files (PDF, TXT, DOCX, Markdown)'}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <textarea
+                    value={pastedNotes}
+                    onChange={(e) => setPastedNotes(e.target.value)}
+                    placeholder="Paste lecture notes, article excerpts, or research summaries here..."
+                    style={{
+                      width: '100%',
+                      minHeight: '140px',
+                      padding: '12px',
+                      backgroundColor: 'var(--bg-inset)',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: 'var(--radius-input)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13.5px',
+                      lineHeight: 1.5,
+                      resize: 'vertical'
+                    }}
+                  />
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    GraphMind automatically resolves dependencies and hierarchy from unstructured notes.
+                  </span>
+                </div>
+              )}
+            </>
+          )}
+
+          {step === 'processing' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '16px 4px' }}>
+              {/* Progress bar */}
+              <div style={{ width: '100%', height: '3px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: '2px', overflow: 'hidden' }}>
+                <div
+                  style={{
+                    height: '100%',
+                    width: `${((processingStage + 1) / processingStages.length) * 100}%`,
+                    backgroundColor: 'var(--accent)',
+                    transition: 'width 400ms ease-out'
+                  }}
+                />
+              </div>
+
+              {/* Steps list */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {processingStages.map((stg, index) => {
+                  const isDone = index < processingStage;
+                  const isCurrent = index === processingStage;
+
+                  return (
+                    <div
+                      key={stg}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        fontSize: '13.5px',
+                        color: isCurrent 
+                          ? 'var(--text-primary)' 
+                          : isDone 
+                          ? 'var(--text-secondary)' 
+                          : 'var(--text-muted)',
+                        transition: 'color var(--transition-fast)'
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: '6px',
+                          height: '6px',
+                          borderRadius: '50%',
+                          backgroundColor: isDone || isCurrent ? 'var(--accent)' : 'var(--border-default)',
+                          transition: 'background-color var(--transition-fast)'
+                        }}
+                      />
+                      <span>{stg}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
+
+          {step === 'ready' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '12px 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--accent-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
+                  <FileText size={18} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '14.5px', fontWeight: 500, color: 'var(--text-primary)' }}>
+                    {selectedFile || 'Pasted learning material'}
+                  </div>
+                  <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
+                    Processed into interactive knowledge structure
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ 
+                padding: '16px 20px', 
+                backgroundColor: 'var(--bg-inset)', 
+                border: '1px solid var(--border-default)', 
+                borderRadius: 'var(--radius-card)',
+                display: 'flex',
+                justifyContent: 'space-around',
+                textAlign: 'center'
+              }}>
+                <div>
+                  <div style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>
+                    418
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>concepts</div>
+                </div>
+                <div style={{ width: '1px', backgroundColor: 'var(--border-default)' }} />
+                <div>
+                  <div style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>
+                    1,280
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>relationships</div>
+                </div>
+                <div style={{ width: '1px', backgroundColor: 'var(--border-default)' }} />
+                <div>
+                  <div style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>
+                    24
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>sources</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Modal Footer */}
+        {/* Footer */}
         <div className="modal-footer">
-          <button className="btn-secondary" onClick={onClose}>
-            Cancel
-          </button>
-          <button 
-            className="btn-primary" 
-            onClick={handleSynthesize}
-            disabled={isSynthesizing}
-            style={{ opacity: isSynthesizing ? 0.7 : 1 }}
-          >
-            <Sparkles size={14} />
-            <span>{isSynthesizing ? 'Vectorizing Synapses...' : 'Synthesize Graph'}</span>
-          </button>
+          {step === 'input' && (
+            <>
+              <button className="btn-secondary" onClick={handleClose}>
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                onClick={handleStartProcessing}
+                disabled={!hasContent}
+                style={{ opacity: hasContent ? 1 : 0.5 }}
+              >
+                <span>Process material</span>
+              </button>
+            </>
+          )}
+
+          {step === 'ready' && (
+            <button
+              className="btn-primary"
+              onClick={handleFinish}
+              style={{ width: '100%', justifyContent: 'center' }}
+            >
+              <span>Explore knowledge graph</span>
+              <ArrowRight size={14} />
+            </button>
+          )}
         </div>
       </div>
     </div>

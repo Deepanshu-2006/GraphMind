@@ -1,73 +1,52 @@
-/* GraphMind Modular Stylesheets */
+/* GraphMind Design System — Refactored Editorial & Swiss Minimal */
 @import '@xyflow/react/dist/style.css';
 @import './styles/shell.css';
 @import './styles/overview.css';
 @import './styles/components.css';
 @import './styles/graph.css';
 
-/* GraphMind Design System Tokens & Base Styles */
 :root {
-  --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Typography System */
+  --font-display: 'Inter Tight', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* Color System: Dark-First Obsidian & Titanium */
-  --bg-app: #08090c;
-  --bg-surface: #0d0f14;
-  --bg-surface-elevated: #131720;
-  --bg-surface-card: #11141b;
-  --bg-surface-hover: #191e2b;
-  --bg-surface-active: #202636;
-  --bg-inset: #060709;
-
-  /* Hairline Borders */
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-default: rgba(255, 255, 255, 0.09);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --border-focus: rgba(0, 242, 254, 0.5);
+  /* Color System: Near-black, Linear/Raycast-grade neutrals */
+  --bg-app: #0A0A0A;
+  --bg-surface: #101010;
+  --bg-surface-elevated: #141414;
+  --bg-surface-hover: #1A1A1A;
+  --bg-inset: #0D0D0D;
 
   /* Typography Colors */
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-tertiary: #94a3b8;
-  --text-muted: #64748b;
-  --text-faint: #475569;
+  --text-primary: #F5F5F5;
+  --text-secondary: #A1A1A1;
+  --text-muted: #666666;
 
-  /* Accents (Controlled, serious, futuristic) */
-  --accent-cyan: #00f2fe;
-  --accent-cyan-hover: #38bdf8;
-  --accent-cyan-dim: rgba(0, 242, 254, 0.12);
-  --accent-cyan-glow: rgba(0, 242, 254, 0.25);
+  /* Subtle Neutral Gray Borders */
+  --border-default: #242424;
+  --border-hover: #2A2A2A;
+  --border-selected: #B8FF3D;
 
-  --accent-emerald: #10b981;
-  --accent-emerald-dim: rgba(16, 185, 129, 0.12);
+  /* Accent (Used sparingly & intentionally) */
+  --accent: #B8FF3D;
+  --accent-muted: rgba(184, 255, 61, 0.12);
 
-  --accent-indigo: #818cf8;
-  --accent-indigo-dim: rgba(129, 140, 248, 0.12);
-
-  --accent-amber: #f59e0b;
-  --accent-amber-dim: rgba(245, 158, 11, 0.12);
-
-  /* Elevation Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--border-subtle);
-  --shadow-md: 0 4px 16px -2px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--border-default);
-  --shadow-lg: 0 12px 36px -4px rgba(0, 0, 0, 0.85), 0 0 0 1px var(--border-strong);
-  --shadow-glow-cyan: 0 0 24px -4px rgba(0, 242, 254, 0.22);
-
-  /* Layout Dimensions */
-  --sidebar-width: 272px;
-  --topbar-height: 64px;
-  --content-max-width: 1400px;
-  --radius-xs: 4px;
+  /* Radius (8-12px) */
   --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-btn: 8px;
+  --radius-input: 8px;
+  --radius-card: 12px;
+  --radius-panel: 12px;
 
-  /* Animation Timings */
-  --transition-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-normal: 240ms cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-smooth: 350ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* Dimensions */
+  --sidebar-width: 230px;
+  --topbar-height: 56px;
+  --content-max-width: 1280px;
+
+  /* Subtle Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
 }
 
 /* CSS Reset & Normalize */
@@ -91,34 +70,28 @@ html, body {
   overflow-x: hidden;
 }
 
-/* Precise subtle cosmic grid & depth lighting */
-body {
-  background-image: 
-    radial-gradient(circle at 80% 8%, rgba(0, 242, 254, 0.035) 0%, transparent 40%),
-    radial-gradient(circle at 15% 90%, rgba(129, 140, 248, 0.025) 0%, transparent 45%),
-    radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 32px 32px;
-  background-position: 0 0, 0 0, -1px -1px;
-  background-attachment: fixed;
-}
-
 #root {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-/* Typography Utility Classes */
-h1, h2, h3, h4, h5, h6 {
+/* Typography Hierarchy */
+h1, h2, h3, h4 {
   font-family: var(--font-display);
   font-weight: 600;
-  letter-spacing: -0.025em;
   color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+p {
+  color: var(--text-secondary);
 }
 
 .mono {
   font-family: var(--font-mono);
-  letter-spacing: -0.01em;
+  font-size: 12px;
+  font-weight: 400;
 }
 
 button, input, select, textarea {
@@ -139,10 +112,53 @@ a {
   text-decoration: none;
 }
 
-/* Custom Scrollbars */
+/* Restrained Buttons */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background-color: #F5F5F5;
+  color: #0A0A0A;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 14px;
+  border-radius: var(--radius-btn);
+  transition: opacity var(--transition-fast), background-color var(--transition-fast);
+  border: 1px solid transparent;
+}
+
+.btn-primary:hover {
+  background-color: #FFFFFF;
+  opacity: 0.95;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 14px;
+  border-radius: var(--radius-btn);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.btn-secondary:hover {
+  background-color: var(--bg-surface-hover);
+  border-color: var(--border-hover);
+}
+
+/* Minimal Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -150,41 +166,10 @@ a {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
-}
-
-/* Common UI Keyframe Animations */
-@keyframes pulseSubtle {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.65; transform: scale(0.97); }
-}
-
-@keyframes laserSweep {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(100%); }
-}
-
-@keyframes fadeInScale {
-  from {
-    opacity: 0;
-    transform: scale(0.98) translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-@keyframes nodeOrbitPulse {
-  0%, 100% {
-    box-shadow: 0 0 10px rgba(0, 242, 254, 0.3), inset 0 0 8px rgba(0, 242, 254, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 22px rgba(0, 242, 254, 0.6), inset 0 0 14px rgba(0, 242, 254, 0.4);
-  }
+  background: rgba(255, 255, 255, 0.18);
 }

@@ -13,47 +13,43 @@ export const mockProjectWorkspace: ProjectWorkspace = {
 export const mockMetrics: MetricItem[] = [
   {
     id: 'm1',
-    label: 'Documents processed',
+    label: 'Documents',
     value: '24',
     numericalValue: 24,
-    unit: 'sources indexed',
+    unit: 'documents',
     delta: '+6 this week',
     deltaDirection: 'up',
-    subtitle: '1.42M tokens parsed & vectorized',
-    telemetryCode: 'DOC_SYNAPSE // 0x18'
+    subtitle: 'Indexed sources'
   },
   {
     id: 'm2',
-    label: 'Concepts discovered',
+    label: 'Concepts',
     value: '418',
     numericalValue: 418,
-    unit: 'semantic nodes',
-    delta: '+92 novel',
+    unit: 'concepts',
+    delta: '+92 recent',
     deltaDirection: 'up',
-    subtitle: '98.4% contextual confidence score',
-    telemetryCode: 'ENT_DISCOVERY // 0x1A2'
+    subtitle: 'Extracted concepts'
   },
   {
     id: 'm3',
-    label: 'Relationships mapped',
+    label: 'Relationships',
     value: '1,280',
     numericalValue: 1280,
-    unit: 'bidirectional links',
-    delta: 'Density 3.06x',
+    unit: 'relationships',
+    delta: '3.06 links / concept',
     deltaDirection: 'up',
-    subtitle: 'Hierarchical & causal graph edges',
-    telemetryCode: 'REL_TOPOLOGY // 0x500'
+    subtitle: 'Mapped links'
   },
   {
     id: 'm4',
     label: 'Learning paths',
     value: '6',
     numericalValue: 6,
-    unit: 'active trajectories',
+    unit: 'paths',
     delta: '2 in progress',
     deltaDirection: 'stable',
-    subtitle: 'Algorithmic progression pathways',
-    telemetryCode: 'PATH_TRAJECT // 0x06'
+    subtitle: 'Curated curricula'
   }
 ];
 
@@ -203,7 +199,7 @@ export const mockLearningPaths = [
     progress: 68,
     nodeCount: 18,
     estimatedHours: '4.5 hrs',
-    status: 'Active Trajectory'
+    status: 'In progress'
   },
   {
     id: 'lp-2',
@@ -211,7 +207,7 @@ export const mockLearningPaths = [
     progress: 35,
     nodeCount: 14,
     estimatedHours: '3.0 hrs',
-    status: 'In Progress'
+    status: 'In progress'
   },
   {
     id: 'lp-3',
@@ -219,6 +215,6 @@ export const mockLearningPaths = [
     progress: 0,
     nodeCount: 12,
     estimatedHours: '2.5 hrs',
-    status: 'Queued'
+    status: 'Planned'
   }
 ];

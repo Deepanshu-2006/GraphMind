@@ -1,8 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   ReactFlow,
-  MiniMap,
-  Controls,
   Background,
   BackgroundVariant,
   useNodesState,
@@ -12,41 +10,15 @@ import {
   MarkerType
 } from '@xyflow/react';
 import type { Node, NodeMouseHandler } from '@xyflow/react';
+import { UploadCloud } from 'lucide-react';
 
 import { ConceptNode } from './ConceptNode';
 import { CustomEdge } from './CustomEdge';
 import { GraphToolbar } from './GraphToolbar';
-import { GraphSidebarLeft } from './GraphSidebarLeft';
 import { NodeContextPanel } from './NodeContextPanel';
 
 import { initialNodes, initialEdges, initialConceptDetails } from '../../data/graphData';
-import type { FilterCategory, GraphLayoutMode, GraphConceptData } from '../../types/graph';
-
-// Organic Layout Coordinates
-const organicPositions: Record<string, { x: number; y: number }> = {
-  'ml': { x: 120, y: 320 },
-  'dl': { x: 440, y: 300 },
-  'nn': { x: 740, y: 160 },
-  'attn': { x: 740, y: 440 },
-  'cnn': { x: 1040, y: 80 },
-  'rnn': { x: 1040, y: 240 },
-  'tf': { x: 1040, y: 440 },
-  'cv': { x: 1320, y: 80 },
-  'nlp': { x: 1320, y: 340 }
-};
-
-// Hierarchical Layout Coordinates
-const hierarchicalPositions: Record<string, { x: number; y: number }> = {
-  'ml': { x: 60, y: 240 },
-  'dl': { x: 330, y: 240 },
-  'nn': { x: 600, y: 130 },
-  'attn': { x: 600, y: 360 },
-  'cnn': { x: 880, y: 50 },
-  'rnn': { x: 880, y: 200 },
-  'tf': { x: 880, y: 360 },
-  'cv': { x: 1160, y: 50 },
-  'nlp': { x: 1160, y: 280 }
-};
+import type { GraphConceptData } from '../../types/graph';
 
 const nodeTypes = {
   conceptNode: ConceptNode
@@ -56,64 +28,49 @@ const edgeTypes = {
   custom: CustomEdge
 };
 
-function FlowCanvas() {
+interface KnowledgeGraphWorkspaceProps {
+  onOpenUpload?: () => void;
+}
+
+function FlowCanvas({ onOpenUpload }: KnowledgeGraphWorkspaceProps) {
   const reactFlowInstance = useReactFlow();
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<GraphConceptData>>(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>('dl'); // Deep Learning selected initially as hero example
+  const [isInspectorOpen, setIsInspectorOpen] = useState<boolean>(true);
 
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>('tf'); // Default to Transformers as in example
-  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<FilterCategory>('ALL');
-  const [layoutMode, setLayoutMode] = useState<GraphLayoutMode>('hierarchical');
-  const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
-  const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState<boolean>(false);
-  const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState<boolean>(false);
-
-  // Selected concept details
+  // Selected concept data
   const activeConceptData = useMemo(() => {
     if (!selectedNodeId) return null;
     return initialConceptDetails[selectedNodeId] || null;
   }, [selectedNodeId]);
 
-  // Compute connected nodes for highlighting
+  // Compute connected node IDs for highlighting
   const connectedNodeIds = useMemo(() => {
-    const targetId = hoveredNodeId || selectedNodeId;
-    if (!targetId) return new Set<string>();
+    if (!selectedNodeId) return new Set<string>();
 
     const connected = new Set<string>();
-    connected.add(targetId);
+    connected.add(selectedNodeId);
 
     edges.forEach((edge) => {
-      if (edge.source === targetId) connected.add(edge.target);
-      if (edge.target === targetId) connected.add(edge.source);
+      if (edge.source === selectedNodeId) connected.add(edge.target);
+      if (edge.target === selectedNodeId) connected.add(edge.source);
     });
 
     return connected;
-  }, [hoveredNodeId, selectedNodeId, edges]);
+  }, [selectedNodeId, edges]);
 
-  // Apply node highlighting, dimming, and category filters
+  // Apply node and edge focus states (Section 7 & 9)
   useEffect(() => {
     setNodes((prevNodes) =>
       prevNodes.map((node) => {
         const isSelected = node.id === selectedNodeId;
         const isConnected = connectedNodeIds.has(node.id);
-        const hasSelection = Boolean(hoveredNodeId || selectedNodeId);
+        const hasSelection = Boolean(selectedNodeId);
 
-        // Check filter matching
-        let matchesFilter = true;
-        if (activeFilter === 'CONCEPTS') {
-          matchesFilter = node.data.category === 'Foundation' || node.data.category === 'Paradigm';
-        } else if (activeFilter === 'PREREQUISITES') {
-          matchesFilter = Boolean(node.data.isPrerequisite);
-        } else if (activeFilter === 'APPLICATIONS') {
-          matchesFilter = node.data.category === 'Application';
-        } else if (activeFilter === 'METHODS') {
-          matchesFilter = node.data.category === 'Method' || node.data.category === 'Architecture';
-        }
-
-        const dimmed = (hasSelection && !isConnected) || !matchesFilter;
-        const highlighted = (hasSelection && isConnected && !isSelected) || (isSelected && matchesFilter);
+        const dimmed = hasSelection && !isConnected;
+        const highlighted = hasSelection && isConnected && !isSelected;
 
         return {
           ...node,
@@ -128,192 +85,201 @@ function FlowCanvas() {
       })
     );
 
-    // Apply edge highlighting
+    // Apply edge highlighting with directional arrows and green active states
     setEdges((prevEdges) =>
       prevEdges.map((edge) => {
-        const targetId = hoveredNodeId || selectedNodeId;
-        const isIncident = Boolean(targetId && (edge.source === targetId || edge.target === targetId));
+        const isIncident = Boolean(
+          selectedNodeId && (edge.source === selectedNodeId || edge.target === selectedNodeId)
+        );
+        const hasSelection = Boolean(selectedNodeId);
+        const isDimmed = hasSelection && !isIncident;
 
         return {
           ...edge,
           selected: isIncident,
-          animated: isIncident || edge.data?.relation === 'BASED_ON' || edge.data?.relation === 'USED_FOR',
+          style: {
+            stroke: isIncident ? '#B7FF2A' : isDimmed ? 'rgba(255, 255, 255, 0.05)' : '#303030',
+            strokeWidth: isIncident ? 1.75 : 1.25,
+            opacity: isDimmed ? 0.2 : 1
+          },
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            color: isIncident ? 'var(--accent-cyan)' : 'rgba(255, 255, 255, 0.4)',
-            width: 14,
-            height: 14
+            color: isIncident ? '#B7FF2A' : '#383838',
+            width: 12,
+            height: 12
           }
         };
       })
     );
-  }, [selectedNodeId, hoveredNodeId, activeFilter, connectedNodeIds, setNodes, setEdges]);
+  }, [selectedNodeId, connectedNodeIds, setNodes, setEdges]);
 
-  // Node Selection Handler
+  // Node Click Selection
   const onNodeClick: NodeMouseHandler = useCallback((_, node) => {
     setSelectedNodeId(node.id);
-    setIsRightPanelCollapsed(false);
+    setIsInspectorOpen(true);
   }, []);
 
-  const onNodeMouseEnter: NodeMouseHandler = useCallback((_, node) => {
-    setHoveredNodeId(node.id);
-  }, []);
-
-  const onNodeMouseLeave: NodeMouseHandler = useCallback(() => {
-    setHoveredNodeId(null);
-  }, []);
-
-  // Pane Click (Deselection)
+  // Background Click (Deselection)
   const onPaneClick = useCallback(() => {
-    setHoveredNodeId(null);
+    setSelectedNodeId(null);
+    setIsInspectorOpen(false);
   }, []);
 
-  // Smoothly focus on a node
+  // Focus on a specific node smoothly
   const handleFocusNode = useCallback((nodeId: string) => {
     const node = nodes.find((n) => n.id === nodeId);
     if (node) {
       setSelectedNodeId(nodeId);
-      setIsRightPanelCollapsed(false);
-      reactFlowInstance.setCenter(node.position.x + 110, node.position.y + 45, {
-        zoom: 1.15,
-        duration: 800
+      setIsInspectorOpen(true);
+      reactFlowInstance.setCenter(node.position.x + 120, node.position.y + 65, {
+        zoom: 1.1,
+        duration: 600
       });
     }
   }, [nodes, reactFlowInstance]);
 
-  // Handle Layout Switch (Hierarchical vs Organic)
-  const handleLayoutChange = useCallback((newLayout: GraphLayoutMode) => {
-    setLayoutMode(newLayout);
-    const coordsMap = newLayout === 'organic' ? organicPositions : hierarchicalPositions;
-
-    setNodes((prevNodes) =>
-      prevNodes.map((node) => ({
-        ...node,
-        position: coordsMap[node.id] || node.position
-      }))
-    );
-
-    setTimeout(() => {
-      reactFlowInstance.fitView({ padding: 0.18, duration: 600 });
-    }, 50);
-  }, [setNodes, reactFlowInstance]);
-
   // Fit View
   const handleFitView = useCallback(() => {
-    reactFlowInstance.fitView({ padding: 0.18, duration: 600 });
+    reactFlowInstance.fitView({ padding: 0.2, duration: 500 });
   }, [reactFlowInstance]);
 
   // Reset View
   const handleResetView = useCallback(() => {
-    handleLayoutChange('hierarchical');
-  }, [handleLayoutChange]);
+    setNodes(initialNodes);
+    setEdges(initialEdges);
+    setSelectedNodeId('dl');
+    setIsInspectorOpen(true);
+    setTimeout(() => {
+      reactFlowInstance.fitView({ padding: 0.2, duration: 600 });
+    }, 50);
+  }, [setNodes, setEdges, reactFlowInstance]);
 
-  // Toggle Focus Mode (Canvas Only)
-  const handleToggleFocusMode = useCallback(() => {
-    setIsFocusMode((prev) => {
-      const next = !prev;
-      setIsLeftSidebarCollapsed(next);
-      setIsRightPanelCollapsed(next);
-      return next;
+  // Zoom In / Out
+  const handleZoomIn = useCallback(() => {
+    reactFlowInstance.zoomIn({ duration: 300 });
+  }, [reactFlowInstance]);
+
+  const handleZoomOut = useCallback(() => {
+    reactFlowInstance.zoomOut({ duration: 300 });
+  }, [reactFlowInstance]);
+
+  // Add concept node freely to canvas (Section 12)
+  const handleAddNode = useCallback(() => {
+    const newId = `concept-${Date.now().toString().slice(-4)}`;
+    const center = reactFlowInstance.screenToFlowPosition({
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2
     });
-  }, []);
 
-  // Node color helper for MiniMap
-  const nodeColor = useCallback((node: Node) => {
-    const cat = (node.data as unknown as GraphConceptData)?.category;
-    switch (cat) {
-      case 'Foundation': return '#00f2fe';
-      case 'Paradigm': return '#818cf8';
-      case 'Architecture': return '#10b981';
-      case 'Method': return '#f59e0b';
-      case 'Application': return '#f43f5e';
-      default: return '#64748b';
-    }
-  }, []);
+    const newNode: Node<GraphConceptData> = {
+      id: newId,
+      type: 'conceptNode',
+      position: { x: center.x - 120, y: center.y - 65 },
+      data: {
+        id: newId,
+        label: 'New Concept',
+        code: 'NEW',
+        category: 'Method',
+        description: 'Double click to edit or define relationship linkages to other concepts on the canvas.',
+        prerequisites: [],
+        relationships: [],
+        confidence: 90,
+        source: 'User Note.txt',
+        synapseCount: 0
+      }
+    };
 
-  const allConceptDetailsList = useMemo(() => {
-    return Object.values(initialConceptDetails);
-  }, []);
+    setNodes((nds) => [...nds, newNode]);
+    setSelectedNodeId(newId);
+    setIsInspectorOpen(true);
+  }, [reactFlowInstance, setNodes]);
+
+  const searchItems = useMemo(() => {
+    return nodes.map((n) => ({
+      id: n.id,
+      label: n.data.label,
+      category: n.data.category,
+      code: n.data.code
+    }));
+  }, [nodes]);
+
+  // Empty state handling (Section 13)
+  if (nodes.length === 0) {
+    return (
+      <div className="graph-empty-canvas-container">
+        <div className="graph-empty-box">
+          <h2 className="graph-empty-title">Your knowledge graph is empty.</h2>
+          <p className="graph-empty-desc">
+            Upload your notes, lecture slides, PDFs, or text and GraphMind will turn them into connected concepts.
+          </p>
+          <button 
+            className="btn-primary"
+            onClick={onOpenUpload || handleResetView}
+          >
+            <UploadCloud size={14} />
+            <span>Upload material</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="graph-page-container">
-      {/* Top Toolbar */}
+    <div className="freeform-graph-container" id="knowledge-graph-workspace">
+      {/* Minimal Floating Toolbar (Section 12) */}
       <GraphToolbar
         onSearchSelect={handleFocusNode}
-        activeFilter={activeFilter}
-        onFilterChange={setActiveFilter}
-        currentLayout={layoutMode}
-        onLayoutChange={handleLayoutChange}
         onFitView={handleFitView}
         onResetView={handleResetView}
-        isFocusMode={isFocusMode}
-        onToggleFocusMode={handleToggleFocusMode}
-        availableNodes={allConceptDetailsList}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onAddNode={handleAddNode}
+        availableNodes={searchItems}
       />
 
-      {/* 3-Pane Body: Left Sidebar + Center Hero Canvas + Right Context Panel */}
-      <div className="graph-workspace-body">
-        {/* Left Navigator Sidebar */}
-        <GraphSidebarLeft
-          concepts={allConceptDetailsList}
-          selectedConceptId={selectedNodeId}
-          onSelectConcept={handleFocusNode}
-          isCollapsed={isLeftSidebarCollapsed}
-          onToggleCollapse={() => setIsLeftSidebarCollapsed((prev) => !prev)}
-        />
+      {/* Dominant Freeform Canvas (Section 1 & 3) */}
+      <main className="freeform-canvas-hero">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onNodeClick={onNodeClick}
+          onPaneClick={onPaneClick}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          fitView
+          fitViewOptions={{ padding: 0.2 }}
+          minZoom={0.25}
+          maxZoom={2.4}
+          proOptions={{ hideAttribution: true }}
+          defaultEdgeOptions={{ type: 'custom' }}
+        >
+          <Background 
+            variant={BackgroundVariant.Dots} 
+            gap={32} 
+            size={1} 
+            color="rgba(255, 255, 255, 0.05)" 
+          />
+        </ReactFlow>
+      </main>
 
-        {/* Center Interactive Canvas (HERO) */}
-        <main className="graph-canvas-hero" id="knowledge-graph-canvas">
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onNodeClick={onNodeClick}
-            onNodeMouseEnter={onNodeMouseEnter}
-            onNodeMouseLeave={onNodeMouseLeave}
-            onPaneClick={onPaneClick}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            fitView
-            fitViewOptions={{ padding: 0.18 }}
-            minZoom={0.3}
-            maxZoom={2.2}
-            proOptions={{ hideAttribution: true }}
-          >
-            <Background 
-              variant={BackgroundVariant.Dots} 
-              gap={28} 
-              size={1} 
-              color="rgba(255, 255, 255, 0.08)" 
-            />
-            <Controls showInteractive={false} />
-            <MiniMap
-              nodeColor={nodeColor}
-              nodeStrokeWidth={2}
-              zoomable
-              pannable
-            />
-          </ReactFlow>
-        </main>
-
-        {/* Right Context Panel (Opens when node is selected) */}
-        <NodeContextPanel
-          concept={activeConceptData}
-          onClose={() => setIsRightPanelCollapsed(true)}
-          onSelectConcept={handleFocusNode}
-          onFocusNode={handleFocusNode}
-          isCollapsed={isRightPanelCollapsed}
-        />
-      </div>
+      {/* Compact Floating Contextual Inspector (Section 7) */}
+      <NodeContextPanel
+        concept={activeConceptData}
+        onClose={() => setIsInspectorOpen(false)}
+        onSelectConcept={handleFocusNode}
+        onFocusNode={handleFocusNode}
+        isCollapsed={!isInspectorOpen || !selectedNodeId}
+      />
     </div>
   );
 }
 
-export function KnowledgeGraphWorkspace() {
+export function KnowledgeGraphWorkspace({ onOpenUpload }: KnowledgeGraphWorkspaceProps) {
   return (
     <ReactFlowProvider>
-      <FlowCanvas />
+      <FlowCanvas onOpenUpload={onOpenUpload} />
     </ReactFlowProvider>
   );
 }

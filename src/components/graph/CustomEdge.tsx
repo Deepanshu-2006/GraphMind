@@ -31,9 +31,10 @@ export const CustomEdge = memo(({
         path={edgePath}
         markerEnd={markerEnd}
         style={{
-          stroke: selected ? 'var(--accent-cyan)' : 'rgba(255, 255, 255, 0.22)',
-          strokeWidth: selected ? 2.5 : 1.5,
-          filter: selected ? 'drop-shadow(0 0 6px rgba(0, 242, 254, 0.5))' : undefined,
+          stroke: selected ? 'var(--accent)' : '#303030',
+          strokeWidth: selected ? 1.75 : 1.25,
+          opacity: selected ? 1 : 0.8,
+          transition: 'stroke 180ms ease, stroke-width 180ms ease, opacity 180ms ease',
           ...style,
         }}
       />
@@ -45,7 +46,7 @@ export const CustomEdge = memo(({
               transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
               pointerEvents: 'all',
             }}
-            className={`edge-label-badge ${selected ? 'active' : ''}`}
+            className={`edge-semantic-badge ${selected ? 'active' : ''}`}
           >
             {label}
           </div>
