@@ -152,6 +152,29 @@ export interface ConceptExtractionResult {
 }
 
 /**
+ * Concept Normalization Models (Day 2 Step 5)
+ * Flow: RAW EXTRACTED CONCEPTS → CANONICAL CONCEPTS
+ */
+export interface CanonicalConcept {
+  id: string;
+  name: string;
+  type: ConceptCandidateType;
+  description: string;
+  sourceIds: string[];
+  sourceChunkIds: string[];
+  occurrences: number;
+  confidence: number;
+  aliases?: string[];
+}
+
+export interface NormalizationResult {
+  success: boolean;
+  canonicalConcepts: CanonicalConcept[];
+  rawCount: number;
+  mergedCount: number;
+}
+
+/**
  * Knowledge Graph Query & Traversal Utilities
  */
 
