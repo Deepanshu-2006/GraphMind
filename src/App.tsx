@@ -16,7 +16,7 @@ import {
 import { defaultKnowledgeGraph, demoKnowledgeGraph } from './data/graphData';
 import type { KnowledgeSource, KnowledgeGraph } from './types/knowledgeGraph';
 import { sourceToRecentMaterial } from './services/sourceIngestion';
-import { pipelineOrchestrator, type PipelineStage } from './services/pipelineOrchestrator';
+import { pipelineOrchestrator, type PipelineStage, type PipelineProgressEvent } from './services/pipelineOrchestrator';
 import type { NavSection, RecentMaterial } from './types';
 
 export function App() {
@@ -49,6 +49,7 @@ export function App() {
   const [pipelineStage, setPipelineStage] = useState<PipelineStage>('complete');
   const [pipelineStatusMessage, setPipelineStatusMessage] = useState<string>('');
   const [pipelineError, setPipelineError] = useState<string | undefined>(undefined);
+  const [livePipelineEvent, setLivePipelineEvent] = useState<PipelineProgressEvent | null>(null);
 
   // Active graph: strictly userGraph when in 'user' mode, demoGraph when in 'demo' mode
   const activeGraph = graphSourceType === 'user' && userGraph ? userGraph : demoGraph;
@@ -98,8 +99,14 @@ export function App() {
     setHasGraphContent(true);
     setPipelineError(undefined);
     setPipelineStage('reading');
-    setPipelineStatusMessage('Reading your sources…');
-    setGraphMode('loading');
+    setPipelineStatusMessage('Reading your material…');
+    setLivePipelineEvent({
+      stage: 'reading',
+      message: 'Reading your material…',
+      timestamp: Date.now()
+    });
+    setGraphMode('crafting');
+    setGraphSourceType('user');
     navigateToSection('graph');
 
     // Combine ONLY with previously uploaded user sources (never with demo sources!)
@@ -118,6 +125,7 @@ export function App() {
         onProgress: (evt) => {
           setPipelineStage(evt.stage);
           setPipelineStatusMessage(evt.message);
+          setLivePipelineEvent(evt);
         }
       });
 
@@ -125,19 +133,35 @@ export function App() {
         setUserGraph(result.graph);
         setGraphSourceType('user');
         setPipelineStage('complete');
-        setPipelineStatusMessage('Knowledge graph ready.');
+        setPipelineStatusMessage('Graph ready.');
+        setLivePipelineEvent({
+          stage: 'complete',
+          message: 'Graph ready.',
+          timestamp: Date.now(),
+          partialGraph: result.graph
+        });
         setGraphMode('interactive');
       } else {
         const errorMsg = result.error?.message || 'Failed to construct knowledge graph from uploaded material.';
         setPipelineStage('error');
         setPipelineError(errorMsg);
         setPipelineStatusMessage(errorMsg);
+        setLivePipelineEvent({
+          stage: 'error',
+          message: errorMsg,
+          timestamp: Date.now()
+        });
       }
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred during processing.';
       setPipelineStage('error');
       setPipelineError(errorMsg);
       setPipelineStatusMessage(errorMsg);
+      setLivePipelineEvent({
+        stage: 'error',
+        message: errorMsg,
+        timestamp: Date.now()
+      });
     }
   };
 
@@ -200,9 +224,11 @@ export function App() {
             pipelineStage={pipelineStage}
             pipelineStatusMessage={pipelineStatusMessage}
             pipelineError={pipelineError}
+            livePipelineEvent={livePipelineEvent}
             onClearError={() => {
               setPipelineError(undefined);
               setPipelineStage('complete');
+              setLivePipelineEvent(null);
             }}
           />
         )}

@@ -9,7 +9,7 @@ import {
   ReactFlowProvider,
   MarkerType
 } from '@xyflow/react';
-import type { Node, NodeMouseHandler, EdgeMouseHandler } from '@xyflow/react';
+import type { Node, Edge, NodeMouseHandler, EdgeMouseHandler } from '@xyflow/react';
 import { Plus } from 'lucide-react';
 import { ThinkingOrb } from 'thinking-orbs';
 
@@ -22,11 +22,12 @@ import {
   initialNodes, 
   initialEdges, 
   initialConceptDetails,
-  knowledgeGraphToReactFlow 
+  knowledgeGraphToReactFlow,
+  normalizeCategory 
 } from '../../data/graphData';
 import type { KnowledgeGraph } from '../../types/knowledgeGraph';
 import type { GraphConceptData, SelectedRelationshipData } from '../../types/graph';
-import type { PipelineStage } from '../../services/pipelineOrchestrator';
+import type { PipelineStage, PipelineProgressEvent } from '../../services/pipelineOrchestrator';
 
 const nodeTypes = {
   conceptNode: ConceptNode
@@ -49,36 +50,37 @@ export interface KnowledgeGraphWorkspaceProps {
   pipelineStatusMessage?: string;
   pipelineError?: string;
   onClearError?: () => void;
+  livePipelineEvent?: PipelineProgressEvent | null;
 }
 
-// Progressive Crafting Steps (Prompt 8, Section 3 & 5)
-const CRAFTING_SEQUENCE = [
+// Progressive Crafting Steps (Prompt 22: Contextual processing copy)
+const DEFAULT_CRAFTING_SEQUENCE = [
   {
     stage: 0,
-    status: 'Reading your sources…',
+    status: 'Reading your material…',
     nodeIds: ['ml', 'dl'],
     edgeIds: ['e-ml-dl'],
     newNodes: ['ml', 'dl'],
     activeNodeId: 'ml',
-    duration: 3200
+    duration: 2400
   },
   {
     stage: 1,
-    status: 'Discovering core concepts…',
+    status: 'Finding concepts…',
     nodeIds: ['ml', 'dl', 'nn', 'cnn', 'rnn'],
     edgeIds: ['e-ml-dl', 'e-dl-nn', 'e-nn-cnn', 'e-nn-rnn'],
     newNodes: ['nn', 'cnn', 'rnn'],
     activeNodeId: 'nn',
-    duration: 3500
+    duration: 2600
   },
   {
     stage: 2,
-    status: 'Connecting relationships…',
+    status: 'Connecting ideas…',
     nodeIds: ['ml', 'dl', 'nn', 'cnn', 'rnn'],
     edgeIds: ['e-ml-dl', 'e-dl-nn', 'e-nn-cnn', 'e-nn-rnn'],
     newNodes: [],
     activeNodeId: 'dl',
-    duration: 3000
+    duration: 2200
   },
   {
     stage: 3,
@@ -87,7 +89,7 @@ const CRAFTING_SEQUENCE = [
     edgeIds: ['e-ml-dl', 'e-dl-nn', 'e-nn-cnn', 'e-nn-rnn', 'e-attn-tf', 'e-dl-tf', 'e-tf-nlp', 'e-cnn-cv'],
     newNodes: ['attn', 'tf', 'cv', 'nlp'],
     activeNodeId: 'tf',
-    duration: 3200
+    duration: 2400
   },
   {
     stage: 4,
@@ -96,7 +98,7 @@ const CRAFTING_SEQUENCE = [
     edgeIds: ['e-ml-dl', 'e-dl-nn', 'e-nn-cnn', 'e-nn-rnn', 'e-attn-tf', 'e-dl-tf', 'e-tf-nlp', 'e-cnn-cv'],
     newNodes: [],
     activeNodeId: 'dl',
-    duration: 1800
+    duration: 1500
   }
 ];
 
@@ -110,7 +112,8 @@ function FlowCanvas({
   pipelineStage,
   pipelineStatusMessage,
   pipelineError,
-  onClearError
+  onClearError,
+  livePipelineEvent
 }: KnowledgeGraphWorkspaceProps) {
   const reactFlowInstance = useReactFlow();
 
@@ -130,11 +133,30 @@ function FlowCanvas({
     };
   }, [graph]);
 
-  const [mode, setMode] = useState<WorkspaceMode>(initialMode);
+  const [internalMode, setMode] = useState<WorkspaceMode>(initialMode);
   const [statusMessage, setStatusMessage] = useState<string>('');
+  const displayStatusMessage = livePipelineEvent?.message || statusMessage || pipelineStatusMessage || '';
+
+  const isLiveProcessing = Boolean(
+    livePipelineEvent &&
+    livePipelineEvent.stage !== 'complete' &&
+    livePipelineEvent.stage !== 'error'
+  );
+  const isLiveComplete = livePipelineEvent?.stage === 'complete';
+
+  const mode: WorkspaceMode = isLiveProcessing
+    ? 'crafting'
+    : isLiveComplete
+    ? 'interactive'
+    : internalMode;
+
   const [isLoadingOrbVisible, setIsLoadingOrbVisible] = useState<boolean>(false);
   const [isOverlayMounted, setIsOverlayMounted] = useState<boolean>(false);
   const [isCanvasDimmed, setIsCanvasDimmed] = useState<boolean>(false);
+
+  const effectiveOverlayMounted = isLiveProcessing ? true : isOverlayMounted;
+  const effectiveLoadingOrbVisible = isLiveProcessing ? true : isLoadingOrbVisible;
+  const effectiveCanvasDimmed = isLiveProcessing ? true : isCanvasDimmed;
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<GraphConceptData>>(effectiveNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(effectiveEdges);
@@ -189,58 +211,56 @@ function FlowCanvas({
     let currentStep = 0;
     const totalNodes = effectiveNodes.length;
 
-    let sequenceToRun = CRAFTING_SEQUENCE;
-    if (totalNodes > 0 && effectiveNodes[0]?.id !== 'ml') {
-      const stage0Count = Math.max(1, Math.ceil(totalNodes * 0.3));
-      const stage1Count = Math.max(1, Math.ceil(totalNodes * 0.6));
-      sequenceToRun = [
-        {
-          stage: 0,
-          status: 'Reading your sources…',
-          nodeIds: effectiveNodes.slice(0, stage0Count).map((n) => n.id),
-          edgeIds: effectiveEdges.filter((e) => effectiveNodes.slice(0, stage0Count).some((n) => n.id === e.source)).map((e) => e.id),
-          newNodes: effectiveNodes.slice(0, stage0Count).map((n) => n.id),
-          activeNodeId: effectiveNodes[0]?.id,
-          duration: 2500
-        },
-        {
-          stage: 1,
-          status: 'Discovering core concepts…',
-          nodeIds: effectiveNodes.slice(0, stage1Count).map((n) => n.id),
-          edgeIds: effectiveEdges.filter((e) => effectiveNodes.slice(0, stage1Count).some((n) => n.id === e.source)).map((e) => e.id),
-          newNodes: effectiveNodes.slice(stage0Count, stage1Count).map((n) => n.id),
-          activeNodeId: effectiveNodes[Math.min(1, totalNodes - 1)]?.id,
-          duration: 2500
-        },
-        {
-          stage: 2,
-          status: 'Connecting relationships…',
-          nodeIds: effectiveNodes.slice(0, stage1Count).map((n) => n.id),
-          edgeIds: effectiveEdges.slice(0, Math.ceil(effectiveEdges.length * 0.7)).map((e) => e.id),
-          newNodes: [],
-          activeNodeId: effectiveNodes[0]?.id,
-          duration: 2500
-        },
-        {
-          stage: 3,
-          status: 'Crafting your knowledge graph…',
-          nodeIds: effectiveNodes.map((n) => n.id),
-          edgeIds: effectiveEdges.map((e) => e.id),
-          newNodes: effectiveNodes.slice(stage1Count).map((n) => n.id),
-          activeNodeId: effectiveNodes[effectiveNodes.length - 1]?.id,
-          duration: 2500
-        },
-        {
-          stage: 4,
-          status: 'Graph ready.',
-          nodeIds: effectiveNodes.map((n) => n.id),
-          edgeIds: effectiveEdges.map((e) => e.id),
-          newNodes: [],
-          activeNodeId: effectiveNodes[0]?.id,
-          duration: 1500
-        }
-      ];
-    }
+    const stage0Count = Math.max(1, Math.min(2, totalNodes));
+    const stage1Count = Math.max(stage0Count, Math.min(5, Math.ceil(totalNodes * 0.6)));
+
+    const sequenceToRun = totalNodes > 0 ? [
+      {
+        stage: 0,
+        status: 'Reading your material…',
+        nodeIds: effectiveNodes.slice(0, stage0Count).map((n) => n.id),
+        edgeIds: [],
+        newNodes: effectiveNodes.slice(0, stage0Count).map((n) => n.id),
+        activeNodeId: effectiveNodes[0]?.id,
+        duration: 2000
+      },
+      {
+        stage: 1,
+        status: 'Finding concepts…',
+        nodeIds: effectiveNodes.slice(0, stage1Count).map((n) => n.id),
+        edgeIds: effectiveEdges.slice(0, Math.min(1, effectiveEdges.length)).map((e) => e.id),
+        newNodes: effectiveNodes.slice(stage0Count, stage1Count).map((n) => n.id),
+        activeNodeId: effectiveNodes[Math.min(1, totalNodes - 1)]?.id,
+        duration: 2400
+      },
+      {
+        stage: 2,
+        status: 'Connecting ideas…',
+        nodeIds: effectiveNodes.map((n) => n.id),
+        edgeIds: effectiveEdges.slice(0, Math.ceil(effectiveEdges.length * 0.7)).map((e) => e.id),
+        newNodes: effectiveNodes.slice(stage1Count).map((n) => n.id),
+        activeNodeId: effectiveNodes[0]?.id,
+        duration: 2400
+      },
+      {
+        stage: 3,
+        status: 'Crafting your knowledge graph…',
+        nodeIds: effectiveNodes.map((n) => n.id),
+        edgeIds: effectiveEdges.map((e) => e.id),
+        newNodes: [],
+        activeNodeId: effectiveNodes[effectiveNodes.length - 1]?.id,
+        duration: 2400
+      },
+      {
+        stage: 4,
+        status: 'Graph ready.',
+        nodeIds: effectiveNodes.map((n) => n.id),
+        edgeIds: effectiveEdges.map((e) => e.id),
+        newNodes: [],
+        activeNodeId: effectiveNodes[0]?.id,
+        duration: 1500
+      }
+    ] : DEFAULT_CRAFTING_SEQUENCE;
 
     const executeStep = (stepIdx: number) => {
       const step = sequenceToRun[stepIdx];
@@ -269,17 +289,19 @@ function FlowCanvas({
 
       // Build active subset of edges
       const activeEdgeMap = new Set(step.edgeIds);
+      const isSettled = stepIdx >= 4;
+      const isFilament = stepIdx < 3;
+
       const nextEdges = effectiveEdges
         .filter((e) => activeEdgeMap.has(e.id))
         .map((edge) => {
-          const isFilament = stepIdx < 2;
           return {
             ...edge,
             className: isFilament ? 'crafting-filament-edge' : '',
             style: {
-              stroke: isFilament ? 'rgba(163, 255, 18, 0.45)' : '#A3FF12',
-              strokeWidth: isFilament ? 1.5 : 1.75,
-              opacity: isFilament ? 0.75 : 1
+              stroke: isSettled ? '#333333' : '#A3FF12',
+              strokeWidth: isSettled ? 1.25 : 1.75,
+              opacity: isSettled ? 1 : 0.95
             },
             markerEnd: isFilament
               ? undefined
@@ -287,7 +309,7 @@ function FlowCanvas({
                   type: MarkerType.ArrowClosed,
                   width: 14,
                   height: 14,
-                  color: '#A3FF12'
+                  color: isSettled ? '#444444' : '#A3FF12'
                 }
           };
         });
@@ -337,6 +359,220 @@ function FlowCanvas({
     };
   }, []);
 
+  // -----------------------------------------------------------------------
+  // REAL PROCESSING PIPELINE TO VISUAL CRAFTING (Prompt 22)
+  // Maps actual pipeline stages to visual events with zero fake progress:
+  // reading -> initial canvas preparation
+  // extracting-concepts -> concepts begin appearing progressively
+  // normalizing -> duplicate concepts merge/refine
+  // mapping-relationships -> relationships appear with GraphMind green accent
+  // building-graph -> nodes settle into final spatial structure
+  // complete -> final graph becomes interactive, selection & inspector enabled
+  // -----------------------------------------------------------------------
+  const livePositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+
+  useEffect(() => {
+    if (!livePipelineEvent) return;
+
+    const { stage, intermediateCanonicalConcepts, newlyAddedConceptIds, intermediateRelationships, partialGraph } = livePipelineEvent;
+
+    if (stage === 'reading') {
+      // 1. reading → initial canvas preparation
+      if (craftingTimerRef.current) clearTimeout(craftingTimerRef.current);
+      if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+      livePositionsRef.current.clear();
+      setNodes([]);
+      setEdges([]);
+    } else if (stage === 'extracting-concepts') {
+      // 2. extracting concepts → concepts begin appearing progressively
+      if (intermediateCanonicalConcepts && intermediateCanonicalConcepts.length > 0) {
+        const newlyAddedSet = new Set(newlyAddedConceptIds || []);
+        const centerX = 480;
+        const centerY = 320;
+
+        const progressiveNodes: Node<GraphConceptData>[] = intermediateCanonicalConcepts.map((concept, index) => {
+          let pos = livePositionsRef.current.get(concept.id) || livePositionsRef.current.get(concept.name.toLowerCase());
+          if (!pos) {
+            // Natural golden-ratio spiral distribution around center
+            const goldenAngle = 2.39996;
+            const angle = index * goldenAngle;
+            const radius = 150 + Math.sqrt(index + 1) * 75;
+            pos = {
+              x: Math.round(centerX + radius * Math.cos(angle)),
+              y: Math.round(centerY + radius * Math.sin(angle) * 0.75)
+            };
+            livePositionsRef.current.set(concept.id, pos);
+            livePositionsRef.current.set(concept.name.toLowerCase(), pos);
+          }
+
+          const category = normalizeCategory(concept.type);
+          const isNew = newlyAddedSet.has(concept.name) || newlyAddedSet.has(concept.id);
+
+          return {
+            id: concept.id,
+            type: 'conceptNode',
+            position: pos,
+            data: {
+              id: concept.id,
+              label: concept.name,
+              code: concept.id.toUpperCase(),
+              category,
+              description: concept.description,
+              prerequisites: [],
+              relationships: [],
+              confidence: 96,
+              source: concept.sourceIds?.[0] || 'Uploaded Material',
+              synapseCount: 0,
+              isPrerequisite: category === 'Foundation' || category === 'Paradigm',
+              isMethod: category === 'Method' || category === 'Architecture',
+              isApplication: category === 'Application',
+              craftingNew: isNew,
+              craftingActive: false,
+              selected: false,
+              highlighted: false,
+              dimmed: false
+            }
+          };
+        });
+
+        setNodes(progressiveNodes);
+
+        setTimeout(() => {
+          reactFlowInstance.fitView({ padding: 0.35, duration: 600 });
+        }, 50);
+      }
+    } else if (stage === 'normalizing') {
+      // 3. normalizing concepts → duplicate concepts merge/refine
+      if (intermediateCanonicalConcepts && intermediateCanonicalConcepts.length > 0) {
+        setNodes((prevNodes) => {
+          const canonicalMap = new Map(intermediateCanonicalConcepts.map((c) => [c.id, c]));
+          return prevNodes
+            .filter((n) => canonicalMap.has(n.id))
+            .map((n) => {
+              const canon = canonicalMap.get(n.id)!;
+              return {
+                ...n,
+                data: {
+                  ...n.data,
+                  label: canon.name,
+                  category: normalizeCategory(canon.type),
+                  description: canon.description,
+                  craftingNew: false
+                }
+              };
+            });
+        });
+      }
+    } else if (stage === 'mapping-relationships') {
+      // 4. mapping relationships → relationships begin appearing with GraphMind green accent
+      if (intermediateRelationships && intermediateRelationships.length > 0) {
+        const liveEdges: Edge[] = intermediateRelationships.map((rel) => {
+          const edgeId = rel.id.startsWith('rel-')
+            ? rel.id.replace('rel-', 'e-')
+            : (rel.id.startsWith('e-') ? rel.id : `e-${rel.source}-${rel.target}`);
+          const label = rel.label || rel.type;
+
+          return {
+            id: edgeId,
+            source: rel.source,
+            target: rel.target,
+            type: 'custom',
+            label,
+            className: 'crafting-filament-edge',
+            style: {
+              stroke: '#A3FF12',
+              strokeWidth: 1.75,
+              opacity: 0.95
+            },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              width: 14,
+              height: 14,
+              color: '#A3FF12'
+            },
+            data: {
+              id: rel.id,
+              relation: label,
+              description: rel.description,
+              sourceIds: rel.sourceIds,
+              sourceChunkIds: rel.sourceChunkIds
+            }
+          };
+        });
+
+        setEdges(liveEdges);
+      }
+    } else if (stage === 'building-graph') {
+      // 5. building graph → nodes settle into their final spatial structure
+      if (partialGraph && partialGraph.nodes.length > 0) {
+        const rf = knowledgeGraphToReactFlow(partialGraph);
+        setNodes(
+          rf.nodes.map((n) => ({
+            ...n,
+            data: {
+              ...n.data,
+              craftingNew: false,
+              craftingActive: false
+            }
+          }))
+        );
+        setEdges(
+          rf.edges.map((e) => ({
+            ...e,
+            className: 'crafting-filament-edge',
+            style: {
+              stroke: '#A3FF12',
+              strokeWidth: 1.75,
+              opacity: 0.95
+            },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              width: 14,
+              height: 14,
+              color: '#A3FF12'
+            }
+          }))
+        );
+
+        setTimeout(() => {
+          reactFlowInstance.fitView({ padding: 0.28, duration: 750 });
+        }, 50);
+      }
+    } else if (stage === 'complete') {
+      // 6. complete → final graph becomes interactive, settled, edges return to normal
+      if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+      fadeTimerRef.current = setTimeout(() => {
+        setIsOverlayMounted(false);
+        setIsLoadingOrbVisible(false);
+        setIsCanvasDimmed(false);
+      }, 700);
+
+      const targetGraph = partialGraph || graph;
+      if (targetGraph && targetGraph.nodes.length > 0) {
+        const rf = knowledgeGraphToReactFlow(targetGraph);
+        setNodes(rf.nodes);
+        setEdges(rf.edges);
+        setTimeout(() => {
+          setSelectedNodeId(rf.nodes[0]?.id || null);
+          setIsInspectorOpen(true);
+        }, 50);
+      }
+
+      setTimeout(() => {
+        reactFlowInstance.fitView({ padding: 0.22, duration: 600 });
+      }, 80);
+    } else if (stage === 'error') {
+      // 7. error → preserve useful error state created earlier
+      setEdges((prev) =>
+        prev.map((e) => ({
+          ...e,
+          className: '',
+          style: { stroke: '#333333', strokeWidth: 1.25 }
+        }))
+      );
+    }
+  }, [livePipelineEvent, graph, reactFlowInstance, setNodes, setEdges]);
+
   // Full Loading Orb with crafting visible behind at less opacity -> progressive crafting -> interactive
   const handleStartFullSequence = useCallback(() => {
     runCraftingAnimation(true);
@@ -344,6 +580,8 @@ function FlowCanvas({
 
   // When initialMode changes
   useEffect(() => {
+    if (livePipelineEvent) return;
+
     const timer = setTimeout(() => {
       if (initialMode === 'loading') {
         handleStartFullSequence();
@@ -366,7 +604,7 @@ function FlowCanvas({
       }
     }, 20);
     return () => clearTimeout(timer);
-  }, [initialMode, handleStartFullSequence, runCraftingAnimation, setEdges, setNodes, effectiveNodes, effectiveEdges]);
+  }, [initialMode, livePipelineEvent, handleStartFullSequence, runCraftingAnimation, setEdges, setNodes, effectiveNodes, effectiveEdges]);
 
   // Apply node focus states in interactive mode
   useEffect(() => {
@@ -543,10 +781,10 @@ function FlowCanvas({
   return (
     <div className="freeform-graph-container" id="knowledge-graph-workspace">
       {/* 1. Processing Status Banner (Prompt 8, Section 5 - shown once loading orb dissolves or in direct crafting) */}
-      {mode === 'crafting' && !isLoadingOrbVisible && statusMessage && (
+      {mode === 'crafting' && !isLoadingOrbVisible && displayStatusMessage && (
         <div className="graph-crafting-indicator" role="status" aria-live="polite">
           <span className="crafting-indicator-dot" />
-          <span className="crafting-indicator-text">{statusMessage}</span>
+          <span className="crafting-indicator-text">{displayStatusMessage}</span>
         </div>
       )}
 
@@ -590,7 +828,7 @@ function FlowCanvas({
         </button>
         <button
           type="button"
-          className={`mode-btn ${isOverlayMounted || (mode === 'crafting' && isLoadingOrbVisible) ? 'active' : ''}`}
+          className={`mode-btn ${effectiveOverlayMounted || (mode === 'crafting' && effectiveLoadingOrbVisible) ? 'active' : ''}`}
           onClick={handleSwitchToLoading}
           title="Loading orb with crafting visible behind"
         >
@@ -629,7 +867,7 @@ function FlowCanvas({
       )}
 
       {/* Continuous ReactFlow Canvas with reduced opacity while loading orb is active */}
-      <div className={`freeform-canvas-wrapper ${isCanvasDimmed ? 'dimmed-crafting' : ''}`}>
+      <div className={`freeform-canvas-wrapper ${effectiveCanvasDimmed ? 'dimmed-crafting' : ''}`}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -699,9 +937,9 @@ function FlowCanvas({
       )}
 
       {/* 3. LOADING STATE OVERLAY (Sleek horizontal glass pill HUD with unobstructed crafting constellation weaving behind) */}
-      {isOverlayMounted && (
+      {effectiveOverlayMounted && (
         <div 
-          className={`graph-canvas-overlay loading-overlay ${!isLoadingOrbVisible ? 'fade-out' : ''}`} 
+          className={`graph-canvas-overlay loading-overlay ${!effectiveLoadingOrbVisible ? 'fade-out' : ''}`} 
           id="graph-loading-overlay"
         >
           <div className="graph-loading-hud-pill">
@@ -737,7 +975,7 @@ function FlowCanvas({
               <div className="graph-loading-badge">
                 <span className={`badge-pulse-dot ${pipelineStage === 'error' ? 'error-dot' : ''}`} />
                 <span className="badge-text">
-                  {pipelineError || pipelineStatusMessage || statusMessage || 'Reading your sources…'}
+                  {pipelineError || pipelineStatusMessage || statusMessage || 'Reading your material…'}
                 </span>
               </div>
             </div>

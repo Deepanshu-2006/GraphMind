@@ -53,11 +53,13 @@
 
 .react-flow__node {
   cursor: grab;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .react-flow__node.dragging {
   cursor: grabbing;
   z-index: 1000 !important;
+  transition: none !important;
 }
 
 .knowledge-node-card {

@@ -52,13 +52,13 @@ export type PipelineStage =
   | 'error';
 
 export const PIPELINE_STAGE_LABELS: Record<PipelineStage, string> = {
-  'reading': 'Reading your sources…',
-  'extracting-concepts': 'Extracting core concepts…',
-  'normalizing': 'Normalizing canonical entities…',
-  'mapping-relationships': 'Mapping semantic relationships…',
-  'building-graph': 'Building knowledge graph…',
-  'complete': 'Knowledge graph ready.',
-  'error': 'Pipeline processing failed.'
+  'reading': 'Reading your material…',
+  'extracting-concepts': 'Finding concepts…',
+  'normalizing': 'Connecting ideas…',
+  'mapping-relationships': 'Connecting ideas…',
+  'building-graph': 'Crafting your knowledge graph…',
+  'complete': 'Graph ready.',
+  'error': 'Failed to process learning material.'
 };
 
 export interface PipelineProgressEvent {
@@ -69,6 +69,10 @@ export interface PipelineProgressEvent {
   conceptsExtracted?: number;
   relationshipsMapped?: number;
   timestamp: number;
+  intermediateCanonicalConcepts?: CanonicalConcept[];
+  newlyAddedConceptIds?: string[];
+  intermediateRelationships?: KnowledgeRelationship[];
+  partialGraph?: KnowledgeGraph;
 }
 
 export type PipelineErrorCode = 
@@ -256,9 +260,47 @@ export class PipelineOrchestrator {
 
       let rawCandidates: ConceptCandidate[] = [];
       try {
-        rawCandidates = await extractConceptsFromChunks(allChunks, options.conceptExtraction);
+        const seenKeys = new Set<string>();
+        // Process chunks with incremental live candidate emission
+        for (let i = 0; i < allChunks.length; i++) {
+          const chunk = allChunks[i];
+          const chunkCandidates = await extractConceptsFromChunks([chunk], options.conceptExtraction);
+          const newlyAdded: ConceptCandidate[] = [];
+
+          for (const cand of chunkCandidates) {
+            const key = cand.name.toLowerCase().trim();
+            if (!seenKeys.has(key)) {
+              seenKeys.add(key);
+              rawCandidates.push(cand);
+              newlyAdded.push(cand);
+            }
+          }
+
+          if (newlyAdded.length > 0) {
+            // Progressive batching so user visually watches concepts emerge
+            const batchSize = typeof window !== 'undefined' ? 2 : newlyAdded.length;
+            for (let b = 0; b < newlyAdded.length; b += batchSize) {
+              const currentSlice = newlyAdded.slice(b, b + batchSize);
+              const sliceLast = currentSlice[currentSlice.length - 1];
+              const runningCandidates = rawCandidates.slice(
+                0,
+                rawCandidates.indexOf(sliceLast) + 1
+              );
+              const intermediateCanonical = normalizeConcepts(runningCandidates);
+
+              notify('extracting-concepts', PIPELINE_STAGE_LABELS['extracting-concepts'], {
+                conceptsExtracted: intermediateCanonical.length,
+                intermediateCanonicalConcepts: intermediateCanonical,
+                newlyAddedConceptIds: currentSlice.map((c) => c.name)
+              });
+
+              if (typeof window !== 'undefined') {
+                await new Promise((res) => setTimeout(res, 280));
+              }
+            }
+          }
+        }
       } catch {
-        // Fallback gracefully without crash
         rawCandidates = [];
       }
 
@@ -275,11 +317,15 @@ export class PipelineOrchestrator {
       // -----------------------------------------------------------------------
       // STAGE 4: CONCEPT NORMALIZATION ('normalizing')
       // -----------------------------------------------------------------------
-      notify('normalizing', PIPELINE_STAGE_LABELS['normalizing'], {
-        conceptsExtracted: rawCandidates.length
-      });
-
       const canonicalConcepts: CanonicalConcept[] = normalizeConcepts(rawCandidates);
+
+      notify('normalizing', PIPELINE_STAGE_LABELS['normalizing'], {
+        conceptsExtracted: canonicalConcepts.length,
+        intermediateCanonicalConcepts: canonicalConcepts
+      });
+      if (typeof window !== 'undefined') {
+        await new Promise((res) => setTimeout(res, 300));
+      }
 
       if (canonicalConcepts.length === 0) {
         const error: PipelineError = {
@@ -305,6 +351,22 @@ export class PipelineOrchestrator {
           allChunks,
           options.relationshipExtraction
         );
+
+        if (relationships.length > 0) {
+          const relBatchSize = typeof window !== 'undefined' ? 2 : relationships.length;
+          for (let r = 0; r < relationships.length; r += relBatchSize) {
+            const currentRels = relationships.slice(0, r + relBatchSize);
+            notify('mapping-relationships', PIPELINE_STAGE_LABELS['mapping-relationships'], {
+              conceptsExtracted: canonicalConcepts.length,
+              relationshipsMapped: currentRels.length,
+              intermediateCanonicalConcepts: canonicalConcepts,
+              intermediateRelationships: currentRels
+            });
+            if (typeof window !== 'undefined') {
+              await new Promise((res) => setTimeout(res, 300));
+            }
+          }
+        }
       } catch {
         // Continue even if relationship extraction yields 0 connections
         relationships = [];
@@ -313,17 +375,21 @@ export class PipelineOrchestrator {
       // -----------------------------------------------------------------------
       // STAGE 6: GRAPH CONSTRUCTION ('building-graph')
       // -----------------------------------------------------------------------
-      notify('building-graph', PIPELINE_STAGE_LABELS['building-graph'], {
-        conceptsExtracted: canonicalConcepts.length,
-        relationshipsMapped: relationships.length
-      });
-
       const graph = buildKnowledgeGraph(
         canonicalConcepts,
         relationships,
         successfullyExtractedSources,
         options.graphBuilder
       );
+
+      notify('building-graph', PIPELINE_STAGE_LABELS['building-graph'], {
+        conceptsExtracted: canonicalConcepts.length,
+        relationshipsMapped: graph.relationships.length,
+        partialGraph: graph
+      });
+      if (typeof window !== 'undefined') {
+        await new Promise((res) => setTimeout(res, 400));
+      }
 
       if (!graph || graph.nodes.length === 0) {
         const error: PipelineError = {
@@ -351,7 +417,8 @@ export class PipelineOrchestrator {
 
       notify('complete', PIPELINE_STAGE_LABELS['complete'], {
         conceptsExtracted: graph.nodes.length,
-        relationshipsMapped: graph.relationships.length
+        relationshipsMapped: graph.relationships.length,
+        partialGraph: graph
       });
 
       return {

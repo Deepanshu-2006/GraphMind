@@ -318,7 +318,7 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
 /**
  * Helper to convert lowercase semantic type into display ConceptCategory
  */
-function normalizeCategory(type: string): ConceptCategory {
+export function normalizeCategory(type: string): ConceptCategory {
   const norm = type.toLowerCase();
   switch (norm) {
     case 'foundation': return 'Foundation';
