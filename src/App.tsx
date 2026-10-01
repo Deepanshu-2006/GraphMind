@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AppShell } from './components/layout/AppShell';
 import { OverviewView } from './components/overview/OverviewView';
+import { KnowledgeGraphWorkspace } from './components/graph/KnowledgeGraphWorkspace';
 import { CreateGraphModal } from './components/modals/CreateGraphModal';
 import { CommandPalette } from './components/modals/CommandPalette';
 import { ExploreGraphModal } from './components/graph/ExploreGraphModal';
@@ -19,10 +20,36 @@ import {
 } from 'lucide-react';
 
 export function App() {
-  const [currentSection, setCurrentSection] = useState<NavSection>('overview');
+  const getInitialSection = (): NavSection => {
+    const path = window.location.pathname.replace(/^\//, '');
+    if (path === 'graph') return 'graph';
+    if (path === 'paths') return 'paths';
+    if (path === 'sources') return 'sources';
+    if (path === 'settings') return 'settings';
+    return 'overview';
+  };
+
+  const [currentSection, setCurrentSection] = useState<NavSection>(getInitialSection);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [searchPaletteOpen, setSearchPaletteOpen] = useState(false);
   const [exploreGraphOpen, setExploreGraphOpen] = useState(false);
+
+  const navigateToSection = (section: NavSection) => {
+    setCurrentSection(section);
+    const targetPath = section === 'overview' ? '/' : `/${section}`;
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({}, '', targetPath);
+    }
+  };
+
+  // Sync route on browser back/forward
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentSection(getInitialSection());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Global hotkeys (Cmd+K / Ctrl+K and Cmd+,)
   useEffect(() => {
@@ -33,7 +60,7 @@ export function App() {
       }
       if ((e.metaKey || e.ctrlKey) && e.key === ',') {
         e.preventDefault();
-        setCurrentSection('settings');
+        navigateToSection('settings');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -41,32 +68,30 @@ export function App() {
   }, []);
 
   const handleCreateSuccess = () => {
-    // Notify or switch to overview
-    setCurrentSection('overview');
+    navigateToSection('graph');
   };
 
   return (
     <>
       <AppShell
         currentSection={currentSection}
-        onSelectSection={(section) => {
-          if (section === 'graph') {
-            setExploreGraphOpen(true);
-          } else {
-            setCurrentSection(section);
-          }
-        }}
+        onSelectSection={navigateToSection}
         project={mockProjectWorkspace}
         recentMaterials={mockRecentMaterials}
         onOpenSearch={() => setSearchPaletteOpen(true)}
         onOpenCreateModal={() => setCreateModalOpen(true)}
       >
-        {/* Overview View (Core Focus) */}
+        {/* Overview View */}
         {currentSection === 'overview' && (
           <OverviewView
             onCreateGraph={() => setCreateModalOpen(true)}
-            onExploreDemo={() => setExploreGraphOpen(true)}
+            onExploreDemo={() => navigateToSection('graph')}
           />
+        )}
+
+        {/* Dedicated Knowledge Graph Workspace (/graph) */}
+        {currentSection === 'graph' && (
+          <KnowledgeGraphWorkspace />
         )}
 
         {/* Learning Paths View */}
@@ -247,7 +272,7 @@ export function App() {
         onClose={() => setSearchPaletteOpen(false)}
         concepts={mockConnectedConcepts}
         onSelectConcept={() => {
-          setExploreGraphOpen(true);
+          navigateToSection('graph');
         }}
       />
 
