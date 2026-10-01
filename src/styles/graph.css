@@ -907,6 +907,52 @@
   font-weight: 500;
 }
 
+/* Source Toggle Pill (Demo vs User Generated Graph) */
+.graph-source-toggle-pill {
+  position: absolute;
+  top: 16px;
+  left: 550px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  background: rgba(16, 16, 16, 0.85);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-btn);
+}
+
+.source-toggle-btn {
+  padding: 4px 9px;
+  font-size: 11.5px;
+  font-weight: 450;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.source-toggle-btn:hover {
+  color: var(--text-primary);
+}
+
+.source-toggle-btn.active {
+  color: #A3FF12;
+  background-color: rgba(163, 255, 18, 0.1);
+  border-color: rgba(163, 255, 18, 0.3);
+  font-weight: 500;
+}
+
+.badge-pulse-dot.error-dot {
+  background-color: #FF6B6B;
+  box-shadow: 0 0 8px rgba(255, 107, 107, 0.6);
+  animation: none;
+}
+
 /* ==========================================================================
    Responsive Graph Adjustments (Prompt 10)
    1. Laptop: width <= 1180px

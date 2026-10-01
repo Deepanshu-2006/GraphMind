@@ -489,3 +489,11 @@ const derivedElements = knowledgeGraphToReactFlow(defaultKnowledgeGraph);
 export const initialNodes: Node<GraphConceptData>[] = derivedElements.nodes;
 export const initialEdges: Edge[] = derivedElements.edges;
 export const initialConceptDetails: Record<string, GraphConceptData> = derivedElements.conceptDetails;
+
+// Distinct explicit demo data export (Prompt 21 Requirement 5)
+export const demoKnowledgeGraph: KnowledgeGraph = defaultKnowledgeGraph;
+export const emptyKnowledgeGraph: KnowledgeGraph = {
+  nodes: [],
+  relationships: [],
+  sources: []
+};

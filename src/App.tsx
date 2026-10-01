@@ -13,9 +13,10 @@ import {
   mockConnectedConcepts, 
   mockLearningPaths 
 } from './data/mockData';
-import { defaultKnowledgeGraph } from './data/graphData';
+import { defaultKnowledgeGraph, demoKnowledgeGraph } from './data/graphData';
 import type { KnowledgeSource, KnowledgeGraph } from './types/knowledgeGraph';
-import { sourceToRecentMaterial, buildKnowledgeGraphFromSources } from './services/sourceIngestion';
+import { sourceToRecentMaterial } from './services/sourceIngestion';
+import { pipelineOrchestrator, type PipelineStage } from './services/pipelineOrchestrator';
 import type { NavSection, RecentMaterial } from './types';
 
 export function App() {
@@ -40,12 +41,23 @@ export function App() {
     return 'interactive';
   };
 
+  // Demo vs User-generated graph separation (Prompt 21 Requirement 5)
+  const [demoGraph] = useState<KnowledgeGraph>(demoKnowledgeGraph);
+  const [userGraph, setUserGraph] = useState<KnowledgeGraph | null>(null);
+  const [graphSourceType, setGraphSourceType] = useState<'demo' | 'user'>('demo');
+  const [userSources, setUserSources] = useState<KnowledgeSource[]>([]);
+  const [pipelineStage, setPipelineStage] = useState<PipelineStage>('complete');
+  const [pipelineStatusMessage, setPipelineStatusMessage] = useState<string>('');
+  const [pipelineError, setPipelineError] = useState<string | undefined>(undefined);
+
+  // Active graph: strictly userGraph when in 'user' mode, demoGraph when in 'demo' mode
+  const activeGraph = graphSourceType === 'user' && userGraph ? userGraph : demoGraph;
+
   const [canonicalSources, setCanonicalSources] = useState<KnowledgeSource[]>(() => defaultKnowledgeGraph.sources);
   const [sources, setSources] = useState<RecentMaterial[]>(() => [
     ...defaultKnowledgeGraph.sources.map(sourceToRecentMaterial),
     ...mockRecentMaterials.filter(m => !defaultKnowledgeGraph.sources.some(s => s.fileName === m.title))
   ]);
-  const [activeGraph, setActiveGraph] = useState<KnowledgeGraph>(defaultKnowledgeGraph);
   const [graphMode, setGraphMode] = useState<WorkspaceMode>(getInitialMode);
 
   const navigateToSection = (section: NavSection) => {
@@ -84,32 +96,73 @@ export function App() {
   // Ingestion handler: accepts newly created real KnowledgeSources
   const handleCreateSuccess = async (newSources: KnowledgeSource[]) => {
     setHasGraphContent(true);
-    setCanonicalSources(prev => [...newSources, ...prev]);
-    const newMaterials = newSources.map(sourceToRecentMaterial);
-    setSources(prev => [...newMaterials, ...prev]);
+    setPipelineError(undefined);
+    setPipelineStage('reading');
+    setPipelineStatusMessage('Reading your sources…');
     setGraphMode('loading');
     navigateToSection('graph');
 
-    // Execute complete end-to-end pipeline:
-    // SOURCES → TEXT EXTRACTION → CONCEPTS → RELATIONSHIPS → KNOWLEDGE GRAPH
+    // Combine ONLY with previously uploaded user sources (never with demo sources!)
+    const targetUserSources = [...newSources, ...userSources];
+    setUserSources(targetUserSources);
+
+    const newMaterials = newSources.map(sourceToRecentMaterial);
+    setSources(prev => [...newMaterials, ...prev]);
+
+    // Execute complete end-to-end pipeline via orchestrator:
+    // UPLOAD → SOURCE → TEXT EXTRACTION → TEXT CLEANING → CHUNKING →
+    // CONCEPT EXTRACTION → CONCEPT NORMALIZATION → RELATIONSHIP EXTRACTION →
+    // GRAPH CONSTRUCTION → KNOWLEDGE GRAPH → VISUALIZATION
     try {
-      const combined = [...newSources, ...canonicalSources];
-      const result = await buildKnowledgeGraphFromSources(combined);
+      const result = await pipelineOrchestrator.execute(targetUserSources, {
+        onProgress: (evt) => {
+          setPipelineStage(evt.stage);
+          setPipelineStatusMessage(evt.message);
+        }
+      });
+
       if (result.success && result.graph && result.graph.nodes.length > 0) {
-        setActiveGraph(result.graph);
+        setUserGraph(result.graph);
+        setGraphSourceType('user');
+        setPipelineStage('complete');
+        setPipelineStatusMessage('Knowledge graph ready.');
+        setGraphMode('interactive');
+      } else {
+        const errorMsg = result.error?.message || 'Failed to construct knowledge graph from uploaded material.';
+        setPipelineStage('error');
+        setPipelineError(errorMsg);
+        setPipelineStatusMessage(errorMsg);
       }
-    } catch (err) {
-      console.error('Failed to construct knowledge graph from uploaded sources:', err);
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred during processing.';
+      setPipelineStage('error');
+      setPipelineError(errorMsg);
+      setPipelineStatusMessage(errorMsg);
     }
   };
 
   const handleRemoveSource = (sourceId: string) => {
     setCanonicalSources(prev => prev.filter(s => s.id !== sourceId));
+    setUserSources(prev => prev.filter(s => s.id !== sourceId));
     setSources(prev => prev.filter(s => s.id !== sourceId));
-    setActiveGraph(prev => ({
-      ...prev,
-      sources: prev.sources.filter(s => s.id !== sourceId)
-    }));
+    if (userGraph) {
+      setUserGraph(prev => {
+        if (!prev) return null;
+        const remainingSources = prev.sources.filter(s => s.id !== sourceId);
+        const remainingNodes = prev.nodes.filter(n => !n.sourceIds.includes(sourceId) || n.sourceIds.length > 1);
+        const validNodeIds = new Set(remainingNodes.map(n => n.id));
+        const remainingEdges = prev.relationships.filter(r => validNodeIds.has(r.source) && validNodeIds.has(r.target));
+        if (remainingNodes.length === 0) {
+          setGraphSourceType('demo');
+          return null;
+        }
+        return {
+          nodes: remainingNodes,
+          relationships: remainingEdges,
+          sources: remainingSources
+        };
+      });
+    }
   };
 
   return (
@@ -127,6 +180,7 @@ export function App() {
           <OverviewView
             onCreateGraph={() => setCreateModalOpen(true)}
             onExploreDemo={() => {
+              setGraphSourceType('demo');
               setHasGraphContent(true);
               navigateToSection('graph');
             }}
@@ -140,6 +194,16 @@ export function App() {
             onOpenUpload={() => setCreateModalOpen(true)} 
             initialMode={graphMode}
             graph={activeGraph}
+            graphSourceType={graphSourceType}
+            onSwitchGraphSource={(type) => setGraphSourceType(type)}
+            hasUserGraph={userGraph !== null && userGraph.nodes.length > 0}
+            pipelineStage={pipelineStage}
+            pipelineStatusMessage={pipelineStatusMessage}
+            pipelineError={pipelineError}
+            onClearError={() => {
+              setPipelineError(undefined);
+              setPipelineStage('complete');
+            }}
           />
         )}
 

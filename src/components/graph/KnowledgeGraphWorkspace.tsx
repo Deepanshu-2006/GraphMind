@@ -26,6 +26,7 @@ import {
 } from '../../data/graphData';
 import type { KnowledgeGraph } from '../../types/knowledgeGraph';
 import type { GraphConceptData, SelectedRelationshipData } from '../../types/graph';
+import type { PipelineStage } from '../../services/pipelineOrchestrator';
 
 const nodeTypes = {
   conceptNode: ConceptNode
@@ -41,6 +42,13 @@ export interface KnowledgeGraphWorkspaceProps {
   onOpenUpload?: () => void;
   initialMode?: WorkspaceMode;
   graph?: KnowledgeGraph;
+  graphSourceType?: 'demo' | 'user';
+  onSwitchGraphSource?: (type: 'demo' | 'user') => void;
+  hasUserGraph?: boolean;
+  pipelineStage?: PipelineStage;
+  pipelineStatusMessage?: string;
+  pipelineError?: string;
+  onClearError?: () => void;
 }
 
 // Progressive Crafting Steps (Prompt 8, Section 3 & 5)
@@ -92,7 +100,18 @@ const CRAFTING_SEQUENCE = [
   }
 ];
 
-function FlowCanvas({ onOpenUpload, initialMode = 'interactive', graph }: KnowledgeGraphWorkspaceProps) {
+function FlowCanvas({
+  onOpenUpload,
+  initialMode = 'interactive',
+  graph,
+  graphSourceType = 'demo',
+  onSwitchGraphSource,
+  hasUserGraph,
+  pipelineStage,
+  pipelineStatusMessage,
+  pipelineError,
+  onClearError
+}: KnowledgeGraphWorkspaceProps) {
   const reactFlowInstance = useReactFlow();
 
   const { effectiveNodes, effectiveEdges, effectiveConceptDetails } = useMemo(() => {
@@ -168,9 +187,63 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive', graph }: Knowle
     }
 
     let currentStep = 0;
+    const totalNodes = effectiveNodes.length;
+
+    let sequenceToRun = CRAFTING_SEQUENCE;
+    if (totalNodes > 0 && effectiveNodes[0]?.id !== 'ml') {
+      const stage0Count = Math.max(1, Math.ceil(totalNodes * 0.3));
+      const stage1Count = Math.max(1, Math.ceil(totalNodes * 0.6));
+      sequenceToRun = [
+        {
+          stage: 0,
+          status: 'Reading your sources…',
+          nodeIds: effectiveNodes.slice(0, stage0Count).map((n) => n.id),
+          edgeIds: effectiveEdges.filter((e) => effectiveNodes.slice(0, stage0Count).some((n) => n.id === e.source)).map((e) => e.id),
+          newNodes: effectiveNodes.slice(0, stage0Count).map((n) => n.id),
+          activeNodeId: effectiveNodes[0]?.id,
+          duration: 2500
+        },
+        {
+          stage: 1,
+          status: 'Discovering core concepts…',
+          nodeIds: effectiveNodes.slice(0, stage1Count).map((n) => n.id),
+          edgeIds: effectiveEdges.filter((e) => effectiveNodes.slice(0, stage1Count).some((n) => n.id === e.source)).map((e) => e.id),
+          newNodes: effectiveNodes.slice(stage0Count, stage1Count).map((n) => n.id),
+          activeNodeId: effectiveNodes[Math.min(1, totalNodes - 1)]?.id,
+          duration: 2500
+        },
+        {
+          stage: 2,
+          status: 'Connecting relationships…',
+          nodeIds: effectiveNodes.slice(0, stage1Count).map((n) => n.id),
+          edgeIds: effectiveEdges.slice(0, Math.ceil(effectiveEdges.length * 0.7)).map((e) => e.id),
+          newNodes: [],
+          activeNodeId: effectiveNodes[0]?.id,
+          duration: 2500
+        },
+        {
+          stage: 3,
+          status: 'Crafting your knowledge graph…',
+          nodeIds: effectiveNodes.map((n) => n.id),
+          edgeIds: effectiveEdges.map((e) => e.id),
+          newNodes: effectiveNodes.slice(stage1Count).map((n) => n.id),
+          activeNodeId: effectiveNodes[effectiveNodes.length - 1]?.id,
+          duration: 2500
+        },
+        {
+          stage: 4,
+          status: 'Graph ready.',
+          nodeIds: effectiveNodes.map((n) => n.id),
+          edgeIds: effectiveEdges.map((e) => e.id),
+          newNodes: [],
+          activeNodeId: effectiveNodes[0]?.id,
+          duration: 1500
+        }
+      ];
+    }
 
     const executeStep = (stepIdx: number) => {
-      const step = CRAFTING_SEQUENCE[stepIdx];
+      const step = sequenceToRun[stepIdx];
       setStatusMessage(step.status);
 
       // Loading state remains visible through all steps (0 through 4)
@@ -194,9 +267,9 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive', graph }: Knowle
           }
         }));
 
-      // Build active subset of edges (animated dashed filaments during early discovery, solid arrows as relationships cement)
+      // Build active subset of edges
       const activeEdgeMap = new Set(step.edgeIds);
-      const nextEdges = initialEdges
+      const nextEdges = effectiveEdges
         .filter((e) => activeEdgeMap.has(e.id))
         .map((edge) => {
           const isFilament = stepIdx < 2;
@@ -222,14 +295,14 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive', graph }: Knowle
       setNodes(nextNodes);
       setEdges(nextEdges);
 
-      // Camera stabilization with generous padding while HUD is open so nodes never touch the HUD
+      // Camera stabilization with generous padding while HUD is open
       setTimeout(() => {
         const hudPadding = withLoadingOrb ? 0.38 : 0.22;
         reactFlowInstance.fitView({ padding: hudPadding, duration: 800 });
       }, 50);
 
       // Schedule next step
-      if (stepIdx < CRAFTING_SEQUENCE.length - 1) {
+      if (stepIdx < sequenceToRun.length - 1) {
         craftingTimerRef.current = setTimeout(() => {
           executeStep(stepIdx + 1);
         }, step.duration);
@@ -243,18 +316,18 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive', graph }: Knowle
             setIsOverlayMounted(false);
           }, 700);
           setMode('interactive');
-          setSelectedNodeId('dl');
+          setSelectedNodeId(effectiveNodes[0]?.id || null);
           setIsInspectorOpen(true);
 
           // Restore normal edges and node styling
-          setEdges(initialEdges);
+          setEdges(effectiveEdges);
           reactFlowInstance.fitView({ padding: 0.22, duration: 700 });
         }, step.duration);
       }
     };
 
     executeStep(currentStep);
-  }, [reactFlowInstance, setEdges, setNodes, effectiveNodes]);
+  }, [reactFlowInstance, setEdges, setNodes, effectiveNodes, effectiveEdges]);
 
   // Clean up timers on unmount
   useEffect(() => {
@@ -533,6 +606,28 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive', graph }: Knowle
         </button>
       </div>
 
+      {/* Graph Source Toggle Pill: Demo Graph vs User-Generated Graph (Prompt 21 Requirement 5) */}
+      {hasUserGraph && (
+        <div className="graph-source-toggle-pill" role="group" aria-label="Graph Source Selector">
+          <button
+            type="button"
+            className={`source-toggle-btn ${graphSourceType === 'user' ? 'active' : ''}`}
+            onClick={() => onSwitchGraphSource?.('user')}
+            title="Switch to your uploaded learning material graph"
+          >
+            Your Graph
+          </button>
+          <button
+            type="button"
+            className={`source-toggle-btn ${graphSourceType === 'demo' ? 'active' : ''}`}
+            onClick={() => onSwitchGraphSource?.('demo')}
+            title="Switch to demo showcase graph"
+          >
+            Demo Graph
+          </button>
+        </div>
+      )}
+
       {/* Continuous ReactFlow Canvas with reduced opacity while loading orb is active */}
       <div className={`freeform-canvas-wrapper ${isCanvasDimmed ? 'dimmed-crafting' : ''}`}>
         <ReactFlow
@@ -625,12 +720,24 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive', graph }: Knowle
 
             <div className="graph-loading-text-group">
               <div className="hud-pill-title-row">
-                <span className="graph-loading-title">GraphMind is getting ready</span>
+                <span className="graph-loading-title">
+                  {pipelineStage === 'error' ? 'Processing error' : 'GraphMind is getting ready'}
+                </span>
+                {pipelineError && onClearError && (
+                  <button
+                    type="button"
+                    className="mode-btn"
+                    onClick={onClearError}
+                    style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px' }}
+                  >
+                    Dismiss
+                  </button>
+                )}
               </div>
               <div className="graph-loading-badge">
-                <span className="badge-pulse-dot" />
+                <span className={`badge-pulse-dot ${pipelineStage === 'error' ? 'error-dot' : ''}`} />
                 <span className="badge-text">
-                  {statusMessage || 'Reading your sources…'}
+                  {pipelineError || pipelineStatusMessage || statusMessage || 'Reading your sources…'}
                 </span>
               </div>
             </div>
@@ -677,14 +784,10 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive', graph }: Knowle
   );
 }
 
-export function KnowledgeGraphWorkspace({
-  onOpenUpload,
-  initialMode = 'interactive',
-  graph
-}: KnowledgeGraphWorkspaceProps) {
+export function KnowledgeGraphWorkspace(props: KnowledgeGraphWorkspaceProps) {
   return (
     <ReactFlowProvider>
-      <FlowCanvas onOpenUpload={onOpenUpload} initialMode={initialMode} graph={graph} />
+      <FlowCanvas {...props} />
     </ReactFlowProvider>
   );
 }
