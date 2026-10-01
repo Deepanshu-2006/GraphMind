@@ -28,9 +28,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     );
   }, [concepts, query]);
 
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [query]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -78,7 +75,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             className="command-input"
             placeholder="Search concepts, topics, or paths..."
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSelectedIndex(0);
+            }}
             autoFocus
             aria-label="Search concepts, topics, or paths"
             role="combobox"

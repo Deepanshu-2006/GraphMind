@@ -416,6 +416,13 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGrap
         onSearchSelect={(nodeId) => {
           setSelectedNodeId(nodeId);
           setIsInspectorOpen(true);
+          const targetNode = nodes.find((n) => n.id === nodeId);
+          if (targetNode) {
+            reactFlowInstance.setCenter(targetNode.position.x + 100, targetNode.position.y + 40, {
+              zoom: 1.1,
+              duration: 500
+            });
+          }
         }}
         onFitView={handleResetView}
         onResetView={handleResetView}
@@ -570,10 +577,25 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGrap
         <NodeContextPanel
           concept={activeConceptData}
           onClose={() => setIsInspectorOpen(false)}
-          onSelectConcept={(conceptId) => setSelectedNodeId(conceptId)}
+          onSelectConcept={(conceptId) => {
+            setSelectedNodeId(conceptId);
+            const targetNode = nodes.find((n) => n.id === conceptId);
+            if (targetNode) {
+              reactFlowInstance.setCenter(targetNode.position.x + 100, targetNode.position.y + 40, {
+                zoom: 1.1,
+                duration: 500
+              });
+            }
+          }}
           onFocusNode={(conceptId) => {
             setSelectedNodeId(conceptId);
-            reactFlowInstance.fitView({ padding: 0.22, duration: 400 });
+            const targetNode = nodes.find((n) => n.id === conceptId);
+            if (targetNode) {
+              reactFlowInstance.setCenter(targetNode.position.x + 100, targetNode.position.y + 40, {
+                zoom: 1.1,
+                duration: 500
+              });
+            }
           }}
           isCollapsed={!isInspectorOpen}
         />

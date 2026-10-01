@@ -17,12 +17,12 @@ import type { NavSection, RecentMaterial } from './types';
 
 export function App() {
   const getInitialSection = (): NavSection => {
-    const path = window.location.pathname.replace(/^\//, '');
-    if (path === 'overview') return 'overview';
+    const path = window.location.pathname.replace(/^\//, '').toLowerCase();
+    if (path === 'graph') return 'graph';
     if (path === 'paths') return 'paths';
     if (path === 'sources') return 'sources';
     if (path === 'settings') return 'settings';
-    return 'graph';
+    return 'overview';
   };
 
   const [currentSection, setCurrentSection] = useState<NavSection>(getInitialSection);
@@ -42,7 +42,7 @@ export function App() {
 
   const navigateToSection = (section: NavSection) => {
     setCurrentSection(section);
-    const targetPath = section === 'graph' ? '/graph' : section === 'overview' ? '/overview' : `/${section}`;
+    const targetPath = section === 'overview' ? '/' : `/${section}`;
     if (window.location.pathname !== targetPath) {
       window.history.pushState({}, '', targetPath);
     }
@@ -107,6 +107,7 @@ export function App() {
             onCreateGraph={() => setCreateModalOpen(true)}
             onExploreDemo={() => {
               setHasGraphContent(true);
+              navigateToSection('graph');
             }}
             hasContent={hasGraphContent}
           />
@@ -153,7 +154,7 @@ export function App() {
               <div style={{ padding: '20px 0', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontSize: '14.5px', fontWeight: 500, color: 'var(--text-primary)' }}>Concept extraction sensitivity</div>
-                  <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>Semantic confidence threshold for automatic node creation</div>
+                  <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>Confidence threshold for connecting concepts</div>
                 </div>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-secondary)' }}>0.85</span>
               </div>
@@ -161,7 +162,7 @@ export function App() {
               <div style={{ padding: '20px 0', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontSize: '14.5px', fontWeight: 500, color: 'var(--text-primary)' }}>Default graph layout</div>
-                  <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>Force-directed hierarchical knowledge arrangement</div>
+                  <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>Hierarchical layout for structured understanding</div>
                 </div>
                 <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>Hierarchical</span>
               </div>
@@ -181,7 +182,7 @@ export function App() {
         )}
       </AppShell>
 
-      {/* Ingestion Modal */}
+      {/* Upload Material Modal */}
       <CreateGraphModal
         isOpen={createModalOpen}
         onClose={() => setCreateModalOpen(false)}

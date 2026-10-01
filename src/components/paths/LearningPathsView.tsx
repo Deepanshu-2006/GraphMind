@@ -24,41 +24,54 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
         </div>
       </header>
 
-      {/* Editorial List */}
-      <div className="editorial-list" role="list">
-        {paths.map((path) => (
-          <div key={path.id} className="editorial-row" role="listitem">
-            <div className="editorial-row-info">
-              <div className="editorial-row-title">
-                <span>{path.title.replace('to', '→')}</span>
+      {/* Editorial List or Clean Empty State */}
+      {paths.length > 0 ? (
+        <div className="editorial-list" role="list">
+          {paths.map((path) => (
+            <div key={path.id} className="editorial-row" role="listitem">
+              <div className="editorial-row-info">
+                <div className="editorial-row-title">
+                  <span>{path.title.replace('to', '→')}</span>
+                </div>
+                <div className="editorial-row-meta">
+                  <span>{path.nodeCount} concepts</span>
+                  <span className="source-meta-separator">·</span>
+                  <span>{path.estimatedHours}</span>
+                  {path.progress > 0 && (
+                    <>
+                      <span className="source-meta-separator">·</span>
+                      <span>{path.progress}% complete</span>
+                    </>
+                  )}
+                </div>
               </div>
-              <div className="editorial-row-meta">
-                <span>{path.nodeCount} concepts</span>
-                <span className="source-meta-separator">·</span>
-                <span>{path.estimatedHours}</span>
-                {path.progress > 0 && (
-                  <>
-                    <span className="source-meta-separator">·</span>
-                    <span>{path.progress}% complete</span>
-                  </>
-                )}
-              </div>
-            </div>
 
-            <button
-              type="button"
-              className="btn-secondary"
-              style={{ padding: '7px 14px', fontSize: '13px' }}
-              onClick={() => onSelectPath(path.id)}
-              aria-label={`${path.progress > 0 ? 'Continue' : 'Start'} learning path: ${path.title}`}
-              title={`Explore ${path.title}`}
-            >
-              <span>{path.progress > 0 ? 'Continue' : 'Start'}</span>
-              <ArrowRight size={13} aria-hidden="true" />
-            </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ padding: '7px 14px', fontSize: '13px' }}
+                onClick={() => onSelectPath(path.id)}
+                aria-label={`${path.progress > 0 ? 'Continue' : 'Start'} learning path: ${path.title}`}
+                title={`Explore ${path.title}`}
+              >
+                <span>{path.progress > 0 ? 'Continue' : 'Start'}</span>
+                <ArrowRight size={13} aria-hidden="true" />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="sources-empty-state">
+          <div className="sources-empty-card">
+            <h2 className="sources-empty-title">
+              No learning paths generated yet.
+            </h2>
+            <p className="sources-empty-desc">
+              Upload your material and GraphMind will construct structured paths through your concepts.
+            </p>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

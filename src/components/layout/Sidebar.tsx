@@ -31,7 +31,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <aside className={`app-sidebar ${isOpen ? 'open' : ''}`} aria-label="Sidebar navigation">
       {/* Brand */}
       <div className="sidebar-header">
-        <span className="brand-title">GraphMind</span>
+        <button
+          type="button"
+          className="brand-title"
+          onClick={() => {
+            onSelectSection('overview');
+            onCloseMobile();
+          }}
+          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
+          title="GraphMind Overview"
+        >
+          GraphMind
+        </button>
       </div>
 
       {/* Primary Navigation Body */}
