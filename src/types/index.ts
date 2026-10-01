@@ -46,12 +46,14 @@ export interface ProjectWorkspace {
   lastUpdated: string;
 }
 
+export type SourceStatus = 'Ready' | 'Processing' | 'Failed' | 'Indexed' | 'synced' | 'indexing';
+
 export interface RecentMaterial {
   id: string;
   title: string;
-  format: 'PDF' | 'ARXIV' | 'NOTE' | 'TRANSCRIPT';
+  format: 'PDF' | 'TXT' | 'MD' | 'TRANSCRIPT' | 'ARXIV' | 'NOTE' | string;
   size: string;
-  conceptsExtracted: number;
+  conceptsExtracted?: number;
   timestamp: string;
-  status: 'synced' | 'indexing';
+  status: 'Ready' | 'Processing' | 'Failed' | 'Indexed' | 'synced' | 'indexing' | string;
 }

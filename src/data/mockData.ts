@@ -156,39 +156,47 @@ export const mockConnectedConcepts: ConceptNode[] = [
 export const mockRecentMaterials: RecentMaterial[] = [
   {
     id: 'rm-1',
-    title: 'Attention Is All You Need (Vaswani et al.)',
+    title: 'Attention Is All You Need',
     format: 'PDF',
     size: '1.4 MB',
     conceptsExtracted: 42,
-    timestamp: '2h ago',
-    status: 'synced'
+    timestamp: 'Added 2 hours ago',
+    status: 'Indexed'
   },
   {
     id: 'rm-2',
-    title: 'Stanford CS231n: ConvNet Architectures',
+    title: 'Stanford CS231n: ConvNet Architectures for Visual Recognition',
     format: 'TRANSCRIPT',
     size: '840 KB',
     conceptsExtracted: 38,
-    timestamp: '5h ago',
-    status: 'synced'
+    timestamp: 'Added 5 hours ago',
+    status: 'Indexed'
   },
   {
     id: 'rm-3',
-    title: 'Deep Residual Learning for Image Rec (He et al.)',
-    format: 'ARXIV',
+    title: 'Deep Residual Learning for Image Recognition (He et al.)',
+    format: 'PDF',
     size: '2.1 MB',
     conceptsExtracted: 29,
-    timestamp: '1d ago',
-    status: 'synced'
+    timestamp: 'Added 1 day ago',
+    status: 'Indexed'
   },
   {
     id: 'rm-4',
-    title: 'Self-Supervised Learning & ViT Foundations',
+    title: 'Self-Supervised Learning & Vision Transformer Notes',
     format: 'NOTE',
     size: '120 KB',
     conceptsExtracted: 18,
-    timestamp: '2d ago',
-    status: 'synced'
+    timestamp: 'Added 2 days ago',
+    status: 'Indexed'
+  },
+  {
+    id: 'rm-5',
+    title: 'LLM Reasoning via Chain-of-Thought Prompting.pdf',
+    format: 'PDF',
+    size: '620 KB',
+    timestamp: 'Added 10 minutes ago',
+    status: 'Processing'
   }
 ];
 

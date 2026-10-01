@@ -4,15 +4,15 @@ import { OverviewView } from './components/overview/OverviewView';
 import { KnowledgeGraphWorkspace } from './components/graph/KnowledgeGraphWorkspace';
 import { CreateGraphModal } from './components/modals/CreateGraphModal';
 import { CommandPalette } from './components/modals/CommandPalette';
+import { SourcesView } from './components/sources/SourcesView';
 import { 
   mockProjectWorkspace, 
   mockRecentMaterials, 
   mockConnectedConcepts, 
   mockLearningPaths 
 } from './data/mockData';
-import type { NavSection } from './types';
+import type { NavSection, RecentMaterial } from './types';
 import { 
-  UploadCloud, 
   ArrowRight
 } from 'lucide-react';
 
@@ -30,6 +30,7 @@ export function App() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [searchPaletteOpen, setSearchPaletteOpen] = useState(false);
   const [hasGraphContent, setHasGraphContent] = useState(true);
+  const [sources, setSources] = useState<RecentMaterial[]>(mockRecentMaterials);
 
   const navigateToSection = (section: NavSection) => {
     setCurrentSection(section);
@@ -66,6 +67,18 @@ export function App() {
 
   const handleCreateSuccess = () => {
     setHasGraphContent(true);
+    setSources((prev) => [
+      {
+        id: `rm-${Date.now()}`,
+        title: 'Stanford_CS229_Lecture_04.pdf',
+        format: 'PDF',
+        size: '2.4 MB',
+        conceptsExtracted: 36,
+        timestamp: 'Added just now',
+        status: 'Indexed'
+      },
+      ...prev
+    ]);
     navigateToSection('graph');
   };
 
@@ -75,7 +88,7 @@ export function App() {
         currentSection={currentSection}
         onSelectSection={navigateToSection}
         project={mockProjectWorkspace}
-        recentMaterials={mockRecentMaterials}
+        recentMaterials={sources}
         onOpenSearch={() => setSearchPaletteOpen(true)}
         onOpenCreateModal={() => setCreateModalOpen(true)}
       >
@@ -151,61 +164,12 @@ export function App() {
           </div>
         )}
 
-        {/* Sources View (Section 13) */}
+        {/* Sources View (Prompt 7) */}
         {currentSection === 'sources' && (
-          <div className="overview-page" style={{ paddingBottom: '96px' }}>
-            <div className="overview-hero">
-              <span className="overview-hero-label">Library</span>
-              <h1 className="overview-hero-title" style={{ fontSize: '36px' }}>Sources</h1>
-              <p className="overview-hero-desc">
-                Your learning material
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', marginTop: '16px' }}>
-              {mockRecentMaterials.map((mat) => (
-                <div
-                  key={mat.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '20px 0',
-                    borderBottom: '1px solid var(--border-default)'
-                  }}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)' }}>
-                      {mat.title}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', color: 'var(--text-muted)' }}>
-                      <span>{mat.format}</span>
-                      <span>·</span>
-                      <span>{mat.conceptsExtracted} concepts</span>
-                      <span>·</span>
-                      <span>{mat.size}</span>
-                    </div>
-                  </div>
-
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent)' }} />
-                    <span>Indexed</span>
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ marginTop: '24px' }}>
-              <button
-                className="btn-primary"
-                onClick={() => setCreateModalOpen(true)}
-                style={{ padding: '8px 16px', fontSize: '13px' }}
-              >
-                <UploadCloud size={14} />
-                <span>+ Add source</span>
-              </button>
-            </div>
-          </div>
+          <SourcesView
+            sources={sources}
+            onAddSource={() => setCreateModalOpen(true)}
+          />
         )}
 
         {/* Settings View */}
