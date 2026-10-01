@@ -85,14 +85,32 @@ export interface KnowledgeSource {
   conceptsExtracted?: number;
 }
 
-/**
- * Top-Level Knowledge Graph Model
- * The unified container for nodes, relationships, and origin sources.
- */
 export interface KnowledgeGraph {
   nodes: KnowledgeNode[];
   relationships: KnowledgeRelationship[];
   sources: KnowledgeSource[];
+}
+
+/**
+ * Text Extraction & Chunking Models (Day 2 Step 3)
+ */
+export interface TextChunk {
+  chunkId: string;
+  sourceId: string;
+  text: string;
+  heading?: string;
+  index: number;
+  wordCount: number;
+  characterCount: number;
+}
+
+export interface ExtractionResult {
+  success: boolean;
+  sourceId: string;
+  rawText?: string;
+  cleanText?: string;
+  chunks?: TextChunk[];
+  error?: string; // Structured user-facing error message (e.g. "Couldn't read this file.")
 }
 
 /**

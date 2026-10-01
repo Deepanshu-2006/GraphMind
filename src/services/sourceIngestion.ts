@@ -4,6 +4,9 @@ import type {
   SourceType 
 } from '../types/knowledgeGraph';
 import type { RecentMaterial } from '../types';
+import { extractText } from './textExtraction';
+
+export * from './textExtraction';
 
 export const SUPPORTED_EXTENSIONS = ['pdf', 'txt', 'md', 'markdown'];
 export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
@@ -108,25 +111,24 @@ export async function createSourceFromFile(
   const sourceType = detectSourceType(file.name);
   const sizeFormatted = formatFileSize(file.size);
 
-  let rawText: string | undefined = undefined;
-  if (sourceType === 'text' || sourceType === 'markdown') {
-    try {
-      rawText = await file.text();
-    } catch {
-      rawText = undefined;
-    }
-  }
-
   const source: KnowledgeSource = {
     id,
     name: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
     fileName: file.name,
     type: sourceType,
     size: sizeFormatted,
-    text: rawText,
     createdAt: new Date().toISOString(),
     status: 'pending' // Initial lifecycle state
   };
+
+  try {
+    const extraction = await extractText(source, file);
+    if (extraction.success && extraction.cleanText) {
+      source.text = extraction.cleanText;
+    }
+  } catch {
+    // Retain pending source without blocking UI
+  }
 
   return { success: true, source };
 }
