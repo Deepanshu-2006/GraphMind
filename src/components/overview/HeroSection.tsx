@@ -25,9 +25,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         <button 
           className="btn-primary"
           onClick={onCreateGraph}
-          id="btn-create-knowledge-graph"
+          id="btn-upload-material"
         >
-          <span>Create knowledge graph</span>
+          <span>Upload material</span>
         </button>
 
         <button 

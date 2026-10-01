@@ -263,6 +263,10 @@
   position: relative;
 }
 
+.workspace-viewport:has(.freeform-graph-container) {
+  overflow: hidden;
+}
+
 /* Responsive adjustments */
 @media (max-width: 1024px) {
   .app-sidebar {

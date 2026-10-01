@@ -46,27 +46,21 @@ function FlowCanvas({ onOpenUpload }: KnowledgeGraphWorkspaceProps) {
     return initialConceptDetails[selectedNodeId] || null;
   }, [selectedNodeId]);
 
-  // Compute connected node IDs for highlighting
-  const connectedNodeIds = useMemo(() => {
-    if (!selectedNodeId) return new Set<string>();
-
-    const connected = new Set<string>();
-    connected.add(selectedNodeId);
-
-    edges.forEach((edge) => {
-      if (edge.source === selectedNodeId) connected.add(edge.target);
-      if (edge.target === selectedNodeId) connected.add(edge.source);
-    });
-
-    return connected;
-  }, [selectedNodeId, edges]);
-
-  // Apply node and edge focus states (Section 7 & 9)
+  // Apply node and edge focus states (Section 5, 6, 8)
   useEffect(() => {
+    const connected = new Set<string>();
+    if (selectedNodeId) {
+      connected.add(selectedNodeId);
+      initialEdges.forEach((edge) => {
+        if (edge.source === selectedNodeId) connected.add(edge.target);
+        if (edge.target === selectedNodeId) connected.add(edge.source);
+      });
+    }
+
     setNodes((prevNodes) =>
       prevNodes.map((node) => {
         const isSelected = node.id === selectedNodeId;
-        const isConnected = connectedNodeIds.has(node.id);
+        const isConnected = connected.has(node.id);
         const hasSelection = Boolean(selectedNodeId);
 
         const dimmed = hasSelection && !isConnected;
@@ -85,7 +79,7 @@ function FlowCanvas({ onOpenUpload }: KnowledgeGraphWorkspaceProps) {
       })
     );
 
-    // Apply edge highlighting with directional arrows and green active states
+    // Apply edge highlighting with subtle green for active paths (Section 6)
     setEdges((prevEdges) =>
       prevEdges.map((edge) => {
         const isIncident = Boolean(
@@ -98,20 +92,20 @@ function FlowCanvas({ onOpenUpload }: KnowledgeGraphWorkspaceProps) {
           ...edge,
           selected: isIncident,
           style: {
-            stroke: isIncident ? '#B7FF2A' : isDimmed ? 'rgba(255, 255, 255, 0.05)' : '#303030',
+            stroke: isIncident ? '#A3FF12' : isDimmed ? 'rgba(255, 255, 255, 0.08)' : '#333333',
             strokeWidth: isIncident ? 1.75 : 1.25,
-            opacity: isDimmed ? 0.2 : 1
+            opacity: isDimmed ? 0.3 : 1
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            color: isIncident ? '#B7FF2A' : '#383838',
+            color: isIncident ? '#A3FF12' : isDimmed ? '#262626' : '#3E3E3E',
             width: 12,
             height: 12
           }
         };
       })
     );
-  }, [selectedNodeId, connectedNodeIds, setNodes, setEdges]);
+  }, [selectedNodeId, setNodes, setEdges]);
 
   // Node Click Selection
   const onNodeClick: NodeMouseHandler = useCallback((_, node) => {
@@ -131,68 +125,31 @@ function FlowCanvas({ onOpenUpload }: KnowledgeGraphWorkspaceProps) {
     if (node) {
       setSelectedNodeId(nodeId);
       setIsInspectorOpen(true);
-      reactFlowInstance.setCenter(node.position.x + 120, node.position.y + 65, {
-        zoom: 1.1,
-        duration: 600
+      reactFlowInstance.setCenter(node.position.x + 110, node.position.y + 45, {
+        zoom: 1.05,
+        duration: 500
       });
     }
   }, [nodes, reactFlowInstance]);
 
-  // Fit View
+  // Fit View (Section 8: automatically position and scale so relevant nodes are visible with comfortable padding)
   const handleFitView = useCallback(() => {
-    reactFlowInstance.fitView({ padding: 0.2, duration: 500 });
+    reactFlowInstance.fitView({ padding: 0.22, duration: 350 });
   }, [reactFlowInstance]);
 
-  // Reset View
+  // Reset View (Section 9: restore default graph camera position without resetting node positions)
   const handleResetView = useCallback(() => {
-    setNodes(initialNodes);
-    setEdges(initialEdges);
-    setSelectedNodeId('dl');
-    setIsInspectorOpen(true);
-    setTimeout(() => {
-      reactFlowInstance.fitView({ padding: 0.2, duration: 600 });
-    }, 50);
-  }, [setNodes, setEdges, reactFlowInstance]);
+    reactFlowInstance.fitView({ padding: 0.22, duration: 350 });
+  }, [reactFlowInstance]);
 
-  // Zoom In / Out
+  // Zoom In / Out (Section 7: 200ms smooth incremental zoom)
   const handleZoomIn = useCallback(() => {
-    reactFlowInstance.zoomIn({ duration: 300 });
+    reactFlowInstance.zoomIn({ duration: 200 });
   }, [reactFlowInstance]);
 
   const handleZoomOut = useCallback(() => {
-    reactFlowInstance.zoomOut({ duration: 300 });
+    reactFlowInstance.zoomOut({ duration: 200 });
   }, [reactFlowInstance]);
-
-  // Add concept node freely to canvas (Section 12)
-  const handleAddNode = useCallback(() => {
-    const newId = `concept-${Date.now().toString().slice(-4)}`;
-    const center = reactFlowInstance.screenToFlowPosition({
-      x: window.innerWidth / 2,
-      y: window.innerHeight / 2
-    });
-
-    const newNode: Node<GraphConceptData> = {
-      id: newId,
-      type: 'conceptNode',
-      position: { x: center.x - 120, y: center.y - 65 },
-      data: {
-        id: newId,
-        label: 'New Concept',
-        code: 'NEW',
-        category: 'Method',
-        description: 'Double click to edit or define relationship linkages to other concepts on the canvas.',
-        prerequisites: [],
-        relationships: [],
-        confidence: 90,
-        source: 'User Note.txt',
-        synapseCount: 0
-      }
-    };
-
-    setNodes((nds) => [...nds, newNode]);
-    setSelectedNodeId(newId);
-    setIsInspectorOpen(true);
-  }, [reactFlowInstance, setNodes]);
 
   const searchItems = useMemo(() => {
     return nodes.map((n) => ({
@@ -203,14 +160,14 @@ function FlowCanvas({ onOpenUpload }: KnowledgeGraphWorkspaceProps) {
     }));
   }, [nodes]);
 
-  // Empty state handling (Section 13)
+  // Empty state (Section 15: "Build your knowledge graph")
   if (nodes.length === 0) {
     return (
       <div className="graph-empty-canvas-container">
         <div className="graph-empty-box">
-          <h2 className="graph-empty-title">Your knowledge graph is empty.</h2>
+          <h2 className="graph-empty-title">Build your knowledge graph</h2>
           <p className="graph-empty-desc">
-            Upload your notes, lecture slides, PDFs, or text and GraphMind will turn them into connected concepts.
+            Upload a paper, lecture, notes, or other learning material and GraphMind will map the concepts and relationships for you.
           </p>
           <button 
             className="btn-primary"
@@ -226,18 +183,17 @@ function FlowCanvas({ onOpenUpload }: KnowledgeGraphWorkspaceProps) {
 
   return (
     <div className="freeform-graph-container" id="knowledge-graph-workspace">
-      {/* Minimal Floating Toolbar (Section 12) */}
+      {/* Minimal Floating Toolbar (Section 7 & 11) */}
       <GraphToolbar
         onSearchSelect={handleFocusNode}
         onFitView={handleFitView}
         onResetView={handleResetView}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
-        onAddNode={handleAddNode}
         availableNodes={searchItems}
       />
 
-      {/* Dominant Freeform Canvas (Section 1 & 3) */}
+      {/* Dominant Freeform Canvas (Section 1 & 14) */}
       <main className="freeform-canvas-hero">
         <ReactFlow
           nodes={nodes}
@@ -248,10 +204,22 @@ function FlowCanvas({ onOpenUpload }: KnowledgeGraphWorkspaceProps) {
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
-          fitView
-          fitViewOptions={{ padding: 0.2 }}
+          // Interaction Configuration (Sections 1, 2, 3, 11)
+          panOnDrag={true}
+          panOnScroll={false}
+          zoomOnScroll={true}
+          zoomOnPinch={true}
+          zoomOnDoubleClick={false}
+          preventScrolling={true}
+          nodesDraggable={true}
+          nodeDragThreshold={2}
+          selectNodesOnDrag={false}
+          elementsSelectable={true}
+          // Zoom bounds & fit options
           minZoom={0.25}
-          maxZoom={2.4}
+          maxZoom={2.0}
+          fitView
+          fitViewOptions={{ padding: 0.22 }}
           proOptions={{ hideAttribution: true }}
           defaultEdgeOptions={{ type: 'custom' }}
         >
@@ -259,12 +227,12 @@ function FlowCanvas({ onOpenUpload }: KnowledgeGraphWorkspaceProps) {
             variant={BackgroundVariant.Dots} 
             gap={32} 
             size={1} 
-            color="rgba(255, 255, 255, 0.05)" 
+            color="rgba(255, 255, 255, 0.04)" 
           />
         </ReactFlow>
       </main>
 
-      {/* Compact Floating Contextual Inspector (Section 7) */}
+      {/* Compact Floating Contextual Inspector (Section 9) */}
       <NodeContextPanel
         concept={activeConceptData}
         onClose={() => setIsInspectorOpen(false)}

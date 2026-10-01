@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Menu, Plus } from 'lucide-react';
+import { Search, Menu, UploadCloud } from 'lucide-react';
 import type { ProjectWorkspace } from '../../types';
 
 interface TopBarProps {
@@ -47,14 +47,15 @@ export const TopBar: React.FC<TopBarProps> = ({
           <kbd className="search-kbd">⌘K</kbd>
         </button>
 
-        {/* Primary Action Button */}
+        {/* Primary Action Button: Upload material (Section 1) */}
         <button 
           className="btn-primary" 
           onClick={onOpenCreateModal}
           style={{ padding: '6px 12px', fontSize: '13px' }}
+          title="Upload learning material"
         >
-          <Plus size={14} />
-          <span>New graph</span>
+          <UploadCloud size={14} />
+          <span>Upload material</span>
         </button>
 
         {/* Profile Avatar */}

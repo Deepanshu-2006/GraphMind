@@ -4,8 +4,7 @@ import {
   Maximize, 
   RotateCcw, 
   Plus, 
-  Minus,
-  PlusCircle
+  Minus
 } from 'lucide-react';
 import type { SearchResultItem } from '../../types/graph';
 
@@ -15,7 +14,6 @@ interface GraphToolbarProps {
   onResetView: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
-  onAddNode?: () => void;
   availableNodes: SearchResultItem[];
 }
 
@@ -25,7 +23,6 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   onResetView,
   onZoomIn,
   onZoomOut,
-  onAddNode,
   availableNodes
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -54,20 +51,21 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   };
 
   return (
-    <div className="canvas-floating-toolbar">
-      {/* Search Input */}
+    <div className="canvas-floating-toolbar" role="toolbar" aria-label="Graph controls">
+      {/* Optional Search */}
       <div className="floating-search-wrap" ref={searchRef}>
-        <Search size={14} className="floating-search-icon" />
+        <Search size={13} className="floating-search-icon" />
         <input
           type="text"
           className="floating-search-input"
-          placeholder="Search concepts..."
+          placeholder="Search..."
           value={searchQuery}
           onChange={(e) => {
             setSearchQuery(e.target.value);
             setIsDropdownOpen(true);
           }}
           onFocus={() => setIsDropdownOpen(true)}
+          aria-label="Search concepts"
         />
 
         {isDropdownOpen && searchQuery && (
@@ -84,7 +82,7 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
                 </div>
               ))
             ) : (
-              <div className="floating-search-empty">No concept found</div>
+              <div className="floating-search-empty">No concepts found</div>
             )}
           </div>
         )}
@@ -97,7 +95,7 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
         <button
           className="canvas-action-btn"
           onClick={onZoomIn}
-          title="Zoom in (+)"
+          title="Zoom in"
           aria-label="Zoom in"
         >
           <Plus size={14} />
@@ -106,7 +104,7 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
         <button
           className="canvas-action-btn"
           onClick={onZoomOut}
-          title="Zoom out (-)"
+          title="Zoom out"
           aria-label="Zoom out"
         >
           <Minus size={14} />
@@ -115,38 +113,21 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
         <button
           className="canvas-action-btn"
           onClick={onFitView}
-          title="Fit graph to viewport"
-          aria-label="Fit view"
+          title="Fit to view"
+          aria-label="Fit graph"
         >
           <Maximize size={14} />
-          <span className="canvas-btn-text">Fit</span>
         </button>
 
         <button
           className="canvas-action-btn"
           onClick={onResetView}
-          title="Reset view layout"
+          title="Reset view"
           aria-label="Reset view"
         >
           <RotateCcw size={13} />
-          <span className="canvas-btn-text">Reset</span>
         </button>
       </div>
-
-      {onAddNode && (
-        <>
-          <div className="toolbar-vertical-divider" />
-          <button
-            className="canvas-action-btn add-node-btn"
-            onClick={onAddNode}
-            title="Add new concept to canvas"
-            aria-label="Add concept"
-          >
-            <PlusCircle size={14} />
-            <span className="canvas-btn-text">Add concept</span>
-          </button>
-        </>
-      )}
     </div>
   );
 };

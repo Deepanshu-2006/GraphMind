@@ -19,11 +19,11 @@ import {
 export function App() {
   const getInitialSection = (): NavSection => {
     const path = window.location.pathname.replace(/^\//, '');
-    if (path === 'graph') return 'graph';
+    if (path === 'overview') return 'overview';
     if (path === 'paths') return 'paths';
     if (path === 'sources') return 'sources';
     if (path === 'settings') return 'settings';
-    return 'overview';
+    return 'graph';
   };
 
   const [currentSection, setCurrentSection] = useState<NavSection>(getInitialSection);
@@ -33,7 +33,7 @@ export function App() {
 
   const navigateToSection = (section: NavSection) => {
     setCurrentSection(section);
-    const targetPath = section === 'overview' ? '/' : `/${section}`;
+    const targetPath = section === 'graph' ? '/graph' : section === 'overview' ? '/overview' : `/${section}`;
     if (window.location.pathname !== targetPath) {
       window.history.pushState({}, '', targetPath);
     }

@@ -26,11 +26,12 @@
   /* Subtle Neutral Gray Borders */
   --border-default: #242424;
   --border-hover: #2A2A2A;
-  --border-selected: #B8FF3D;
+  --border-selected: #A3FF12;
 
-  /* Accent (Used sparingly & intentionally) */
-  --accent: #B8FF3D;
-  --accent-muted: rgba(184, 255, 61, 0.12);
+  /* Accent: GraphMind Green (#A3FF12) — intentional and restrained */
+  --accent: #A3FF12;
+  --accent-muted: rgba(163, 255, 18, 0.12);
+  --bg-canvas: #101110;
 
   /* Radius (8-12px) */
   --radius-sm: 6px;

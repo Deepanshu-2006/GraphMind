@@ -21,8 +21,8 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
   }
 
   return (
-    <aside className="floating-node-inspector" aria-label="Concept inspector">
-      {/* Top Header */}
+    <aside className="floating-node-inspector" aria-label="Concept details">
+      {/* Header: Category + Name + Close */}
       <div className="inspector-header">
         <div className="inspector-title-wrap">
           <span className="inspector-category">{concept.category}</span>
@@ -31,42 +31,49 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
         <button 
           className="inspector-close-btn" 
           onClick={onClose}
-          aria-label="Close inspector"
+          aria-label="Close panel"
+          title="Close panel"
         >
-          <X size={15} />
+          <X size={14} />
         </button>
       </div>
 
-      {/* Description */}
+      {/* 1–2 sentence explanation */}
       <p className="inspector-desc">
         {concept.description}
       </p>
 
-      {/* Connections List */}
-      <div className="inspector-section">
-        <span className="inspector-section-label">Connections</span>
-        <div className="inspector-connections-list">
-          {concept.relationships.map((rel, idx) => (
-            <button
-              key={`${rel.targetId}-${idx}`}
-              className="inspector-conn-item"
-              onClick={() => onSelectConcept(rel.targetId)}
-              title={`View ${rel.targetName}`}
-            >
-              <span className="inspector-conn-bullet">•</span>
-              <span className="inspector-conn-name">{rel.targetName}</span>
-              <span className="inspector-conn-rel">({rel.type})</span>
-              <ArrowUpRight size={12} className="inspector-conn-arrow" />
-            </button>
-          ))}
+      {/* Connected Concepts (Section 4: Clickable exploration loop) */}
+      {concept.relationships && concept.relationships.length > 0 && (
+        <div className="inspector-section">
+          <span className="inspector-section-label">Connected concepts</span>
+          <div className="inspector-connections-list">
+            {concept.relationships.map((rel, idx) => (
+              <button
+                key={`${rel.targetId}-${idx}`}
+                className="inspector-conn-item"
+                onClick={() => onSelectConcept(rel.targetId)}
+                title={`Explore ${rel.targetName}`}
+              >
+                <span className="inspector-conn-bullet">•</span>
+                <span className="inspector-conn-name">{rel.targetName}</span>
+                {rel.type && <span className="inspector-conn-rel">{rel.type}</span>}
+                <ArrowUpRight size={11} className="inspector-conn-arrow" />
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Source Citation */}
-      <div className="inspector-footer">
-        <span className="inspector-source-label">Source</span>
-        <span className="inspector-source-value">{concept.source}</span>
-      </div>
+      {/* Source Citation (Section 5: visually secondary, gracefully omitted if missing) */}
+      {concept.source && (
+        <div className="inspector-footer">
+          <span className="inspector-source-label">Source</span>
+          <span className="inspector-source-value" title={concept.source}>
+            {concept.source}
+          </span>
+        </div>
+      )}
     </aside>
   );
 };

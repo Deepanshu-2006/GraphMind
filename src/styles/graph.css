@@ -1,4 +1,7 @@
-/* Knowledge Graph Workspace — Excalidraw-Grade Freeform Knowledge Canvas */
+/* ==================================================
+   GraphMind Knowledge Graph — Freeform Knowledge Canvas
+   Design: Minimal, Quiet, Organic, Natural (#A3FF12 Accent)
+   ================================================== */
 
 .freeform-graph-container {
   display: flex;
@@ -14,12 +17,12 @@
   height: 100%;
   width: 100%;
   position: relative;
-  background-color: #0D0D0D;
+  background-color: #101110;
 }
 
 /* React Flow Canvas Base Override */
 .react-flow {
-  background-color: #0D0D0D !important;
+  background-color: #101110 !important;
 }
 
 .react-flow__pane {
@@ -31,66 +34,62 @@
 }
 
 /* ==================================================
-   4 & 5. COMPACT KNOWLEDGE CARD NODES
+   4 & 5. CLEAN COMPACT CONCEPT NODES
    ================================================== */
 
+.react-flow__node {
+  cursor: grab;
+}
+
+.react-flow__node.dragging {
+  cursor: grabbing;
+  z-index: 1000 !important;
+}
+
 .knowledge-node-card {
-  width: 240px;
-  background-color: #111111;
-  border: 1px solid #282828;
-  border-radius: 10px;
-  padding: 14px 16px;
+  width: 216px;
+  background-color: #131413;
+  border: 1px solid #262626;
+  border-radius: 8px;
+  padding: 11px 13px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
   user-select: none;
-  cursor: pointer;
+  cursor: grab;
   box-sizing: border-box;
-  transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease, filter 180ms ease;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease, filter 160ms ease, transform 160ms ease;
+}
+
+.knowledge-node-card:active {
+  cursor: grabbing;
 }
 
 .knowledge-node-card:hover {
   border-color: #383838;
-  background-color: #141414;
+  background-color: #161716;
+  transform: translateY(-1.5px);
 }
 
-/* Selected Node: Lime-green border (#B7FF2A) + subtle green outer glow */
-.knowledge-node-card.selected {
-  border-color: #B7FF2A !important;
-  background-color: #141612 !important;
-  box-shadow: 0 0 0 1px #B7FF2A, 0 4px 20px rgba(183, 255, 42, 0.12) !important;
+/* 1. Small concept-type label */
+.node-card-type {
+  font-size: 11px;
+  color: #707070;
+  font-weight: 450;
+  line-height: 1.2;
 }
 
-/* Connected Highlighted Nodes */
-.knowledge-node-card.highlighted {
-  border-color: #484848;
-  background-color: #131313;
-  opacity: 1 !important;
-}
-
-/* Unrelated Dimmed Nodes */
-.knowledge-node-card.dimmed {
-  opacity: 0.22 !important;
-  filter: grayscale(80%) !important;
-}
-
-/* Node Contents */
-.node-card-header {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.node-title-row {
+/* 2. Concept name row */
+.node-card-name-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
 
-.node-card-title {
+.node-card-name {
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 550;
   color: #F5F5F5;
   line-height: 1.25;
@@ -101,67 +100,68 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: #B7FF2A;
-  box-shadow: 0 0 6px #B7FF2A;
+  background-color: #A3FF12;
+  box-shadow: 0 0 6px #A3FF12;
   flex-shrink: 0;
 }
 
-.node-card-category {
-  font-size: 11.5px;
+/* 3. One-line short description / brief */
+.node-card-brief {
+  font-size: 12px;
+  line-height: 1.4;
   color: #888888;
-  font-weight: 450;
-}
-
-.knowledge-node-card.selected .node-card-category {
-  color: #B7FF2A;
-}
-
-/* Short 2-3 Line Explanation */
-.node-card-desc {
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: #929292;
-  margin: 3px 0 2px 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
+  margin-top: 2px;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.knowledge-node-card.selected .node-card-desc {
+/* Hierarchy: Selected Node (Section 5) */
+.knowledge-node-card.selected {
+  border-color: #A3FF12 !important;
+  background-color: #141712 !important;
+  box-shadow: 0 0 0 1px #A3FF12, 0 4px 18px rgba(163, 255, 18, 0.08) !important;
+}
+
+.knowledge-node-card.selected .node-card-type {
+  color: #A3FF12;
+}
+
+.knowledge-node-card.selected .node-card-brief {
   color: #A6A6A6;
 }
 
-/* Source Citation */
-.node-card-source {
-  font-size: 11px;
-  color: #666666;
-  border-top: 1px solid #1C1C1C;
-  padding-top: 6px;
-  margin-top: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* Connected Highlighted Nodes */
+.knowledge-node-card.highlighted {
+  border-color: #3E3E3E;
+  background-color: #161716;
+  opacity: 1 !important;
 }
 
-/* Discrete Handles */
+/* Secondary / Unrelated Dimmed Nodes (Section 4: slightly quieter, do not hide, remain readable) */
+.knowledge-node-card.dimmed {
+  opacity: 0.42 !important;
+  filter: grayscale(30%) !important;
+}
+
+/* Discrete Handles on all 4 sides */
 .node-handle {
-  width: 6px !important;
-  height: 6px !important;
+  width: 5px !important;
+  height: 5px !important;
   border-radius: 50% !important;
-  background: #383838 !important;
-  border: 1px solid #111111 !important;
-  opacity: 0.4;
+  background: #2C2C2C !important;
+  border: 1px solid #131413 !important;
+  opacity: 0.35;
   transition: opacity 150ms ease, background 150ms ease;
 }
 
 .knowledge-node-card:hover .node-handle,
 .knowledge-node-card.selected .node-handle {
-  opacity: 0.9;
+  opacity: 0.85;
 }
 
 .knowledge-node-card.selected .node-handle {
-  background: #B7FF2A !important;
+  background: #A3FF12 !important;
 }
 
 /* ==================================================
@@ -169,45 +169,45 @@
    ================================================== */
 
 .edge-semantic-badge {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 450;
-  background-color: #111111;
-  border: 1px solid #282828;
+  background-color: #111211;
+  border: 1px solid #242424;
   border-radius: 4px;
-  padding: 2px 7px;
-  color: #888888;
+  padding: 2px 6px;
+  color: #7A7A7A;
   user-select: none;
   white-space: nowrap;
-  pointer-events: all;
-  transition: all 180ms ease;
+  pointer-events: none;
+  transition: all 160ms ease;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 .edge-semantic-badge.active {
-  border-color: rgba(183, 255, 42, 0.45);
+  border-color: rgba(163, 255, 18, 0.45);
   background-color: #141810;
-  color: #B7FF2A;
+  color: #A3FF12;
   font-weight: 500;
-  box-shadow: 0 0 10px rgba(183, 255, 42, 0.15);
+  box-shadow: 0 0 10px rgba(163, 255, 18, 0.12);
 }
 
 /* ==================================================
-   12. MINIMAL FLOATING TOOLBAR
+   11. MINIMAL FLOATING TOOLBAR
    ================================================== */
 
 .canvas-floating-toolbar {
   position: absolute;
   top: 16px;
-  left: 20px;
+  left: 18px;
   z-index: 30;
   display: flex;
   align-items: center;
-  gap: 8px;
-  background-color: #111111;
-  border: 1px solid #282828;
+  gap: 6px;
+  background-color: #121312;
+  border: 1px solid #242424;
   border-radius: 8px;
-  padding: 6px 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  padding: 5px 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
   user-select: none;
 }
 
@@ -219,49 +219,49 @@
 
 .floating-search-icon {
   position: absolute;
-  left: 8px;
+  left: 7px;
   color: #666666;
   pointer-events: none;
 }
 
 .floating-search-input {
-  width: 140px;
-  padding: 5px 8px 5px 28px;
+  width: 120px;
+  padding: 4px 6px 4px 24px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 5px;
   color: #F5F5F5;
-  font-size: 13px;
-  transition: width 200ms ease, border-color 150ms ease, background-color 150ms ease;
+  font-size: 12.5px;
+  transition: width 180ms ease, border-color 150ms ease, background-color 150ms ease;
 }
 
 .floating-search-input:focus {
-  width: 190px;
-  background-color: #181818;
-  border-color: #383838;
+  width: 160px;
+  background-color: #181918;
+  border-color: #333333;
 }
 
 .floating-search-dropdown {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 6px);
   left: 0;
-  width: 220px;
-  background-color: #111111;
-  border: 1px solid #282828;
+  width: 200px;
+  background-color: #121312;
+  border: 1px solid #242424;
   border-radius: 8px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
-  max-height: 220px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
+  max-height: 200px;
   overflow-y: auto;
   z-index: 40;
 }
 
 .floating-search-item {
-  padding: 8px 12px;
+  padding: 7px 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   cursor: pointer;
-  border-bottom: 1px solid #1C1C1C;
+  border-bottom: 1px solid #1C1D1C;
   transition: background-color 120ms ease;
 }
 
@@ -270,46 +270,46 @@
 }
 
 .floating-search-item:hover {
-  background-color: #181818;
+  background-color: #181918;
 }
 
 .search-item-label {
-  font-size: 13px;
+  font-size: 12.5px;
   color: #F5F5F5;
 }
 
 .search-item-category {
-  font-size: 11px;
+  font-size: 10.5px;
   color: #666666;
 }
 
 .floating-search-empty {
-  padding: 12px;
-  font-size: 12px;
+  padding: 10px;
+  font-size: 11.5px;
   color: #666666;
   text-align: center;
 }
 
 .toolbar-vertical-divider {
   width: 1px;
-  height: 16px;
+  height: 14px;
   background-color: #242424;
 }
 
 .toolbar-actions-group {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
 }
 
 .canvas-action-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 5px 8px;
-  border-radius: 6px;
-  color: #929292;
-  font-size: 12.5px;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  color: #888888;
   transition: color 150ms ease, background-color 150ms ease;
   background: transparent;
   border: none;
@@ -318,39 +318,27 @@
 
 .canvas-action-btn:hover {
   color: #F5F5F5;
-  background-color: #1A1A1A;
-}
-
-.canvas-btn-text {
-  font-size: 12px;
-}
-
-.add-node-btn {
-  color: #B7FF2A !important;
-}
-
-.add-node-btn:hover {
-  background-color: rgba(183, 255, 42, 0.1) !important;
+  background-color: #1C1D1C;
 }
 
 /* ==================================================
-   7. COMPACT FLOATING CONTEXTUAL INSPECTOR
+   9. COMPACT FLOATING CONTEXTUAL INSPECTOR
    ================================================== */
 
 .floating-node-inspector {
   position: absolute;
   top: 16px;
-  right: 20px;
+  right: 18px;
   width: 270px;
-  background-color: #111111;
-  border: 1px solid #282828;
-  border-radius: 10px;
+  background-color: #121312;
+  border: 1px solid #242424;
+  border-radius: 8px;
   padding: 16px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   z-index: 30;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   animation: fadeIn 150ms ease-out;
 }
 
@@ -370,9 +358,8 @@
 .inspector-category {
   font-size: 11px;
   font-weight: 500;
-  color: #B7FF2A;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  color: #A3FF12;
+  letter-spacing: 0.02em;
 }
 
 .inspector-name {
@@ -381,11 +368,12 @@
   font-weight: 600;
   color: #F5F5F5;
   line-height: 1.25;
+  user-select: text;
 }
 
 .inspector-close-btn {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -400,13 +388,14 @@
 
 .inspector-close-btn:hover {
   color: #F5F5F5;
-  background-color: #1A1A1A;
+  background-color: #1C1D1C;
 }
 
 .inspector-desc {
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: #929292;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #9A9A9A;
+  user-select: text;
 }
 
 .inspector-section {
@@ -419,12 +408,13 @@
   font-size: 11px;
   font-weight: 500;
   color: #666666;
+  letter-spacing: 0.01em;
 }
 
 .inspector-connections-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .inspector-conn-item {
@@ -434,7 +424,7 @@
   padding: 5px 6px;
   border-radius: 4px;
   font-size: 12px;
-  color: #A1A1A1;
+  color: #9A9A9A;
   background: transparent;
   border: none;
   text-align: left;
@@ -444,11 +434,12 @@
 
 .inspector-conn-item:hover {
   color: #F5F5F5;
-  background-color: #181818;
+  background-color: #181918;
 }
 
 .inspector-conn-bullet {
-  color: #B7FF2A;
+  color: #A3FF12;
+  font-size: 11px;
 }
 
 .inspector-conn-name {
@@ -456,20 +447,27 @@
 }
 
 .inspector-conn-rel {
-  font-size: 11px;
+  font-size: 10.5px;
   color: #666666;
   margin-left: auto;
+  flex-shrink: 0;
 }
 
 .inspector-conn-arrow {
   color: #666666;
   margin-left: 2px;
+  transition: color 150ms ease, transform 150ms ease;
+}
+
+.inspector-conn-item:hover .inspector-conn-arrow {
+  color: #A3FF12;
+  transform: translate(1px, -1px);
 }
 
 .inspector-footer {
-  border-top: 1px solid #1C1C1C;
-  padding-top: 8px;
-  margin-top: 4px;
+  border-top: 1px solid #1C1D1C;
+  padding-top: 10px;
+  margin-top: 2px;
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -479,17 +477,19 @@
 
 .inspector-source-label {
   color: #666666;
+  font-weight: 450;
 }
 
 .inspector-source-value {
-  color: #929292;
+  color: #8E8E8E;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  user-select: text;
 }
 
 /* ==================================================
-   13. EMPTY CANVAS STATE
+   15. MINIMAL EMPTY STATE
    ================================================== */
 
 .graph-empty-canvas-container {
@@ -502,7 +502,7 @@
 }
 
 .graph-empty-box {
-  max-width: 440px;
+  max-width: 420px;
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -513,40 +513,46 @@
 
 .graph-empty-title {
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 600;
   color: #F5F5F5;
   letter-spacing: -0.015em;
 }
 
 .graph-empty-desc {
-  font-size: 14.5px;
-  color: #929292;
+  font-size: 14px;
+  color: #888888;
   line-height: 1.5;
   margin-bottom: 8px;
 }
 
-/* Responsive adjustments */
+/* Responsive adjustments (Section 3: bottom sheet or compact overlay on smaller screens) */
 @media (max-width: 768px) {
   .canvas-floating-toolbar {
     left: 12px;
     top: 12px;
-    padding: 4px 8px;
+    padding: 4px 6px;
   }
 
   .floating-search-input {
-    width: 110px;
+    width: 95px;
   }
 
   .floating-search-input:focus {
-    width: 140px;
+    width: 130px;
   }
 
   .floating-node-inspector {
     right: 12px;
     bottom: 12px;
+    left: 12px;
     top: auto;
-    width: calc(100vw - 24px);
-    max-width: 320px;
+    width: auto;
+    max-width: none;
+    max-height: 48vh;
+    overflow-y: auto;
+    border-radius: 8px;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.6);
+    padding: 16px 16px 20px 16px;
   }
 }

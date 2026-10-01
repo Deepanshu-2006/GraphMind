@@ -16,7 +16,7 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
 
   return (
     <div className={nodeClasses}>
-      {/* Target Handles */}
+      {/* Handles on all 4 sides for natural organic connections */}
       <Handle
         type="target"
         position={Position.Left}
@@ -29,27 +29,6 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
         id="target-top"
         className="node-handle"
       />
-
-      {/* Header: Title + Category */}
-      <div className="node-card-header">
-        <div className="node-title-row">
-          <span className="node-card-title">{concept.label}</span>
-          {isSelected && <span className="node-accent-pip" />}
-        </div>
-        <span className="node-card-category">{concept.category}</span>
-      </div>
-
-      {/* Short 2-3 line explanation */}
-      <p className="node-card-desc">
-        {concept.description}
-      </p>
-
-      {/* Source Citation */}
-      <div className="node-card-source">
-        <span>{concept.source}</span>
-      </div>
-
-      {/* Source Handles */}
       <Handle
         type="source"
         position={Position.Right}
@@ -62,6 +41,20 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
         id="source-bottom"
         className="node-handle"
       />
+
+      {/* 1. Small concept-type label */}
+      <span className="node-card-type">{concept.category}</span>
+
+      {/* 2. Concept name */}
+      <div className="node-card-name-row">
+        <span className="node-card-name">{concept.label}</span>
+        {isSelected && <span className="node-accent-pip" />}
+      </div>
+
+      {/* 3. One-line short description / brief */}
+      <p className="node-card-brief" title={concept.description}>
+        {concept.description}
+      </p>
     </div>
   );
 });
