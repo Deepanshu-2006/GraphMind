@@ -13,6 +13,9 @@ import {
   mockConnectedConcepts, 
   mockLearningPaths 
 } from './data/mockData';
+import { defaultKnowledgeGraph } from './data/graphData';
+import type { KnowledgeSource } from './types/knowledgeGraph';
+import { sourceToRecentMaterial } from './services/sourceIngestion';
 import type { NavSection, RecentMaterial } from './types';
 
 export function App() {
@@ -37,7 +40,11 @@ export function App() {
     return 'interactive';
   };
 
-  const [sources, setSources] = useState<RecentMaterial[]>(mockRecentMaterials);
+  const [canonicalSources, setCanonicalSources] = useState<KnowledgeSource[]>(() => defaultKnowledgeGraph.sources);
+  const [sources, setSources] = useState<RecentMaterial[]>(() => [
+    ...defaultKnowledgeGraph.sources.map(sourceToRecentMaterial),
+    ...mockRecentMaterials.filter(m => !defaultKnowledgeGraph.sources.some(s => s.fileName === m.title))
+  ]);
   const [graphMode, setGraphMode] = useState<WorkspaceMode>(getInitialMode);
 
   const navigateToSection = (section: NavSection) => {
@@ -73,22 +80,19 @@ export function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleCreateSuccess = () => {
+  // Ingestion handler: accepts newly created real KnowledgeSources
+  const handleCreateSuccess = (newSources: KnowledgeSource[]) => {
     setHasGraphContent(true);
-    setSources((prev) => [
-      {
-        id: `rm-${Date.now()}`,
-        title: 'Stanford_CS229_Lecture_04.pdf',
-        format: 'PDF',
-        size: '2.4 MB',
-        conceptsExtracted: 36,
-        timestamp: 'Added just now',
-        status: 'Indexed'
-      },
-      ...prev
-    ]);
+    setCanonicalSources(prev => [...newSources, ...prev]);
+    const newMaterials = newSources.map(sourceToRecentMaterial);
+    setSources(prev => [...newMaterials, ...prev]);
     setGraphMode('loading');
     navigateToSection('graph');
+  };
+
+  const handleRemoveSource = (sourceId: string) => {
+    setCanonicalSources(prev => prev.filter(s => s.id !== sourceId));
+    setSources(prev => prev.filter(s => s.id !== sourceId));
   };
 
   return (
@@ -134,6 +138,7 @@ export function App() {
           <SourcesView
             sources={sources}
             onAddSource={() => setCreateModalOpen(true)}
+            onRemoveSource={handleRemoveSource}
           />
         )}
 
@@ -187,6 +192,7 @@ export function App() {
         isOpen={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         onSuccess={handleCreateSuccess}
+        existingSources={canonicalSources}
       />
 
       {/* Global Command Palette (Cmd + K) */}

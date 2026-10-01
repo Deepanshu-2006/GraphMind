@@ -1,15 +1,17 @@
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import type { RecentMaterial } from '../../types';
 
 interface SourcesViewProps {
   sources: RecentMaterial[];
   onAddSource: () => void;
+  onRemoveSource?: (sourceId: string) => void;
 }
 
 export const SourcesView: React.FC<SourcesViewProps> = ({
   sources,
-  onAddSource
+  onAddSource,
+  onRemoveSource
 }) => {
   const activeSources = sources;
 
@@ -21,6 +23,15 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
         <span className="source-status-badge status-ready">
           <span className="source-status-pip ready" />
           <span>Indexed</span>
+        </span>
+      );
+    }
+
+    if (norm === 'pending') {
+      return (
+        <span className="source-status-badge status-processing">
+          <span className="source-status-pip" style={{ backgroundColor: 'var(--text-muted)' }} />
+          <span>Pending</span>
         </span>
       );
     }
@@ -126,6 +137,21 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
                   <div className="source-status-wrap">
                     {renderStatus(source.status)}
                   </div>
+
+                  {onRemoveSource && (
+                    <button
+                      type="button"
+                      className="source-remove-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveSource(source.id);
+                      }}
+                      aria-label={`Remove source ${source.title}`}
+                      title="Remove source"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
             );

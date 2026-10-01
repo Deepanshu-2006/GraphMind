@@ -63,10 +63,12 @@ export interface KnowledgeRelationship {
 }
 
 /**
- * Source Model
+ * Source Model & Lifecycle
  * Represents the original learning material from which concepts were extracted.
  */
 export type SourceType = 'pdf' | 'text' | 'markdown' | 'url' | string;
+
+export type SourceLifecycleState = 'pending' | 'processing' | 'ready' | 'failed';
 
 export interface KnowledgeSource {
   id: string;
@@ -75,10 +77,11 @@ export interface KnowledgeSource {
   fileName?: string;
   text?: string;
   createdAt: string | number;
+  status: SourceLifecycleState | 'Ready' | 'Processing' | 'Failed' | 'Indexed' | string;
+  errorMessage?: string;
   
   // Optional metadata needed by UI
   size?: string;
-  status?: 'Ready' | 'Processing' | 'Failed' | 'Indexed' | string;
   conceptsExtracted?: number;
 }
 
