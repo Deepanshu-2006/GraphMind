@@ -23,16 +23,20 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
       <div className="overview-hero-actions">
         <button 
+          type="button"
           className="btn-primary"
           onClick={onCreateGraph}
+          aria-label="Add learning material"
           id="btn-overview-add-material"
         >
           <span>Add material</span>
         </button>
 
         <button 
+          type="button"
           className="btn-secondary"
           onClick={onExploreDemo}
+          aria-label="Explore knowledge graph"
           id="btn-explore-demo-graph"
         >
           <span>Explore graph</span>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import type { NavSection, ProjectWorkspace, RecentMaterial } from '../../types';
@@ -23,14 +23,26 @@ export const AppShell: React.FC<AppShellProps> = ({
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Close mobile drawer on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mobileMenuOpen]);
+
   return (
     <div className="app-shell">
       {/* Mobile backdrop */}
       {mobileMenuOpen && (
         <div 
-          className="modal-backdrop" 
-          style={{ zIndex: 35 }}
+          className="modal-backdrop mobile-drawer-backdrop" 
+          style={{ zIndex: 45 }}
           onClick={() => setMobileMenuOpen(false)} 
+          aria-hidden="true"
         />
       )}
 
@@ -49,9 +61,10 @@ export const AppShell: React.FC<AppShellProps> = ({
           onOpenSearch={onOpenSearch}
           onToggleMobileMenu={() => setMobileMenuOpen(prev => !prev)}
           onOpenCreateModal={onOpenCreateModal}
+          isMobileMenuOpen={mobileMenuOpen}
         />
         
-        <main className="workspace-viewport">
+        <main className="workspace-viewport" id="main-content" tabIndex={-1}>
           {children}
         </main>
       </div>

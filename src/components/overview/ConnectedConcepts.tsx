@@ -103,6 +103,15 @@ export const ConnectedConcepts: React.FC<ConnectedConceptsProps> = ({
                     onClick={() => setSelectedId(node.id)}
                     onMouseEnter={() => setHoveredId(node.id)}
                     onMouseLeave={() => setHoveredId(null)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Select concept ${node.name}`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedId(node.id);
+                      }
+                    }}
                     style={{ 
                       cursor: 'pointer',
                       opacity: isConnected ? 1 : 0.35,
@@ -154,7 +163,7 @@ export const ConnectedConcepts: React.FC<ConnectedConceptsProps> = ({
             </svg>
 
             {/* Compact Node Info Inspector (Section 8) */}
-            <div className="centerpiece-node-panel">
+            <div className="centerpiece-node-panel" aria-label="Concept inspector">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span className="node-panel-category">{activeConcept.category}</span>
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -171,9 +180,11 @@ export const ConnectedConcepts: React.FC<ConnectedConceptsProps> = ({
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {activeConcept.connections.map((c) => (
                     <button
+                      type="button"
                       key={c.targetId}
                       className="node-panel-conn-chip"
                       onClick={() => setSelectedId(c.targetId)}
+                      aria-label={`Focus connected concept ${c.targetName}`}
                       title={`Focus ${c.targetName}`}
                     >
                       <span>{c.targetName}</span>
@@ -191,7 +202,7 @@ export const ConnectedConcepts: React.FC<ConnectedConceptsProps> = ({
         </div>
       </section>
 
-      {/* 2. Recent Concepts Clean List (Section 12) */}
+      {/* 2. Recent Concepts Clean List */}
       <section className="overview-concepts-section">
         <div className="overview-section-header">
           <div>
@@ -200,7 +211,7 @@ export const ConnectedConcepts: React.FC<ConnectedConceptsProps> = ({
           </div>
         </div>
 
-        <div className="concepts-clean-list">
+        <div className="concepts-clean-list" role="list">
           {concepts.map((concept) => {
             const isSelected = concept.id === activeId;
             return (
@@ -208,11 +219,21 @@ export const ConnectedConcepts: React.FC<ConnectedConceptsProps> = ({
                 key={concept.id}
                 className={`concept-clean-row ${isSelected ? 'selected' : ''}`}
                 onClick={() => setSelectedId(concept.id)}
+                role="button"
+                tabIndex={0}
+                aria-label={`Select concept ${concept.name}`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedId(concept.id);
+                  }
+                }}
               >
                 <div className="concept-clean-main">
                   <span
                     className="concept-clean-dot"
                     style={{ background: isSelected ? 'var(--accent)' : 'var(--border-hover)' }}
+                    aria-hidden="true"
                   />
                   <span className="concept-clean-name">{concept.name}</span>
                   <span className="concept-clean-category">{concept.category}</span>

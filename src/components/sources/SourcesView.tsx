@@ -70,9 +70,10 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
             className="btn-primary"
             onClick={onAddSource}
             id="btn-sources-add-source"
+            aria-label="Add learning material source"
             title="Add learning material"
           >
-            <Plus size={14} />
+            <Plus size={14} aria-hidden="true" />
             <span>Add source</span>
           </button>
         </div>

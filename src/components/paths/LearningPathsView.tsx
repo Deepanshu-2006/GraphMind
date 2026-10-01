@@ -50,10 +50,11 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
               className="btn-secondary"
               style={{ padding: '7px 14px', fontSize: '13px' }}
               onClick={() => onSelectPath(path.id)}
+              aria-label={`${path.progress > 0 ? 'Continue' : 'Start'} learning path: ${path.title}`}
               title={`Explore ${path.title}`}
             >
               <span>{path.progress > 0 ? 'Continue' : 'Start'}</span>
-              <ArrowRight size={13} />
+              <ArrowRight size={13} aria-hidden="true" />
             </button>
           </div>
         ))}

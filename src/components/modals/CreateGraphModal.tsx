@@ -147,37 +147,46 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
   };
 
   return (
-    <div className="modal-backdrop" onClick={handleClose} role="dialog" aria-modal="true">
+    <div 
+      className="modal-backdrop" 
+      onClick={handleClose} 
+      role="dialog" 
+      aria-modal="true"
+      aria-labelledby="create-modal-title"
+      aria-describedby="create-modal-desc"
+    >
       <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
         {/* Hidden Native File Picker */}
         <input
           type="file"
+          id="file-upload-input"
           ref={fileInputRef}
           onChange={handleInputChange}
           accept=".pdf,.txt,.md,.markdown"
           style={{ display: 'none' }}
-          aria-label="Upload learning material"
+          aria-label="Select learning material file"
         />
 
         {/* Modal Header */}
         <div className="modal-header">
           <div>
-            <h3 className="modal-title">
+            <h3 id="create-modal-title" className="modal-title">
               {step === 'error' ? 'Upload failed' : 'Add learning material'}
             </h3>
-            <p className="modal-subtitle">
+            <p id="create-modal-desc" className="modal-subtitle">
               {step === 'error'
                 ? 'There was an issue reading the provided file.'
                 : 'Upload papers, lecture notes, transcripts, or other learning material.'}
             </p>
           </div>
           <button 
+            type="button"
             className="modal-close-btn" 
             onClick={handleClose} 
-            aria-label="Close modal"
-            title="Close"
+            aria-label="Close dialog"
+            title="Close dialog"
           >
-            <X size={15} />
+            <X size={15} aria-hidden="true" />
           </button>
         </div>
 
@@ -287,10 +296,11 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
         {/* Modal Footer */}
         {step === 'select' && (
           <div className="modal-footer">
-            <button className="btn-secondary" onClick={handleClose}>
+            <button type="button" className="btn-secondary" onClick={handleClose}>
               Cancel
             </button>
             <button
+              type="button"
               className="btn-primary"
               onClick={handleStartProcessing}
               disabled={!selectedFile}

@@ -17,7 +17,13 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
   ].filter(Boolean).join(' ');
 
   return (
-    <div className={nodeClasses}>
+    <div 
+      className={nodeClasses}
+      role="button"
+      tabIndex={0}
+      aria-label={`Concept: ${concept.label}. ${concept.category}. ${concept.description}`}
+      aria-pressed={Boolean(isSelected)}
+    >
       {/* Handles on all 4 sides for natural organic connections */}
       <Handle
         type="target"

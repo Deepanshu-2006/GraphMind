@@ -93,39 +93,43 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
       {/* Navigation Controls: Zoom In, Zoom Out, Fit, Reset */}
       <div className="toolbar-actions-group">
         <button
+          type="button"
           className="canvas-action-btn"
           onClick={onZoomIn}
           title="Zoom in"
           aria-label="Zoom in"
         >
-          <Plus size={14} />
+          <Plus size={14} aria-hidden="true" />
         </button>
 
         <button
+          type="button"
           className="canvas-action-btn"
           onClick={onZoomOut}
           title="Zoom out"
           aria-label="Zoom out"
         >
-          <Minus size={14} />
+          <Minus size={14} aria-hidden="true" />
         </button>
 
         <button
+          type="button"
           className="canvas-action-btn"
           onClick={onFitView}
           title="Fit to view"
-          aria-label="Fit graph"
+          aria-label="Fit graph to view"
         >
-          <Maximize size={14} />
+          <Maximize size={14} aria-hidden="true" />
         </button>
 
         <button
+          type="button"
           className="canvas-action-btn"
           onClick={onResetView}
           title="Reset view"
           aria-label="Reset view"
         >
-          <RotateCcw size={13} />
+          <RotateCcw size={13} aria-hidden="true" />
         </button>
       </div>
     </div>

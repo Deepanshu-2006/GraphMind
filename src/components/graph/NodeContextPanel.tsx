@@ -22,6 +22,9 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
 
   return (
     <aside className="floating-node-inspector" aria-label="Concept details">
+      {/* Mobile bottom sheet drag handle */}
+      <div className="inspector-drag-handle" aria-hidden="true" />
+
       {/* Header: Category + Name + Close */}
       <div className="inspector-header">
         <div className="inspector-title-wrap">
