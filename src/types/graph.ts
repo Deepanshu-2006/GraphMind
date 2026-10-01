@@ -1,3 +1,5 @@
+export * from './knowledgeGraph';
+
 export type ConceptCategory = 
   | 'Foundation' 
   | 'Paradigm' 

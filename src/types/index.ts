@@ -1,3 +1,5 @@
+export * from './graph';
+
 export type NavSection = 'overview' | 'graph' | 'paths' | 'sources' | 'settings';
 
 export interface ConceptConnection {

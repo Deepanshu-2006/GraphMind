@@ -1,294 +1,434 @@
-import type { GraphConceptData } from '../types/graph';
 import type { Node, Edge } from '@xyflow/react';
+import type { 
+  KnowledgeGraph, 
+  KnowledgeNode, 
+  KnowledgeSource,
+  ConceptCategory,
+  GraphConceptData,
+  ConceptRelationship
+} from '../types';
 
-export const initialConceptDetails: Record<string, GraphConceptData> = {
-  'ml': {
-    id: 'ml',
-    label: 'Machine Learning',
-    code: 'ML-01',
-    category: 'Foundation',
-    description: 'Learning algorithms from data without explicit programmed rules.',
-    prerequisites: ['Linear Algebra', 'Probability & Statistics'],
-    relationships: [
-      { type: 'extends', targetId: 'dl', targetName: 'Deep Learning', direction: 'outgoing' }
-    ],
-    confidence: 99,
-    source: 'Stanford CS229.pdf',
-    synapseCount: 1,
-    isPrerequisite: true
-  },
-  'dl': {
-    id: 'dl',
-    label: 'Deep Learning',
-    code: 'DL-02',
-    category: 'Paradigm',
-    description: 'A representation learning approach based on multiple layers of neural networks.',
-    prerequisites: ['Machine Learning', 'Gradient Descent'],
-    relationships: [
-      { type: 'extends', targetId: 'ml', targetName: 'Machine Learning', direction: 'incoming' },
-      { type: 'foundation of', targetId: 'nn', targetName: 'Neural Networks', direction: 'outgoing' },
-      { type: 'used in', targetId: 'tf', targetName: 'Transformers', direction: 'outgoing' }
-    ],
-    confidence: 97,
-    source: 'Lecture 04.pdf',
-    synapseCount: 3,
-    isPrerequisite: true
-  },
-  'nn': {
-    id: 'nn',
-    label: 'Neural Networks',
-    code: 'NN-03',
-    category: 'Architecture',
-    description: 'Interconnected nodes computing weighted activations.',
-    prerequisites: ['Deep Learning', 'Matrix Operations'],
-    relationships: [
-      { type: 'foundation of', targetId: 'dl', targetName: 'Deep Learning', direction: 'incoming' },
-      { type: 'contains', targetId: 'cnn', targetName: 'CNN', direction: 'outgoing' },
-      { type: 'contains', targetId: 'rnn', targetName: 'RNN', direction: 'outgoing' },
-      { type: 'integrates', targetId: 'attn', targetName: 'Attention Mechanism', direction: 'outgoing' }
-    ],
-    confidence: 96,
-    source: 'MIT 6.S191 Notes.pdf',
-    synapseCount: 4,
-    isPrerequisite: true
-  },
-  'cnn': {
-    id: 'cnn',
-    label: 'CNN',
-    code: 'CNN-04',
-    category: 'Architecture',
-    description: 'Convolutional spatial pattern extraction for visual grids.',
-    prerequisites: ['Neural Networks', 'Convolutions'],
-    relationships: [
-      { type: 'contains', targetId: 'nn', targetName: 'Neural Networks', direction: 'incoming' },
-      { type: 'powers', targetId: 'cv', targetName: 'Computer Vision', direction: 'outgoing' }
-    ],
-    confidence: 95,
-    source: 'Stanford CS231n.pdf',
-    synapseCount: 2,
-    isMethod: true
-  },
-  'rnn': {
-    id: 'rnn',
-    label: 'RNN',
-    code: 'RNN-05',
-    category: 'Architecture',
-    description: 'Sequential modeling maintaining hidden states across time.',
-    prerequisites: ['Neural Networks', 'Sequence Modeling'],
-    relationships: [
-      { type: 'contains', targetId: 'nn', targetName: 'Neural Networks', direction: 'incoming' },
-      { type: 'used in', targetId: 'nlp', targetName: 'Natural Language Processing', direction: 'outgoing' }
-    ],
-    confidence: 91,
-    source: 'Stanford CS224n.pdf',
-    synapseCount: 2,
-    isMethod: true
-  },
-  'attn': {
-    id: 'attn',
-    label: 'Attention Mechanism',
-    code: 'ATTN-06',
-    category: 'Method',
-    description: 'Dynamic token weighting across long-range context.',
-    prerequisites: ['Deep Learning', 'Vector Dot Products'],
-    relationships: [
-      { type: 'integrates', targetId: 'nn', targetName: 'Neural Networks', direction: 'incoming' },
-      { type: 'core of', targetId: 'tf', targetName: 'Transformers', direction: 'outgoing' }
-    ],
-    confidence: 96,
-    source: 'Bahdanau et al. (2014)',
-    synapseCount: 2,
-    isMethod: true
-  },
-  'tf': {
-    id: 'tf',
-    label: 'Transformers',
-    code: 'TF-07',
-    category: 'Architecture',
-    description: 'Attention-based parallel sequence architecture.',
-    prerequisites: ['Neural Networks', 'Attention Mechanism'],
-    relationships: [
-      { type: 'core of', targetId: 'attn', targetName: 'Attention Mechanism', direction: 'incoming' },
-      { type: 'used in', targetId: 'dl', targetName: 'Deep Learning', direction: 'incoming' },
-      { type: 'powers', targetId: 'nlp', targetName: 'Natural Language Processing', direction: 'outgoing' }
-    ],
-    confidence: 94,
-    source: 'Attention Is All You Need.pdf',
-    synapseCount: 3,
-    isMethod: true
-  },
-  'cv': {
-    id: 'cv',
-    label: 'Computer Vision',
-    code: 'CV-08',
-    category: 'Application',
-    description: 'Visual understanding and automated image feature analysis.',
-    prerequisites: ['CNN', 'Spatial Features'],
-    relationships: [
-      { type: 'powers', targetId: 'cnn', targetName: 'CNN', direction: 'incoming' }
-    ],
-    confidence: 98,
-    source: 'CS231n Slides.pdf',
-    synapseCount: 1,
-    isApplication: true
-  },
-  'nlp': {
-    id: 'nlp',
-    label: 'Natural Language Processing',
-    code: 'NLP-09',
-    category: 'Application',
-    description: 'Computational parsing, semantic extraction, and text generation.',
-    prerequisites: ['Transformers', 'Tokenization'],
-    relationships: [
-      { type: 'powers', targetId: 'tf', targetName: 'Transformers', direction: 'incoming' },
-      { type: 'used in', targetId: 'rnn', targetName: 'RNN', direction: 'incoming' }
-    ],
-    confidence: 97,
-    source: 'Jurafsky & Martin (Ch. 3)',
-    synapseCount: 2,
-    isApplication: true
-  }
+export * from '../types/knowledgeGraph';
+
+/**
+ * ==================================================
+ * CANONICAL KNOWLEDGE GRAPH (Day 2 Intelligence Model)
+ * ==================================================
+ * Structure:
+ * SOURCE → CONCEPTS → RELATIONSHIPS → KNOWLEDGE GRAPH
+ */
+export const defaultKnowledgeGraph: KnowledgeGraph = {
+  sources: [
+    {
+      id: 'src-stanford-cs229',
+      name: 'Stanford CS229: Machine Learning Course Notes',
+      type: 'pdf',
+      fileName: 'Stanford CS229.pdf',
+      text: 'Learning algorithms, empirical risk minimization, gradient descent, and supervised learning paradigms.',
+      createdAt: '2026-09-10T10:00:00Z',
+      size: '1.4 MB',
+      status: 'Indexed',
+      conceptsExtracted: 18
+    },
+    {
+      id: 'src-lecture-04',
+      name: 'Representation Learning & Deep Architectures',
+      type: 'pdf',
+      fileName: 'Lecture 04.pdf',
+      text: 'A representation learning approach based on multiple layers of neural networks and non-linear feature maps.',
+      createdAt: '2026-09-18T14:30:00Z',
+      size: '840 KB',
+      status: 'Indexed',
+      conceptsExtracted: 24
+    },
+    {
+      id: 'src-mit-6s191',
+      name: 'MIT 6.S191: Introduction to Deep Learning',
+      type: 'pdf',
+      fileName: 'MIT 6.S191 Notes.pdf',
+      text: 'Interconnected nodes computing weighted activations, backpropagation, and perceptron loss functions.',
+      createdAt: '2026-09-20T09:15:00Z',
+      size: '1.1 MB',
+      status: 'Indexed',
+      conceptsExtracted: 32
+    },
+    {
+      id: 'src-stanford-cs231n',
+      name: 'Stanford CS231n: Deep Learning for Computer Vision',
+      type: 'pdf',
+      fileName: 'Stanford CS231n.pdf',
+      text: 'Convolutional spatial pattern extraction for visual grids, kernels, pooling, and image feature analysis.',
+      createdAt: '2026-09-22T16:00:00Z',
+      size: '2.1 MB',
+      status: 'Indexed',
+      conceptsExtracted: 29
+    },
+    {
+      id: 'src-stanford-cs224n',
+      name: 'Stanford CS224n: Natural Language Processing with Deep Learning',
+      type: 'pdf',
+      fileName: 'Stanford CS224n.pdf',
+      text: 'Sequential modeling maintaining hidden states across time, recurrence equations, and sequence tagging.',
+      createdAt: '2026-09-24T11:45:00Z',
+      size: '1.8 MB',
+      status: 'Indexed',
+      conceptsExtracted: 22
+    },
+    {
+      id: 'src-bahdanau-2014',
+      name: 'Neural Machine Translation by Jointly Learning to Align and Translate',
+      type: 'pdf',
+      fileName: 'Bahdanau et al. (2014)',
+      text: 'Dynamic token weighting across long-range context, soft alignment vectors, and encoder-decoder mechanisms.',
+      createdAt: '2026-09-25T15:20:00Z',
+      size: '480 KB',
+      status: 'Indexed',
+      conceptsExtracted: 14
+    },
+    {
+      id: 'src-arxiv-attention',
+      name: 'Attention Is All You Need (Vaswani et al.)',
+      type: 'pdf',
+      fileName: 'Attention Is All You Need.pdf',
+      text: 'Attention-based parallel sequence architecture dispensing with recurrence and convolutions.',
+      createdAt: '2026-09-28T08:00:00Z',
+      size: '520 KB',
+      status: 'Indexed',
+      conceptsExtracted: 26
+    },
+    {
+      id: 'src-cs231n-slides',
+      name: 'Stanford CS231n Visual Recognition Course Slides',
+      type: 'pdf',
+      fileName: 'CS231n Slides.pdf',
+      text: 'Visual understanding and automated image feature analysis, object detection, and spatial convolutions.',
+      createdAt: '2026-09-28T18:00:00Z',
+      size: '3.4 MB',
+      status: 'Indexed',
+      conceptsExtracted: 19
+    },
+    {
+      id: 'src-jurafsky-martin',
+      name: 'Speech and Language Processing (3rd ed.)',
+      type: 'pdf',
+      fileName: 'Jurafsky & Martin (Ch. 3)',
+      text: 'Computational parsing, semantic extraction, and text generation using statistical and neural representations.',
+      createdAt: '2026-09-29T12:00:00Z',
+      size: '3.2 MB',
+      status: 'Indexed',
+      conceptsExtracted: 41
+    }
+  ],
+  nodes: [
+    {
+      id: 'ml',
+      name: 'Machine Learning',
+      type: 'foundation',
+      description: 'Learning algorithms from data without explicit programmed rules.',
+      sourceIds: ['src-stanford-cs229'],
+      position: { x: 80, y: 320 },
+      code: 'ML-01',
+      confidence: 99,
+      prerequisites: ['Linear Algebra', 'Probability & Statistics']
+    },
+    {
+      id: 'nn',
+      name: 'Neural Networks',
+      type: 'architecture',
+      description: 'Interconnected nodes computing weighted activations.',
+      sourceIds: ['src-mit-6s191'],
+      position: { x: 440, y: 110 },
+      code: 'NN-03',
+      confidence: 96,
+      prerequisites: ['Deep Learning', 'Matrix Operations']
+    },
+    {
+      id: 'dl',
+      name: 'Deep Learning',
+      type: 'paradigm',
+      description: 'A representation learning approach based on multiple layers of neural networks.',
+      sourceIds: ['src-lecture-04'],
+      position: { x: 500, y: 360 },
+      code: 'DL-02',
+      confidence: 97,
+      prerequisites: ['Machine Learning', 'Gradient Descent']
+    },
+    {
+      id: 'cnn',
+      name: 'CNN',
+      type: 'architecture',
+      description: 'Convolutional spatial pattern extraction for visual grids.',
+      sourceIds: ['src-stanford-cs231n'],
+      position: { x: 860, y: 70 },
+      code: 'CNN-04',
+      confidence: 95,
+      prerequisites: ['Neural Networks', 'Convolutions']
+    },
+    {
+      id: 'rnn',
+      name: 'RNN',
+      type: 'architecture',
+      description: 'Sequential modeling maintaining hidden states across time.',
+      sourceIds: ['src-stanford-cs224n'],
+      position: { x: 840, y: 250 },
+      code: 'RNN-05',
+      confidence: 91,
+      prerequisites: ['Neural Networks', 'Sequence Modeling']
+    },
+    {
+      id: 'attn',
+      name: 'Attention Mechanism',
+      type: 'method',
+      description: 'Dynamic token weighting across long-range context.',
+      sourceIds: ['src-bahdanau-2014'],
+      position: { x: 380, y: 600 },
+      code: 'ATTN-06',
+      confidence: 96,
+      prerequisites: ['Deep Learning', 'Vector Dot Products']
+    },
+    {
+      id: 'tf',
+      name: 'Transformers',
+      type: 'architecture',
+      description: 'Attention-based parallel sequence architecture.',
+      sourceIds: ['src-arxiv-attention'],
+      position: { x: 760, y: 520 },
+      code: 'TF-07',
+      confidence: 94,
+      prerequisites: ['Neural Networks', 'Attention Mechanism']
+    },
+    {
+      id: 'cv',
+      name: 'Computer Vision',
+      type: 'application',
+      description: 'Visual understanding and automated image feature analysis.',
+      sourceIds: ['src-cs231n-slides'],
+      position: { x: 1220, y: 140 },
+      code: 'CV-08',
+      confidence: 98,
+      prerequisites: ['CNN', 'Spatial Features']
+    },
+    {
+      id: 'nlp',
+      name: 'Natural Language Processing',
+      type: 'application',
+      description: 'Computational parsing, semantic extraction, and text generation.',
+      sourceIds: ['src-jurafsky-martin'],
+      position: { x: 1160, y: 400 },
+      code: 'NLP-09',
+      confidence: 97,
+      prerequisites: ['Transformers', 'Tokenization']
+    }
+  ],
+  relationships: [
+    {
+      id: 'rel-ml-dl',
+      source: 'ml',
+      target: 'dl',
+      type: 'extends',
+      label: 'extends',
+      description: 'Deep learning extends machine learning into layered representations.'
+    },
+    {
+      id: 'rel-dl-nn',
+      source: 'dl',
+      target: 'nn',
+      type: 'foundation-for',
+      label: 'foundation of',
+      description: 'Neural networks serve as the fundamental structural unit of deep learning.'
+    },
+    {
+      id: 'rel-dl-tf',
+      source: 'dl',
+      target: 'tf',
+      type: 'uses',
+      label: 'used in',
+      description: 'Transformers utilize deep learning representation architectures.'
+    },
+    {
+      id: 'rel-nn-cnn',
+      source: 'nn',
+      target: 'cnn',
+      type: 'part-of',
+      label: 'contains',
+      description: 'CNNs are specialized convolutional subsets of neural networks.'
+    },
+    {
+      id: 'rel-nn-rnn',
+      source: 'nn',
+      target: 'rnn',
+      type: 'part-of',
+      label: 'contains',
+      description: 'RNNs are recurrent sequential architectural subsets of neural networks.'
+    },
+    {
+      id: 'rel-nn-attn',
+      source: 'nn',
+      target: 'attn',
+      type: 'uses',
+      label: 'integrates',
+      description: 'Neural networks integrate dynamic token attention mechanisms.'
+    },
+    {
+      id: 'rel-attn-tf',
+      source: 'attn',
+      target: 'tf',
+      type: 'foundation-for',
+      label: 'core of',
+      description: 'The attention mechanism is the core foundational primitive of transformers.'
+    },
+    {
+      id: 'rel-cnn-cv',
+      source: 'cnn',
+      target: 'cv',
+      type: 'applied-to',
+      label: 'powers',
+      description: 'Convolutional neural networks are applied to computer vision tasks.'
+    },
+    {
+      id: 'rel-tf-nlp',
+      source: 'tf',
+      target: 'nlp',
+      type: 'applied-to',
+      label: 'powers',
+      description: 'Transformers power state-of-the-art natural language processing applications.'
+    },
+    {
+      id: 'rel-rnn-nlp',
+      source: 'rnn',
+      target: 'nlp',
+      type: 'applied-to',
+      label: 'used in',
+      description: 'Recurrent neural networks are used in sequential natural language processing.'
+    }
+  ]
 };
 
-// Organic freeform spatial layout with generous breathing room (Prompt 3 - Section 7)
-// Non-grid, discovered topology avoiding rigid columns
-export const initialNodes: Node<GraphConceptData>[] = [
-  {
-    id: 'ml',
-    type: 'conceptNode',
-    position: { x: 80, y: 320 },
-    data: initialConceptDetails['ml']
-  },
-  {
-    id: 'nn',
-    type: 'conceptNode',
-    position: { x: 440, y: 110 },
-    data: initialConceptDetails['nn']
-  },
-  {
-    id: 'dl',
-    type: 'conceptNode',
-    position: { x: 500, y: 360 },
-    data: initialConceptDetails['dl']
-  },
-  {
-    id: 'cnn',
-    type: 'conceptNode',
-    position: { x: 860, y: 70 },
-    data: initialConceptDetails['cnn']
-  },
-  {
-    id: 'rnn',
-    type: 'conceptNode',
-    position: { x: 840, y: 250 },
-    data: initialConceptDetails['rnn']
-  },
-  {
-    id: 'attn',
-    type: 'conceptNode',
-    position: { x: 380, y: 600 },
-    data: initialConceptDetails['attn']
-  },
-  {
-    id: 'tf',
-    type: 'conceptNode',
-    position: { x: 760, y: 520 },
-    data: initialConceptDetails['tf']
-  },
-  {
-    id: 'cv',
-    type: 'conceptNode',
-    position: { x: 1220, y: 140 },
-    data: initialConceptDetails['cv']
-  },
-  {
-    id: 'nlp',
-    type: 'conceptNode',
-    position: { x: 1160, y: 400 },
-    data: initialConceptDetails['nlp']
+/**
+ * Helper to convert lowercase semantic type into display ConceptCategory
+ */
+function normalizeCategory(type: string): ConceptCategory {
+  const norm = type.toLowerCase();
+  switch (norm) {
+    case 'foundation': return 'Foundation';
+    case 'paradigm': return 'Paradigm';
+    case 'architecture': return 'Architecture';
+    case 'method': return 'Method';
+    case 'application': return 'Application';
+    default: return 'Foundation';
   }
-];
+}
 
-// Semantic directed relationships with natural human labels
-export const initialEdges: Edge[] = [
-  {
-    id: 'e-ml-dl',
-    source: 'ml',
-    target: 'dl',
-    type: 'custom',
-    label: 'extends',
-    data: { relation: 'extends' }
-  },
-  {
-    id: 'e-dl-nn',
-    source: 'dl',
-    target: 'nn',
-    type: 'custom',
-    label: 'foundation of',
-    data: { relation: 'foundation of' }
-  },
-  {
-    id: 'e-dl-tf',
-    source: 'dl',
-    target: 'tf',
-    type: 'custom',
-    label: 'used in',
-    data: { relation: 'used in' }
-  },
-  {
-    id: 'e-nn-cnn',
-    source: 'nn',
-    target: 'cnn',
-    type: 'custom',
-    label: 'contains',
-    data: { relation: 'contains' }
-  },
-  {
-    id: 'e-nn-rnn',
-    source: 'nn',
-    target: 'rnn',
-    type: 'custom',
-    label: 'contains',
-    data: { relation: 'contains' }
-  },
-  {
-    id: 'e-nn-attn',
-    source: 'nn',
-    target: 'attn',
-    type: 'custom',
-    label: 'integrates',
-    data: { relation: 'integrates' }
-  },
-  {
-    id: 'e-attn-tf',
-    source: 'attn',
-    target: 'tf',
-    type: 'custom',
-    label: 'core of',
-    data: { relation: 'core of' }
-  },
-  {
-    id: 'e-cnn-cv',
-    source: 'cnn',
-    target: 'cv',
-    type: 'custom',
-    label: 'powers',
-    data: { relation: 'powers' }
-  },
-  {
-    id: 'e-tf-nlp',
-    source: 'tf',
-    target: 'nlp',
-    type: 'custom',
-    label: 'powers',
-    data: { relation: 'powers' }
-  },
-  {
-    id: 'e-rnn-nlp',
-    source: 'rnn',
-    target: 'nlp',
-    type: 'custom',
-    label: 'used in',
-    data: { relation: 'used in' }
+/**
+ * Adapter: Converts canonical KnowledgeGraph into ReactFlow elements
+ * and rich Concept Details map for inspector/search components.
+ */
+export function knowledgeGraphToReactFlow(graph: KnowledgeGraph): {
+  nodes: Node<GraphConceptData>[];
+  edges: Edge[];
+  conceptDetails: Record<string, GraphConceptData>;
+} {
+  const nodeMap = new Map<string, KnowledgeNode>();
+  for (const n of graph.nodes) {
+    nodeMap.set(n.id, n);
   }
-];
+
+  const sourceMap = new Map<string, KnowledgeSource>();
+  for (const s of graph.sources) {
+    sourceMap.set(s.id, s);
+  }
+
+  // Build relationship adjacency for every node
+  const nodeRelMap = new Map<string, ConceptRelationship[]>();
+  for (const n of graph.nodes) {
+    nodeRelMap.set(n.id, []);
+  }
+
+  for (const rel of graph.relationships) {
+    const srcNode = nodeMap.get(rel.source);
+    const tgtNode = nodeMap.get(rel.target);
+    const relLabel = rel.label || rel.type;
+
+    if (srcNode && tgtNode) {
+      // Outgoing from source to target
+      nodeRelMap.get(rel.source)?.push({
+        type: relLabel,
+        targetId: rel.target,
+        targetName: tgtNode.name,
+        direction: 'outgoing'
+      });
+
+      // Incoming into target from source
+      nodeRelMap.get(rel.target)?.push({
+        type: relLabel,
+        targetId: rel.source,
+        targetName: srcNode.name,
+        direction: 'incoming'
+      });
+    }
+  }
+
+  // 1. Build Concept Details
+  const conceptDetails: Record<string, GraphConceptData> = {};
+
+  for (const n of graph.nodes) {
+    const primarySource = n.sourceIds[0] ? sourceMap.get(n.sourceIds[0]) : undefined;
+    const sourceDisplay = primarySource ? (primarySource.fileName || primarySource.name) : 'Indexed Material';
+    const category = normalizeCategory(n.type);
+    const relationships = nodeRelMap.get(n.id) || [];
+
+    conceptDetails[n.id] = {
+      id: n.id,
+      label: n.name,
+      code: n.code || n.id.toUpperCase(),
+      category,
+      description: n.description,
+      prerequisites: n.prerequisites || [],
+      relationships,
+      confidence: n.confidence || 95,
+      source: sourceDisplay,
+      synapseCount: relationships.length,
+      isPrerequisite: category === 'Foundation' || category === 'Paradigm',
+      isMethod: category === 'Method' || category === 'Architecture',
+      isApplication: category === 'Application'
+    };
+  }
+
+  // 2. Build ReactFlow Nodes
+  const nodes: Node<GraphConceptData>[] = graph.nodes.map(n => ({
+    id: n.id,
+    type: 'conceptNode',
+    position: n.position,
+    data: conceptDetails[n.id]
+  }));
+
+  // 3. Build ReactFlow Edges
+  const edges: Edge[] = graph.relationships.map(rel => {
+    // Preserve progressive crafting edge ID conventions ('e-src-tgt')
+    const edgeId = rel.id.startsWith('rel-') 
+      ? rel.id.replace('rel-', 'e-') 
+      : (rel.id.startsWith('e-') ? rel.id : `e-${rel.source}-${rel.target}`);
+    const label = rel.label || rel.type;
+
+    return {
+      id: edgeId,
+      source: rel.source,
+      target: rel.target,
+      type: 'custom',
+      label,
+      data: { 
+        relation: label,
+        description: rel.description 
+      }
+    };
+  });
+
+  return { nodes, edges, conceptDetails };
+}
+
+// Derived visual representations from canonical model
+const derivedElements = knowledgeGraphToReactFlow(defaultKnowledgeGraph);
+
+export const initialNodes: Node<GraphConceptData>[] = derivedElements.nodes;
+export const initialEdges: Edge[] = derivedElements.edges;
+export const initialConceptDetails: Record<string, GraphConceptData> = derivedElements.conceptDetails;
