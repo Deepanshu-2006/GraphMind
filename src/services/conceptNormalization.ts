@@ -2,8 +2,11 @@ import type {
   ConceptCandidate, 
   CanonicalConcept, 
   NormalizationResult,
-  ConceptCandidateType
+  ConceptCandidateType,
+  KnowledgeSource,
+  TextChunk
 } from '../types/knowledgeGraph';
+import { extractConcepts, type ConceptExtractionOptions } from './conceptExtraction';
 
 /**
  * =========================================================================
@@ -382,3 +385,36 @@ export function normalizeConceptsWithReport(rawConcepts: ConceptCandidate[]): No
     mergedCount: rawConcepts.length - canonicalConcepts.length
   };
 }
+
+/**
+ * Master Pipeline Integration Function:
+ * SOURCE → TEXT → CHUNKS → RAW CONCEPTS → CANONICAL CONCEPTS
+ */
+export async function extractAndNormalizeConcepts(
+  source: KnowledgeSource,
+  textOrChunks?: string | TextChunk[],
+  options?: ConceptExtractionOptions
+): Promise<{
+  success: boolean;
+  sourceId: string;
+  concepts: CanonicalConcept[];
+  error?: string;
+}> {
+  const extractionResult = await extractConcepts(source, textOrChunks, options);
+  if (!extractionResult.success) {
+    return {
+      success: false,
+      sourceId: source.id,
+      concepts: [],
+      error: extractionResult.error
+    };
+  }
+
+  const canonicalConcepts = normalizeConcepts(extractionResult.concepts);
+  return {
+    success: true,
+    sourceId: source.id,
+    concepts: canonicalConcepts
+  };
+}
+

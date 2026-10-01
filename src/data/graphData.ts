@@ -227,7 +227,8 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
       target: 'dl',
       type: 'extends',
       label: 'extends',
-      description: 'Deep learning extends machine learning into layered representations.'
+      description: 'Deep learning extends machine learning into layered representations.',
+      sourceChunkIds: ['chunk-01']
     },
     {
       id: 'rel-dl-nn',
@@ -235,7 +236,8 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
       target: 'nn',
       type: 'foundation-for',
       label: 'foundation of',
-      description: 'Neural networks serve as the fundamental structural unit of deep learning.'
+      description: 'Neural networks serve as the fundamental structural unit of deep learning.',
+      sourceChunkIds: ['chunk-02']
     },
     {
       id: 'rel-dl-tf',
@@ -243,7 +245,8 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
       target: 'tf',
       type: 'uses',
       label: 'used in',
-      description: 'Transformers utilize deep learning representation architectures.'
+      description: 'Transformers utilize deep learning representation architectures.',
+      sourceChunkIds: ['chunk-02']
     },
     {
       id: 'rel-nn-cnn',
@@ -251,7 +254,8 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
       target: 'cnn',
       type: 'part-of',
       label: 'contains',
-      description: 'CNNs are specialized convolutional subsets of neural networks.'
+      description: 'CNNs are specialized convolutional subsets of neural networks.',
+      sourceChunkIds: ['chunk-03']
     },
     {
       id: 'rel-nn-rnn',
@@ -259,7 +263,8 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
       target: 'rnn',
       type: 'part-of',
       label: 'contains',
-      description: 'RNNs are recurrent sequential architectural subsets of neural networks.'
+      description: 'RNNs are recurrent sequential architectural subsets of neural networks.',
+      sourceChunkIds: ['chunk-03']
     },
     {
       id: 'rel-nn-attn',
@@ -267,7 +272,8 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
       target: 'attn',
       type: 'uses',
       label: 'integrates',
-      description: 'Neural networks integrate dynamic token attention mechanisms.'
+      description: 'Neural networks integrate dynamic token attention mechanisms.',
+      sourceChunkIds: ['chunk-04']
     },
     {
       id: 'rel-attn-tf',
@@ -275,7 +281,8 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
       target: 'tf',
       type: 'foundation-for',
       label: 'core of',
-      description: 'The attention mechanism is the core foundational primitive of transformers.'
+      description: 'The attention mechanism is the core foundational primitive of transformers.',
+      sourceChunkIds: ['chunk-04']
     },
     {
       id: 'rel-cnn-cv',
@@ -283,7 +290,8 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
       target: 'cv',
       type: 'applied-to',
       label: 'powers',
-      description: 'Convolutional neural networks are applied to computer vision tasks.'
+      description: 'Convolutional neural networks are applied to computer vision tasks.',
+      sourceChunkIds: ['chunk-05']
     },
     {
       id: 'rel-tf-nlp',
@@ -291,7 +299,8 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
       target: 'nlp',
       type: 'applied-to',
       label: 'powers',
-      description: 'Transformers power state-of-the-art natural language processing applications.'
+      description: 'Transformers power state-of-the-art natural language processing applications.',
+      sourceChunkIds: ['chunk-06']
     },
     {
       id: 'rel-rnn-nlp',
@@ -299,7 +308,8 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
       target: 'nlp',
       type: 'applied-to',
       label: 'used in',
-      description: 'Recurrent neural networks are used in sequential natural language processing.'
+      description: 'Recurrent neural networks are used in sequential natural language processing.',
+      sourceChunkIds: ['chunk-06']
     }
   ]
 };

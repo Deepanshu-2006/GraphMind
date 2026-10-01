@@ -44,22 +44,35 @@ export type SemanticRelationType =
   | 'related-to'
   | 'part-of'
   | 'foundation-for'
+  | 'depends-on'
   | 'extends'
   | 'uses'
   | 'applied-to'
-  | 'depends-on';
+  | 'instance-of'
+  | string;
 
 /**
- * Relationship Model
+ * Relationship Model (Day 2 Step 6)
  * Represents a semantic, directed or bidirectional connection between concepts.
  */
 export interface KnowledgeRelationship {
   id: string;
-  source: string; // source node id
-  target: string; // target node id
-  type: SemanticRelationType | string;
+  source: string; // source concept/node id
+  target: string; // target concept/node id
+  type: SemanticRelationType;
   description?: string;
+  sourceChunkIds: string[]; // supporting source chunks for traceability
+  sourceIds?: string[]; // origin document IDs
+  confidence?: number; // internal confidence score
   label?: string; // Optional human-readable display label
+}
+
+export interface RelationshipExtractionResult {
+  success: boolean;
+  relationships: KnowledgeRelationship[];
+  conceptCount: number;
+  sourceChunkCount: number;
+  error?: string;
 }
 
 /**

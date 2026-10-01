@@ -9,6 +9,7 @@ import { extractText } from './textExtraction';
 export * from './textExtraction';
 export * from './conceptExtraction';
 export * from './conceptNormalization';
+export * from './relationshipExtraction';
 
 export const SUPPORTED_EXTENSIONS = ['pdf', 'txt', 'md', 'markdown'];
 export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
