@@ -49,7 +49,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           title="Search concepts (⌘K)"
         >
           <Search size={14} className="topbar-search-icon" aria-hidden="true" />
-          <span className="topbar-search-text">Search</span>
+          <span className="topbar-search-text">Search concepts</span>
           <kbd className="search-kbd" aria-hidden="true">⌘K</kbd>
         </button>
 

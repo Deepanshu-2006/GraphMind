@@ -51,6 +51,8 @@ export interface KnowledgeGraphWorkspaceProps {
   pipelineError?: string;
   onClearError?: () => void;
   livePipelineEvent?: PipelineProgressEvent | null;
+  focusedNodeId?: string | null;
+  onClearFocusedNode?: () => void;
 }
 
 // Progressive Crafting Steps (Prompt 22: Contextual processing copy)
@@ -113,7 +115,9 @@ function FlowCanvas({
   pipelineStatusMessage,
   pipelineError,
   onClearError,
-  livePipelineEvent
+  livePipelineEvent,
+  focusedNodeId,
+  onClearFocusedNode
 }: KnowledgeGraphWorkspaceProps) {
   const reactFlowInstance = useReactFlow();
 
@@ -709,6 +713,32 @@ function FlowCanvas({
     setSelectedNodeId(null);
   }, [mode]);
 
+  // Smooth Camera & Node Focus (Prompt 25 Section 4 & 8)
+  const focusNodeOnCanvas = useCallback((nodeId: string) => {
+    setSelectedRelationship(null);
+    setSelectedNodeId(nodeId);
+    setIsInspectorOpen(true);
+
+    const targetNode = nodes.find((n) => n.id === nodeId) || effectiveNodes.find((n) => n.id === nodeId);
+    if (targetNode) {
+      reactFlowInstance.setCenter(targetNode.position.x + 100, targetNode.position.y + 45, {
+        zoom: 1.15,
+        duration: 650
+      });
+    }
+  }, [nodes, effectiveNodes, reactFlowInstance]);
+
+  // Handle external search selection request
+  useEffect(() => {
+    if (focusedNodeId && mode === 'interactive') {
+      const timer = setTimeout(() => {
+        focusNodeOnCanvas(focusedNodeId);
+        onClearFocusedNode?.();
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [focusedNodeId, mode, focusNodeOnCanvas, onClearFocusedNode]);
+
   // Escape Key to deselect
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -790,17 +820,7 @@ function FlowCanvas({
 
       {/* Floating Toolbar */}
       <GraphToolbar
-        onSearchSelect={(nodeId) => {
-          setSelectedNodeId(nodeId);
-          setIsInspectorOpen(true);
-          const targetNode = nodes.find((n) => n.id === nodeId);
-          if (targetNode) {
-            reactFlowInstance.setCenter(targetNode.position.x + 100, targetNode.position.y + 40, {
-              zoom: 1.1,
-              duration: 500
-            });
-          }
-        }}
+        onSearchSelect={focusNodeOnCanvas}
         onFitView={handleResetView}
         onResetView={handleResetView}
         onZoomIn={handleZoomIn}
@@ -993,28 +1013,8 @@ function FlowCanvas({
             setIsInspectorOpen(false);
             setSelectedRelationship(null);
           }}
-          onSelectConcept={(conceptId) => {
-            setSelectedRelationship(null);
-            setSelectedNodeId(conceptId);
-            const targetNode = nodes.find((n) => n.id === conceptId);
-            if (targetNode) {
-              reactFlowInstance.setCenter(targetNode.position.x + 100, targetNode.position.y + 40, {
-                zoom: 1.1,
-                duration: 500
-              });
-            }
-          }}
-          onFocusNode={(conceptId) => {
-            setSelectedRelationship(null);
-            setSelectedNodeId(conceptId);
-            const targetNode = nodes.find((n) => n.id === conceptId);
-            if (targetNode) {
-              reactFlowInstance.setCenter(targetNode.position.x + 100, targetNode.position.y + 40, {
-                zoom: 1.1,
-                duration: 500
-              });
-            }
-          }}
+          onSelectConcept={focusNodeOnCanvas}
+          onFocusNode={focusNodeOnCanvas}
           isCollapsed={!isInspectorOpen}
         />
       )}

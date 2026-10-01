@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AppShell } from './components/layout/AppShell';
 import { OverviewView } from './components/overview/OverviewView';
 import { KnowledgeGraphWorkspace } from './components/graph/KnowledgeGraphWorkspace';
@@ -10,10 +10,9 @@ import { LearningPathsView } from './components/paths/LearningPathsView';
 import { 
   mockProjectWorkspace, 
   mockRecentMaterials, 
-  mockConnectedConcepts, 
   mockLearningPaths 
 } from './data/mockData';
-import { defaultKnowledgeGraph, demoKnowledgeGraph } from './data/graphData';
+import { defaultKnowledgeGraph, demoKnowledgeGraph, normalizeCategory } from './data/graphData';
 import type { KnowledgeSource, KnowledgeGraph } from './types/knowledgeGraph';
 import { sourceToRecentMaterial } from './services/sourceIngestion';
 import { pipelineOrchestrator, type PipelineStage, type PipelineProgressEvent } from './services/pipelineOrchestrator';
@@ -50,9 +49,23 @@ export function App() {
   const [pipelineStatusMessage, setPipelineStatusMessage] = useState<string>('');
   const [pipelineError, setPipelineError] = useState<string | undefined>(undefined);
   const [livePipelineEvent, setLivePipelineEvent] = useState<PipelineProgressEvent | null>(null);
+  const [focusedConceptId, setFocusedConceptId] = useState<string | null>(null);
 
   // Active graph: strictly userGraph when in 'user' mode, demoGraph when in 'demo' mode
   const activeGraph = graphSourceType === 'user' && userGraph ? userGraph : demoGraph;
+
+  // Searchable concepts dynamically derived from the active knowledge graph (Prompt 25)
+  const searchableConcepts = useMemo(() => {
+    if (activeGraph && activeGraph.nodes && activeGraph.nodes.length > 0) {
+      return activeGraph.nodes.map((node) => ({
+        id: node.id,
+        name: node.name,
+        category: node.type ? normalizeCategory(node.type) : 'Concept',
+        summary: node.description || ''
+      }));
+    }
+    return [];
+  }, [activeGraph]);
 
   const [canonicalSources, setCanonicalSources] = useState<KnowledgeSource[]>(() => defaultKnowledgeGraph.sources);
   const [sources, setSources] = useState<RecentMaterial[]>(() => [
@@ -225,6 +238,8 @@ export function App() {
             pipelineStatusMessage={pipelineStatusMessage}
             pipelineError={pipelineError}
             livePipelineEvent={livePipelineEvent}
+            focusedNodeId={focusedConceptId}
+            onClearFocusedNode={() => setFocusedConceptId(null)}
             onClearError={() => {
               setPipelineError(undefined);
               setPipelineStage('complete');
@@ -307,8 +322,9 @@ export function App() {
       <CommandPalette
         isOpen={searchPaletteOpen}
         onClose={() => setSearchPaletteOpen(false)}
-        concepts={mockConnectedConcepts}
-        onSelectConcept={() => {
+        concepts={searchableConcepts}
+        onSelectConcept={(conceptId) => {
+          setFocusedConceptId(conceptId);
           navigateToSection('graph');
         }}
       />
