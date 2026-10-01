@@ -43,6 +43,7 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
 }) => {
   const [step, setStep] = useState<UploadStep>('select');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,6 +52,7 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
   const handleClose = useCallback(() => {
     setStep('select');
     setSelectedFiles([]);
+    setIsSubmitting(false);
     setErrorMessage('');
     setIsDragging(false);
     onClose();
@@ -148,18 +150,26 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
 
   // Submit and ingest real sources
   const handleStartProcessing = async () => {
-    if (selectedFiles.length === 0) return;
+    if (selectedFiles.length === 0 || isSubmitting) return;
 
-    const { successful, errors } = await createSourcesFromFiles(selectedFiles, existingSources);
+    setIsSubmitting(true);
+    try {
+      const { successful, errors } = await createSourcesFromFiles(selectedFiles, existingSources);
 
-    if (successful.length === 0 && errors.length > 0) {
-      setErrorMessage(errors[0].error);
+      if (successful.length === 0 && errors.length > 0) {
+        setErrorMessage(errors[0].error);
+        setStep('error');
+        setIsSubmitting(false);
+        return;
+      }
+
+      handleClose();
+      onSuccess(successful);
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to process file.');
       setStep('error');
-      return;
+      setIsSubmitting(false);
     }
-
-    handleClose();
-    onSuccess(successful);
   };
 
   const handleRetry = () => {
@@ -367,11 +377,11 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
               type="button"
               className="btn-primary"
               onClick={handleStartProcessing}
-              disabled={selectedFiles.length === 0}
-              style={{ opacity: selectedFiles.length > 0 ? 1 : 0.45 }}
+              disabled={selectedFiles.length === 0 || isSubmitting}
+              style={{ opacity: selectedFiles.length > 0 && !isSubmitting ? 1 : 0.45 }}
               id="btn-modal-create-graph"
             >
-              <span>Create knowledge graph</span>
+              <span>{isSubmitting ? 'Creating knowledge graph…' : 'Create knowledge graph'}</span>
             </button>
           </div>
         )}

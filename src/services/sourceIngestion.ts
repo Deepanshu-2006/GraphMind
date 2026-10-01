@@ -144,9 +144,15 @@ export async function createSourceFromFile(
     const extraction = await extractText(source, file);
     if (extraction.success && extraction.cleanText) {
       source.text = extraction.cleanText;
+    } else {
+      return {
+        success: false,
+        error: extraction.error || `Unable to read text from "${file.name}". Please ensure the file contains readable text.`
+      };
     }
-  } catch {
-    // Retain pending source without blocking UI
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : `Unable to read text from "${file.name}".`;
+    return { success: false, error: msg };
   }
 
   return { success: true, source };

@@ -81,45 +81,147 @@ export function cleanMarkdown(markdownText: string): string {
 
 /**
  * Flate Decompression with trailing garbage tolerance.
- * Browser & Node DecompressionStream throws if framing \r\n remains before endstream.
- * This retries with progressive byte trimming from the tail.
+ * Uses native streaming pipeThrough to guarantee non-blocking decompression
+ * without deadlocking on large streams.
  */
 async function decompressFlateStream(payload: Uint8Array): Promise<string> {
-  // 1. Try standard zlib deflate (RFC 1950)
-  for (let trim = 0; trim <= 12; trim++) {
+  // 1. Try standard zlib deflate via non-blocking Blob stream pipe
+  try {
+    const stream = new Blob([payload as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate'));
+    return await new Response(stream).text();
+  } catch {
+    // continue to fallbacks
+  }
+
+  // 2. Try raw deflate without zlib headers
+  try {
+    const stream = new Blob([payload as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+    return await new Response(stream).text();
+  } catch {
+    // continue to fallbacks
+  }
+
+  // 3. Fallback: Trim trailing framing bytes if any junk remained before endstream
+  for (let trim = 1; trim <= 8; trim++) {
     try {
-      const slice = trim === 0 ? payload : payload.subarray(0, payload.length - trim);
-      const stream = new DecompressionStream('deflate');
-      const writer = stream.writable.getWriter();
-      await writer.write(slice as BufferSource);
-      await writer.close();
-      return await new Response(stream.readable).text();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '';
-      if (trim === 0 && !msg.includes('Trailing junk') && !msg.includes('trailing')) {
-        break;
-      }
+      const slice = payload.subarray(0, payload.length - trim);
+      const stream = new Blob([slice as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate'));
+      return await new Response(stream).text();
+    } catch {
+      // try next trim
     }
   }
 
-  // 2. Try raw deflate without zlib headers (RFC 1951)
-  for (let trim = 0; trim <= 12; trim++) {
+  for (let trim = 1; trim <= 8; trim++) {
     try {
-      const slice = trim === 0 ? payload : payload.subarray(0, payload.length - trim);
-      const stream = new DecompressionStream('deflate-raw');
-      const writer = stream.writable.getWriter();
-      await writer.write(slice as BufferSource);
-      await writer.close();
-      return await new Response(stream.readable).text();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '';
-      if (trim === 0 && !msg.includes('Trailing junk') && !msg.includes('trailing')) {
-        break;
-      }
+      const slice = payload.subarray(0, payload.length - trim);
+      const stream = new Blob([slice as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      return await new Response(stream).text();
+    } catch {
+      // try next trim
     }
   }
 
   return '';
+}
+
+interface PdfTextItem {
+  text: string;
+  x: number;
+  y: number;
+}
+
+/**
+ * Parses operators in a PDF stream and reconstructs reading order
+ * by sorting top-to-bottom and left-to-right using text matrix (Tm / Td) coordinates.
+ */
+function parseStreamTextWithCoords(streamText: string): string {
+  const items: PdfTextItem[] = [];
+  const btEtRegex = /BT[\s\S]*?ET/g;
+  let btMatch: RegExpExecArray | null;
+
+  while ((btMatch = btEtRegex.exec(streamText)) !== null) {
+    const block = btMatch[0];
+    let curX = 0;
+    let curY = 0;
+
+    // Matches Tm, Td, TD, Tj, TJ, ', "
+    const opRegex = /(?:([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+Tm)|(?:\((?:\\.|[^()\\])*\)|<[0-9A-Fa-f\s]+>|\[(?:\\.|[^\]])*\])\s*(?:Tj|TJ|'|")|T\*|(?:([-\d.]+)\s+([-\d.]+)\s+(?:Td|TD))/g;
+    let opMatch: RegExpExecArray | null;
+
+    while ((opMatch = opRegex.exec(block)) !== null) {
+      const full = opMatch[0].trim();
+      if (full.endsWith('Tm')) {
+        curX = parseFloat(opMatch[5]);
+        curY = parseFloat(opMatch[6]);
+      } else if (full.endsWith('Td') || full.endsWith('TD')) {
+        const dx = parseFloat(opMatch[7]);
+        const dy = parseFloat(opMatch[8]);
+        if (!isNaN(dx)) curX += dx;
+        if (!isNaN(dy)) curY += dy;
+      } else if (full.endsWith('Tj') || full.endsWith('TJ') || full.endsWith("'") || full.endsWith('"')) {
+        let extracted = '';
+        if (full.endsWith('TJ')) {
+          const raw = full.substring(0, full.length - 2).trim();
+          extracted = decodePdfArray(raw);
+        } else {
+          const raw = full.substring(0, full.length - (full.endsWith('Tj') ? 2 : 1)).trim();
+          extracted = decodePdfString(raw);
+        }
+        if (extracted) {
+          items.push({ text: extracted, x: curX, y: curY });
+        }
+      }
+    }
+  }
+
+  if (items.length === 0) return '';
+
+  // Sort reading order: Top to Bottom (descending Y), then Left to Right (ascending X)
+  items.sort((a, b) => {
+    if (Math.abs(a.y - b.y) > 3.5) {
+      return b.y - a.y;
+    }
+    return a.x - b.x;
+  });
+
+  const lines: string[] = [];
+  let curLine = '';
+  let lastY: number | null = null;
+  let lastX = 0;
+
+  for (const item of items) {
+    if (lastY === null) {
+      curLine = item.text;
+      lastY = item.y;
+      lastX = item.x + item.text.length * 5;
+      continue;
+    }
+
+    const yDiff = Math.abs(item.y - lastY);
+    if (yDiff <= 3.5) {
+      // Same line: insert space if there is a gap and not already spaced
+      const gap = item.x - lastX;
+      if (gap > 3 && !curLine.endsWith(' ') && !item.text.startsWith(' ')) {
+        curLine += ' ';
+      }
+      curLine += item.text;
+      lastX = item.x + item.text.length * 5;
+    } else {
+      // New line
+      if (curLine.trim()) lines.push(curLine.trim());
+      // Paragraph break if vertical gap is significant (> 18pt)
+      if (lastY - item.y > 18) {
+        lines.push('');
+      }
+      curLine = item.text;
+      lastY = item.y;
+      lastX = item.x + item.text.length * 5;
+    }
+  }
+
+  if (curLine.trim()) lines.push(curLine.trim());
+  return lines.join('\n');
 }
 
 /**
@@ -152,14 +254,24 @@ export async function extractTextFromPdfBytes(pdfBytes: Uint8Array): Promise<str
     let match: RegExpExecArray | null;
 
     while ((match = streamRegex.exec(pdfString)) !== null) {
+      // Check preceding dictionary for /Length, /FlateDecode, /Subtype, etc.
+      const precedingDict = pdfString.substring(Math.max(0, match.index - 500), match.index);
+
+      // Skip binary non-content streams (embedded TrueType/Type1 fonts, raster images)
+      if (
+        /\/Subtype\s*\/Image/i.test(precedingDict) ||
+        /\/Length1\s+\d+/i.test(precedingDict) ||
+        /\/Type\s*\/Font/i.test(precedingDict)
+      ) {
+        continue;
+      }
+
       const streamContentStartIndex = match.index + match[0].indexOf('stream') + 6;
       // Skip newline after 'stream'
       const actualStart = pdfString[streamContentStartIndex] === '\r' && pdfString[streamContentStartIndex + 1] === '\n'
         ? streamContentStartIndex + 2
         : (pdfString[streamContentStartIndex] === '\n' ? streamContentStartIndex + 1 : streamContentStartIndex);
 
-      // Check preceding dictionary for /Length and /FlateDecode
-      const precedingDict = pdfString.substring(Math.max(0, match.index - 500), match.index);
       const isFlate = /FlateDecode/i.test(precedingDict);
 
       // Check direct /Length <number>
@@ -205,15 +317,10 @@ export async function extractTextFromPdfBytes(pdfBytes: Uint8Array): Promise<str
         decompressedText = new TextDecoder('latin1').decode(streamDataBytes);
       }
 
-      // 2. Parse PDF Text Operators within BT ... ET blocks
-      const btEtRegex = /BT[\s\S]*?ET/g;
-      let btMatch: RegExpExecArray | null;
-
-      while ((btMatch = btEtRegex.exec(decompressedText)) !== null) {
-        const textBlock = parsePdfTextOperators(btMatch[0]);
-        if (textBlock.trim()) {
-          textBlocks.push(textBlock.trim());
-        }
+      // Parse PDF Text Operators within BT ... ET blocks with coordinate ordering
+      const pageText = parseStreamTextWithCoords(decompressedText);
+      if (pageText.trim()) {
+        textBlocks.push(pageText.trim());
       }
     }
 
@@ -232,73 +339,6 @@ export async function extractTextFromPdfBytes(pdfBytes: Uint8Array): Promise<str
   } catch {
     return '';
   }
-}
-
-/**
- * Parses operators in a single PDF BT ... ET block
- * Handles Tj, TJ, ', ", Td, TD, T*
- */
-function parsePdfTextOperators(block: string): string {
-  const lines: string[] = [];
-  let currentLine = '';
-
-  // Tokenize operators
-  // Matches:
-  // (literal string) Tj
-  // <hex string> Tj
-  // [(array) -120 (of) (strings)] TJ
-  // string '
-  // Td, TD, T*
-  const opRegex = /(?:\((?:\\.|[^()\\])*\)|<[0-9A-Fa-f\s]+>|\[(?:\\.|[^\]])*\])\s*(?:Tj|TJ|'|")|T\*|(?:-?[\d.]+\s+-?[\d.]+\s+(?:Td|TD))/g;
-  let match: RegExpExecArray | null;
-
-  while ((match = opRegex.exec(block)) !== null) {
-    const token = match[0].trim();
-
-    if (token.endsWith('Tj')) {
-      const rawStr = token.substring(0, token.length - 2).trim();
-      const decoded = decodePdfString(rawStr);
-      currentLine += decoded;
-    } else if (token.endsWith('TJ')) {
-      const rawArray = token.substring(0, token.length - 2).trim();
-      const decoded = decodePdfArray(rawArray);
-      currentLine += decoded;
-    } else if (token.endsWith("'") || token.endsWith('"')) {
-      // Move to next line and show text
-      if (currentLine.trim()) lines.push(currentLine.trim());
-      const rawStr = token.substring(0, token.length - 1).trim();
-      currentLine = decodePdfString(rawStr);
-    } else if (token === 'T*' || token.endsWith('Td') || token.endsWith('TD')) {
-      if (token === 'T*') {
-        if (currentLine.trim()) {
-          lines.push(currentLine.trim());
-          currentLine = '';
-        }
-      } else {
-        // e.g. "0 -14.4 Td" or "15.2 0 Td"
-        const parts = token.split(/\s+/);
-        const ty = parseFloat(parts[1]);
-        if (!isNaN(ty) && ty !== 0) {
-          // Vertical movement -> new line
-          if (currentLine.trim()) {
-            lines.push(currentLine.trim());
-            currentLine = '';
-          }
-        } else {
-          // Horizontal movement -> word separation
-          if (currentLine && !currentLine.endsWith(' ')) {
-            currentLine += ' ';
-          }
-        }
-      }
-    }
-  }
-
-  if (currentLine.trim()) {
-    lines.push(currentLine.trim());
-  }
-
-  return lines.join('\n');
 }
 
 /**
