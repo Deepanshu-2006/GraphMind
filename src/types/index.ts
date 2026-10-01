@@ -57,3 +57,13 @@ export interface RecentMaterial {
   timestamp: string;
   status: 'Ready' | 'Processing' | 'Failed' | 'Indexed' | 'synced' | 'indexing' | string;
 }
+
+export interface LearningPath {
+  id: string;
+  title: string;
+  progress: number;
+  nodeCount: number;
+  estimatedHours: string;
+  status: string;
+}
+

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, Eye, Sparkles } from 'lucide-react';
+import React from 'react';
+import { Plus } from 'lucide-react';
 import type { RecentMaterial } from '../../types';
 
 interface SourcesViewProps {
@@ -11,10 +11,7 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
   sources,
   onAddSource
 }) => {
-  // Support toggling between populated and empty states for testing and inspection
-  const [showEmptyPreview, setShowEmptyPreview] = useState<boolean>(false);
-
-  const activeSources = showEmptyPreview ? [] : sources;
+  const activeSources = sources;
 
   const renderStatus = (status: string) => {
     const norm = status.toLowerCase();
@@ -67,26 +64,6 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
         </div>
 
         <div className="sources-header-actions">
-          {/* Subtle state toggle for previewing both empty and populated states */}
-          <button
-            type="button"
-            className="sources-preview-toggle"
-            onClick={() => setShowEmptyPreview((prev) => !prev)}
-            title="Toggle between populated list and empty state"
-          >
-            {showEmptyPreview ? (
-              <>
-                <Sparkles size={12} />
-                <span>Show sources ({sources.length})</span>
-              </>
-            ) : (
-              <>
-                <Eye size={12} />
-                <span>Preview empty state</span>
-              </>
-            )}
-          </button>
-
           {/* Primary Action Button */}
           <button
             type="button"

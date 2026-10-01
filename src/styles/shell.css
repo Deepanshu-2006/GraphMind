@@ -39,30 +39,16 @@
 
 .sidebar-content {
   flex: 1;
-  padding: 16px 12px;
+  padding: 20px 12px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
   overflow-y: auto;
-}
-
-.sidebar-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.sidebar-group-title {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-muted);
-  padding: 0 10px 6px 10px;
 }
 
 .sidebar-nav-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .sidebar-nav-item {
@@ -70,7 +56,7 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 8px 10px;
+  padding: 9px 12px;
   border-radius: var(--radius-btn);
   color: var(--text-secondary);
   font-size: 13.5px;
@@ -86,7 +72,7 @@
 }
 
 .sidebar-nav-item.active {
-  background-color: var(--bg-surface-elevated);
+  background-color: rgba(255, 255, 255, 0.04);
   color: var(--text-primary);
   font-weight: 500;
 }
@@ -94,10 +80,10 @@
 .sidebar-nav-item.active::before {
   content: '';
   position: absolute;
-  left: 2px;
-  top: 8px;
-  bottom: 8px;
-  width: 2.5px;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 2px;
   border-radius: 2px;
   background-color: var(--accent);
 }
@@ -107,32 +93,12 @@
   transition: color var(--transition-fast);
 }
 
-.sidebar-nav-item.active .nav-icon,
+.sidebar-nav-item.active .nav-icon {
+  color: var(--accent);
+}
+
 .sidebar-nav-item:hover .nav-icon {
   color: var(--text-primary);
-}
-
-.sidebar-divider {
-  height: 1px;
-  background-color: var(--border-default);
-  margin: 4px 10px;
-}
-
-.sidebar-project-item {
-  padding: 8px 10px;
-  border-radius: var(--radius-btn);
-  font-size: 13px;
-  color: var(--text-primary);
-  font-weight: 500;
-  line-height: 1.4;
-  background: transparent;
-}
-
-.sidebar-project-name {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* Main Area Container */

@@ -1,24 +1,24 @@
 /* Overview Page Styles — Linear / Editorial Minimal */
 
 .overview-page {
-  max-width: var(--content-max-width);
+  max-width: 1040px;
   margin: 0 auto;
   width: 100%;
-  padding: 56px 48px 96px 48px;
+  padding: 44px 32px 96px 32px;
   display: flex;
   flex-direction: column;
-  gap: 48px;
+  gap: 40px;
 }
 
 /* 1. Hero Section */
 .overview-hero {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .overview-hero-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--text-muted);
   letter-spacing: 0.04em;
@@ -27,17 +27,17 @@
 
 .overview-hero-title {
   font-family: var(--font-display);
-  font-size: clamp(38px, 4.4vw, 56px);
+  font-size: clamp(32px, 3.8vw, 44px);
   font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -0.03em;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
   color: var(--text-primary);
   max-width: 760px;
 }
 
 .overview-hero-desc {
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 14.5px;
+  line-height: 1.55;
   color: var(--text-secondary);
   max-width: 620px;
 }
@@ -46,34 +46,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 8px;
-}
-
-/* 2. Quiet Project Summary (Section 6: quiet text row, NO metric cards) */
-.quiet-project-summary {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 16px 0;
-  border-top: 1px solid var(--border-default);
-  border-bottom: 1px solid var(--border-default);
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.summary-item {
-  color: var(--text-primary);
-  font-weight: 450;
-}
-
-.summary-separator {
-  color: var(--text-muted);
-}
-
-/* Overview State Switcher */
-.overview-state-toggle:hover {
-  color: var(--text-primary) !important;
-  background-color: var(--bg-surface-elevated) !important;
+  margin-top: 6px;
 }
 
 /* Empty State (Section 15) */

@@ -6,6 +6,7 @@ import type { WorkspaceMode } from './components/graph/KnowledgeGraphWorkspace';
 import { CreateGraphModal } from './components/modals/CreateGraphModal';
 import { CommandPalette } from './components/modals/CommandPalette';
 import { SourcesView } from './components/sources/SourcesView';
+import { LearningPathsView } from './components/paths/LearningPathsView';
 import { 
   mockProjectWorkspace, 
   mockRecentMaterials, 
@@ -13,9 +14,6 @@ import {
   mockLearningPaths 
 } from './data/mockData';
 import type { NavSection, RecentMaterial } from './types';
-import { 
-  ArrowRight
-} from 'lucide-react';
 
 export function App() {
   const getInitialSection = (): NavSection => {
@@ -103,7 +101,6 @@ export function App() {
               setHasGraphContent(true);
             }}
             hasContent={hasGraphContent}
-            onToggleContent={() => setHasGraphContent(prev => !prev)}
           />
         )}
 
@@ -115,59 +112,12 @@ export function App() {
           />
         )}
 
-        {/* Learning Paths View (Section 14) */}
+        {/* Learning Paths View */}
         {currentSection === 'paths' && (
-          <div className="overview-page" style={{ paddingBottom: '96px' }}>
-            <div className="overview-hero">
-              <span className="overview-hero-label">Curriculum</span>
-              <h1 className="overview-hero-title" style={{ fontSize: '36px' }}>Learning paths</h1>
-              <p className="overview-hero-desc">
-                Generated from the relationships in your knowledge graph.
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', marginTop: '16px' }}>
-              {mockLearningPaths.map((path) => (
-                <div
-                  key={path.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '24px 0',
-                    borderBottom: '1px solid var(--border-default)',
-                    gap: '16px'
-                  }}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text-primary)' }}>
-                      {path.title.replace('to', '→')}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                      <span>{path.nodeCount} concepts</span>
-                      <span>·</span>
-                      <span>{path.estimatedHours}</span>
-                      {path.progress > 0 && (
-                        <>
-                          <span>·</span>
-                          <span style={{ color: 'var(--accent)' }}>{path.progress}% complete</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <button
-                    className="btn-secondary"
-                    style={{ padding: '8px 16px', fontSize: '13px' }}
-                    onClick={() => navigateToSection('graph')}
-                  >
-                    <span>{path.progress > 0 ? 'Continue' : 'Start'}</span>
-                    <ArrowRight size={13} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
+          <LearningPathsView 
+            paths={mockLearningPaths}
+            onSelectPath={() => navigateToSection('graph')}
+          />
         )}
 
         {/* Sources View (Prompt 7) */}
@@ -178,16 +128,18 @@ export function App() {
           />
         )}
 
-        {/* Settings View */}
+        {/* Settings View (Accessible via ⌘,) */}
         {currentSection === 'settings' && (
-          <div className="overview-page" style={{ paddingBottom: '96px' }}>
-            <div className="overview-hero">
-              <span className="overview-hero-label">Preferences</span>
-              <h1 className="overview-hero-title" style={{ fontSize: '36px' }}>Settings</h1>
-              <p className="overview-hero-desc">
-                Knowledge graph preferences and keyboard shortcuts.
-              </p>
-            </div>
+          <div className="page-container">
+            <header className="page-header">
+              <div className="page-header-left">
+                <span className="page-kicker">Preferences</span>
+                <h1 className="page-title">Settings</h1>
+                <p className="page-subtitle">
+                  Knowledge graph preferences and keyboard shortcuts.
+                </p>
+              </div>
+            </header>
 
             <div style={{ display: 'flex', flexDirection: 'column', marginTop: '16px' }}>
               <div style={{ padding: '20px 0', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

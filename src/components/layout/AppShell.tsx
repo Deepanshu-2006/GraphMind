@@ -38,7 +38,6 @@ export const AppShell: React.FC<AppShellProps> = ({
       <Sidebar 
         currentSection={currentSection}
         onSelectSection={onSelectSection}
-        project={project}
         isOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
       />

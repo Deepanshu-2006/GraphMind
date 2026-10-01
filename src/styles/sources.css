@@ -1,9 +1,9 @@
 /* Sources Page Styles — Editorial, Academic, and Quiet */
 
 .sources-page-container {
-  max-width: 960px;
+  max-width: 1040px;
   margin: 0 auto;
-  padding: 40px 24px 96px 24px;
+  padding: 44px 32px 96px 32px;
   width: 100%;
 }
 
@@ -29,7 +29,7 @@
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .sources-title {
@@ -44,7 +44,7 @@
 .sources-subtitle {
   font-size: 13.5px;
   color: var(--text-muted);
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .sources-header-actions {
@@ -52,26 +52,6 @@
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
-}
-
-.sources-preview-toggle {
-  font-size: 11px;
-  color: var(--text-muted);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 8px;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  border: 1px solid var(--border-default);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.sources-preview-toggle:hover {
-  color: var(--text-secondary);
-  border-color: var(--border-hover);
-  background-color: var(--bg-surface-elevated);
 }
 
 /* Editorial List */

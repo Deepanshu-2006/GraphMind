@@ -1,79 +1,30 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { HeroSection } from './HeroSection';
-import { MetricsGrid } from './MetricsGrid';
 import { ConnectedConcepts } from './ConnectedConcepts';
-import { mockMetrics, mockConnectedConcepts } from '../../data/mockData';
-import { Plus, Eye, Sparkles } from 'lucide-react';
+import { mockConnectedConcepts } from '../../data/mockData';
+import { Plus } from 'lucide-react';
 
 interface OverviewViewProps {
   onCreateGraph: () => void;
   onExploreDemo: () => void;
   hasContent?: boolean;
-  onToggleContent?: () => void;
 }
 
 export const OverviewView: React.FC<OverviewViewProps> = ({
   onCreateGraph,
   onExploreDemo,
-  hasContent = true,
-  onToggleContent
+  hasContent = true
 }) => {
-  const [localHasContent, setLocalHasContent] = useState<boolean>(hasContent);
-
-  const activeHasContent = onToggleContent ? hasContent : localHasContent;
-
-  const handleExplore = () => {
-    setLocalHasContent(true);
-    onExploreDemo();
-  };
-
   return (
     <div className="overview-page">
-      {/* 1. Hero Section */}
+      {/* 1. Page Header / Hero Section */}
       <HeroSection 
         onCreateGraph={onCreateGraph}
-        onExploreDemo={handleExplore}
+        onExploreDemo={onExploreDemo}
       />
 
-      {/* State Switcher (Minimal, for testing and exploring both states) */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-24px', marginBottom: '-24px' }}>
-        <button
-          onClick={() => {
-            if (onToggleContent) {
-              onToggleContent();
-            } else {
-              setLocalHasContent(prev => !prev);
-            }
-          }}
-          style={{
-            fontSize: '11px',
-            color: 'var(--text-muted)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '4px 8px',
-            borderRadius: '4px',
-            background: 'transparent',
-            border: '1px solid transparent'
-          }}
-          className="overview-state-toggle"
-        >
-          {activeHasContent ? (
-            <>
-              <Eye size={12} />
-              <span>Preview empty project state</span>
-            </>
-          ) : (
-            <>
-              <Sparkles size={12} />
-              <span>Load demo knowledge graph</span>
-            </>
-          )}
-        </button>
-      </div>
-
-      {!activeHasContent ? (
-        /* Empty State (Section 15) */
+      {!hasContent ? (
+        /* Empty State */
         <section className="overview-empty-state">
           <div className="empty-state-card">
             <h2 className="empty-state-title">Your knowledge graph starts here.</h2>
@@ -83,20 +34,17 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <div className="empty-state-actions">
               <button className="btn-primary" onClick={onCreateGraph}>
                 <Plus size={14} />
-                <span>Upload material</span>
+                <span>Add material</span>
               </button>
               <button 
                 className="btn-secondary" 
-                onClick={() => {
-                  setLocalHasContent(true);
-                  if (onToggleContent) onToggleContent();
-                }}
+                onClick={onExploreDemo}
               >
                 <span>Explore demo graph</span>
               </button>
             </div>
 
-            {/* Subtle miniature example graph preview beneath it */}
+            {/* Subtle miniature example graph preview */}
             <div className="empty-state-mini-graph">
               <svg width="100%" height="180" viewBox="0 0 600 180">
                 <line x1="120" y1="90" x2="280" y2="50" stroke="var(--border-default)" strokeWidth="1" strokeDasharray="3 3" />
@@ -130,16 +78,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </section>
       ) : (
         /* Populated Knowledge Graph State */
-        <>
-          {/* 2. Quiet Statistics Row */}
-          <MetricsGrid metrics={mockMetrics} />
-
-          {/* 3. Centerpiece Graph & Recent Concepts List */}
-          <ConnectedConcepts 
-            concepts={mockConnectedConcepts}
-            onOpenExplore={onExploreDemo}
-          />
-        </>
+        <ConnectedConcepts 
+          concepts={mockConnectedConcepts}
+          onOpenExplore={onExploreDemo}
+        />
       )}
     </div>
   );

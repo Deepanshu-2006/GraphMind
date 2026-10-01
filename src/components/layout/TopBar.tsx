@@ -47,19 +47,19 @@ export const TopBar: React.FC<TopBarProps> = ({
           <kbd className="search-kbd">⌘K</kbd>
         </button>
 
-        {/* Primary Action Button: Upload material (Section 1) */}
+        {/* Primary Action Button: Add material */}
         <button 
-          className="btn-primary" 
+          className="btn-primary topbar-action-btn" 
           onClick={onOpenCreateModal}
-          style={{ padding: '6px 12px', fontSize: '13px' }}
-          title="Upload learning material"
+          title="Add learning material"
+          id="btn-topbar-add-material"
         >
           <UploadCloud size={14} />
-          <span>Upload material</span>
+          <span>Add material</span>
         </button>
 
         {/* Profile Avatar */}
-        <div className="profile-badge" title="Profile">
+        <div className="profile-badge" title="Profile (DK)" role="button" tabIndex={0} aria-label="User profile">
           <span className="profile-initials">DK</span>
         </div>
       </div>
