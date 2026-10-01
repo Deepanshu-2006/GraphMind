@@ -58,13 +58,13 @@ export const TopBar: React.FC<TopBarProps> = ({
           type="button"
           className="btn-primary topbar-action-btn" 
           onClick={onOpenCreateModal}
-          title="Add learning material"
-          aria-label="Add learning material"
+          title="Upload material"
+          aria-label="Upload material"
           id="btn-topbar-add-material"
         >
           <UploadCloud size={14} aria-hidden="true" />
-          <span className="topbar-btn-text-full">Add material</span>
-          <span className="topbar-btn-text-short">Add</span>
+          <span className="topbar-btn-text-full">Upload material</span>
+          <span className="topbar-btn-text-short">Upload</span>
         </button>
 
         {/* Profile Avatar */}

@@ -36,103 +36,114 @@ export interface ExportedGraphJson {
 }
 
 /**
+ * Builds the canonical export JSON structure from graph data or ReactFlow nodes/edges.
+ */
+export function buildExportGraphJson(
+  graph: KnowledgeGraph | null,
+  effectiveNodes: Node<GraphConceptData>[] = [],
+  effectiveEdges: Edge[] = []
+): ExportedGraphJson {
+  if (graph && graph.nodes) {
+    const sourceMap = new Map<string, string>();
+    for (const s of graph.sources || []) {
+      sourceMap.set(s.id, s.fileName || s.name);
+    }
+
+    return {
+      graphName: 'GraphMind Knowledge Graph',
+      exportedAt: new Date().toISOString(),
+      version: '1.0',
+      nodes: graph.nodes.map(n => ({
+        id: n.id,
+        name: n.name,
+        type: n.type,
+        description: n.description,
+        sourceIds: n.sourceIds || [],
+        sources: (n.sourceIds || [])
+          .map(id => sourceMap.get(id))
+          .filter((name): name is string => Boolean(name)),
+        confidence: n.confidence,
+        prerequisites: n.prerequisites || []
+      })),
+      relationships: (graph.relationships || []).map(r => ({
+        id: r.id,
+        source: r.source,
+        target: r.target,
+        type: r.type,
+        label: r.label || r.type,
+        description: r.description,
+        sourceIds: r.sourceIds || []
+      })),
+      sources: (graph.sources || []).map(s => ({
+        id: s.id,
+        name: s.name,
+        fileName: s.fileName || s.name,
+        type: s.type,
+        status: s.status,
+        conceptsExtracted: s.conceptsExtracted
+      }))
+    };
+  }
+
+  // Fallback: derive from effectiveNodes and effectiveEdges
+  return {
+    graphName: 'GraphMind Knowledge Graph',
+    exportedAt: new Date().toISOString(),
+    version: '1.0',
+    nodes: effectiveNodes.map(n => {
+      const d = n.data || {};
+      return {
+        id: n.id,
+        name: d.label || n.id,
+        type: d.category || 'concept',
+        description: d.description || '',
+        sourceIds: [],
+        sources: d.source ? [d.source] : (d.sources || []).map(s => s.name),
+        confidence: d.confidence,
+        prerequisites: d.prerequisites || []
+      };
+    }),
+    relationships: effectiveEdges.map(e => {
+      const edgeData = (e.data as Record<string, unknown>) || {};
+      return {
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        type: (e.label as string) || (edgeData.relation as string) || 'related-to',
+        label: (e.label as string) || undefined,
+        description: (edgeData.description as string) || undefined
+      };
+    }),
+    sources: []
+  };
+}
+
+/**
  * Exports graph data as structured JSON preserving:
  * concept IDs, concept names, types, descriptions, source references, and relationship types.
  */
 export function exportKnowledgeGraphJson(
   graph: KnowledgeGraph | null,
-  effectiveNodes: Node<GraphConceptData>[],
-  effectiveEdges: Edge[],
+  effectiveNodes: Node<GraphConceptData>[] = [],
+  effectiveEdges: Edge[] = [],
   filename: string = 'graphmind-knowledge-graph.json'
 ): boolean {
   try {
-    let payload: ExportedGraphJson;
+    const payload = buildExportGraphJson(graph, effectiveNodes, effectiveEdges);
 
-    if (graph && graph.nodes) {
-      const sourceMap = new Map<string, string>();
-      for (const s of graph.sources || []) {
-        sourceMap.set(s.id, s.fileName || s.name);
-      }
+    if (typeof document !== 'undefined') {
+      const jsonString = JSON.stringify(payload, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const downloadUrl = URL.createObjectURL(blob);
 
-      payload = {
-        graphName: 'GraphMind Knowledge Graph',
-        exportedAt: new Date().toISOString(),
-        version: '1.0',
-        nodes: graph.nodes.map(n => ({
-          id: n.id,
-          name: n.name,
-          type: n.type,
-          description: n.description,
-          sourceIds: n.sourceIds || [],
-          sources: (n.sourceIds || [])
-            .map(id => sourceMap.get(id))
-            .filter((name): name is string => Boolean(name)),
-          confidence: n.confidence,
-          prerequisites: n.prerequisites || []
-        })),
-        relationships: (graph.relationships || []).map(r => ({
-          id: r.id,
-          source: r.source,
-          target: r.target,
-          type: r.type,
-          label: r.label || r.type,
-          description: r.description,
-          sourceIds: r.sourceIds || []
-        })),
-        sources: (graph.sources || []).map(s => ({
-          id: s.id,
-          name: s.name,
-          fileName: s.fileName || s.name,
-          type: s.type,
-          status: s.status,
-          conceptsExtracted: s.conceptsExtracted
-        }))
-      };
-    } else {
-      // Fallback: derive from effectiveNodes and effectiveEdges
-      payload = {
-        graphName: 'GraphMind Knowledge Graph',
-        exportedAt: new Date().toISOString(),
-        version: '1.0',
-        nodes: effectiveNodes.map(n => {
-          const d = n.data || {};
-          return {
-            id: n.id,
-            name: d.label || n.id,
-            type: d.category || 'concept',
-            description: d.description || '',
-            sourceIds: [],
-            sources: d.source ? [d.source] : (d.sources || []).map(s => s.name),
-            confidence: d.confidence,
-            prerequisites: d.prerequisites || []
-          };
-        }),
-        relationships: effectiveEdges.map(e => {
-          const edgeData = (e.data as Record<string, unknown>) || {};
-          return {
-            id: e.id,
-            source: e.source,
-            target: e.target,
-            type: (e.label as string) || (edgeData.relation as string) || 'related-to',
-            label: (e.label as string) || undefined,
-            description: (edgeData.description as string) || undefined
-          };
-        }),
-        sources: []
-      };
+      const anchor = document.createElement('a');
+      anchor.href = downloadUrl;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(downloadUrl);
     }
-
-    const jsonString = JSON.stringify(payload, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    const downloadUrl = URL.createObjectURL(blob);
-
-    const anchor = document.createElement('a');
-    anchor.href = downloadUrl;
-    anchor.download = filename;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    URL.revokeObjectURL(downloadUrl);
 
     return true;
   } catch {

@@ -88,7 +88,7 @@ const DEFAULT_CRAFTING_SEQUENCE = [
   },
   {
     stage: 3,
-    status: 'Crafting your knowledge graph…',
+    status: 'Building your knowledge graph…',
     nodeIds: ['ml', 'dl', 'nn', 'cnn', 'rnn', 'attn', 'tf', 'cv', 'nlp'],
     edgeIds: ['e-ml-dl', 'e-dl-nn', 'e-nn-cnn', 'e-nn-rnn', 'e-attn-tf', 'e-dl-tf', 'e-tf-nlp', 'e-cnn-cv'],
     newNodes: ['attn', 'tf', 'cv', 'nlp'],
@@ -97,7 +97,7 @@ const DEFAULT_CRAFTING_SEQUENCE = [
   },
   {
     stage: 4,
-    status: 'Graph ready.',
+    status: 'Your knowledge graph is ready.',
     nodeIds: ['ml', 'dl', 'nn', 'cnn', 'rnn', 'attn', 'tf', 'cv', 'nlp'],
     edgeIds: ['e-ml-dl', 'e-dl-nn', 'e-nn-cnn', 'e-nn-rnn', 'e-attn-tf', 'e-dl-tf', 'e-tf-nlp', 'e-cnn-cv'],
     newNodes: [],
@@ -260,7 +260,7 @@ function FlowCanvas({
       },
       {
         stage: 3,
-        status: 'Crafting your knowledge graph…',
+        status: 'Building your knowledge graph…',
         nodeIds: effectiveNodes.map((n) => n.id),
         edgeIds: effectiveEdges.map((e) => e.id),
         newNodes: [],
@@ -269,7 +269,7 @@ function FlowCanvas({
       },
       {
         stage: 4,
-        status: 'Graph ready.',
+        status: 'Your knowledge graph is ready.',
         nodeIds: effectiveNodes.map((n) => n.id),
         edgeIds: effectiveEdges.map((e) => e.id),
         newNodes: [],
@@ -1028,7 +1028,7 @@ function FlowCanvas({
               id="btn-empty-add-sources"
             >
               <Plus size={14} />
-              <span>Add sources</span>
+              <span>Upload material</span>
             </button>
           </div>
         </div>

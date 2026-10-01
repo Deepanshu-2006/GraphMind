@@ -146,10 +146,10 @@ export function App() {
         setUserGraph(result.graph);
         setGraphSourceType('user');
         setPipelineStage('complete');
-        setPipelineStatusMessage('Graph ready.');
+        setPipelineStatusMessage('Your knowledge graph is ready.');
         setLivePipelineEvent({
           stage: 'complete',
-          message: 'Graph ready.',
+          message: 'Your knowledge graph is ready.',
           timestamp: Date.now(),
           partialGraph: result.graph
         });
@@ -283,7 +283,7 @@ export function App() {
               <div style={{ padding: '20px 0', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontSize: '14.5px', fontWeight: 500, color: 'var(--text-primary)' }}>Concept extraction sensitivity</div>
-                  <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>Confidence threshold for connecting concepts</div>
+                  <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>Threshold for connecting concepts</div>
                 </div>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-secondary)' }}>0.85</span>
               </div>

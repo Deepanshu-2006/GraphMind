@@ -81,11 +81,11 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
             className="btn-primary"
             onClick={onAddSource}
             id="btn-sources-add-source"
-            aria-label="Add learning material source"
-            title="Add learning material"
+            aria-label="Upload material"
+            title="Upload material"
           >
             <Plus size={14} aria-hidden="true" />
-            <span>Add source</span>
+            <span>Upload material</span>
           </button>
         </div>
       </header>
@@ -174,7 +174,7 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
               id="btn-sources-empty-add"
             >
               <Plus size={14} />
-              <span>Add source</span>
+              <span>Upload material</span>
             </button>
           </div>
         </div>

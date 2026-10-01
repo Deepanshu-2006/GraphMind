@@ -34,7 +34,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <div className="empty-state-actions">
               <button className="btn-primary" onClick={onCreateGraph}>
                 <Plus size={14} />
-                <span>Add material</span>
+                <span>Upload material</span>
               </button>
               <button 
                 className="btn-secondary" 

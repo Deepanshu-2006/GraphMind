@@ -215,6 +215,9 @@ export function findSemanticRelation(
   if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,45}\\b(?:use[s]?|utilize[s]?|employ[s]?|incorporate[s]?|leverage[s]?|appl(?:y|ies)|computes using|rel(?:y|ies) on the mechanism of|adopt[s]?)\\b[\\s\\w,]{0,45}\\b${bPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'uses', 0.91);
   }
+  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,45}\\b(?:(?:is|are) )?used by\\b[\\s\\w,]{0,45}\\b${aPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptA, conceptB, 'uses', 0.91);
+  }
 
   // 7. INSTANCE-OF (A is an instance/example of B)
   if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,35}\\b(?:(?:is|are) (?:an? )?(?:instance|example|type|kind|category|form|implementation) of)\\b[\\s\\w,]{0,35}\\b${bPat}\\b`, 'i').test(sNorm)) {

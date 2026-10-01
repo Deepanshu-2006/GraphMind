@@ -217,7 +217,7 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
         <div className="modal-header">
           <div>
             <h3 id="create-modal-title" className="modal-title">
-              {step === 'error' ? 'Upload failed' : 'Add learning material'}
+              {step === 'error' ? 'Upload failed' : 'Upload material'}
             </h3>
             <p id="create-modal-desc" className="modal-subtitle">
               {step === 'error'

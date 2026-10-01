@@ -24,10 +24,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           type="button"
           className="btn-primary"
           onClick={onCreateGraph}
-          aria-label="Add learning material"
+          aria-label="Upload material"
           id="btn-overview-add-material"
         >
-          <span>Add material</span>
+          <span>Upload material</span>
         </button>
 
         <button 

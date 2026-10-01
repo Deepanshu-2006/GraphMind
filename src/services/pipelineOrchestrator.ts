@@ -56,8 +56,8 @@ export const PIPELINE_STAGE_LABELS: Record<PipelineStage, string> = {
   'extracting-concepts': 'Finding concepts…',
   'normalizing': 'Connecting ideas…',
   'mapping-relationships': 'Connecting ideas…',
-  'building-graph': 'Crafting your knowledge graph…',
-  'complete': 'Graph ready.',
+  'building-graph': 'Building your knowledge graph…',
+  'complete': 'Your knowledge graph is ready.',
   'error': 'Failed to process learning material.'
 };
 
