@@ -240,6 +240,7 @@ export function App() {
             livePipelineEvent={livePipelineEvent}
             focusedNodeId={focusedConceptId}
             onClearFocusedNode={() => setFocusedConceptId(null)}
+            onSelectSource={() => navigateToSection('sources')}
             onClearError={() => {
               setPipelineError(undefined);
               setPipelineStage('complete');

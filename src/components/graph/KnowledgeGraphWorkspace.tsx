@@ -53,6 +53,7 @@ export interface KnowledgeGraphWorkspaceProps {
   livePipelineEvent?: PipelineProgressEvent | null;
   focusedNodeId?: string | null;
   onClearFocusedNode?: () => void;
+  onSelectSource?: (sourceNameOrId?: string) => void;
 }
 
 // Progressive Crafting Steps (Prompt 22: Contextual processing copy)
@@ -117,7 +118,8 @@ function FlowCanvas({
   onClearError,
   livePipelineEvent,
   focusedNodeId,
-  onClearFocusedNode
+  onClearFocusedNode,
+  onSelectSource
 }: KnowledgeGraphWorkspaceProps) {
   const reactFlowInstance = useReactFlow();
 
@@ -167,6 +169,7 @@ function FlowCanvas({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(() => effectiveNodes[0]?.id || 'dl');
   const [selectedRelationship, setSelectedRelationship] = useState<SelectedRelationshipData | null>(null);
   const [isInspectorOpen, setIsInspectorOpen] = useState<boolean>(true);
+  const [navHistory, setNavHistory] = useState<string[]>([]);
 
   const craftingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -179,18 +182,24 @@ function FlowCanvas({
     }
   }, [effectiveNodes, effectiveEdges, mode, setNodes, setEdges]);
 
-  // Active concept data for inspector: falls back to the first available node
-  const activeNodeId = useMemo(() => {
-    if (selectedNodeId && effectiveConceptDetails[selectedNodeId]) {
-      return selectedNodeId;
+  // Active concept data for inspector: strictly based on selectedNodeId (Prompt 26, Requirement 5 & 8)
+  const activeConceptData = useMemo(() => {
+    if (!selectedNodeId) return null;
+    if (effectiveConceptDetails[selectedNodeId]) {
+      return effectiveConceptDetails[selectedNodeId];
     }
-    return effectiveNodes[0]?.id || null;
+    const fallbackNode = effectiveNodes.find(n => n.id === selectedNodeId);
+    return fallbackNode?.data || null;
   }, [selectedNodeId, effectiveConceptDetails, effectiveNodes]);
 
-  const activeConceptData = useMemo(() => {
-    if (!activeNodeId) return null;
-    return effectiveConceptDetails[activeNodeId] || null;
-  }, [activeNodeId, effectiveConceptDetails]);
+  // Previous concept name for subtle back navigation (Prompt 26, Requirement 6)
+  const previousNodeId = navHistory.length > 0 ? navHistory[navHistory.length - 1] : null;
+  const previousConceptName = useMemo(() => {
+    if (!previousNodeId) return null;
+    return effectiveConceptDetails[previousNodeId]?.label || 
+           effectiveNodes.find(n => n.id === previousNodeId)?.data?.label || 
+           null;
+  }, [previousNodeId, effectiveConceptDetails, effectiveNodes]);
 
   // Crafting Animation Runner
   // Runs progressive crafting directly behind the loading orb with reduced opacity
@@ -671,15 +680,41 @@ function FlowCanvas({
     );
   }, [selectedNodeId, mode, setNodes, setEdges, effectiveEdges]);
 
-  // Node Click handler
+  // Smooth Camera & Node Focus with history tracking (Prompt 25 & Prompt 26, Requirements 2 & 6)
+  const focusNodeOnCanvas = useCallback((nodeId: string, pushHistory = true) => {
+    if (pushHistory && selectedNodeId && selectedNodeId !== nodeId) {
+      setNavHistory((prev) => [...prev, selectedNodeId]);
+    }
+    setSelectedRelationship(null);
+    setSelectedNodeId(nodeId);
+    setIsInspectorOpen(true);
+
+    const targetNode = nodes.find((n) => n.id === nodeId) || effectiveNodes.find((n) => n.id === nodeId);
+    if (targetNode) {
+      reactFlowInstance.setCenter(targetNode.position.x + 100, targetNode.position.y + 45, {
+        zoom: 1.15,
+        duration: 650
+      });
+    }
+  }, [selectedNodeId, nodes, effectiveNodes, reactFlowInstance]);
+
+  // Return to previous concept (Prompt 26, Requirement 6: subtle navigation without breadcrumb clutter)
+  const handleGoBack = useCallback(() => {
+    if (navHistory.length === 0) return;
+    const prevId = navHistory[navHistory.length - 1];
+    setNavHistory((prev) => prev.slice(0, -1));
+    if (prevId) {
+      focusNodeOnCanvas(prevId, false);
+    }
+  }, [navHistory, focusNodeOnCanvas]);
+
+  // Node Click handler (Prompt 26, Requirement 2: select node, smoothly focus, update context & relationships)
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_, node) => {
       if (mode !== 'interactive') return;
-      setSelectedRelationship(null);
-      setSelectedNodeId(node.id);
-      setIsInspectorOpen(true);
+      focusNodeOnCanvas(node.id, true);
     },
-    [mode]
+    [mode, focusNodeOnCanvas]
   );
 
   // Edge / Relationship Click handler (Prompt 20, Requirement 4)
@@ -706,45 +741,34 @@ function FlowCanvas({
     [mode, effectiveNodes]
   );
 
-  // Pane Click handler
+  // Pane Click handler (Prompt 26, Requirement 8: clean deselecting)
   const handlePaneClick = useCallback(() => {
     if (mode !== 'interactive') return;
     setSelectedRelationship(null);
     setSelectedNodeId(null);
+    setIsInspectorOpen(false);
+    setNavHistory([]);
   }, [mode]);
-
-  // Smooth Camera & Node Focus (Prompt 25 Section 4 & 8)
-  const focusNodeOnCanvas = useCallback((nodeId: string) => {
-    setSelectedRelationship(null);
-    setSelectedNodeId(nodeId);
-    setIsInspectorOpen(true);
-
-    const targetNode = nodes.find((n) => n.id === nodeId) || effectiveNodes.find((n) => n.id === nodeId);
-    if (targetNode) {
-      reactFlowInstance.setCenter(targetNode.position.x + 100, targetNode.position.y + 45, {
-        zoom: 1.15,
-        duration: 650
-      });
-    }
-  }, [nodes, effectiveNodes, reactFlowInstance]);
 
   // Handle external search selection request
   useEffect(() => {
     if (focusedNodeId && mode === 'interactive') {
       const timer = setTimeout(() => {
-        focusNodeOnCanvas(focusedNodeId);
+        focusNodeOnCanvas(focusedNodeId, true);
         onClearFocusedNode?.();
       }, 0);
       return () => clearTimeout(timer);
     }
   }, [focusedNodeId, mode, focusNodeOnCanvas, onClearFocusedNode]);
 
-  // Escape Key to deselect
+  // Escape Key to deselect (Prompt 26, Requirement 8)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && mode === 'interactive') {
         setSelectedRelationship(null);
         setSelectedNodeId(null);
+        setIsInspectorOpen(false);
+        setNavHistory([]);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -1009,12 +1033,17 @@ function FlowCanvas({
         <NodeContextPanel
           concept={activeConceptData}
           selectedRelationship={selectedRelationship}
+          previousConceptName={previousConceptName}
+          onGoBack={handleGoBack}
           onClose={() => {
             setIsInspectorOpen(false);
             setSelectedRelationship(null);
+            setSelectedNodeId(null);
+            setNavHistory([]);
           }}
-          onSelectConcept={focusNodeOnCanvas}
-          onFocusNode={focusNodeOnCanvas}
+          onSelectConcept={(conceptId) => focusNodeOnCanvas(conceptId, true)}
+          onFocusNode={(conceptId) => focusNodeOnCanvas(conceptId, true)}
+          onSelectSource={onSelectSource}
           isCollapsed={!isInspectorOpen}
         />
       )}
