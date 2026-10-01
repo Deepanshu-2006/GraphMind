@@ -29,8 +29,16 @@ export function App() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [searchPaletteOpen, setSearchPaletteOpen] = useState(false);
   const [hasGraphContent, setHasGraphContent] = useState(true);
+  const getInitialMode = (): WorkspaceMode => {
+    const modeParam = new URLSearchParams(window.location.search).get('mode');
+    if (modeParam === 'loading' || modeParam === 'crafting' || modeParam === 'empty') {
+      return modeParam;
+    }
+    return 'interactive';
+  };
+
   const [sources, setSources] = useState<RecentMaterial[]>(mockRecentMaterials);
-  const [graphMode, setGraphMode] = useState<WorkspaceMode>('interactive');
+  const [graphMode, setGraphMode] = useState<WorkspaceMode>(getInitialMode);
 
   const navigateToSection = (section: NavSection) => {
     setCurrentSection(section);

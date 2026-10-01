@@ -108,9 +108,10 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGrap
     return initialConceptDetails[selectedNodeId] || null;
   }, [selectedNodeId]);
 
-  // Crafting Animation Runner (Prompt 8, Section 3 & User Iteration)
+  // Crafting Animation Runner
   // Runs progressive crafting directly behind the loading orb with reduced opacity
-  const runCraftingAnimation = useCallback((withLoadingOrb: boolean = false) => {
+  // Loading state remains present until crafting is completely completed
+  const runCraftingAnimation = useCallback((withLoadingOrb: boolean = true) => {
     if (craftingTimerRef.current) clearTimeout(craftingTimerRef.current);
     if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
     setMode('crafting');
@@ -133,14 +134,8 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGrap
       const step = CRAFTING_SEQUENCE[stepIdx];
       setStatusMessage(step.status);
 
-      // At Step 2 (Relationships connecting), smoothly dissolve the loading orb overlay and brighten canvas
-      if (stepIdx === 2) {
-        setIsLoadingOrbVisible(false);
-        setIsCanvasDimmed(false);
-        fadeTimerRef.current = setTimeout(() => {
-          setIsOverlayMounted(false);
-        }, 750);
-      }
+      // Loading state remains visible through all steps (0 through 4)
+      // until crafting is completely completed at the end of the sequence.
 
       // Build active subset of nodes
       const activeNodeMap = new Set(step.nodeIds);
@@ -160,7 +155,7 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGrap
           }
         }));
 
-      // Build active subset of edges (animated dashed filaments during loading/discovery, solid arrows during crafting)
+      // Build active subset of edges (animated dashed filaments during early discovery, solid arrows as relationships cement)
       const activeEdgeMap = new Set(step.edgeIds);
       const nextEdges = initialEdges
         .filter((e) => activeEdgeMap.has(e.id))
@@ -190,7 +185,7 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGrap
 
       // Camera stabilization with generous padding while HUD is open so nodes never touch the HUD
       setTimeout(() => {
-        const hudPadding = stepIdx < 2 ? 0.46 : 0.22;
+        const hudPadding = withLoadingOrb ? 0.38 : 0.22;
         reactFlowInstance.fitView({ padding: hudPadding, duration: 800 });
       }, 50);
 
@@ -200,12 +195,14 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGrap
           executeStep(stepIdx + 1);
         }, step.duration);
       } else {
-        // Section 6: Final transition
+        // Final transition: only dissolves once crafting is completely finished
         craftingTimerRef.current = setTimeout(() => {
           setStatusMessage('');
           setIsLoadingOrbVisible(false);
-          setIsOverlayMounted(false);
           setIsCanvasDimmed(false);
+          fadeTimerRef.current = setTimeout(() => {
+            setIsOverlayMounted(false);
+          }, 700);
           setMode('interactive');
           setSelectedNodeId('dl');
           setIsInspectorOpen(true);
@@ -239,7 +236,7 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGrap
       if (initialMode === 'loading') {
         handleStartFullSequence();
       } else if (initialMode === 'crafting') {
-        runCraftingAnimation(false);
+        runCraftingAnimation(true);
       } else if (initialMode === 'empty') {
         setNodes([]);
         setEdges([]);
@@ -439,8 +436,8 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGrap
         </button>
         <button
           type="button"
-          className={`mode-btn ${mode === 'crafting' && !isOverlayMounted ? 'active' : ''}`}
-          onClick={() => runCraftingAnimation(false)}
+          className={`mode-btn ${mode === 'crafting' ? 'active' : ''}`}
+          onClick={() => runCraftingAnimation(true)}
           title="Play progressive graph crafting animation"
         >
           Craft graph

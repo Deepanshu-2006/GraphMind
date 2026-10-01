@@ -34,12 +34,12 @@
   --accent-muted: rgba(163, 255, 18, 0.12);
   --bg-canvas: #101110;
 
-  /* Radius (8-12px) */
-  --radius-sm: 6px;
-  --radius-btn: 8px;
-  --radius-input: 8px;
-  --radius-card: 12px;
-  --radius-panel: 12px;
+  /* Radius (Standardized & Restrained: 4px / 6px / 8px) */
+  --radius-sm: 4px;
+  --radius-btn: 6px;
+  --radius-input: 6px;
+  --radius-card: 8px;
+  --radius-panel: 8px;
 
   /* Dimensions */
   --sidebar-width: 230px;
@@ -66,7 +66,7 @@ html, body {
   color: var(--text-primary);
   font-family: var(--font-body);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color-scheme: dark;
@@ -137,20 +137,21 @@ a {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 18px;
+  padding: 8px 16px;
   background-color: #F5F5F5;
   color: #0A0A0A;
   font-family: var(--font-body);
   font-weight: 500;
-  font-size: 14px;
+  font-size: 13.5px;
   border-radius: var(--radius-btn);
   transition: opacity var(--transition-fast), background-color var(--transition-fast);
   border: 1px solid transparent;
+  user-select: none;
 }
 
 .btn-primary:hover {
   background-color: #FFFFFF;
-  opacity: 0.95;
+  opacity: 0.96;
 }
 
 .btn-secondary {
@@ -158,15 +159,16 @@ a {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 18px;
+  padding: 8px 16px;
   background-color: var(--bg-surface-elevated);
   border: 1px solid var(--border-default);
   color: var(--text-primary);
   font-family: var(--font-body);
   font-weight: 500;
-  font-size: 14px;
+  font-size: 13.5px;
   border-radius: var(--radius-btn);
   transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  user-select: none;
 }
 
 .btn-secondary:hover {

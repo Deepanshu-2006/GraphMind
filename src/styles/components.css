@@ -466,29 +466,28 @@
 }
 
 .page-kicker {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
 }
 
 .page-title {
   font-family: var(--font-display);
-  font-size: 32px;
+  font-size: clamp(26px, 3.2vw, 32px);
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: -0.02em;
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
 .page-subtitle {
-  font-size: 13.5px;
-  color: var(--text-muted);
-  margin-top: 6px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 4px;
   max-width: 600px;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 .page-header-actions {

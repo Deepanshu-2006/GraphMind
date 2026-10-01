@@ -11,8 +11,6 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 }) => {
   return (
     <section className="overview-hero">
-      <span className="overview-hero-label">Overview</span>
-
       <h1 className="overview-hero-title">
         Turn scattered knowledge<br />into a connected mind.
       </h1>

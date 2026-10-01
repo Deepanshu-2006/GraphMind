@@ -39,7 +39,7 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
                 {path.progress > 0 && (
                   <>
                     <span className="source-meta-separator">·</span>
-                    <span style={{ color: 'var(--accent)' }}>{path.progress}% complete</span>
+                    <span>{path.progress}% complete</span>
                   </>
                 )}
               </div>
