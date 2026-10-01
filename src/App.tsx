@@ -14,8 +14,8 @@ import {
   mockLearningPaths 
 } from './data/mockData';
 import { defaultKnowledgeGraph } from './data/graphData';
-import type { KnowledgeSource } from './types/knowledgeGraph';
-import { sourceToRecentMaterial } from './services/sourceIngestion';
+import type { KnowledgeSource, KnowledgeGraph } from './types/knowledgeGraph';
+import { sourceToRecentMaterial, buildKnowledgeGraphFromSources } from './services/sourceIngestion';
 import type { NavSection, RecentMaterial } from './types';
 
 export function App() {
@@ -45,6 +45,7 @@ export function App() {
     ...defaultKnowledgeGraph.sources.map(sourceToRecentMaterial),
     ...mockRecentMaterials.filter(m => !defaultKnowledgeGraph.sources.some(s => s.fileName === m.title))
   ]);
+  const [activeGraph, setActiveGraph] = useState<KnowledgeGraph>(defaultKnowledgeGraph);
   const [graphMode, setGraphMode] = useState<WorkspaceMode>(getInitialMode);
 
   const navigateToSection = (section: NavSection) => {
@@ -81,18 +82,34 @@ export function App() {
   }, []);
 
   // Ingestion handler: accepts newly created real KnowledgeSources
-  const handleCreateSuccess = (newSources: KnowledgeSource[]) => {
+  const handleCreateSuccess = async (newSources: KnowledgeSource[]) => {
     setHasGraphContent(true);
     setCanonicalSources(prev => [...newSources, ...prev]);
     const newMaterials = newSources.map(sourceToRecentMaterial);
     setSources(prev => [...newMaterials, ...prev]);
     setGraphMode('loading');
     navigateToSection('graph');
+
+    // Execute complete end-to-end pipeline:
+    // SOURCES → TEXT EXTRACTION → CONCEPTS → RELATIONSHIPS → KNOWLEDGE GRAPH
+    try {
+      const combined = [...newSources, ...canonicalSources];
+      const result = await buildKnowledgeGraphFromSources(combined);
+      if (result.success && result.graph && result.graph.nodes.length > 0) {
+        setActiveGraph(result.graph);
+      }
+    } catch (err) {
+      console.error('Failed to construct knowledge graph from uploaded sources:', err);
+    }
   };
 
   const handleRemoveSource = (sourceId: string) => {
     setCanonicalSources(prev => prev.filter(s => s.id !== sourceId));
     setSources(prev => prev.filter(s => s.id !== sourceId));
+    setActiveGraph(prev => ({
+      ...prev,
+      sources: prev.sources.filter(s => s.id !== sourceId)
+    }));
   };
 
   return (
@@ -122,6 +139,7 @@ export function App() {
           <KnowledgeGraphWorkspace 
             onOpenUpload={() => setCreateModalOpen(true)} 
             initialMode={graphMode}
+            graph={activeGraph}
           />
         )}
 

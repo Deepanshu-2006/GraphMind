@@ -18,7 +18,13 @@ import { CustomEdge } from './CustomEdge';
 import { GraphToolbar } from './GraphToolbar';
 import { NodeContextPanel } from './NodeContextPanel';
 
-import { initialNodes, initialEdges, initialConceptDetails } from '../../data/graphData';
+import { 
+  initialNodes, 
+  initialEdges, 
+  initialConceptDetails,
+  knowledgeGraphToReactFlow 
+} from '../../data/graphData';
+import type { KnowledgeGraph } from '../../types/knowledgeGraph';
 import type { GraphConceptData } from '../../types/graph';
 
 const nodeTypes = {
@@ -31,9 +37,10 @@ const edgeTypes = {
 
 export type WorkspaceMode = 'interactive' | 'empty' | 'loading' | 'crafting';
 
-interface KnowledgeGraphWorkspaceProps {
+export interface KnowledgeGraphWorkspaceProps {
   onOpenUpload?: () => void;
   initialMode?: WorkspaceMode;
+  graph?: KnowledgeGraph;
 }
 
 // Progressive Crafting Steps (Prompt 8, Section 3 & 5)
@@ -85,8 +92,24 @@ const CRAFTING_SEQUENCE = [
   }
 ];
 
-function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGraphWorkspaceProps) {
+function FlowCanvas({ onOpenUpload, initialMode = 'interactive', graph }: KnowledgeGraphWorkspaceProps) {
   const reactFlowInstance = useReactFlow();
+
+  const { effectiveNodes, effectiveEdges, effectiveConceptDetails } = useMemo(() => {
+    if (graph) {
+      const rf = knowledgeGraphToReactFlow(graph);
+      return {
+        effectiveNodes: rf.nodes,
+        effectiveEdges: rf.edges,
+        effectiveConceptDetails: rf.conceptDetails
+      };
+    }
+    return {
+      effectiveNodes: initialNodes,
+      effectiveEdges: initialEdges,
+      effectiveConceptDetails: initialConceptDetails
+    };
+  }, [graph]);
 
   const [mode, setMode] = useState<WorkspaceMode>(initialMode);
   const [statusMessage, setStatusMessage] = useState<string>('');
@@ -94,19 +117,34 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGrap
   const [isOverlayMounted, setIsOverlayMounted] = useState<boolean>(false);
   const [isCanvasDimmed, setIsCanvasDimmed] = useState<boolean>(false);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node<GraphConceptData>>(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>('dl');
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node<GraphConceptData>>(effectiveNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(effectiveEdges);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(() => effectiveNodes[0]?.id || 'dl');
   const [isInspectorOpen, setIsInspectorOpen] = useState<boolean>(true);
 
   const craftingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Selected concept data for inspector
+  // Sync state whenever the underlying graph updates in interactive mode
+  useEffect(() => {
+    if (mode === 'interactive') {
+      setNodes(effectiveNodes);
+      setEdges(effectiveEdges);
+    }
+  }, [effectiveNodes, effectiveEdges, mode, setNodes, setEdges]);
+
+  // Active concept data for inspector: falls back to the first available node
+  const activeNodeId = useMemo(() => {
+    if (selectedNodeId && effectiveConceptDetails[selectedNodeId]) {
+      return selectedNodeId;
+    }
+    return effectiveNodes[0]?.id || null;
+  }, [selectedNodeId, effectiveConceptDetails, effectiveNodes]);
+
   const activeConceptData = useMemo(() => {
-    if (!selectedNodeId) return null;
-    return initialConceptDetails[selectedNodeId] || null;
-  }, [selectedNodeId]);
+    if (!activeNodeId) return null;
+    return effectiveConceptDetails[activeNodeId] || null;
+  }, [activeNodeId, effectiveConceptDetails]);
 
   // Crafting Animation Runner
   // Runs progressive crafting directly behind the loading orb with reduced opacity
@@ -141,7 +179,7 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGrap
       const activeNodeMap = new Set(step.nodeIds);
       const newNodesSet = new Set(step.newNodes);
 
-      const nextNodes: Node<GraphConceptData>[] = initialNodes
+      const nextNodes: Node<GraphConceptData>[] = effectiveNodes
         .filter((n) => activeNodeMap.has(n.id))
         .map((n) => ({
           ...n,
@@ -215,7 +253,7 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGrap
     };
 
     executeStep(currentStep);
-  }, [reactFlowInstance, setEdges, setNodes]);
+  }, [reactFlowInstance, setEdges, setNodes, effectiveNodes]);
 
   // Clean up timers on unmount
   useEffect(() => {
@@ -245,8 +283,8 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGrap
         setIsCanvasDimmed(false);
         setMode('empty');
       } else {
-        setNodes(initialNodes);
-        setEdges(initialEdges);
+        setNodes(effectiveNodes);
+        setEdges(effectiveEdges);
         setIsLoadingOrbVisible(false);
         setIsOverlayMounted(false);
         setIsCanvasDimmed(false);
@@ -254,7 +292,7 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGrap
       }
     }, 20);
     return () => clearTimeout(timer);
-  }, [initialMode, handleStartFullSequence, runCraftingAnimation, setEdges, setNodes]);
+  }, [initialMode, handleStartFullSequence, runCraftingAnimation, setEdges, setNodes, effectiveNodes, effectiveEdges]);
 
   // Apply node focus states in interactive mode
   useEffect(() => {
@@ -263,7 +301,7 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGrap
     const connected = new Set<string>();
     if (selectedNodeId) {
       connected.add(selectedNodeId);
-      initialEdges.forEach((edge) => {
+      effectiveEdges.forEach((edge) => {
         if (edge.source === selectedNodeId) connected.add(edge.target);
         if (edge.target === selectedNodeId) connected.add(edge.source);
       });
@@ -315,7 +353,7 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGrap
         };
       })
     );
-  }, [selectedNodeId, mode, setNodes, setEdges]);
+  }, [selectedNodeId, mode, setNodes, setEdges, effectiveEdges]);
 
   // Node Click handler
   const handleNodeClick: NodeMouseHandler = useCallback(
@@ -358,13 +396,13 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGrap
   }, [reactFlowInstance]);
 
   const searchItems = useMemo(() => {
-    return initialNodes.map((n) => ({
+    return effectiveNodes.map((n) => ({
       id: n.id,
       label: n.data.label,
       category: n.data.category,
       code: n.data.code
     }));
-  }, []);
+  }, [effectiveNodes]);
 
   const handleSwitchToEmpty = () => {
     if (craftingTimerRef.current) clearTimeout(craftingTimerRef.current);
@@ -384,9 +422,9 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGrap
     if (craftingTimerRef.current) clearTimeout(craftingTimerRef.current);
     if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
     setStatusMessage('');
-    setNodes(initialNodes);
-    setEdges(initialEdges);
-    setSelectedNodeId('dl');
+    setNodes(effectiveNodes);
+    setEdges(effectiveEdges);
+    setSelectedNodeId(effectiveNodes[0]?.id || 'dl');
     setIsInspectorOpen(true);
     setIsLoadingOrbVisible(false);
     setIsOverlayMounted(false);
@@ -606,11 +644,12 @@ function FlowCanvas({ onOpenUpload, initialMode = 'interactive' }: KnowledgeGrap
 
 export function KnowledgeGraphWorkspace({
   onOpenUpload,
-  initialMode = 'interactive'
+  initialMode = 'interactive',
+  graph
 }: KnowledgeGraphWorkspaceProps) {
   return (
     <ReactFlowProvider>
-      <FlowCanvas onOpenUpload={onOpenUpload} initialMode={initialMode} />
+      <FlowCanvas onOpenUpload={onOpenUpload} initialMode={initialMode} graph={graph} />
     </ReactFlowProvider>
   );
 }

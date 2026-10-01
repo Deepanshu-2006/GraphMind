@@ -28,7 +28,8 @@ export interface KnowledgeNode {
   type: ConceptNodeType;
   description: string;
   sourceIds: string[];
-  position: NodePosition;
+  sourceChunkIds?: string[];
+  position?: NodePosition;
   
   // Optional domain metadata
   code?: string;

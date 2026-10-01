@@ -404,13 +404,25 @@ export function knowledgeGraphToReactFlow(graph: KnowledgeGraph): {
     };
   }
 
-  // 2. Build ReactFlow Nodes
-  const nodes: Node<GraphConceptData>[] = graph.nodes.map(n => ({
-    id: n.id,
-    type: 'conceptNode',
-    position: n.position,
-    data: conceptDetails[n.id]
-  }));
+  // 2. Build ReactFlow Nodes (Visualization Layer assigns layout when semantic node has no hardcoded coordinates)
+  const nodes: Node<GraphConceptData>[] = graph.nodes.map((n, index) => {
+    let position = n.position;
+    if (!position) {
+      const angle = (2 * Math.PI * index) / Math.max(1, graph.nodes.length);
+      const radius = 280 + (index % 3) * 70;
+      position = {
+        x: Math.round(450 + radius * Math.cos(angle)),
+        y: Math.round(320 + radius * Math.sin(angle))
+      };
+    }
+
+    return {
+      id: n.id,
+      type: 'conceptNode',
+      position,
+      data: conceptDetails[n.id]
+    };
+  });
 
   // 3. Build ReactFlow Edges
   const edges: Edge[] = graph.relationships.map(rel => {
