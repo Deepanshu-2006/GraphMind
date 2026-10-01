@@ -4,7 +4,10 @@ import {
   Maximize, 
   RotateCcw, 
   Plus, 
-  Minus
+  Minus,
+  Download,
+  Image as ImageIcon,
+  FileJson
 } from 'lucide-react';
 import type { SearchResultItem } from '../../types/graph';
 
@@ -15,6 +18,9 @@ interface GraphToolbarProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   availableNodes: SearchResultItem[];
+  onExportImage: () => void;
+  onExportJson: () => void;
+  isExporting?: boolean;
 }
 
 export const GraphToolbar: React.FC<GraphToolbarProps> = ({
@@ -23,12 +29,17 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   onResetView,
   onZoomIn,
   onZoomOut,
-  availableNodes
+  availableNodes,
+  onExportImage,
+  onExportJson,
+  isExporting = false
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const searchRef = useRef<HTMLDivElement>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
 
   const filteredSearchResults = React.useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -51,8 +62,12 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (searchRef.current && !searchRef.current.contains(target)) {
         setIsDropdownOpen(false);
+      }
+      if (exportRef.current && !exportRef.current.contains(target)) {
+        setIsExportOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -79,6 +94,7 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
       }
     } else if (e.key === 'Escape') {
       setIsDropdownOpen(false);
+      setIsExportOpen(false);
     }
   };
 
@@ -173,6 +189,54 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
         >
           <RotateCcw size={13} aria-hidden="true" />
         </button>
+      </div>
+
+      <div className="toolbar-vertical-divider" />
+
+      {/* Export Menu (Prompt 27: small menu with Export image and Export JSON) */}
+      <div className="toolbar-export-wrap" ref={exportRef}>
+        <button
+          type="button"
+          className={`canvas-action-btn export-trigger-btn ${isExportOpen ? 'active' : ''}`}
+          onClick={() => setIsExportOpen(prev => !prev)}
+          title="Export graph"
+          aria-label="Export graph"
+          aria-haspopup="menu"
+          aria-expanded={isExportOpen}
+          disabled={isExporting}
+        >
+          <Download size={13} aria-hidden="true" />
+          <span className="export-btn-label">{isExporting ? 'Exporting…' : 'Export'}</span>
+        </button>
+
+        {isExportOpen && (
+          <div className="export-dropdown-menu" role="menu">
+            <button
+              type="button"
+              className="export-dropdown-item"
+              onClick={() => {
+                setIsExportOpen(false);
+                onExportImage();
+              }}
+              role="menuitem"
+            >
+              <ImageIcon size={13} className="export-item-icon" aria-hidden="true" />
+              <span>Export image</span>
+            </button>
+            <button
+              type="button"
+              className="export-dropdown-item"
+              onClick={() => {
+                setIsExportOpen(false);
+                onExportJson();
+              }}
+              role="menuitem"
+            >
+              <FileJson size={13} className="export-item-icon" aria-hidden="true" />
+              <span>Export JSON</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

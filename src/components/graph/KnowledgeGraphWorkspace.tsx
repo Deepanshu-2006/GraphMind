@@ -28,6 +28,7 @@ import {
 import type { KnowledgeGraph } from '../../types/knowledgeGraph';
 import type { GraphConceptData, SelectedRelationshipData } from '../../types/graph';
 import type { PipelineStage, PipelineProgressEvent } from '../../services/pipelineOrchestrator';
+import { exportKnowledgeGraphJson, exportKnowledgeGraphPng } from '../../services/graphExport';
 
 const nodeTypes = {
   conceptNode: ConceptNode
@@ -170,6 +171,8 @@ function FlowCanvas({
   const [selectedRelationship, setSelectedRelationship] = useState<SelectedRelationshipData | null>(null);
   const [isInspectorOpen, setIsInspectorOpen] = useState<boolean>(true);
   const [navHistory, setNavHistory] = useState<string[]>([]);
+  const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [exportErrorMessage, setExportErrorMessage] = useState<string | null>(null);
 
   const craftingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -788,6 +791,46 @@ function FlowCanvas({
     reactFlowInstance.zoomOut({ duration: 200 });
   }, [reactFlowInstance]);
 
+  // Export Canvas as clean PNG Image (Prompt 27 Section 2 & 5)
+  const handleExportImage = useCallback(async () => {
+    if (nodes.length === 0) {
+      setExportErrorMessage("Couldn't export the graph.\nTry again.");
+      setTimeout(() => setExportErrorMessage(null), 3500);
+      return;
+    }
+
+    try {
+      setIsExporting(true);
+      const viewportElement = document.querySelector('.react-flow__viewport') as HTMLElement | null;
+      if (!viewportElement) {
+        throw new Error('Viewport element not found');
+      }
+
+      const success = await exportKnowledgeGraphPng(viewportElement, nodes);
+      if (!success) {
+        throw new Error('Export returned false');
+      }
+    } catch {
+      setExportErrorMessage("Couldn't export the graph.\nTry again.");
+      setTimeout(() => setExportErrorMessage(null), 3500);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [nodes]);
+
+  // Export Graph Data as structured JSON (Prompt 27 Section 3 & 5)
+  const handleExportJson = useCallback(() => {
+    try {
+      const success = exportKnowledgeGraphJson(graph || null, effectiveNodes, effectiveEdges);
+      if (!success) {
+        throw new Error('Export returned false');
+      }
+    } catch {
+      setExportErrorMessage("Couldn't export the graph.\nTry again.");
+      setTimeout(() => setExportErrorMessage(null), 3500);
+    }
+  }, [graph, effectiveNodes, effectiveEdges]);
+
   const searchItems = useMemo(() => {
     return effectiveNodes.map((n) => ({
       id: n.id,
@@ -842,7 +885,7 @@ function FlowCanvas({
         </div>
       )}
 
-      {/* Floating Toolbar */}
+      {/* Floating Toolbar (Prompt 27: with Export image & Export JSON) */}
       <GraphToolbar
         onSearchSelect={focusNodeOnCanvas}
         onFitView={handleResetView}
@@ -850,7 +893,18 @@ function FlowCanvas({
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         availableNodes={searchItems}
+        onExportImage={handleExportImage}
+        onExportJson={handleExportJson}
+        isExporting={isExporting}
       />
+
+      {/* Export Error Message Toast (Prompt 27 Section 5) */}
+      {exportErrorMessage && (
+        <div className="canvas-export-error-toast" role="alert">
+          <span className="export-error-line1">Couldn't export the graph.</span>
+          <span className="export-error-line2">Try again.</span>
+        </div>
+      )}
 
       {/* Mode Controls Pill Group (Left-aligned next to toolbar for seamless inspection) */}
       <div className="workspace-mode-controls">
