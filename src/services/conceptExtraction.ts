@@ -53,7 +53,16 @@ const ACADEMIC_AND_GENERIC_FILLER = new Set([
   'comparison', 'perspective', 'viewpoint', 'aspect', 'aspects',
   'definition', 'definitions', 'theorem', 'proof', 'lemma', 'corollary',
   'unlike', 'during', 'since', 'after', 'before', 'while', 'both', 'each', 'every',
-  'some', 'all', 'then', 'thus', 'hence', 'therefore', 'however', 'furthermore', 'moreover'
+  'some', 'all', 'then', 'thus', 'hence', 'therefore', 'however', 'furthermore', 'moreover',
+  // Educational meta and abstract empty words
+  'concept', 'concepts', 'topic', 'topics', 'idea', 'ideas', 'detail', 'details',
+  'element', 'elements', 'factor', 'factors', 'item', 'items', 'thing', 'things',
+  'level', 'levels', 'stage', 'stages', 'way', 'ways', 'field', 'fields',
+  'area', 'areas', 'domain', 'domains', 'basics', 'fundamentals', 'principles',
+  'difference', 'differences', 'similarity', 'similarities', 'role', 'roles',
+  'purpose', 'purposes', 'scope', 'scopes', 'feature', 'features', 'key', 'keys',
+  'type', 'types', 'kind', 'kinds', 'form', 'forms', 'mode', 'modes',
+  'foundation', 'foundations'
 ]);
 
 const GENERIC_VERBS = new Set([
@@ -62,6 +71,8 @@ const GENERIC_VERBS = new Set([
   'investigating', 'testing', 'analyzing', 'comparing', 'discussing',
   'presenting', 'introducing', 'applying', 'computing', 'calculating',
   'running', 'working', 'finding', 'achieving', 'requiring', 'consisting',
+  'learning', 'understanding', 'exploring', 'building', 'designing',
+  'improving', 'modifying', 'adapting', 'operating', 'producing',
   'unlike', 'during', 'since', 'after', 'before', 'while'
 ]);
 
@@ -71,7 +82,10 @@ const GENERIC_ADJECTIVES = new Set([
   'standard', 'typical', 'general', 'specific', 'such', 'many', 'several',
   'first', 'second', 'third', 'high', 'low', 'great', 'small', 'large',
   'efficient', 'effective', 'successful', 'popular', 'common', 'traditional',
-  'deep', 'neural', 'artificial', 'supervised', 'unsupervised', 'convolutional', 'recurrent'
+  'deep', 'neural', 'artificial', 'supervised', 'unsupervised', 'convolutional', 'recurrent',
+  'primary', 'secondary', 'major', 'minor', 'fundamental', 'crucial', 'central',
+  'stochastic', 'specialized', 'advanced', 'classical', 'probabilistic', 'statistical',
+  'computational', 'empirical', 'theoretical', 'mathematical'
 ]);
 
 const GENERIC_STANDALONE_NOUNS = new Set([
@@ -80,20 +94,67 @@ const GENERIC_STANDALONE_NOUNS = new Set([
   'function', 'functions', 'feature', 'features', 'value', 'values', 'parameter', 'parameters',
   'weight', 'weights', 'node', 'nodes', 'graph', 'graphs', 'type', 'types', 'case', 'cases',
   'technique', 'techniques', 'approach', 'approaches', 'process', 'processes',
-  'training', 'optimization', 'testing', 'validation', 'learning', 'evaluation'
+  'training', 'optimization', 'testing', 'validation', 'learning', 'evaluation',
+  'concept', 'concepts', 'topic', 'topics', 'idea', 'ideas', 'aspect', 'aspects',
+  'element', 'elements', 'factor', 'factors', 'component', 'components',
+  'information', 'knowledge', 'content', 'mechanism', 'mechanisms', 'procedure', 'procedures',
+  'structure', 'structures', 'pattern', 'patterns', 'metric', 'metrics', 'score', 'scores',
+  'input', 'inputs', 'output', 'outputs', 'loss', 'losses', 'error', 'errors',
+  'foundation', 'foundations', 'architecture', 'architectures'
+]);
+
+const CONVERSATIONAL_FRAGMENTS = new Set([
+  'also known as', 'on the other hand', 'in contrast', 'first of all', 'in particular',
+  'for instance', 'such as', 'key differences', 'main advantages', 'core concepts',
+  'key takeaways', 'important note', 'next steps', 'quick summary', 'in addition',
+  'according to', 'we observe that', 'it is known that', 'as well as', 'more specifically'
 ]);
 
 const APPROVED_TECHNICAL_ACRONYMS = new Set([
-  'cnn', 'rnn', 'gan', 'svm', 'lstm', 'gru', 'llm', 'nlp', 'mlp', 'gnn', 'vae', 'sgd', 'pca', 'bert', 'gpt'
+  'cnn', 'rnn', 'gan', 'svm', 'lstm', 'gru', 'llm', 'nlp', 'mlp', 'gnn', 'vae', 'sgd', 'pca', 'bert', 'gpt', 'rl'
 ]);
 
 const TECHNICAL_COMPOUND_EXCEPTIONS = new Set([
   'deep learning', 'neural network', 'neural networks', 'machine learning',
-  'convolutional network', 'convolutional networks', 'recurrent network', 'recurrent networks',
+  'convolutional network', 'convolutional networks',
+  'convolutional neural network', 'convolutional neural networks',
+  'recurrent network', 'recurrent networks',
+  'recurrent neural network', 'recurrent neural networks',
   'linear regression', 'logistic regression', 'random forest', 'decision tree',
-  'support vector', 'artificial intelligence', 'computer vision', 'reinforcement learning',
-  'supervised learning', 'unsupervised learning', 'gradient descent', 'generative model', 'generative models'
+  'support vector', 'support vector machine', 'support vector machines',
+  'artificial intelligence', 'computer vision', 'reinforcement learning',
+  'supervised learning', 'unsupervised learning', 'gradient descent', 'generative model', 'generative models',
+  'large language model', 'large language models', 'graph neural network', 'graph neural networks',
+  'stochastic gradient descent', 'natural language processing', 'self-attention'
 ]);
+
+/**
+ * Strips educational meta-prefixes and book/section titles to expose the substantive concept.
+ * e.g. "Introduction to Deep Learning" -> "Deep Learning"
+ * e.g. "Understanding Transformers" -> "Transformers"
+ * e.g. "Foundations of Deep Learning" -> "Deep Learning"
+ */
+export function cleanConceptCandidateName(rawName: string): string {
+  if (!rawName || typeof rawName !== 'string') return '';
+  let clean = rawName.trim();
+
+  // Strip leading list bullet or numbering e.g. "1. ", "A. "
+  clean = clean.replace(/^(?:[\d]+[.)]|[A-Z]\.)\s*/, '');
+
+  // Strip leading educational chapter/section meta-prefixes
+  clean = clean.replace(
+    /^(?:an?\s+)?(?:introduction to|overview of|basics of|the basics of|fundamentals of|the fundamentals of|principles of|the principles of|foundations? of|the foundations? of|understanding|exploring|implementing|the role of|a guide to|concepts of|applications of|key concepts of|summary of|a primer on)\s+/i,
+    ''
+  );
+
+  // Strip leading determiners and demonstratives
+  clean = clean.replace(/^(?:the|a|an|these|those|this|their|its|our|some|many|such)\s+/i, '');
+
+  // Strip trailing punctuation, colons, or dashes
+  clean = clean.replace(/[:;,\-—–.]*$/, '').trim();
+
+  return clean;
+}
 
 /**
  * Validates candidate concept names against strict domain criteria.
@@ -101,23 +162,36 @@ const TECHNICAL_COMPOUND_EXCEPTIONS = new Set([
  */
 export function isValidConceptName(name: string): boolean {
   if (!name || typeof name !== 'string') return false;
-  const trimmed = name.trim();
+  const cleaned = cleanConceptCandidateName(name);
 
   // Length constraints: between 3 and 50 characters
-  if (trimmed.length < 3 || trimmed.length > 50) return false;
+  if (cleaned.length < 3 || cleaned.length > 50) return false;
 
   // Reject citations and section headers: e.g. "Figure 1", "Section 3.2"
-  if (/^(?:figure|fig|table|eq|equation|section|sec|chapter|page)\s+[0-9a-z.]+/i.test(trimmed)) {
+  if (/^(?:figure|fig|table|eq|equation|section|sec|chapter|page)\s+[0-9a-z.]+/i.test(cleaned)) {
     return false;
   }
 
   // Reject purely numbers or punctuation
-  if (/^[0-9\s.,;:–—/-]+$/.test(trimmed)) return false;
+  if (/^[0-9\s.,;:–—/-]+$/.test(cleaned)) return false;
 
   // Reject if contains sentence-ending punctuation or quotes
-  if (/[.!?";]/.test(trimmed)) return false;
+  if (/[.!?";]/.test(cleaned)) return false;
 
-  const lower = trimmed.toLowerCase();
+  const lower = cleaned.toLowerCase();
+
+  // Reject conversational sentence fragments
+  if (CONVERSATIONAL_FRAGMENTS.has(lower)) return false;
+
+  // Reject phrases starting with interrogatives or relative pronouns
+  if (/^(?:what|how|why|when|where|which|who|whom|whose|that|whether)\b/i.test(cleaned)) {
+    return false;
+  }
+
+  // Reject phrases ending with verbs, auxiliary verbs, conjunctions, or prepositions
+  if (/\b(?:is|are|was|were|be|been|being|have|has|had|do|does|did|can|could|will|would|should|may|might|must|and|or|in|on|at|for|with|by|from|to|of|as|than|into|through|over|under)$/i.test(cleaned)) {
+    return false;
+  }
 
   // Reject direct academic filler words
   if (ACADEMIC_AND_GENERIC_FILLER.has(lower)) return false;
@@ -130,11 +204,11 @@ export function isValidConceptName(name: string): boolean {
 
   // Reject boundary prepositions / conjunctions / determiners
   const badBoundary = /^(?:and|or|in|on|at|for|with|by|from|to|of|the|a|an|that|which|as|into|through|over|under)\b|\b(?:and|or|in|on|at|for|with|by|from|to|of|the|a|an|that|which|as|into|through|over|under)$/i;
-  if (badBoundary.test(trimmed)) return false;
+  if (badBoundary.test(cleaned)) return false;
 
   // Reject internal conjunctions or prepositions (e.g. "Optimization and Training", "Architectures and Attention")
-  if (/\b(?:and|or|in|on|at|for|with|by|from|to|of)\b/i.test(trimmed)) {
-    if (!/^(?:state[- ]of[- ]the[- ]art|bag[- ]of[- ]words|field[- ]of[- ]view|chain[- ]of[- ]thought)$/i.test(trimmed)) {
+  if (/\b(?:and|or|in|on|at|for|with|by|from|to|of)\b/i.test(cleaned)) {
+    if (!/^(?:state[- ]of[- ]the[- ]art|bag[- ]of[- ]words|field[- ]of[- ]view|chain[- ]of[- ]thought)$/i.test(cleaned)) {
       return false;
     }
   }
@@ -146,15 +220,17 @@ export function isValidConceptName(name: string): boolean {
     if (GENERIC_VERBS.has(words[0])) return false;
     if (!APPROVED_TECHNICAL_ACRONYMS.has(words[0])) {
       // Must be at least 4 chars and start with uppercase in original
-      if (words[0].length < 4 || !/^[A-Z]/.test(trimmed)) return false;
+      if (words[0].length < 4 || !/^[A-Z]/.test(cleaned)) return false;
     }
   }
 
-  // 2-word generic combination check: generic adjective + generic noun (e.g. "Various Methods", "Novel Approach")
-  if (words.length === 2 && !TECHNICAL_COMPOUND_EXCEPTIONS.has(lower)) {
-    if (GENERIC_ADJECTIVES.has(words[0]) && GENERIC_STANDALONE_NOUNS.has(words[1])) {
-      return false;
-    }
+  // Reject multi-word phrases where every single word is a generic filler, adjective, or noun
+  // e.g. "Specialized Model Architecture", "Various Methods", "Modern Neural Architecture"
+  if (words.length >= 2 && !TECHNICAL_COMPOUND_EXCEPTIONS.has(lower)) {
+    const allGeneric = words.every(
+      w => GENERIC_ADJECTIVES.has(w) || GENERIC_STANDALONE_NOUNS.has(w) || ACADEMIC_AND_GENERIC_FILLER.has(w)
+    );
+    if (allGeneric) return false;
   }
 
   return true;
@@ -217,19 +293,73 @@ export function classifyConceptType(name: string, context?: string): ConceptCand
 }
 
 // -------------------------------------------------------------------------
-// 3. CONCISE DESCRIPTION EXTRACTOR (1–2 Sentences Maximum)
+// 3. CONCISE EDUCATIONAL DESCRIPTION EXTRACTOR (1–2 Sentences Maximum)
 // -------------------------------------------------------------------------
+
+/**
+ * Cleans extracted sentences: strips citations, footnote numbers, paper boilerplate, and hype.
+ */
+function cleanEducationalSentence(text: string): string {
+  let s = text.trim();
+  // Strip leading list bullet or numbering e.g. "1. ", "- ", "• "
+  s = s.replace(/^(?:[\d]+[.)]|\*|-|•)\s*/, '');
+  // Strip citations like "[1]", "[12, 14]", "(Vaswani et al., 2017)", "(Smith, 2020)"
+  s = s.replace(/\[\d+(?:[,\s–-]+\d+)*\]/g, '');
+  s = s.replace(/\([A-Z][A-Za-z\s.,]+(?:et\s+al\.)?,\s*\d{4}[a-z]?\)/g, '');
+  // Strip meta phrases and paper boilerplate
+  s = s.replace(/\b(?:in this (?:paper|section|chapter|work|study|article)|we (?:propose|demonstrate|show|introduce|present|find)|our (?:results|experiments|work|method|architecture)|as shown in (?:figure|table)\s*[\d.]*)\b,?\s*/gi, '');
+  // Strip marketing hype
+  s = s.replace(/\b(?:state[- ]of[- ]the[- ]art|revolutionar(?:y|izing)|game[- ]changing|groundbreaking|unprecedented|dramatically|drastically)\b\s*/gi, '');
+  // Consolidate whitespace
+  s = s.replace(/\s+/g, ' ').trim();
+  // Ensure first character capitalized
+  if (s.length > 0) {
+    s = s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  // Ensure ends with a period
+  if (s.length > 0 && !/[.!?]$/.test(s)) {
+    s += '.';
+  }
+  return s;
+}
+
+/**
+ * Provides a clean, educational, factual fallback descriptor free of AI/meta jargon.
+ */
+function getEducationalFallbackDescription(name: string, type: ConceptCandidateType): string {
+  switch (type) {
+    case 'algorithm':
+      return `${name} is an algorithmic procedure used for optimization, search, or decision-making.`;
+    case 'architecture':
+      return `${name} is a structural model architecture specifying layer organization and data flow.`;
+    case 'method':
+      return `${name} is a systematic methodology applied to process, transform, or regularize representations.`;
+    case 'theory':
+      return `${name} is a theoretical principle providing foundational mathematical or conceptual guarantees.`;
+    case 'application':
+      return `${name} is an applied domain where computational models and techniques are deployed.`;
+    case 'dataset':
+      return `${name} is a curated benchmark dataset used to train, evaluate, and compare models.`;
+    case 'technology':
+      return `${name} is a software framework or system tool supporting computational workflows.`;
+    case 'topic':
+      return `${name} is a foundational subject area explored throughout the learning material.`;
+    case 'concept':
+    default:
+      return `${name} is a core foundational concept representing key knowledge in this subject.`;
+  }
+}
 
 export function extractConceptDescription(
   name: string,
   type: ConceptCandidateType,
   chunkTextContent: string,
-  heading?: string
+  _heading?: string
 ): string {
   const sentences = chunkTextContent
     .split(/(?<=[.!?])\s+|\n+/)
     .map(s => s.trim())
-    .filter(s => s.length > 15);
+    .filter(s => s.length > 15 && !s.startsWith('#') && !/^[\d.]+\s+[A-Z]/.test(s));
 
   const escapedName = name.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
   const nameRegex = new RegExp(`\\b${escapedName}\\b`, 'i');
@@ -239,18 +369,20 @@ export function extractConceptDescription(
     const s = sentences[i];
     if (nameRegex.test(s)) {
       if (/\b(?:is an?|are|refers to|is defined as|enables|computes|provides|allows|was proposed|acts as|serves as)\b/i.test(s)) {
-        let desc = s;
-        // Optionally append second sentence if first is very brief (< 16 words)
-        if (i + 1 < sentences.length && desc.split(/\s+/).length < 16) {
-          const nextS = sentences[i + 1];
-          if (!nameRegex.test(nextS) && nextS.length < 100) {
-            desc += ` ${nextS}`;
+        let desc = cleanEducationalSentence(s);
+        // Optionally append second sentence if first is very brief (< 12 words)
+        if (i + 1 < sentences.length && desc.split(/\s+/).length < 12) {
+          const nextS = cleanEducationalSentence(sentences[i + 1]);
+          if (!nameRegex.test(nextS) && nextS.length < 90) {
+            desc = `${desc} ${nextS}`;
           }
         }
-        if (desc.length > 200) {
-          desc = `${desc.substring(0, 197).replace(/\s+\S*$/, '')}...`;
+        if (desc.length > 185) {
+          desc = `${desc.substring(0, 182).replace(/\s+\S*$/, '')}...`;
         }
-        return desc;
+        if (desc.length >= 25) {
+          return desc;
+        }
       }
     }
   }
@@ -258,17 +390,18 @@ export function extractConceptDescription(
   // 2. Look for any descriptive sentence mentioning the concept
   for (const s of sentences) {
     if (nameRegex.test(s)) {
-      let desc = s;
-      if (desc.length > 200) {
-        desc = `${desc.substring(0, 197).replace(/\s+\S*$/, '')}...`;
+      let desc = cleanEducationalSentence(s);
+      if (desc.length > 185) {
+        desc = `${desc.substring(0, 182).replace(/\s+\S*$/, '')}...`;
       }
-      return desc;
+      if (desc.length >= 25) {
+        return desc;
+      }
     }
   }
 
-  // 3. Fallback: Concise, informative one-sentence descriptor
-  const contextSubject = heading ? ` in ${heading}` : '';
-  return `${name} is a key ${type} discussed${contextSubject}.`;
+  // 3. Fallback: Concise, informative educational descriptor
+  return getEducationalFallbackDescription(name, type);
 }
 
 // -------------------------------------------------------------------------
@@ -377,14 +510,15 @@ export class HeuristicConceptExtractor implements ConceptExtractionProvider {
 
       if (defMatch) {
         const rawName = defMatch[1].trim();
-        if (isValidConceptName(rawName)) {
-          const key = rawName.toLowerCase();
+        const cleanName = cleanConceptCandidateName(rawName);
+        if (isValidConceptName(cleanName)) {
+          const key = cleanName.toLowerCase();
           if (!seenNames.has(key)) {
             seenNames.add(key);
-            const type = classifyConceptType(rawName, line);
-            const description = extractConceptDescription(rawName, type, text, chunk.heading);
+            const type = classifyConceptType(cleanName, line);
+            const description = extractConceptDescription(cleanName, type, text, chunk.heading);
             candidates.push({
-              name: rawName,
+              name: cleanName,
               type,
               description,
               sourceId: chunk.sourceId,
@@ -399,14 +533,15 @@ export class HeuristicConceptExtractor implements ConceptExtractionProvider {
     // 2. Heading Extraction: Chunks often have dedicated technical headings
     if (chunk.heading) {
       const headingTerm = chunk.heading.replace(/^#+\s*/, '').replace(/^(?:Section|Chapter|\d+\.)\s*/i, '').trim();
-      if (isValidConceptName(headingTerm)) {
-        const key = headingTerm.toLowerCase();
+      const cleanHeading = cleanConceptCandidateName(headingTerm);
+      if (isValidConceptName(cleanHeading)) {
+        const key = cleanHeading.toLowerCase();
         if (!seenNames.has(key)) {
           seenNames.add(key);
-          const type = classifyConceptType(headingTerm, text);
-          const description = extractConceptDescription(headingTerm, type, text, chunk.heading);
+          const type = classifyConceptType(cleanHeading, text);
+          const description = extractConceptDescription(cleanHeading, type, text, chunk.heading);
           candidates.push({
-            name: headingTerm,
+            name: cleanHeading,
             type,
             description,
             sourceId: chunk.sourceId,
@@ -422,24 +557,49 @@ export class HeuristicConceptExtractor implements ConceptExtractionProvider {
     let match: RegExpExecArray | null;
 
     while ((match = titleCaseRegex.exec(text)) !== null) {
-      let term = match[1].trim();
-      // Strip leading determiners
-      term = term.replace(/^(?:The|A|An)\s+/i, '');
+      const rawTerm = match[1].trim();
+      const cleanTerm = cleanConceptCandidateName(rawTerm);
 
-      if (isValidConceptName(term)) {
-        const key = term.toLowerCase();
+      if (isValidConceptName(cleanTerm)) {
+        const key = cleanTerm.toLowerCase();
         if (!seenNames.has(key)) {
           seenNames.add(key);
-          const type = classifyConceptType(term, text);
-          const description = extractConceptDescription(term, type, text, chunk.heading);
+          const type = classifyConceptType(cleanTerm, text);
+          const description = extractConceptDescription(cleanTerm, type, text, chunk.heading);
           candidates.push({
-            name: term,
+            name: cleanTerm,
             type,
             description,
             sourceId: chunk.sourceId,
             sourceChunkId: chunk.chunkId,
             confidence: 0.88
           });
+        }
+      }
+    }
+
+    // 4. Recognized domain compounds and technical concepts (even if lowercase in sentence body)
+    for (const compound of TECHNICAL_COMPOUND_EXCEPTIONS) {
+      const escaped = compound.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const compRegex = new RegExp(`\\b${escaped}(?:s)?\\b`, 'i');
+      if (compRegex.test(text)) {
+        const titleCaseName = compound.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+        const cleanName = cleanConceptCandidateName(titleCaseName);
+        if (isValidConceptName(cleanName)) {
+          const key = cleanName.toLowerCase();
+          if (!seenNames.has(key)) {
+            seenNames.add(key);
+            const type = classifyConceptType(cleanName, text);
+            const description = extractConceptDescription(cleanName, type, text, chunk.heading);
+            candidates.push({
+              name: cleanName,
+              type,
+              description,
+              sourceId: chunk.sourceId,
+              sourceChunkId: chunk.chunkId,
+              confidence: 0.94
+            });
+          }
         }
       }
     }

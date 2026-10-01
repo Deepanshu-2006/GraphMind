@@ -87,6 +87,17 @@ export function conceptMatchesSentence(concept: CanonicalConcept, sentenceNorm: 
   return regex.test(sentenceNorm);
 }
 
+const RELATION_SPECIFICITY_RANK: Record<string, number> = {
+  'foundation-for': 10,
+  'depends-on': 9,
+  'part-of': 8,
+  'extends': 7,
+  'uses': 6,
+  'applied-to': 5,
+  'instance-of': 4,
+  'related-to': 1
+};
+
 /**
  * Discovers if the source sentence establishes a semantic relationship between conceptA and conceptB.
  * Controlled vocabulary:
@@ -110,14 +121,37 @@ export function findSemanticRelation(
 
   const sNorm = normalizeForMatching(sentence);
 
-  // Both concepts must appear in the same sentence/clause
+  // Both concepts must appear in the same sentence
   if (!conceptMatchesSentence(conceptA, sNorm) || !conceptMatchesSentence(conceptB, sNorm)) {
     return null;
   }
 
-  const cleanDescription = sentence.trim().length > 180 
-    ? `${sentence.trim().substring(0, 177).replace(/\s+\S*$/, '')}...` 
-    : sentence.trim();
+  // Prevent connecting concepts across distant clauses or unrelated contexts in long compound sentences
+  const aNorm = normalizeForMatching(conceptA.name);
+  const bNorm = normalizeForMatching(conceptB.name);
+  const aIdx = sNorm.indexOf(aNorm);
+  const bIdx = sNorm.indexOf(bNorm);
+  if (aIdx >= 0 && bIdx >= 0) {
+    if (Math.abs(aIdx - bIdx) > 130) {
+      return null;
+    }
+    // Disallow bridging across strong punctuation boundaries (; or :)
+    const minIdx = Math.min(aIdx, bIdx);
+    const maxIdx = Math.max(aIdx, bIdx);
+    const intermediate = sentence.slice(minIdx, maxIdx);
+    if (/[;:]/.test(intermediate)) {
+      return null;
+    }
+  }
+
+  let cleanDescription = sentence
+    .replace(/\[\d+(?:[,\s–-]+\d+)*\]/g, '')
+    .replace(/\([A-Z][A-Za-z\s.,]+(?:et\s+al\.)?,\s*\d{4}[a-z]?\)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (cleanDescription.length > 165) {
+    cleanDescription = `${cleanDescription.substring(0, 162).replace(/\s+\S*$/, '')}...`;
+  }
 
   // Helper to build a validated relationship object
   const buildRel = (
@@ -130,6 +164,7 @@ export function findSemanticRelation(
     source: src.id,
     target: tgt.id,
     type,
+    label: type,
     description: cleanDescription,
     sourceChunkIds: [chunkId],
     sourceIds: sourceId ? [sourceId] : [],
@@ -140,57 +175,57 @@ export function findSemanticRelation(
   const bPat = buildConceptRegexPattern(conceptB);
 
   // 1. EXTENDS (A extends B)
-  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,50}\\b(?:extend[s]?|expand[s]? upon|build[s]? upon|enhance[s]?|variant of|generalization of|specialization of|extension of|improve[s]? upon)\\b[\\s\\w,]{0,50}\\b${bPat}\\b`, 'i').test(sNorm)) {
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,45}\\b(?:extend[s]?|expand[s]? upon|build[s]? upon|enhance[s]?|variant of|generalization of|specialization of|extension of|improve[s]? upon)\\b[\\s\\w,]{0,45}\\b${bPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'extends', 0.95);
   }
-  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,50}\\b(?:(?:is|are) (?:extended|expanded|generalized) by)\\b[\\s\\w,]{0,50}\\b${aPat}\\b`, 'i').test(sNorm)) {
+  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,45}\\b(?:(?:is|are) (?:extended|expanded|generalized) by)\\b[\\s\\w,]{0,45}\\b${aPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'extends', 0.95);
   }
 
   // 2. PART-OF (A is part of B / B consists of A)
-  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,50}\\b(?:(?:is|are) )?(?:an? )?(?:[\\w]+\\s+)?(?:component|part|layer|module|subnetwork|constituent|submodule|block|mechanism|unit) (?:of|in)\\b[\\s\\w,]{0,50}\\b${bPat}\\b`, 'i').test(sNorm)) {
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,45}\\b(?:(?:is|are) )?(?:an? )?(?:[\\w]+\\s+)?(?:component|part|layer|module|subnetwork|constituent|submodule|block|mechanism|unit) (?:of|in)\\b[\\s\\w,]{0,45}\\b${bPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'part-of', 0.95);
   }
-  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,50}\\b(?:consist[s]? of|contain[s]?|comprise[s]?|(?:is|are) composed of|incorporate[s]? as a component)\\b[\\s\\w,]{0,50}\\b${aPat}\\b`, 'i').test(sNorm)) {
+  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,45}\\b(?:consist[s]? of|contain[s]?|comprise[s]?|(?:is|are) composed of|incorporate[s]? as a component)\\b[\\s\\w,]{0,45}\\b${aPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'part-of', 0.95);
   }
 
   // 3. FOUNDATION-FOR (A foundation for B / B based on A)
-  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,50}\\b(?:enable[s]?|underpin[s]?|power[s]?|(?:is|are) foundational to|(?:is|are) (?:the|a) foundation of|serve[s]? as (?:the|a) (?:basis|foundation) for|provide[s]? (?:the|a) (?:basis|foundation) for|form[s]? (?:the|a) (?:basis|foundation) of|underlie[s]?)\\b[\\s\\w,]{0,50}\\b${bPat}\\b`, 'i').test(sNorm)) {
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,45}\\b(?:enable[s]?|underpin[s]?|power[s]?|(?:is|are) foundational to|(?:is|are) (?:the|a) foundation of|serve[s]? as (?:the|a) (?:basis|foundation) for|provide[s]? (?:the|a) (?:basis|foundation) for|form[s]? (?:the|a) (?:basis|foundation) of|underlie[s]?)\\b[\\s\\w,]{0,45}\\b${bPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'foundation-for', 0.94);
   }
-  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,50}\\b(?:(?:is|are) (?:based|built|founded|powered)(?:\\s+\\w+)?\\s+on)\\b[\\s\\w,]{0,50}\\b${aPat}\\b`, 'i').test(sNorm)) {
+  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,45}\\b(?:(?:is|are) (?:based|built|founded|powered)(?:\\s+\\w+)?\\s+on)\\b[\\s\\w,]{0,45}\\b${aPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'foundation-for', 0.94);
   }
 
   // 4. DEPENDS-ON (A depends on B / B is prerequisite for A)
-  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,50}\\b(?:depend[s]? on|rel(?:y|ies) on|require[s]?|necessitate[s]?|(?:is|are) dependent on|(?:has|have) a prerequisite of)\\b[\\s\\w,]{0,50}\\b${bPat}\\b`, 'i').test(sNorm)) {
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,45}\\b(?:depend[s]? on|rel(?:y|ies) on|require[s]?|necessitate[s]?|(?:is|are) dependent on|(?:has|have) a prerequisite of)\\b[\\s\\w,]{0,45}\\b${bPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'depends-on', 0.93);
   }
-  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,50}\\b(?:(?:is|are) (?:required|essential|necessary|a prerequisite) for)\\b[\\s\\w,]{0,50}\\b${aPat}\\b`, 'i').test(sNorm)) {
+  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,45}\\b(?:(?:is|are) (?:required|essential|necessary|a prerequisite) for)\\b[\\s\\w,]{0,45}\\b${aPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'depends-on', 0.93);
   }
 
   // 5. APPLIED-TO (A applied to B / A evaluated on B)
-  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,60}\\b(?:applied to|used (?:for|in)|benchmarked on|evaluated on|trained on|tested on|deployed in|adapted for|across [\\w\\s]+ tasks of|in tasks of)\\b[\\s\\w,]{0,50}\\b${bPat}\\b`, 'i').test(sNorm)) {
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,50}\\b(?:applied to|used (?:for|in)|benchmarked on|evaluated on|trained on|tested on|deployed in|adapted for|across [\\w\\s]+ tasks of|in tasks of)\\b[\\s\\w,]{0,45}\\b${bPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'applied-to', 0.93);
   }
 
   // 6. USES (A uses B / A utilizes B)
-  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,50}\\b(?:use[s]?|utilize[s]?|employ[s]?|incorporate[s]?|leverage[s]?|appl(?:y|ies)|computes using|rel(?:y|ies) on the mechanism of|adopt[s]?)\\b[\\s\\w,]{0,50}\\b${bPat}\\b`, 'i').test(sNorm)) {
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,45}\\b(?:use[s]?|utilize[s]?|employ[s]?|incorporate[s]?|leverage[s]?|appl(?:y|ies)|computes using|rel(?:y|ies) on the mechanism of|adopt[s]?)\\b[\\s\\w,]{0,45}\\b${bPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'uses', 0.91);
   }
 
   // 7. INSTANCE-OF (A is an instance/example of B)
-  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,40}\\b(?:(?:is|are) (?:an? )?(?:instance|example|type|kind|category|form|implementation) of)\\b[\\s\\w,]{0,40}\\b${bPat}\\b`, 'i').test(sNorm)) {
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,35}\\b(?:(?:is|are) (?:an? )?(?:instance|example|type|kind|category|form|implementation) of)\\b[\\s\\w,]{0,35}\\b${bPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'instance-of', 0.92);
   }
-  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,40}\\b(?:such as|including|namely)\\b[\\s\\w,]{0,40}\\b${aPat}\\b`, 'i').test(sNorm)) {
+  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,35}\\b(?:such as|including|namely)\\b[\\s\\w,]{0,35}\\b${aPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'instance-of', 0.92);
   }
 
   // 8. RELATED-TO (Conservative clause-level association)
-  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,40}\\b(?:(?:is|are) (?:closely )?related to|associated with|operate[s]? in conjunction with|work[s]? alongside|(?:is|are) intertwined with)\\b[\\s\\w,]{0,40}\\b${bPat}\\b`, 'i').test(sNorm)) {
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,35}\\b(?:(?:is|are) (?:closely )?related to|associated with|operate[s]? in conjunction with|work[s]? alongside|(?:is|are) intertwined with)\\b[\\s\\w,]{0,35}\\b${bPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'related-to', 0.85);
   }
 
@@ -202,26 +237,29 @@ export function findSemanticRelation(
 // -------------------------------------------------------------------------
 
 /**
- * Merges duplicate relationships that connect the same source and target with the same type.
+ * Merges duplicate relationships that connect the same source and target.
+ * Resolves parallel edges by prioritizing higher specificity semantic types over generic 'related-to'.
  * Preserves all supporting source chunk references (sourceChunkIds) and document IDs (sourceIds).
  */
 export function deduplicateRelationships(relationships: KnowledgeRelationship[]): KnowledgeRelationship[] {
-  const map = new Map<string, KnowledgeRelationship>();
+  const pairMap = new Map<string, KnowledgeRelationship>();
 
   for (const rel of relationships) {
     if (!rel.source || !rel.target || !rel.type) continue;
     // Disallow self-loops
     if (rel.source === rel.target) continue;
 
-    const key = `${rel.source}->${rel.type}->${rel.target}`;
-    const existing = map.get(key);
+    // Use unordered pair key to resolve competing or reciprocal edges between the same 2 concepts
+    const pairKey = [rel.source, rel.target].sort().join('<->');
+    const existing = pairMap.get(pairKey);
 
     if (!existing) {
-      map.set(key, {
+      pairMap.set(pairKey, {
         id: rel.id || `rel-${rel.source}-${rel.type}-${rel.target}`,
         source: rel.source,
         target: rel.target,
         type: rel.type,
+        label: rel.label || rel.type,
         description: rel.description?.trim() || '',
         sourceChunkIds: [...(rel.sourceChunkIds || [])],
         sourceIds: [...(rel.sourceIds || [])],
@@ -243,17 +281,26 @@ export function deduplicateRelationships(relationships: KnowledgeRelationship[])
         }
       }
 
-      // Prefer longer, more descriptive evidence sentence
-      if ((rel.description || '').length > (existing.description || '').length) {
-        existing.description = rel.description;
+      const existingRank = RELATION_SPECIFICITY_RANK[existing.type] || 2;
+      const currentRank = RELATION_SPECIFICITY_RANK[rel.type] || 2;
+
+      // Upgrade relation if the current one has higher semantic specificity or confidence
+      if (currentRank > existingRank || (currentRank === existingRank && (rel.confidence || 0) > (existing.confidence || 0))) {
+        existing.source = rel.source;
+        existing.target = rel.target;
+        existing.type = rel.type;
+        existing.label = rel.label || rel.type;
+        existing.id = `rel-${rel.source}-${rel.type}-${rel.target}`;
+        if (rel.description) existing.description = rel.description.trim();
+      } else if ((rel.description || '').length > (existing.description || '').length && currentRank === existingRank) {
+        existing.description = rel.description?.trim() || existing.description;
       }
 
-      // Boost internal confidence when verified across multiple chunks
-      existing.confidence = Math.min(0.99, (existing.confidence || 0.90) + 0.03);
+      existing.confidence = Math.min(0.99, Math.max(existing.confidence || 0.90, rel.confidence || 0.90) + 0.02);
     }
   }
 
-  return Array.from(map.values());
+  return Array.from(pairMap.values());
 }
 
 // -------------------------------------------------------------------------

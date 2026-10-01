@@ -35,7 +35,12 @@ const TECHNICAL_ACRONYM_MAP = new Map<string, string>([
   ['nlp', 'natural language processing'],
   ['llm', 'large language model'],
   ['ann', 'artificial neural network'],
-  ['pca', 'principal component analysis']
+  ['pca', 'principal component analysis'],
+  ['rl', 'reinforcement learning'],
+  ['lstm', 'long short term memory'],
+  ['gru', 'gated recurrent unit'],
+  ['bert', 'bert'],
+  ['gpt', 'gpt']
 ]);
 
 /**
@@ -78,9 +83,18 @@ export function safeSingularize(word: string): string {
 /**
  * Converts a raw name into a clean singular Title Case canonical display name.
  * e.g. "Transformers" -> "Transformer", "Convolutional Neural Networks" -> "Convolutional Neural Network"
+ * Also strips redundant classification suffixes if the base technical root is substantive.
  */
 export function toCanonicalDisplayName(name: string): string {
   let clean = name.trim();
+
+  // Strip redundant classification suffix e.g. "Transformer Architecture" -> "Transformer"
+  const strippedSuffix = clean.replace(/\s+(?:architecture|model|algorithm|method|mechanism)$/i, '').trim();
+  const nonStandalones = new Set(['deep', 'neural', 'linear', 'machine', 'support', 'random', 'gradient']);
+  if (strippedSuffix.length >= 6 && !nonStandalones.has(strippedSuffix.toLowerCase())) {
+    clean = strippedSuffix;
+  }
+
   const words = clean.split(' ');
   const last = words[words.length - 1];
   const sing = safeSingularize(last);

@@ -8,6 +8,7 @@ import type {
   ConceptRelationship,
   ConceptSourceReference
 } from '../types';
+import { computeGraphLayout } from '../services/graphLayout';
 
 export * from '../types/knowledgeGraph';
 
@@ -431,17 +432,11 @@ export function knowledgeGraphToReactFlow(graph: KnowledgeGraph): {
     };
   }
 
-  // 2. Build ReactFlow Nodes (Visualization Layer assigns layout when semantic node has no hardcoded coordinates)
-  const nodes: Node<GraphConceptData>[] = graph.nodes.map((n, index) => {
-    let position = n.position;
-    if (!position) {
-      const angle = (2 * Math.PI * index) / Math.max(1, graph.nodes.length);
-      const radius = 280 + (index % 3) * 70;
-      position = {
-        x: Math.round(450 + radius * Math.cos(angle)),
-        y: Math.round(320 + radius * Math.sin(angle))
-      };
-    }
+  // 2. Build ReactFlow Nodes (Visualization Layer assigns organic layout when semantic node has no hardcoded coordinates)
+  const computedLayout = computeGraphLayout(graph.nodes, graph.relationships);
+
+  const nodes: Node<GraphConceptData>[] = graph.nodes.map((n) => {
+    const position = n.position || computedLayout.get(n.id) || { x: 500, y: 350 };
 
     return {
       id: n.id,

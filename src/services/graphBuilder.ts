@@ -7,12 +7,13 @@ import type {
   TextChunk
 } from '../types/knowledgeGraph';
 import { extractText } from './textExtraction';
-import { extractAndNormalizeConcepts } from './conceptNormalization';
-import { extractRelationshipsFromChunks } from './relationshipExtraction';
+import { extractAndNormalizeConcepts, generateCanonicalKey } from './conceptNormalization';
+import { extractRelationshipsFromChunks, deduplicateRelationships } from './relationshipExtraction';
+import { computeGraphLayout } from './graphLayout';
 
 /**
  * =========================================================================
- * GRAPH BUILDER SERVICE (Day 2, Step 7)
+ * GRAPH BUILDER SERVICE (Day 2, Step 7 & Step 11 Quality Pass)
  * Pipeline: SOURCES + CONCEPTS + RELATIONSHIPS → FINAL KNOWLEDGE GRAPH
  * =========================================================================
  */
@@ -21,6 +22,7 @@ export interface GraphBuilderOptions {
   removeDanglingEdges?: boolean; // Defaults to true
   allowSelfLoops?: boolean; // Defaults to false
   strictValidation?: boolean; // Defaults to true
+  filterNoiseNodes?: boolean; // Defaults to true
 }
 
 export interface PipelineOptions extends GraphBuilderOptions {
@@ -34,6 +36,7 @@ export interface PipelineOptions extends GraphBuilderOptions {
  * -------------------------------------------------------------------------
  * 1. NODE CREATION & VALIDATION
  * Each canonical concept becomes one graph node.
+ * Merges duplicates by ID and canonical normalized key.
  * Preserves: id, name, type, description, sourceIds, sourceChunkIds
  * -------------------------------------------------------------------------
  */
@@ -43,6 +46,7 @@ export function buildGraphNodes(concepts: CanonicalConcept[]): KnowledgeNode[] {
   }
 
   const nodeMap = new Map<string, KnowledgeNode>();
+  const keyMap = new Map<string, KnowledgeNode>();
 
   for (const c of concepts) {
     if (!c || !c.id || !c.name) continue;
@@ -50,12 +54,11 @@ export function buildGraphNodes(concepts: CanonicalConcept[]): KnowledgeNode[] {
     const trimmedId = c.id.trim();
     if (!trimmedId) continue;
 
-    const existing = nodeMap.get(trimmedId);
+    const normKey = generateCanonicalKey(c.name);
+    const existing = nodeMap.get(trimmedId) || (normKey ? keyMap.get(normKey) : undefined);
 
     if (!existing) {
-      // Create new node without hardcoded layout coordinates
-      // Layout is intentionally separated from semantic graph construction
-      nodeMap.set(trimmedId, {
+      const newNode: KnowledgeNode = {
         id: trimmedId,
         name: c.name.trim(),
         type: c.type || 'concept',
@@ -63,7 +66,9 @@ export function buildGraphNodes(concepts: CanonicalConcept[]): KnowledgeNode[] {
         sourceIds: [...(c.sourceIds || [])],
         sourceChunkIds: [...(c.sourceChunkIds || [])],
         confidence: c.confidence
-      });
+      };
+      nodeMap.set(trimmedId, newNode);
+      if (normKey) keyMap.set(normKey, newNode);
     } else {
       // Remove duplicate nodes while merging supporting evidence
       for (const sId of c.sourceIds || []) {
@@ -104,8 +109,8 @@ export function buildGraphNodes(concepts: CanonicalConcept[]): KnowledgeNode[] {
  * - Remove invalid relationships
  * - Remove references to missing nodes (no dangling edges)
  * - Do not silently create missing concepts
- * - Remove duplicate relationships
- * - Do not force artificial connectivity
+ * - Remove duplicate relationships (via pair-level deduplication)
+ * - Disallow self-loops
  * -------------------------------------------------------------------------
  */
 export function buildGraphEdges(
@@ -122,80 +127,48 @@ export function buildGraphEdges(
     allowSelfLoops = false
   } = options;
 
-  const edgeMap = new Map<string, KnowledgeRelationship>();
+  // 1. Run semantic deduplication first to resolve parallel edges
+  const deduplicated = deduplicateRelationships(relationships);
 
-  for (const rel of relationships) {
+  // 2. Validate against valid node set and options
+  const cleanEdges: KnowledgeRelationship[] = [];
+
+  for (const rel of deduplicated) {
     if (!rel) continue;
 
     const source = (rel.source || '').trim();
     const target = (rel.target || '').trim();
     const type = (rel.type || '').trim();
 
-    // 1. Invalidation: missing endpoints or empty relation type
-    if (!source || !target || !type) {
-      continue;
-    }
+    if (!source || !target || !type) continue;
 
-    // 2. Disallow self-loops unless explicitly allowed
-    if (!allowSelfLoops && source === target) {
-      continue;
-    }
+    if (!allowSelfLoops && source === target) continue;
 
-    // 3. Remove references to missing nodes (strictly do not synthesize missing concepts)
     if (removeDanglingEdges) {
       if (!validNodeIds.has(source) || !validNodeIds.has(target)) {
         continue;
       }
     }
 
-    const key = `${source}->${type}->${target}`;
-    const existing = edgeMap.get(key);
-
-    if (!existing) {
-      edgeMap.set(key, {
-        id: rel.id || `rel-${source}-${type}-${target}`,
-        source,
-        target,
-        type: rel.type,
-        description: rel.description?.trim() || '',
-        sourceChunkIds: [...(rel.sourceChunkIds || [])],
-        sourceIds: [...(rel.sourceIds || [])],
-        confidence: rel.confidence,
-        label: rel.label || rel.type
-      });
-    } else {
-      // Deduplicate relationships while merging supporting chunks and sources
-      for (const cId of rel.sourceChunkIds || []) {
-        if (!existing.sourceChunkIds.includes(cId)) {
-          existing.sourceChunkIds.push(cId);
-        }
-      }
-
-      for (const sId of rel.sourceIds || []) {
-        if (!existing.sourceIds) existing.sourceIds = [];
-        if (!existing.sourceIds.includes(sId)) {
-          existing.sourceIds.push(sId);
-        }
-      }
-
-      // Preserve richer contextual sentence
-      if ((rel.description?.trim() || '').length > (existing.description || '').length) {
-        existing.description = rel.description?.trim() || '';
-      }
-
-      if (typeof rel.confidence === 'number') {
-        existing.confidence = Math.min(0.99, Math.max(existing.confidence || 0, rel.confidence) + 0.02);
-      }
-    }
+    cleanEdges.push({
+      ...rel,
+      source,
+      target,
+      type,
+      label: rel.label || type,
+      sourceChunkIds: [...(rel.sourceChunkIds || [])],
+      sourceIds: [...(rel.sourceIds || [])]
+    });
   }
 
-  return Array.from(edgeMap.values());
+  return cleanEdges;
 }
 
 /**
  * -------------------------------------------------------------------------
  * 3. DEDICATED GRAPH BUILDER
- * Assembles validated concepts, relationships, and sources into KnowledgeGraph
+ * Assembles validated concepts, relationships, and sources into KnowledgeGraph.
+ * Reduces graph noise, filters weak isolated nodes, and calculates collision-free layout.
  * -------------------------------------------------------------------------
  */
 export function buildKnowledgeGraph(
@@ -204,14 +177,46 @@ export function buildKnowledgeGraph(
   sources: KnowledgeSource[],
   options: GraphBuilderOptions = {}
 ): KnowledgeGraph {
-  // 1. Build and validate nodes (deduplicated, canonical)
-  const nodes = buildGraphNodes(concepts);
-  const validNodeIds = new Set(nodes.map(n => n.id));
+  const { filterNoiseNodes = true } = options;
 
-  // 2. Build and validate edges (dangling edges removed, missing concepts NOT created)
-  const cleanRelationships = buildGraphEdges(relationships, validNodeIds, options);
+  // 1. Build and validate initial nodes (deduplicated, canonical)
+  let nodes = buildGraphNodes(concepts);
+  let validNodeIds = new Set(nodes.map(n => n.id));
 
-  // 3. Deduplicate sources by id
+  // 2. Build and validate edges
+  let cleanRelationships = buildGraphEdges(relationships, validNodeIds, options);
+
+  // 3. Noise reduction: For substantive graphs (> 12 nodes), prune disconnected weak singletons
+  if (filterNoiseNodes && nodes.length > 12 && cleanRelationships.length >= 5) {
+    const connectedNodeIds = new Set<string>();
+    for (const rel of cleanRelationships) {
+      connectedNodeIds.add(rel.source);
+      connectedNodeIds.add(rel.target);
+    }
+
+    // Keep connected nodes OR high-confidence/prominent nodes
+    nodes = nodes.filter(n => {
+      if (connectedNodeIds.has(n.id)) return true;
+      // Keep foundational or highly mentioned concepts even if isolated
+      const isCore = n.type === 'foundation' || n.type === 'topic' || n.type === 'paradigm';
+      const hasHighEvidence = (n.sourceChunkIds && n.sourceChunkIds.length >= 2) || (n.confidence && n.confidence >= 0.95);
+      return isCore || hasHighEvidence;
+    });
+
+    validNodeIds = new Set(nodes.map(n => n.id));
+    cleanRelationships = buildGraphEdges(cleanRelationships, validNodeIds, options);
+  }
+
+  // 4. Compute organic, non-overlapping spatial layout
+  const layoutPositions = computeGraphLayout(nodes, cleanRelationships);
+  for (const n of nodes) {
+    const pos = layoutPositions.get(n.id);
+    if (pos) {
+      n.position = pos;
+    }
+  }
+
+  // 5. Deduplicate sources by id
   const sourceMap = new Map<string, KnowledgeSource>();
   for (const s of sources || []) {
     if (s && s.id && !sourceMap.has(s.id)) {
