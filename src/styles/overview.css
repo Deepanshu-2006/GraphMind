@@ -1750,9 +1750,166 @@
 }
 
 
+/* ==========================================================================
+   GRAPHMIND FOOTER — Editorial Typographic Wordmark (SVG Vertical Strokes)
+   ========================================================================== */
+
+.gmf-section {
+  position: relative;
+  width: 100%;
+  background-color: #0A0A0A;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 75vh;
+  padding: clamp(48px, 6vh, 80px) clamp(24px, 4vw, 72px) clamp(36px, 4vh, 60px);
+  overflow: hidden;
+}
+
+.gmf-top {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+}
+
+.gmf-rule {
+  width: 100%;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.065);
+  flex-shrink: 0;
+  will-change: transform;
+}
+
+.gmf-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+  width: 100%;
+}
+
+.gmf-meta-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #424242;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gmf-accent-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--accent);
+  box-shadow: 0 0 6px rgba(163, 255, 18, 0.4);
+  flex-shrink: 0;
+}
+
+.gmf-wordmark-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(32px, 4vh, 56px) 0;
+  width: 100%;
+  user-select: none;
+}
+
+.gmf-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+  cursor: default;
+}
+
+.gmf-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+}
+
+.gmf-meta-bottom-row {
+  padding: 16px 0 0 0;
+}
+
+.gmf-copy {
+  color: #363636;
+}
+
+.gmf-explore-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #525252;
+  transition: color 200ms ease;
+}
+
+.gmf-explore-btn:hover {
+  color: #C0C0C0;
+}
+
+.gmf-explore-arrow {
+  font-size: 11px;
+  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.gmf-explore-btn:hover .gmf-explore-arrow {
+  transform: translate(3px, -3px);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+
+@media (max-width: 960px) {
+  .gmf-section {
+    min-height: 60vh;
+  }
+}
+
+@media (max-width: 640px) {
+  .gmf-section {
+    min-height: 50vh;
+    padding: 32px 16px 28px;
+  }
+
+  .gmf-meta-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gmf-rule,
+  .gmf-meta-row,
+  .gmf-bottom,
+  .gmf-svg * {
+    transform: none !important;
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 
 /* Gradient separator line at top of section */
 /* Responsive adjustments */
+
 @media (min-width: 769px) and (max-width: 1080px) {
   .overview-page {
     padding: 36px 24px 80px 24px;

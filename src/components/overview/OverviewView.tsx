@@ -2,6 +2,7 @@ import React from 'react';
 import { HeroSection } from './HeroSection';
 import { FromMaterialToMeaning } from './FromMaterialToMeaning';
 import { EditorialCTASection } from './EditorialCTASection';
+import { FooterSection } from './FooterSection';
 
 interface OverviewViewProps {
   onCreateGraph: () => void;
@@ -31,6 +32,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       <EditorialCTASection 
         onUploadMaterial={onCreateGraph}
         onExploreWorkspace={onExploreDemo}
+      />
+
+      {/* 4. Editorial Typographic Footer — Giant GRAPHMIND Wordmark */}
+      <FooterSection
+        onUploadMaterial={onCreateGraph}
       />
     </div>
   );
