@@ -52,6 +52,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         onSelectSection={onSelectSection}
         isOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
+        project={project}
       />
 
       {/* Main Content Area */}
