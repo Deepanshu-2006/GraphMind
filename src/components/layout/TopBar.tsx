@@ -19,7 +19,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 }) => {
   return (
     <header className="app-topbar" role="banner">
-      {/* Left: Clean Breadcrumb & Mobile Drawer Trigger */}
+      {/* Left: Mobile Drawer Trigger + Project Context (No redundant GraphMind /) */}
       <div className="topbar-left">
         <button 
           type="button"
@@ -28,19 +28,17 @@ export const TopBar: React.FC<TopBarProps> = ({
           aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
           aria-expanded={isMobileMenuOpen}
         >
-          <Menu size={16} aria-hidden="true" />
+          <Menu size={16} strokeWidth={1.5} aria-hidden="true" />
         </button>
 
-        <nav className="topbar-breadcrumbs" aria-label="Breadcrumbs">
-          <span className="breadcrumb-root">GraphMind</span>
-          <span className="breadcrumb-slash" aria-hidden="true">/</span>
-          <span className="breadcrumb-project" title={project.name}>{project.name}</span>
-        </nav>
+        <div className="topbar-context" title={project.name}>
+          {project.name}
+        </div>
       </div>
 
-      {/* Right: Search, Add Material, Profile */}
+      {/* Right: Search, Upload Material shortcut, User Avatar */}
       <div className="topbar-right">
-        {/* Search trigger */}
+        {/* Search trigger: compact, subtle command control */}
         <button 
           type="button"
           className="topbar-search-trigger"
@@ -48,28 +46,28 @@ export const TopBar: React.FC<TopBarProps> = ({
           aria-label="Search concepts (⌘K)"
           title="Search concepts (⌘K)"
         >
-          <Search size={14} className="topbar-search-icon" aria-hidden="true" />
+          <Search size={14} strokeWidth={1.5} className="topbar-search-icon" aria-hidden="true" />
           <span className="topbar-search-text">Search concepts</span>
           <kbd className="search-kbd" aria-hidden="true">⌘K</kbd>
         </button>
 
-        {/* Primary Action Button: Add material */}
+        {/* Upload Material: Quiet contextual shortcut */}
         <button 
           type="button"
-          className="btn-primary topbar-action-btn" 
+          className="topbar-upload-btn" 
           onClick={onOpenCreateModal}
           title="Upload material"
           aria-label="Upload material"
           id="btn-topbar-add-material"
         >
-          <UploadCloud size={14} aria-hidden="true" />
+          <UploadCloud size={14} strokeWidth={1.5} aria-hidden="true" />
           <span className="topbar-btn-text-full">Upload material</span>
           <span className="topbar-btn-text-short">Upload</span>
         </button>
 
-        {/* Profile Avatar */}
+        {/* Profile Avatar: Quiet 30px circular surface */}
         <div 
-          className="profile-badge" 
+          className="profile-avatar" 
           title="Profile (DK)" 
           role="button" 
           tabIndex={0} 
