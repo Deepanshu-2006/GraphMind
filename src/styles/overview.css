@@ -1762,14 +1762,14 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  /* 120–180px deliberate breathing room after editorial timeline */
-  margin-top: clamp(120px, 14vh, 180px);
+  /* 100–140px deliberate breathing room after editorial timeline */
+  margin-top: clamp(100px, 12vh, 140px);
   /* Subtle top border establishing footer beginning */
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  /* 420–520px desktop height */
-  min-height: 420px;
-  max-height: 520px;
-  padding: 24px clamp(24px, 3.5vw, 64px) 24px;
+  /* 380–480px desktop height */
+  min-height: 380px;
+  max-height: 480px;
+  padding: 22px clamp(24px, 3.5vw, 64px) 20px;
   overflow: hidden;
 }
 
@@ -1793,7 +1793,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 0 12px 0;
+  padding: 0 0 10px 0;
   width: 100%;
 }
 
@@ -1819,15 +1819,15 @@
   flex-shrink: 0;
 }
 
-/* ── Giant Architectural Wordmark — occupies lower 60–70% of footer ── */
+/* ── Giant Architectural Wordmark — occupies lower 65–75% of footer ── */
 .gmf-wordmark-wrap {
   width: 100%;
   flex: 1;
   display: flex;
   align-items: flex-end; /* Bottom-anchored */
   justify-content: center;
-  padding-top: 8px;
-  padding-bottom: 12px; /* Sits very close to the bottom rule */
+  padding-top: 6px;
+  padding-bottom: 8px; /* Sits immediately above the bottom rule */
   user-select: none;
   overflow: hidden;
 }
@@ -1836,7 +1836,7 @@
   width: 100%;
   height: auto;
   /* 230–300px desktop height */
-  max-height: clamp(230px, 25vw, 300px);
+  max-height: clamp(230px, 24vw, 290px);
   display: block;
   overflow: visible;
   cursor: default;
