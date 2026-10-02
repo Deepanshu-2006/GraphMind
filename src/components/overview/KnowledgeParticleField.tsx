@@ -131,17 +131,17 @@ export const KnowledgeParticleField: React.FC = () => {
      * Determine optimal particle count based on display width
      */
     const getParticleCount = (w: number): number => {
-      if (prefersReducedMotion) return 28;
-      if (w < 520) return 24;
-      if (w < 860) return 46;
-      return 78;
+      if (prefersReducedMotion) return 30;
+      if (w < 560) return 28;
+      if (w < 960) return 56;
+      return 96;
     };
 
     /**
      * Initialize particles with structured spatial variation:
-     * - Outer edges: higher density framing the typography
-     * - Middle: moderate density
-     * - Center: calm, low density to ensure headline and CTA legibility
+     * - Outer edges & right side: higher density framing the typography
+     * - Mid-depth strata: subtle connectivity
+     * - Typography corridor: calm, low density to ensure headline and CTA legibility
      */
     const initParticles = () => {
       const count = getParticleCount(width);
@@ -163,10 +163,15 @@ export const KnowledgeParticleField: React.FC = () => {
           const rx = Math.cos(angle) * (halfW * 0.96) * distFactor;
           const ry = Math.sin(angle) * (halfH * 0.94) * distFactor;
 
-          // Check if inside center reading zone (|rx| < 260 && |ry| < 110)
-          const inReadingZone = Math.abs(rx) < 250 && Math.abs(ry) < 95;
+          // Check if inside reading zone where headline & CTA sit
+          // Desktop: left of center (rx between -halfW and ~100px), slightly above center (ry between -200 and 130)
+          // Mobile/Tablet: centered
+          const isLeftAligned = width > 800;
+          const inReadingZone = isLeftAligned
+            ? (rx > -halfW * 0.94 && rx < Math.min(100, halfW * 0.16) && ry > -200 && ry < 140)
+            : (Math.abs(rx) < 250 && Math.abs(ry) < 110);
 
-          // 90% chance to reject points placed directly over the center headline
+          // 88% chance to reject points placed directly over the headline
           if (inReadingZone && Math.random() < 0.88) {
             continue;
           }
@@ -451,10 +456,12 @@ export const KnowledgeParticleField: React.FC = () => {
         const depthFactor = (FAR_Z - p.z) / (FAR_Z - NEAR_Z);
         p.depthAlpha = p.baseAlpha * Math.max(0.2, Math.min(1.0, depthFactor));
 
-        // Center typography zone check: soften alpha if in central reading corridor
-        const inCenterText = Math.abs(p.sx - centerX) < 220 && Math.abs(p.sy - (centerY - 10)) < 85;
-        if (inCenterText) {
-          p.depthAlpha *= 0.35;
+        // Typography reading zone check: soften alpha if in headline corridor
+        const inReadingText = width > 800
+          ? (p.sx >= 20 && p.sx <= Math.min(width * 0.62, 920) && p.sy >= centerY - 210 && p.sy <= centerY + 160)
+          : (Math.abs(p.sx - centerX) < width * 0.44 && Math.abs(p.sy - (centerY - 10)) < 130);
+        if (inReadingText) {
+          p.depthAlpha *= 0.32;
         }
       }
 

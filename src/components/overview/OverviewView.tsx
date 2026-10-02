@@ -16,12 +16,15 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   hasContent = true
 }) => {
   return (
-    <div className="overview-page">
-      {/* 1. Page Header / Hero Section */}
+    <div className="overview-container">
+      {/* 1. Full-Viewport Hero Experience */}
       <HeroSection 
         onCreateGraph={onCreateGraph}
         onExploreDemo={onExploreDemo}
       />
+
+      {/* 2. Lower Page Content (Knowledge Graph Experience) */}
+      <div className="overview-page">
 
       {!hasContent ? (
         /* Empty State */
@@ -83,6 +86,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           onOpenExplore={onExploreDemo}
         />
       )}
+      </div>
     </div>
   );
 };

@@ -92,17 +92,25 @@ describe('Hero 3D Knowledge Particle Field System', () => {
     );
   });
 
-  test('Center reading zone is properly bounded to protect headline typography', () => {
-    const isInsideReadingZone = (x: number, y: number) => {
-      return Math.abs(x) < 250 && Math.abs(y) < 95;
+  test('Reading zone is properly bounded to protect headline typography', () => {
+    const isInsideReadingZone = (rx: number, ry: number, width = 1200) => {
+      const halfW = width / 2;
+      const isLeftAligned = width > 800;
+      return isLeftAligned
+        ? (rx > -halfW * 0.94 && rx < Math.min(100, halfW * 0.16) && ry > -200 && ry < 140)
+        : (Math.abs(rx) < 250 && Math.abs(ry) < 110);
     };
 
-    // Center headline position
-    assert.ok(isInsideReadingZone(0, 0), 'Center (0,0) is in reading zone');
-    assert.ok(isInsideReadingZone(150, 40), 'Headline area is in reading zone');
+    // Desktop left-aligned headline position
+    assert.ok(isInsideReadingZone(-200, 0, 1200), 'Desktop left-aligned headline area is in reading zone');
+    assert.ok(isInsideReadingZone(0, -50, 1200), 'Midpoint text is in reading zone');
 
-    // Outer framing positions
-    assert.equal(isInsideReadingZone(350, 150), false, 'Outer edge is outside reading zone');
-    assert.equal(isInsideReadingZone(-300, -100), false, 'Top-left framing is outside reading zone');
+    // Desktop outer framing positions
+    assert.equal(isInsideReadingZone(350, 150, 1200), false, 'Right-hand spatial area is outside reading zone');
+    assert.equal(isInsideReadingZone(200, -50, 1200), false, 'Far right region is outside reading zone');
+
+    // Mobile centered bounds
+    assert.ok(isInsideReadingZone(0, 0, 500), 'Mobile center is in reading zone');
+    assert.equal(isInsideReadingZone(300, 0, 500), false, 'Mobile edge is outside reading zone');
   });
 });

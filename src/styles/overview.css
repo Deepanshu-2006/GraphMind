@@ -1,27 +1,38 @@
 /* Overview Page Styles — Linear / Editorial Minimal */
 
+.overview-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100%;
+}
+
 .overview-page {
   max-width: 1040px;
   margin: 0 auto;
   width: 100%;
-  padding: 44px 32px 96px 32px;
+  padding: 64px 32px 96px 32px;
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 48px;
 }
 
-/* 1. Hero Section */
+/* 1. Full-Viewport Hero Experience */
 .overview-hero {
   position: relative;
   overflow: hidden;
-  border-radius: var(--radius-card);
-  border: 1px solid var(--border-default);
-  background: radial-gradient(ellipse at 50% 0%, rgba(24, 24, 24, 0.55) 0%, rgba(12, 12, 12, 0.98) 100%);
-  padding: 56px 44px;
-  min-height: 360px;
+  width: 100%;
+  height: calc(100vh - var(--topbar-height));
+  min-height: calc(100vh - var(--topbar-height));
+  padding: 0 clamp(36px, 6.5vw, 110px);
+  padding-bottom: 40px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: flex-start;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   isolation: isolate;
   touch-action: pan-y;
 }
@@ -45,58 +56,167 @@
   display: block;
 }
 
-/* Subtle Vignette to keep typography completely legible and calm */
+/* Layer 2: Editorial Depth & Readability Vignette with Bottom Fade */
 .overview-hero-vignette {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 2;
-  background: radial-gradient(
-    ellipse at 35% 50%,
-    rgba(12, 12, 12, 0.72) 0%,
-    rgba(12, 12, 12, 0.35) 55%,
-    transparent 85%
-  );
+  background: 
+    radial-gradient(
+      ellipse 85% 70% at 30% 48%,
+      rgba(10, 10, 10, 0.72) 0%,
+      rgba(10, 10, 10, 0.35) 55%,
+      transparent 85%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 82%,
+      var(--bg-app) 100%
+    );
 }
 
+/* Layer 3: Typography & CTA Content */
 .overview-hero-content {
   position: relative;
   z-index: 3;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  max-width: 680px;
-}
-
-.overview-hero-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-muted);
-  letter-spacing: -0.01em;
+  gap: 16px;
+  max-width: 960px;
+  margin-top: -24px; /* Optical center: slightly above midpoint */
 }
 
 .overview-hero-title {
   font-family: var(--font-display);
-  font-size: clamp(30px, 3.6vw, 40px);
-  font-weight: 600;
-  line-height: 1.15;
-  letter-spacing: -0.025em;
-  color: var(--text-primary);
-  max-width: 720px;
+  font-size: clamp(48px, 6vw, 86px);
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  display: flex;
+  flex-direction: column;
+}
+
+.hero-title-primary {
+  color: #E2E2E2;
+  font-weight: 550;
+  display: block;
+}
+
+.hero-title-secondary {
+  color: #FFFFFF;
+  font-weight: 650;
+  display: block;
+}
+
+.hero-title-accent {
+  color: var(--accent); /* #A3FF12 */
+  font-weight: 650;
+  display: inline;
 }
 
 .overview-hero-desc {
-  font-size: 14px;
-  line-height: 1.55;
+  font-size: clamp(15px, 1.2vw, 17px);
+  line-height: 1.6;
   color: var(--text-secondary);
-  max-width: 580px;
+  max-width: 520px;
+  margin-top: 6px;
+  letter-spacing: -0.01em;
+}
+
+.hero-desc-br {
+  display: block;
 }
 
 .overview-hero-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 6px;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+/* Refined Hero Buttons */
+.hero-btn-primary {
+  height: 42px;
+  padding: 0 20px;
+  border-radius: var(--radius-btn);
+  background-color: #F5F5F5;
+  color: #0A0A0A;
+  border: 1px solid #F5F5F5;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease;
+  box-shadow: none;
+}
+
+.hero-btn-primary:hover {
+  transform: translateY(-1px);
+  background-color: #FFFFFF;
+  border-color: #FFFFFF;
+}
+
+.hero-btn-primary:active {
+  transform: translateY(0);
+}
+
+.hero-btn-secondary {
+  height: 42px;
+  padding: 0 20px;
+  border-radius: var(--radius-btn);
+  background-color: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease;
+  box-shadow: none;
+}
+
+.hero-btn-secondary:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.24);
+  background-color: rgba(255, 255, 255, 0.07);
+}
+
+.hero-btn-secondary:active {
+  transform: translateY(0);
+}
+
+.hero-btn-icon {
+  flex-shrink: 0;
+}
+
+/* Subtle Bottom Scroll Cue (Section 14) */
+.overview-hero-cue {
+  position: absolute;
+  bottom: 28px;
+  left: clamp(36px, 6.5vw, 110px);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: -0.01em;
+  opacity: 0.6;
+  pointer-events: none;
+  user-select: none;
+  transition: opacity var(--transition-normal);
+}
+
+.hero-cue-icon {
+  color: var(--text-muted);
 }
 
 /* Empty State (Section 15) */
@@ -351,22 +471,41 @@
 
 @media (max-width: 768px) {
   .overview-page {
-    padding: 24px 16px 64px 16px;
+    padding: 32px 16px 64px 16px;
     gap: 32px;
   }
 
   .overview-hero {
-    padding: 38px 24px;
-    min-height: 310px;
+    padding: 0 24px;
+    height: auto;
+    min-height: calc(100vh - var(--topbar-height));
+    justify-content: center;
+    padding-top: 48px;
+    padding-bottom: 64px;
+  }
+
+  .overview-hero-content {
+    margin-top: 0;
   }
 
   .overview-hero-title {
-    font-size: clamp(26px, 6vw, 34px);
+    font-size: clamp(36px, 8.5vw, 54px);
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+  }
+
+  .hero-desc-br {
+    display: inline;
   }
 
   .overview-hero-actions {
     flex-wrap: wrap;
     width: 100%;
+  }
+
+  .overview-hero-cue {
+    left: 24px;
+    bottom: 20px;
   }
 
   .overview-section-header {
@@ -393,17 +532,28 @@
 
 @media (max-width: 480px) {
   .overview-hero {
-    padding: 32px 18px;
-    min-height: 270px;
+    padding: 0 18px;
+    padding-top: 40px;
+    padding-bottom: 56px;
+  }
+
+  .overview-hero-title {
+    font-size: clamp(30px, 8.2vw, 40px);
+    line-height: 1.12;
   }
 
   .overview-hero-actions {
     flex-direction: column;
+    width: 100%;
   }
 
   .overview-hero-actions button {
     width: 100%;
     justify-content: center;
+  }
+
+  .overview-hero-cue {
+    display: none;
   }
 
   .centerpiece-svg {
