@@ -1,4 +1,9 @@
-/* Shell Layout: Refactored Swiss Minimal Architecture */
+/* ==========================================================================
+   GraphMind Application Shell — Quiet Editorial Chrome
+   Quiet, spatial, precise, editorial, intellectual, minimal.
+   The navigation recedes so the content and 3D particle orb dominate.
+   ========================================================================== */
+
 .app-shell {
   display: flex;
   width: 100%;
@@ -8,101 +13,182 @@
   background-color: var(--bg-app);
 }
 
-/* Sidebar */
+/* --------------------------------------------------------------------------
+   Sidebar — 212px, near-black canvas extension, whisper-thin separator
+   -------------------------------------------------------------------------- */
 .app-sidebar {
   width: var(--sidebar-width);
   height: 100vh;
-  background: var(--bg-surface);
-  border-right: 1px solid var(--border-default);
+  background-color: var(--bg-app);
+  border-right: 1px solid rgba(255, 255, 255, 0.045);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   user-select: none;
   z-index: 40;
-  transition: transform var(--transition-normal);
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Brand: Pure typographic wordmark without containers (24px left, 26px top) */
 .sidebar-header {
-  height: var(--topbar-height);
-  padding: 0 20px;
+  padding: 26px 24px 0 24px;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--border-default);
 }
 
-.brand-title {
+.brand-wordmark {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  user-select: none;
   font-family: var(--font-display);
-  font-size: 15px;
+  font-size: 15.5px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: var(--text-primary);
+  color: #EDEDED;
+  line-height: 1;
+  transition: opacity 140ms ease;
 }
 
+.brand-wordmark:hover {
+  opacity: 0.82;
+}
+
+/* Sidebar Nav Body: 52px breathing room below brand */
 .sidebar-content {
   flex: 1;
-  padding: 20px 12px;
+  padding: 0 16px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
 }
 
 .sidebar-nav-list {
+  margin-top: 52px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 6px;
 }
 
+/* Typographic-first navigation item: NO container box, NO rounded card */
 .sidebar-nav-item {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 9px 12px;
-  border-radius: var(--radius-btn);
-  color: var(--text-secondary);
-  font-size: 13.5px;
+  height: 36px;
+  padding: 0 8px;
+  border-radius: 4px;
+  color: #777777;
+  font-family: var(--font-body);
+  font-size: 13px;
   font-weight: 450;
-  transition: background-color var(--transition-fast), color var(--transition-fast);
+  letter-spacing: -0.01em;
+  background: transparent;
+  border: none;
+  cursor: pointer;
   position: relative;
   text-align: left;
+  user-select: none;
+  transition: color 140ms ease, background-color 140ms ease;
 }
 
 .sidebar-nav-item:hover {
-  background-color: var(--bg-surface-elevated);
-  color: var(--text-primary);
-}
-
-.sidebar-nav-item.active {
-  background-color: rgba(255, 255, 255, 0.04);
-  color: var(--text-primary);
-  font-weight: 500;
-}
-
-.sidebar-nav-item.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 9px;
-  bottom: 9px;
-  width: 2px;
-  border-radius: 2px;
-  background-color: var(--accent);
-}
-
-.sidebar-nav-item .nav-icon {
-  color: var(--text-muted);
-  transition: color var(--transition-fast);
-}
-
-.sidebar-nav-item.active .nav-icon {
-  color: var(--accent);
+  color: #B0B0B0;
+  background-color: rgba(255, 255, 255, 0.02);
 }
 
 .sidebar-nav-item:hover .nav-icon {
-  color: var(--text-primary);
+  color: #7F7F7F;
 }
 
-/* Main Area Container */
+/* Active State: Clean 2px vertical green line + bright text */
+.sidebar-nav-item.active {
+  color: #F2F2F2;
+  font-weight: 500;
+  background: transparent;
+}
+
+.nav-indicator-line {
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  border-radius: 1px;
+  background-color: var(--accent);
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.sidebar-nav-item.active .nav-indicator-line {
+  opacity: 1;
+}
+
+.sidebar-nav-item .nav-icon {
+  color: #5F5F5F;
+  flex-shrink: 0;
+  transition: color 140ms ease;
+}
+
+.sidebar-nav-item.active .nav-icon {
+  color: #A0A0A0; /* Clean neutral, NOT green */
+}
+
+.nav-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sidebar Lower Section: Generous negative space above contextual metadata & settings */
+.sidebar-lower {
+  margin-top: auto;
+  padding: 0 0 22px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sidebar-context-section {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0 6px 0 12px;
+  user-select: none;
+}
+
+.sidebar-context-kicker {
+  font-family: var(--font-body);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #555555;
+  font-weight: 500;
+}
+
+.sidebar-context-title {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  color: #8E8E8E;
+  font-weight: 450;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-footer {
+  display: flex;
+  flex-direction: column;
+}
+
+/* --------------------------------------------------------------------------
+   App Main Area & Top Bar Header
+   -------------------------------------------------------------------------- */
 .app-main {
   flex: 1;
   display: flex;
@@ -113,7 +199,7 @@
   overflow: hidden;
 }
 
-/* Topbar Header */
+/* Topbar Header: 52px, whisper-thin bottom line, canvas-blended */
 .app-topbar {
   height: var(--topbar-height);
   padding: 0 24px;
@@ -121,103 +207,180 @@
   align-items: center;
   justify-content: space-between;
   background-color: var(--bg-app);
-  border-bottom: 1px solid var(--border-default);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   z-index: 30;
   flex-shrink: 0;
 }
 
+/* Topbar Left: Pure Project Context without redundant brand prefix */
 .topbar-left {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
+.topbar-context {
+  color: #BDBDBD;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .mobile-menu-toggle {
   display: none;
-  padding: 6px;
-  border-radius: var(--radius-btn);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-default);
-}
-
-.topbar-breadcrumbs {
-  display: flex;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  justify-content: center;
+  border-radius: 6px;
+  color: #8A8A8A;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: border-color 140ms ease, color 140ms ease;
 }
 
-.breadcrumb-root {
-  color: var(--text-muted);
-  font-weight: 450;
+.mobile-menu-toggle:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #FFFFFF;
 }
 
-.breadcrumb-slash {
-  color: var(--border-default);
-  font-size: 12px;
-}
-
-.breadcrumb-project {
-  color: var(--text-primary);
-  font-weight: 500;
-}
-
+/* Topbar Right: Search, Upload Material shortcut, Profile Avatar */
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
+/* Search Trigger: Compact 190px command control */
 .topbar-search-trigger {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-btn);
-  color: var(--text-secondary);
+  width: 190px;
+  height: 34px;
+  padding: 0 10px;
+  background-color: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 7px;
+  color: #777777;
+  font-family: var(--font-body);
   font-size: 13px;
-  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+  cursor: pointer;
+  user-select: none;
+  text-align: left;
+  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
 }
 
-.topbar-search-trigger:hover {
-  border-color: var(--border-hover);
-  background-color: var(--bg-surface-elevated);
-  color: var(--text-primary);
+.topbar-search-trigger:hover,
+.topbar-search-trigger:focus-visible {
+  border-color: rgba(255, 255, 255, 0.11);
+  background-color: rgba(255, 255, 255, 0.04);
+  color: #A0A0A0;
+  outline: none;
 }
 
 .topbar-search-icon {
-  color: var(--text-muted);
+  color: #5F5F5F;
+  flex-shrink: 0;
+  transition: color 140ms ease;
+}
+
+.topbar-search-trigger:hover .topbar-search-icon {
+  color: #8A8A8A;
+}
+
+.topbar-search-text {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
 .search-kbd {
   font-family: var(--font-mono);
   font-size: 10px;
-  padding: 1px 5px;
-  background-color: var(--bg-surface-elevated);
-  border: 1px solid var(--border-default);
+  padding: 1.5px 4.5px;
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 4px;
-  color: var(--text-muted);
-  margin-left: 12px;
+  color: #555555;
+  line-height: 1;
 }
 
-.profile-badge {
-  width: 28px;
-  height: 28px;
+/* Upload Action: Subtle contextual shortcut */
+.topbar-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  background-color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 7px;
+  color: #C0C0C0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.topbar-upload-btn:hover,
+.topbar-upload-btn:focus-visible {
+  border-color: rgba(255, 255, 255, 0.16);
+  background-color: rgba(255, 255, 255, 0.035);
+  color: #FFFFFF;
+  outline: none;
+}
+
+.topbar-btn-text-short {
+  display: none;
+}
+
+.topbar-btn-text-full {
+  display: inline;
+}
+
+/* Profile Avatar: Quiet 30px dark circle */
+.profile-avatar {
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  background-color: var(--bg-surface-elevated);
-  border: 1px solid var(--border-default);
+  background-color: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.065);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+  transition: border-color 140ms ease;
+}
+
+.profile-avatar:hover,
+.profile-avatar:focus-visible {
+  border-color: rgba(255, 255, 255, 0.14);
+  outline: none;
 }
 
 .profile-initials {
   font-size: 11px;
   font-weight: 500;
-  color: var(--text-primary);
+  letter-spacing: 0.02em;
+  color: #999999;
+  line-height: 1;
 }
 
 /* Workspace Viewport */
@@ -235,56 +398,34 @@
   overflow: hidden;
 }
 
-/* Action button text variants */
-.topbar-action-btn {
-  padding: 6px 14px;
-  font-size: 13px;
-  font-weight: 500;
-  gap: 6px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
+/* --------------------------------------------------------------------------
+   Responsive Adaptations
+   -------------------------------------------------------------------------- */
 
-.topbar-btn-text-short {
-  display: none;
-}
-
-.topbar-btn-text-full {
-  display: inline;
-}
-
-/* ==========================================================================
-   Multi-Tier Responsive Breakpoints
-   1. Laptop: 901px - 1180px
-   2. Tablet: 641px - 900px
-   3. Mobile: <= 640px
-   4. Small Mobile: <= 380px
-   ========================================================================== */
-
-/* 1. Laptop Adaptation (901px to 1180px) */
+/* Laptop (901px to 1180px) */
 @media (min-width: 901px) and (max-width: 1180px) {
   .app-sidebar {
-    width: 205px;
+    width: 200px;
   }
   .app-topbar {
     padding: 0 18px;
   }
-  .breadcrumb-project {
+  .topbar-search-trigger {
+    width: 170px;
+  }
+  .topbar-context {
     max-width: 220px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 }
 
-/* 2. Tablet Adaptation (<= 900px) */
+/* Tablet (<= 900px) */
 @media (max-width: 900px) {
   .app-sidebar {
     position: fixed;
     top: 0;
     left: 0;
     bottom: 0;
-    width: 250px;
+    width: 230px;
     transform: translateX(-100%);
     box-shadow: 12px 0 36px rgba(0, 0, 0, 0.8);
     z-index: 50;
@@ -296,55 +437,41 @@
 
   .mobile-menu-toggle {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
   }
 
-  .breadcrumb-project {
-    max-width: 160px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .topbar-context {
+    max-width: 180px;
   }
 }
 
-/* 3. Mobile Adaptation (<= 640px) */
+/* Mobile (<= 640px) */
 @media (max-width: 640px) {
   .app-topbar {
-    padding: 0 12px;
-    height: 52px;
+    padding: 0 14px;
+    height: 48px;
   }
 
   .topbar-left {
-    display: flex;
-    align-items: center;
     gap: 8px;
     min-width: 0;
     flex-shrink: 1;
   }
 
-  .topbar-breadcrumbs {
+  .topbar-context {
     font-size: 13px;
-    gap: 6px;
-    min-width: 0;
-  }
-
-  .breadcrumb-slash,
-  .breadcrumb-project {
-    display: none !important;
+    max-width: 130px;
   }
 
   .topbar-right {
-    display: flex;
-    align-items: center;
     gap: 8px;
     flex-shrink: 0;
   }
 
   .topbar-search-trigger {
-    padding: 6px 8px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    justify-content: center;
     flex-shrink: 0;
   }
 
@@ -353,10 +480,11 @@
     display: none;
   }
 
-  .topbar-action-btn {
-    padding: 6px 10px;
+  .topbar-upload-btn {
+    height: 32px;
+    padding: 0 10px;
     font-size: 12px;
-    gap: 5px;
+    gap: 4px;
     flex-shrink: 0;
   }
 
@@ -369,26 +497,25 @@
   }
 }
 
-/* 4. Small Mobile (<= 380px) */
+/* Small Mobile (<= 380px) */
 @media (max-width: 380px) {
   .app-topbar {
-    padding: 0 8px;
+    padding: 0 10px;
   }
 
-  .topbar-search-trigger {
-    padding: 5px;
+  .topbar-context {
+    display: none;
   }
 
   .topbar-btn-text-short {
     display: none;
   }
 
-  .topbar-action-btn {
-    padding: 6px 8px;
+  .topbar-upload-btn {
+    padding: 0 8px;
   }
 
-  .profile-badge {
+  .profile-avatar {
     display: none;
   }
 }
-
