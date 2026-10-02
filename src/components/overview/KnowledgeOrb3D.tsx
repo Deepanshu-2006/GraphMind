@@ -152,7 +152,9 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
 
   // Store target scroll progress in ref for seamless 60/120fps physics loop
   const scrollRef = useRef(scrollProgress);
-  scrollRef.current = scrollProgress;
+  useEffect(() => {
+    scrollRef.current = scrollProgress;
+  }, [scrollProgress]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -166,14 +168,20 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
 
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // 1. Three.js Core Setup
-    const renderer = new THREE.WebGLRenderer({
-      canvas,
-      alpha: true,
-      antialias: true,
-      powerPreference: 'high-performance'
-    });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // 1. Three.js Core Setup (Safely guarded against missing WebGL context)
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        canvas,
+        alpha: true,
+        antialias: true,
+        powerPreference: 'high-performance'
+      });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    } catch (e) {
+      console.warn('WebGLRenderer unavailable in this environment:', e);
+      return;
+    }
 
     const scene = new THREE.Scene();
 

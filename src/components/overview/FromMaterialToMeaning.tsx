@@ -3,74 +3,101 @@ import {
   motion,
   useMotionValue,
   useTransform,
-  useSpring,
   AnimatePresence,
   type MotionValue
 } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 
 /* ==========================================================================
-   Data: Concept Nodes, Relationship Edges, Editorial Stage Copy
+   Data Structures: Core Concepts, Relationships & Editorial Stage Copy
    ========================================================================== */
 
-interface ConceptNodeData {
+export interface ConceptDefinition {
   id: string;
   name: string;
   category: string;
-  docX: number;   // px offset from center — position overlaying document card
+  docX: number;   // coordinate overlaying initial document text position
   docY: number;
-  graphX: number; // px offset from center — settled knowledge graph position
+  graphX: number; // settled coordinate in balanced knowledge graph
   graphY: number;
 }
 
-interface RelationshipEdgeData {
+export interface RelationshipDefinition {
   id: string;
   sourceId: string;
   targetId: string;
   label: string;
+  drawStart: number;
+  drawEnd: number;
 }
 
-// 4 core concepts — positioned to visually emerge from document text, then
-// settle into a balanced radial graph centered on "Neural Networks".
-const NODES: ConceptNodeData[] = [
+export const KNOWLEDGE_CONCEPTS: ConceptDefinition[] = [
   {
-    id: 'n1',
+    id: 'c1',
     name: 'Neural Networks',
     category: 'Architecture',
-    docX: -72, docY: -52,
-    graphX: 0, graphY: -90
+    docX: -105,
+    docY: -42,
+    graphX: 0,
+    graphY: -80
   },
   {
-    id: 'n2',
+    id: 'c2',
     name: 'Activation Functions',
     category: 'Function',
-    docX: 68, docY: -14,
-    graphX: -150, graphY: 0
+    docX: 95,
+    docY: -16,
+    graphX: -165,
+    graphY: 10
   },
   {
-    id: 'n3',
+    id: 'c3',
     name: 'Backpropagation',
     category: 'Optimization',
-    docX: -68, docY: 36,
-    graphX: 145, graphY: 5
+    docX: -90,
+    docY: 36,
+    graphX: 160,
+    graphY: 15
   },
   {
-    id: 'n4',
+    id: 'c4',
     name: 'Gradient Descent',
     category: 'Algorithm',
-    docX: 70, docY: 72,
-    graphX: 120, graphY: 105
+    docX: 90,
+    docY: 66,
+    graphX: 125,
+    graphY: 115
   }
 ];
 
-const EDGES: RelationshipEdgeData[] = [
-  { id: 'e1', sourceId: 'n1', targetId: 'n2', label: 'uses' },
-  { id: 'e2', sourceId: 'n1', targetId: 'n3', label: 'trained with' },
-  { id: 'e3', sourceId: 'n3', targetId: 'n4', label: 'optimizes' }
+export const KNOWLEDGE_RELATIONSHIPS: RelationshipDefinition[] = [
+  {
+    id: 'r1',
+    sourceId: 'c1',
+    targetId: 'c2',
+    label: 'uses',
+    drawStart: 0.50,
+    drawEnd: 0.62
+  },
+  {
+    id: 'r2',
+    sourceId: 'c1',
+    targetId: 'c3',
+    label: 'trained with',
+    drawStart: 0.56,
+    drawEnd: 0.68
+  },
+  {
+    id: 'r3',
+    sourceId: 'c3',
+    targetId: 'c4',
+    label: 'optimizes',
+    drawStart: 0.62,
+    drawEnd: 0.74
+  }
 ];
 
-// Right-column copy — exact wording from specification
-const STAGES = [
+export const EDITORIAL_STAGES = [
   {
     code: '01',
     step: '01 / 04',
@@ -96,40 +123,13 @@ const STAGES = [
     code: '04',
     step: '04 / 04',
     name: 'EXPLORE',
-    tagline: 'Explore what you\'ve built.',
+    tagline: "Explore what you've built.",
     desc: 'Your material becomes a connected map you can navigate and understand.'
   }
 ];
 
 /* ==========================================================================
-   Scroll Progress → Stage Mapping
-   
-   The outer section is ~480vh tall. The inner sticky viewport fills the
-   visible area. As the user scrolls through the 480vh, we derive a
-   normalized progress value 0→1.
-
-   Stage boundaries (used for left-nav active state):
-     0.00 – 0.25  READ
-     0.25 – 0.50  FIND
-     0.50 – 0.75  CONNECT
-     0.75 – 1.00  EXPLORE
-
-   But all visual transforms use OVERLAPPING ranges so that no two
-   stages ever hard-cut. The visual timeline:
-
-   Progress  0.0   0.1   0.2   0.3   0.4   0.5   0.6   0.7   0.8   0.9   1.0
-             |-- READ --|-- FIND ---|-- CONNECT --|--- EXPLORE --|
-   Document  [visible ─────────────────── fading ──]
-   Scan line [───── sweep ─────]
-   Highlights          [──── revealing ────]
-   Nodes                          [fade-in ─── travel ─────]
-   Edges                                     [draw ──── draw ──── draw]
-   Focus                                                    [emphasize]
-   Exit                                                            [scale]
-   ========================================================================== */
-
-/* ==========================================================================
-   Main Component
+   Main Component: FromMaterialToMeaning
    ========================================================================== */
 
 interface FromMaterialToMeaningProps {
@@ -141,168 +141,146 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
   onExploreWorkspace
 }) => {
   const sectionRef = useRef<HTMLElement>(null);
+  const scrollProgress = useMotionValue(0);
   const [activeStageIndex, setActiveStageIndex] = useState(0);
-  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [hoveredConceptId, setHoveredConceptId] = useState<string | null>(null);
 
-
-  // ─── Scroll Progress Engine ────────────────────────────────────────────────
-  // Raw progress drives everything. Spring-smoothed progress used for visuals
-  // to prevent micro-jitter on trackpad scrolling.
-  const rawProgress = useMotionValue(0);
-  const smoothProgress = useSpring(rawProgress, {
-    stiffness: 160,
-    damping: 28,
-    mass: 0.35
-  });
-
+  // ─── Direct Passive Scroll Engine ──────────────────────────────────────────
+  // Derives exact progress (0.0 → 1.0) from the document / workspace scroll
+  // without wheel interception, body-scroll locking, or per-frame setState.
   useEffect(() => {
-    const el = sectionRef.current;
-    if (!el) return;
+    const sectionEl = sectionRef.current;
+    if (!sectionEl) return;
 
-    // The scrollable ancestor is .workspace-viewport (overflow-y: auto).
-    // Sticky positioning is relative to this container.
-    const viewport =
-      (el.closest('.workspace-viewport') as HTMLElement) ||
-      (document.querySelector('.workspace-viewport') as HTMLElement) ||
-      document.documentElement;
+    const scrollContainer: HTMLElement | Window =
+      (sectionEl.closest('.workspace-viewport') as HTMLElement | null) ||
+      (document.querySelector('.workspace-viewport') as HTMLElement | null) ||
+      window;
 
     let rafId: number;
 
-    const computeProgress = () => {
+    const handleScroll = () => {
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
-        const section = sectionRef.current;
-        if (!section) return;
+        const sEl = sectionRef.current;
+        if (!sEl) return;
 
-        // section.offsetTop is relative to the offsetParent, which
-        // is .workspace-viewport (position: relative). This is
-        // exactly the coordinate space of viewport.scrollTop.
-        const scrollTop = viewport.scrollTop;
-        const sectionTop = section.offsetTop;
-        const sectionHeight = section.offsetHeight;
-        const vpHeight = viewport.clientHeight;
+        let scrolled = 0;
+        let total = 0;
 
-        const totalScrollable = sectionHeight - vpHeight;
-        if (totalScrollable <= 0) return;
+        if (scrollContainer instanceof Window) {
+          const sRect = sEl.getBoundingClientRect();
+          scrolled = -sRect.top;
+          total = sEl.offsetHeight - window.innerHeight;
+        } else {
+          const sRect = sEl.getBoundingClientRect();
+          const cRect = scrollContainer.getBoundingClientRect();
+          scrolled = cRect.top - sRect.top;
+          total = sEl.offsetHeight - scrollContainer.clientHeight;
+        }
 
-        const scrolled = scrollTop - sectionTop;
-        const p = Math.min(1.0, Math.max(0.0, scrolled / totalScrollable));
-        rawProgress.set(p);
+        if (total > 0) {
+          const p = Math.min(1.0, Math.max(0.0, scrolled / total));
+          scrollProgress.set(p);
+
+          const nextIndex = p >= 0.75 ? 3 : p >= 0.50 ? 2 : p >= 0.25 ? 1 : 0;
+          setActiveStageIndex((prev) => (prev !== nextIndex ? nextIndex : prev));
+        }
       });
     };
 
-    computeProgress();
-    viewport.addEventListener('scroll', computeProgress, { passive: true });
-    window.addEventListener('resize', computeProgress, { passive: true });
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll, { passive: true });
+    handleScroll();
 
     return () => {
       cancelAnimationFrame(rafId);
-      viewport.removeEventListener('scroll', computeProgress);
-      window.removeEventListener('resize', computeProgress);
+      scrollContainer.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
     };
-  }, [rawProgress]);
+  }, [scrollProgress]);
 
-  // ─── Stage Index (for discrete UI: left nav, right copy, bottom counter) ──
-  useEffect(() => {
-    const unsub = smoothProgress.on('change', (p) => {
-      const next = p >= 0.75 ? 3 : p >= 0.50 ? 2 : p >= 0.25 ? 1 : 0;
-      setActiveStageIndex((prev) => (prev !== next ? next : prev));
-    });
-    return unsub;
-  }, [smoothProgress]);
+  // ─── Click-to-Scroll Stage Navigation ─────────────────────────────────────
+  const scrollToStage = useCallback((index: number) => {
+    const sEl = sectionRef.current;
+    if (!sEl) return;
 
-  // ─── Click-to-scroll navigation ───────────────────────────────────────────
-  const scrollToStage = useCallback((idx: number) => {
-    const el = sectionRef.current;
-    if (!el) return;
-    const viewport =
-      (el.closest('.workspace-viewport') as HTMLElement) ||
-      (document.querySelector('.workspace-viewport') as HTMLElement) ||
-      document.documentElement;
+    const scrollContainer: HTMLElement | Window =
+      (sEl.closest('.workspace-viewport') as HTMLElement | null) ||
+      (document.querySelector('.workspace-viewport') as HTMLElement | null) ||
+      window;
 
-    const vpH = viewport.clientHeight;
-    const total = el.offsetHeight - vpH;
-    const targets = [0.06, 0.37, 0.62, 0.87];
-    const scrollTarget = el.offsetTop + total * targets[idx];
-    viewport.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+    const targets = [0.06, 0.36, 0.62, 0.88];
+    const targetProgress = targets[index] ?? 0;
+
+    if (scrollContainer instanceof Window) {
+      const sRect = sEl.getBoundingClientRect();
+      const currentScrollTop = window.scrollY;
+      const sectionAbsoluteTop = currentScrollTop + sRect.top;
+      const total = sEl.offsetHeight - window.innerHeight;
+      window.scrollTo({
+        top: sectionAbsoluteTop + total * targetProgress,
+        behavior: 'smooth'
+      });
+    } else {
+      const sRect = sEl.getBoundingClientRect();
+      const cRect = scrollContainer.getBoundingClientRect();
+      const sectionOffsetInContainer = scrollContainer.scrollTop + (sRect.top - cRect.top);
+      const total = sEl.offsetHeight - scrollContainer.clientHeight;
+      scrollContainer.scrollTo({
+        top: sectionOffsetInContainer + total * targetProgress,
+        behavior: 'smooth'
+      });
+    }
   }, []);
 
-  // ─── Document Layer Transforms ─────────────────────────────────────────────
-  //
-  // READ (0.00–0.25): Document fully visible, scan line sweeps, slight arrival.
-  // FIND (0.25–0.50): Terms highlight sequentially; doc still visible.
-  // CONNECT start: Doc fades out & scales down. Nodes emerge.
-  //
-  // The doc remains on-screen well into stage 02 so highlights have visual
-  // context. It only begins fading once concepts start detaching.
-  const docOpacity = useTransform(smoothProgress, [0.0, 0.04, 0.42, 0.58], [0.4, 1, 1, 0]);
-  const docScale = useTransform(smoothProgress, [0.0, 0.04, 0.42, 0.58], [0.97, 1.0, 1.0, 0.92]);
-  const docY = useTransform(smoothProgress, [0.42, 0.58], [0, -20]);
+  // ─── Active concept in settled explore state ──────────────────────────────
+  // Default to central root concept ('c1': Neural Networks) during EXPLORE stage
+  const effectiveFocalId = hoveredConceptId || (activeStageIndex === 3 ? 'c1' : null);
 
-  // Stage 01: Scan line sweeps the document like a "reading" indicator
-  const scanLineTop = useTransform(smoothProgress, [0.02, 0.22], [0, 100]);
-  const scanLineOpacity = useTransform(smoothProgress, [0.0, 0.04, 0.20, 0.26], [0, 0.55, 0.55, 0]);
-
-  // Stage 02: Staggered concept highlighting (overlapping into CONNECT)
-  const term1HL = useTransform(smoothProgress, [0.16, 0.28], [0, 1]);
-  const term2HL = useTransform(smoothProgress, [0.21, 0.33], [0, 1]);
-  const term3HL = useTransform(smoothProgress, [0.26, 0.38], [0, 1]);
-  const term4HL = useTransform(smoothProgress, [0.31, 0.42], [0, 1]);
-
-  // Non-highlighted paragraph text fades slightly during FIND to increase contrast
-  const bodyDimming = useTransform(smoothProgress, [0.18, 0.38], [1, 0.45]);
-
-  // Stage 04: Subtle exit as section finishes
-  const exitScale = useTransform(smoothProgress, [0.93, 1.0], [1.0, 0.97]);
-  const exitY = useTransform(smoothProgress, [0.93, 1.0], [0, -14]);
-
-  // ─── Explore-stage focus highlight ─────────────────────────────────────────
-  const activeConceptId = hoveredNodeId || (activeStageIndex === 3 ? 'n1' : null);
   const activeNeighbors = useMemo(() => {
-    if (!activeConceptId) return new Set<string>();
-    const s = new Set<string>([activeConceptId]);
-    EDGES.forEach((e) => {
-      if (e.sourceId === activeConceptId) s.add(e.targetId);
-      if (e.targetId === activeConceptId) s.add(e.sourceId);
+    if (!effectiveFocalId) return new Set<string>();
+    const neighbors = new Set<string>([effectiveFocalId]);
+    KNOWLEDGE_RELATIONSHIPS.forEach((rel) => {
+      if (rel.sourceId === effectiveFocalId) neighbors.add(rel.targetId);
+      if (rel.targetId === effectiveFocalId) neighbors.add(rel.sourceId);
     });
-    return s;
-  }, [activeConceptId]);
+    return neighbors;
+  }, [effectiveFocalId]);
 
-  const stage = STAGES[activeStageIndex];
+  const currentStage = EDITORIAL_STAGES[activeStageIndex];
 
-  // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <section
       ref={sectionRef}
-      className="material-to-meaning-section"
+      className="transformation-scroll"
       aria-label="From Material to Meaning — Interactive Transformation"
     >
-      <div className="material-to-meaning-sticky">
-        {/* Ambient dot-grid background */}
-        <div className="meaning-ambience-canvas" aria-hidden="true" />
+      <div className="transformation-sticky">
+        {/* Subtle background ambient dot grid */}
+        <div className="transformation-ambience-canvas" aria-hidden="true" />
 
-        {/* ── Header ─────────────────────────────────────────────────── */}
-        <header className="meaning-header-block">
-          <div className="meaning-eyebrow">
-            <span className="meaning-eyebrow-dot" aria-hidden="true" />
+        {/* 1. Header: Eyebrow + Editorial Statement */}
+        <header className="transformation-header">
+          <div className="transformation-eyebrow">
+            <span className="transformation-eyebrow-dot" aria-hidden="true" />
             <span>From Material to Meaning</span>
           </div>
-          <h2 className="meaning-title">
+          <h2 className="transformation-title">
             See how your material becomes connected knowledge.
           </h2>
         </header>
 
-        {/* ── 3-Column Stage Layout ──────────────────────────────────── */}
-        <div className="meaning-stage-layout">
-
-          {/* A. Left Process Navigation */}
-          <nav className="meaning-left-nav" aria-label="Process stages">
-            <ul className="meaning-nav-list" role="list">
-              {STAGES.map((s, i) => (
+        {/* 2. Main 3-Column Composition */}
+        <div className="transformation-body">
+          {/* Left Navigation: Process Index */}
+          <nav className="transformation-nav" aria-label="Process stages">
+            <ul className="transformation-nav-list" role="list">
+              {EDITORIAL_STAGES.map((s, i) => (
                 <li
                   key={s.code}
                   className={[
-                    'meaning-nav-item',
+                    'transformation-nav-item',
                     activeStageIndex === i ? 'active' : '',
                     activeStageIndex > i ? 'passed' : ''
                   ].join(' ')}
@@ -317,123 +295,47 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
                     }
                   }}
                 >
-                  <div className="meaning-nav-indicator-wrap" aria-hidden="true">
-                    <span className="meaning-nav-indicator" />
+                  <div className="transformation-nav-dot-wrap" aria-hidden="true">
+                    <span className="transformation-nav-dot" />
                   </div>
-                  <span className="meaning-nav-code">{s.code}</span>
-                  <span className="meaning-nav-label">{s.name}</span>
+                  <span className="transformation-nav-code">{s.code}</span>
+                  <span className="transformation-nav-label">{s.name}</span>
                 </li>
               ))}
             </ul>
           </nav>
 
-          {/* B. Center — The Stage ────────────────────────────────────── */}
-          <motion.div
-            className="meaning-workspace-center"
-            style={{ scale: exitScale, y: exitY }}
-          >
-            {/* ── Layer 1: Study Document Card (READ + FIND) ────────── */}
-            <motion.div
-              className="meaning-document"
-              style={{ opacity: docOpacity, scale: docScale, y: docY }}
-            >
-              {/* Scan Line — sweeps the document during READ */}
-              <motion.div
-                className="meaning-doc-scanline"
-                style={{
-                  top: useTransform(scanLineTop, (v) => `${v}%`),
-                  opacity: scanLineOpacity
-                }}
-                aria-hidden="true"
-              />
+          {/* Center Stage: The Single Persistent Transforming Visual System */}
+          <KnowledgeTransformationVisual
+            progress={scrollProgress}
+            effectiveFocalId={effectiveFocalId}
+            activeNeighbors={activeNeighbors}
+            onHoverConcept={setHoveredConceptId}
+            onLeaveConcept={() => setHoveredConceptId(null)}
+          />
 
-              <div className="meaning-doc-header">
-                <span className="meaning-doc-tag">Source Material</span>
-                <span className="meaning-doc-filename">Neural_Networks_CS229.md</span>
-              </div>
-
-              <div className="meaning-doc-body">
-                <h3 className="meaning-doc-title">
-                  Representation Learning &amp; Optimization
-                </h3>
-                <motion.p className="meaning-doc-paragraph" style={{ opacity: bodyDimming }}>
-                  <AnimatedDocTerm text="Neural Networks" highlight={term1HL} />{' '}
-                  consist of stacked parameter layers transforming inputs through non-linear{' '}
-                  <AnimatedDocTerm text="Activation Functions" highlight={term2HL} />{' '}
-                  to isolate continuous features.
-                </motion.p>
-                <motion.p className="meaning-doc-paragraph" style={{ opacity: bodyDimming }}>
-                  During learning, error gradients flow backward via{' '}
-                  <AnimatedDocTerm text="Backpropagation" highlight={term3HL} />
-                  . The objective loss is iteratively minimized by{' '}
-                  <AnimatedDocTerm text="Gradient Descent" highlight={term4HL} />{' '}
-                  across parameter space.
-                </motion.p>
-              </div>
-            </motion.div>
-
-            {/* ── Layer 2: SVG Relationship Edges (CONNECT + EXPLORE) ── */}
-            <svg
-              className="meaning-graph-edges-svg"
-              viewBox="-280 -180 560 360"
-              aria-hidden="true"
-            >
-              <defs>
-                <linearGradient id="mtm-edgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#A3FF12" stopOpacity="0.9" />
-                  <stop offset="100%" stopColor="#A3FF12" stopOpacity="0.5" />
-                </linearGradient>
-              </defs>
-              {EDGES.map((edge, i) => (
-                <AnimatedEdge
-                  key={edge.id}
-                  edge={edge}
-                  index={i}
-                  nodes={NODES}
-                  progress={smoothProgress}
-                  activeConceptId={activeConceptId}
-                />
-              ))}
-            </svg>
-
-            {/* ── Layer 3: Floating Concept Nodes (CONNECT + EXPLORE) ── */}
-            <div className="meaning-nodes-container" aria-label="Extracted concept nodes">
-              {NODES.map((node) => (
-                <AnimatedNode
-                  key={node.id}
-                  node={node}
-                  progress={smoothProgress}
-                  activeConceptId={activeConceptId}
-                  activeNeighbors={activeNeighbors}
-                  onHover={setHoveredNodeId}
-                  onLeave={() => setHoveredNodeId(null)}
-                />
-              ))}
-            </div>
-          </motion.div>
-
-          {/* C. Right Context Column */}
-          <aside className="meaning-right-context" aria-live="polite">
+          {/* Right Column: Contextual Stage Explanation */}
+          <aside className="transformation-context" aria-live="polite">
             <AnimatePresence mode="wait">
               <motion.div
-                key={stage.code}
-                className="meaning-context-block"
-                initial={{ opacity: 0, y: 10 }}
+                key={currentStage.code}
+                className="transformation-context-card"
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
               >
-                <div className="meaning-context-step-row">
-                  <span className="meaning-context-step">{stage.step}</span>
-                  <span className="meaning-context-step-name">{stage.name}</span>
+                <div className="transformation-context-step-row">
+                  <span className="transformation-context-step">{currentStage.step}</span>
+                  <span className="transformation-context-name">{currentStage.name}</span>
                 </div>
-                <h3 className="meaning-context-tagline">{stage.tagline}</h3>
-                <p className="meaning-context-desc">{stage.desc}</p>
+                <h3 className="transformation-context-tagline">{currentStage.tagline}</h3>
+                <p className="transformation-context-desc">{currentStage.desc}</p>
 
                 {activeStageIndex === 3 && (
                   <motion.button
                     type="button"
-                    className="meaning-cta-link"
+                    className="transformation-cta-link"
                     onClick={onExploreWorkspace}
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -448,11 +350,11 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
           </aside>
         </div>
 
-        {/* ── Bottom Pipeline Bar ────────────────────────────────────── */}
-        <footer className="meaning-bottom-bar" aria-hidden="true">
-          <span className="meaning-bottom-tag">GraphMind Pipeline</span>
-          <ProgressTrack progress={smoothProgress} activeIndex={activeStageIndex} />
-          <span className="meaning-bottom-counter">{stage.step}</span>
+        {/* 3. Bottom Bar: GraphMind Pipeline Progress */}
+        <footer className="transformation-pipeline" aria-hidden="true">
+          <span className="transformation-pipeline-tag">GraphMind Pipeline</span>
+          <PipelineProgressTrack progress={scrollProgress} activeIndex={activeStageIndex} />
+          <span className="transformation-pipeline-counter">{currentStage.step}</span>
         </footer>
       </div>
     </section>
@@ -460,171 +362,310 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
 };
 
 /* ==========================================================================
-   Sub-Components — all driven by MotionValues, no per-frame setState
+   KnowledgeTransformationVisual
+   ONE continuous visual system. All visual layers share the same 3D scene
+   and coordinate space. Elements physically detach and transform.
    ========================================================================== */
 
-// ─── Progress Track (bottom bar) ─────────────────────────────────────────────
-const ProgressTrack: React.FC<{ progress: MotionValue<number>; activeIndex: number }> = ({
+interface KnowledgeTransformationVisualProps {
+  progress: MotionValue<number>;
+  effectiveFocalId: string | null;
+  activeNeighbors: Set<string>;
+  onHoverConcept: (id: string) => void;
+  onLeaveConcept: () => void;
+}
+
+const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps> = ({
   progress,
-  activeIndex
+  effectiveFocalId,
+  activeNeighbors,
+  onHoverConcept,
+  onLeaveConcept
 }) => {
-  const scaleX = useTransform(progress, [0, 1], [0, 1]);
+  // ─── Layer 1 & 2: Document Transforms ──────────────────────────────────────
+  // READ (0.00 → 0.22): Document surface is fully opaque, prominent.
+  // FIND (0.22 → 0.48): Document body text gently dims; concepts highlight.
+  // CONNECT (0.48 → 0.74): Document recedes in depth (scales down, dims to 0.18,
+  //   moves backward) but remains subtly visible underneath, matching the reference.
+  const docOpacity = useTransform(progress, [0.0, 0.04, 0.44, 0.64], [0.5, 1.0, 1.0, 0.18]);
+  const docScale = useTransform(progress, [0.0, 0.04, 0.44, 0.64], [0.98, 1.0, 1.0, 0.88]);
+  const docTranslateZ = useTransform(progress, [0.44, 0.64], [0, -32]);
+  const docBlur = useTransform(progress, [0.48, 0.68], ['blur(0px)', 'blur(1.5px)']);
+
+  // Document body text dimming during FIND & CONNECT
+  const bodyTextDim = useTransform(progress, [0.22, 0.42], [1.0, 0.38]);
+
+  // Scanline sweeping during READ
+  const scanlineTop = useTransform(progress, [0.03, 0.20], [0, 100]);
+  const scanlineOpacity = useTransform(progress, [0.0, 0.03, 0.18, 0.24], [0, 0.6, 0.6, 0]);
+
+  // Highlighting of terms inside document text
+  const hlTerm1 = useTransform(progress, [0.20, 0.30], [0, 1]);
+  const hlTerm2 = useTransform(progress, [0.24, 0.34], [0, 1]);
+  const hlTerm3 = useTransform(progress, [0.28, 0.38], [0, 1]);
+  const hlTerm4 = useTransform(progress, [0.32, 0.42], [0, 1]);
+
   return (
-    <div className="meaning-progress-track" aria-hidden="true">
-      <motion.div
-        className="meaning-progress-fill"
-        style={{ scaleX, transformOrigin: '0% 50%' }}
-      />
-      {STAGES.map((s, i) => (
-        <div
-          key={s.code}
-          className={`meaning-progress-pip ${i <= activeIndex ? 'reached' : ''}`}
-          style={{ left: `${(i / (STAGES.length - 1)) * 100}%` }}
+    <div className="ktv-viewport">
+      <div className="ktv-scene">
+        {/* Layer 1: Tactile Depth Underplate (Shadow / Thickness Slab) */}
+        <motion.div
+          className="ktv-underplate"
+          style={{
+            opacity: docOpacity,
+            scale: docScale
+          }}
+          aria-hidden="true"
         />
-      ))}
+
+        {/* Layer 2: Primary Study Material Surface */}
+        <motion.div
+          className="ktv-material-surface"
+          style={{
+            opacity: docOpacity,
+            scale: docScale,
+            translateZ: docTranslateZ,
+            filter: docBlur
+          }}
+        >
+          {/* Active reading scanline */}
+          <motion.div
+            className="ktv-scanline"
+            style={{
+              top: useTransform(scanlineTop, (v) => `${v}%`),
+              opacity: scanlineOpacity
+            }}
+            aria-hidden="true"
+          />
+
+          {/* Document metadata bar */}
+          <div className="ktv-doc-meta">
+            <span className="ktv-doc-badge">Source Material</span>
+            <span className="ktv-doc-filename">Neural_Networks_CS229.md</span>
+          </div>
+
+          {/* Document title & prose */}
+          <div className="ktv-doc-content">
+            <h3 className="ktv-doc-heading">Representation Learning &amp; Optimization</h3>
+            <motion.p className="ktv-doc-paragraph" style={{ opacity: bodyTextDim }}>
+              <InlineHighlightTerm text="Neural Networks" highlight={hlTerm1} /> consist of
+              stacked parameter layers transforming inputs through non-linear{' '}
+              <InlineHighlightTerm text="Activation Functions" highlight={hlTerm2} /> to isolate
+              continuous representations.
+            </motion.p>
+            <motion.p className="ktv-doc-paragraph" style={{ opacity: bodyTextDim }}>
+              During learning, error gradients flow backward via{' '}
+              <InlineHighlightTerm text="Backpropagation" highlight={hlTerm3} />. The objective loss
+              is iteratively minimized by{' '}
+              <InlineHighlightTerm text="Gradient Descent" highlight={hlTerm4} /> across parameter
+              space.
+            </motion.p>
+          </div>
+        </motion.div>
+
+        {/* Layer 3: Relationship Edges (SVG overlay) */}
+        <svg className="ktv-edges-svg" viewBox="-320 -200 640 400" aria-hidden="true">
+          <defs>
+            <linearGradient id="ktv-edge-active" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#A3FF12" stopOpacity="0.95" />
+              <stop offset="100%" stopColor="#A3FF12" stopOpacity="0.45" />
+            </linearGradient>
+          </defs>
+          {KNOWLEDGE_RELATIONSHIPS.map((rel) => (
+            <AnimatedRelationshipEdge
+              key={rel.id}
+              relationship={rel}
+              concepts={KNOWLEDGE_CONCEPTS}
+              progress={progress}
+              effectiveFocalId={effectiveFocalId}
+            />
+          ))}
+        </svg>
+
+        {/* Layer 4: Extracted Concept Nodes (Physically travel from doc to graph) */}
+        <div className="ktv-concepts-layer" aria-label="Extracted concepts">
+          {KNOWLEDGE_CONCEPTS.map((concept) => (
+            <AnimatedConceptNode
+              key={concept.id}
+              concept={concept}
+              progress={progress}
+              isFocal={effectiveFocalId === concept.id}
+              isDimmed={
+                effectiveFocalId !== null && !activeNeighbors.has(concept.id)
+              }
+              onHover={onHoverConcept}
+              onLeave={onLeaveConcept}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
 
-// ─── Animated Document Term ──────────────────────────────────────────────────
-// Progressively highlights a term inside the study document.
-// highlight is a MotionValue 0→1.
-const AnimatedDocTerm: React.FC<{ text: string; highlight: MotionValue<number> }> = ({
-  text,
-  highlight
-}) => {
+/* ==========================================================================
+   Subcomponent: InlineHighlightTerm
+   Displays in-document highlighted term during FIND stage
+   ========================================================================== */
+
+const InlineHighlightTerm: React.FC<{
+  text: string;
+  highlight: MotionValue<number>;
+}> = ({ text, highlight }) => {
   const color = useTransform(highlight, [0, 1], ['#8A8A8A', '#FFFFFF']);
   const bg = useTransform(
     highlight,
     [0, 1],
-    ['rgba(163,255,18,0)', 'rgba(163,255,18,0.10)']
+    ['rgba(163,255,18,0)', 'rgba(163,255,18,0.12)']
   );
   const underlineScale = useTransform(highlight, [0, 1], [0, 1]);
 
   return (
-    <motion.span className="meaning-doc-term" style={{ color, backgroundColor: bg }}>
+    <motion.span className="ktv-inline-term" style={{ color, backgroundColor: bg }}>
       {text}
       <motion.span
-        className="meaning-doc-underline"
+        className="ktv-inline-underline"
         style={{ scaleX: underlineScale, transformOrigin: '0% 50%' }}
       />
     </motion.span>
   );
 };
 
-// ─── Animated Concept Node ───────────────────────────────────────────────────
-// Emerges from its document-text position and physically travels to its settled
-// graph position. All driven by the global scroll progress MotionValue.
-interface AnimatedNodeProps {
-  node: ConceptNodeData;
+/* ==========================================================================
+   Subcomponent: AnimatedConceptNode
+   Continuous physical transformation:
+   - Emerges at its exact document text position
+   - Detaches with 3D elevation and chip background
+   - Travels smoothly to settled graph coordinate
+   - Shows category badge and focal glowing ring in final EXPLORE stage
+   ========================================================================== */
+
+interface AnimatedConceptNodeProps {
+  concept: ConceptDefinition;
   progress: MotionValue<number>;
-  activeConceptId: string | null;
-  activeNeighbors: Set<string>;
+  isFocal: boolean;
+  isDimmed: boolean;
   onHover: (id: string) => void;
   onLeave: () => void;
 }
 
-const AnimatedNode: React.FC<AnimatedNodeProps> = ({
-  node,
+const AnimatedConceptNode: React.FC<AnimatedConceptNodeProps> = ({
+  concept,
   progress,
-  activeConceptId,
-  activeNeighbors,
+  isFocal,
+  isDimmed,
   onHover,
   onLeave
 }) => {
-  // Nodes fade in during late FIND → early CONNECT, travel throughout CONNECT
-  const x = useTransform(progress, [0.36, 0.64], [node.docX, node.graphX]);
-  const y = useTransform(progress, [0.36, 0.64], [node.docY, node.graphY]);
-  const opacity = useTransform(progress, [0.30, 0.42], [0, 1]);
+  // Physical travel from document text position to settled graph position
+  const x = useTransform(progress, [0.36, 0.65], [concept.docX, concept.graphX]);
+  const y = useTransform(progress, [0.36, 0.65], [concept.docY, concept.graphY]);
 
-  const isSelected = activeConceptId === node.id;
-  const isDimmed = activeConceptId !== null && !activeNeighbors.has(node.id);
+  // Elevation: lifts off the document surface into 3D space
+  const translateZ = useTransform(progress, [0.22, 0.40, 0.70], [2, 14, 24]);
+
+  // Overall node opacity: emerges as terms highlight in FIND
+  const opacity = useTransform(progress, [0.22, 0.36], [0, 1]);
+
+  // Category badge visibility: reveals cleanly as concepts leave the document
+  const tagOpacity = useTransform(progress, [0.46, 0.64], [0, 1]);
 
   return (
     <motion.div
       className={[
-        'meaning-concept-node',
-        isSelected ? 'active' : '',
+        'ktv-concept-node',
+        isFocal ? 'focal' : '',
         isDimmed ? 'dimmed' : ''
       ].join(' ')}
-      style={{ x, y, opacity: isDimmed ? 0.3 : opacity }}
-      onMouseEnter={() => onHover(node.id)}
+      style={{
+        x,
+        y,
+        translateZ,
+        opacity: isDimmed ? 0.28 : opacity
+      }}
+      onMouseEnter={() => onHover(concept.id)}
       onMouseLeave={onLeave}
       role="button"
       tabIndex={0}
-      aria-label={`Concept: ${node.name}`}
+      aria-label={`Concept: ${concept.name}`}
     >
-      <div className="meaning-node-inner">
+      <div className="ktv-node-card">
         <span
-          className="meaning-node-indicator"
+          className="ktv-node-dot"
           style={{
-            backgroundColor: isSelected ? 'var(--accent)' : 'rgba(255,255,255,0.28)'
+            backgroundColor: isFocal ? 'var(--accent)' : 'rgba(255, 255, 255, 0.35)'
           }}
           aria-hidden="true"
         />
-        <div className="meaning-node-meta">
-          <span className="meaning-node-name">{node.name}</span>
-          <span className="meaning-node-tag">{node.category}</span>
+        <div className="ktv-node-text-wrap">
+          <span className="ktv-node-title">{concept.name}</span>
+          <motion.span className="ktv-node-tag" style={{ opacity: tagOpacity }}>
+            {concept.category}
+          </motion.span>
         </div>
       </div>
     </motion.div>
   );
 };
 
-// ─── Animated SVG Edge ───────────────────────────────────────────────────────
-// Lines draw themselves progressively during CONNECT stage. Edge endpoints
-// follow the same doc→graph interpolation as nodes.
-interface AnimatedEdgeProps {
-  edge: RelationshipEdgeData;
-  index: number;
-  nodes: ConceptNodeData[];
+/* ==========================================================================
+   Subcomponent: AnimatedRelationshipEdge
+   SVG line drawing dynamically between moving nodes during CONNECT stage
+   ========================================================================== */
+
+interface AnimatedRelationshipEdgeProps {
+  relationship: RelationshipDefinition;
+  concepts: ConceptDefinition[];
   progress: MotionValue<number>;
-  activeConceptId: string | null;
+  effectiveFocalId: string | null;
 }
 
-const AnimatedEdge: React.FC<AnimatedEdgeProps> = ({
-  edge,
-  index,
-  nodes,
+const AnimatedRelationshipEdge: React.FC<AnimatedRelationshipEdgeProps> = ({
+  relationship,
+  concepts,
   progress,
-  activeConceptId
+  effectiveFocalId
 }) => {
-  const src = nodes.find((n) => n.id === edge.sourceId);
-  const tgt = nodes.find((n) => n.id === edge.targetId);
-  if (!src || !tgt) return null;
+  const src = concepts.find((c) => c.id === relationship.sourceId) || concepts[0];
+  const tgt = concepts.find((c) => c.id === relationship.targetId) || concepts[1];
 
-  // Staggered draw timing: each edge draws sequentially across CONNECT stage
-  const drawStart = 0.52 + index * 0.06; // 0.52, 0.58, 0.64
-  const drawEnd = drawStart + 0.12;       // 0.64, 0.70, 0.76
-  const labelStart = drawStart + 0.06;
-  const labelEnd = drawEnd + 0.04;
+  // Node endpoints follow the identical physical motion interpolation
+  const srcX = useTransform(progress, [0.36, 0.65], [src.docX, src.graphX]);
+  const srcY = useTransform(progress, [0.36, 0.65], [src.docY, src.graphY]);
+  const tgtX = useTransform(progress, [0.36, 0.65], [tgt.docX, tgt.graphX]);
+  const tgtY = useTransform(progress, [0.36, 0.65], [tgt.docY, tgt.graphY]);
 
-  // Node coordinates follow the same doc→graph interpolation
-  const srcX = useTransform(progress, [0.36, 0.64], [src.docX, src.graphX]);
-  const srcY = useTransform(progress, [0.36, 0.64], [src.docY, src.graphY]);
-  const tgtX = useTransform(progress, [0.36, 0.64], [tgt.docX, tgt.graphX]);
-  const tgtY = useTransform(progress, [0.36, 0.64], [tgt.docY, tgt.graphY]);
+  // Progressive line drawing timeline
+  const pathLength = useTransform(
+    progress,
+    [relationship.drawStart, relationship.drawEnd],
+    [0, 1]
+  );
 
-  const pathLength = useTransform(progress, [drawStart, drawEnd], [0, 1]);
-  const labelOpacity = useTransform(progress, [labelStart, labelEnd], [0, 1]);
+  // Label badge fades in as line completes drawing
+  const labelOpacity = useTransform(
+    progress,
+    [relationship.drawStart + 0.05, relationship.drawEnd + 0.04],
+    [0, 1]
+  );
 
   const midX = (src.graphX + tgt.graphX) * 0.5;
   const midY = (src.graphY + tgt.graphY) * 0.5;
 
-  const isActive =
-    activeConceptId !== null &&
-    (edge.sourceId === activeConceptId || edge.targetId === activeConceptId);
+  const isEdgeActive =
+    effectiveFocalId !== null &&
+    (relationship.sourceId === effectiveFocalId || relationship.targetId === effectiveFocalId);
 
   return (
-    <g className="meaning-edge-group">
+    <g className="ktv-edge-group">
       <motion.line
         x1={srcX}
         y1={srcY}
         x2={tgtX}
         y2={tgtY}
-        stroke={isActive ? 'url(#mtm-edgeGrad)' : 'rgba(255,255,255,0.12)'}
-        strokeWidth={isActive ? 1.8 : 1}
-        strokeDasharray={isActive ? undefined : '3 4'}
+        stroke={isEdgeActive ? 'url(#ktv-edge-active)' : 'rgba(255, 255, 255, 0.14)'}
+        strokeWidth={isEdgeActive ? 1.8 : 1.1}
+        strokeDasharray={isEdgeActive ? undefined : '3 4'}
         style={{ pathLength }}
       />
       <foreignObject
@@ -632,16 +673,44 @@ const AnimatedEdge: React.FC<AnimatedEdgeProps> = ({
         y={midY - 11}
         width={88}
         height={22}
-        className="meaning-edge-label-wrap"
+        className="ktv-edge-label-container"
       >
         <motion.div
-          className={`meaning-edge-label ${isActive ? 'active' : ''}`}
+          className={`ktv-edge-label-badge ${isEdgeActive ? 'active' : ''}`}
           style={{ opacity: labelOpacity }}
-          title={edge.label}
+          title={relationship.label}
         >
-          {edge.label}
+          {relationship.label}
         </motion.div>
       </foreignObject>
     </g>
+  );
+};
+
+/* ==========================================================================
+   Subcomponent: PipelineProgressTrack (Bottom Bar)
+   Continuous progress bar and milestone indicators
+   ========================================================================== */
+
+const PipelineProgressTrack: React.FC<{
+  progress: MotionValue<number>;
+  activeIndex: number;
+}> = ({ progress, activeIndex }) => {
+  const scaleX = useTransform(progress, [0, 1], [0, 1]);
+
+  return (
+    <div className="transformation-pipeline-track" aria-hidden="true">
+      <motion.div
+        className="transformation-pipeline-fill"
+        style={{ scaleX, transformOrigin: '0% 50%' }}
+      />
+      {EDITORIAL_STAGES.map((s, i) => (
+        <div
+          key={s.code}
+          className={`transformation-pipeline-pip ${i <= activeIndex ? 'reached' : ''}`}
+          style={{ left: `${(i / (EDITORIAL_STAGES.length - 1)) * 100}%` }}
+        />
+      ))}
+    </div>
   );
 };
