@@ -4,9 +4,19 @@ import {
   useMotionValue,
   useTransform,
   AnimatePresence,
+  useReducedMotion,
   type MotionValue
 } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
+
+/* ==========================================================================
+   Editorial Constants: Heading lines for staggered entrance
+   ========================================================================== */
+export const TITLE_LINES = [
+  'See how your',
+  'material becomes',
+  'connected knowledge.'
+];
 
 /* ==========================================================================
    Data Structures: Core Concepts, Relationships & Editorial Stage Copy
@@ -158,7 +168,10 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
   const sectionRef = useRef<HTMLElement>(null);
   const scrollProgress = useMotionValue(0);
   const [activeStageIndex, setActiveStageIndex] = useState(0);
-  const [hoveredConceptId, setHoveredConceptId] = useState<string | null>(null);
+  const shouldReduceMotion = useReducedMotion();
+  const [hasEntered, setHasEntered] = useState(false);
+  const [isRestingRead, setIsRestingRead] = useState(true);
+  const hasTriggeredRef = useRef(false);
 
   // ─── Direct Passive Scroll Engine ──────────────────────────────────────────
   // Derives exact progress (0.0 → 1.0) from the document / workspace scroll
@@ -180,6 +193,19 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
         const sEl = sectionRef.current;
         if (!sEl) return;
 
+        // Entrance trigger: Fires once when ~20-30% of the section becomes visible
+        if (!hasTriggeredRef.current) {
+          const sRect = sEl.getBoundingClientRect();
+          const cHeight =
+            scrollContainer instanceof Window
+              ? window.innerHeight
+              : scrollContainer.clientHeight;
+          if (sRect.top <= cHeight * 0.78 && sRect.bottom >= 0) {
+            hasTriggeredRef.current = true;
+            setHasEntered(true);
+          }
+        }
+
         let scrolled = 0;
         let total = 0;
 
@@ -198,11 +224,36 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
           const p = Math.min(1.0, Math.max(0.0, scrolled / total));
           scrollProgress.set(p);
 
+          const isResting = p < 0.04;
+          setIsRestingRead((prev) => (prev !== isResting ? isResting : prev));
+
           const nextIndex = p >= 0.75 ? 3 : p >= 0.50 ? 2 : p >= 0.25 ? 1 : 0;
           setActiveStageIndex((prev) => (prev !== nextIndex ? nextIndex : prev));
         }
       });
     };
+
+    // IntersectionObserver declarative fallback for viewport entrance
+    let observer: IntersectionObserver | null = null;
+    const stickyEl = sectionEl.querySelector('.transformation-sticky') || sectionEl;
+    try {
+      observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting && !hasTriggeredRef.current) {
+            hasTriggeredRef.current = true;
+            setHasEntered(true);
+            observer?.disconnect();
+          }
+        },
+        {
+          root: scrollContainer instanceof HTMLElement ? scrollContainer : null,
+          threshold: [0.15, 0.25]
+        }
+      );
+      observer.observe(stickyEl);
+    } catch {
+      // IntersectionObserver fallback relies on handleScroll
+    }
 
     scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('resize', handleScroll, { passive: true });
@@ -210,6 +261,7 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
 
     return () => {
       cancelAnimationFrame(rafId);
+      observer?.disconnect();
       scrollContainer.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleScroll);
     };
@@ -250,8 +302,13 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
   }, []);
 
   // ─── Active concept in settled explore state ──────────────────────────────
-  // Default to central root concept ('c1': Neural Networks) during EXPLORE stage
-  const effectiveFocalId = hoveredConceptId || (activeStageIndex === 3 ? 'c1' : null);
+  // Retains stable focal concept during CONNECT & EXPLORE; smoothly updates on hover without jitter
+  const [focalConceptId, setFocalConceptId] = useState<string>('c1');
+
+  const effectiveFocalId = useMemo(() => {
+    if (activeStageIndex < 2) return null;
+    return focalConceptId;
+  }, [activeStageIndex, focalConceptId]);
 
   const activeNeighbors = useMemo(() => {
     if (!effectiveFocalId) return new Set<string>();
@@ -263,6 +320,14 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
     return neighbors;
   }, [effectiveFocalId]);
 
+  const handleHoverConcept = useCallback((id: string) => {
+    setFocalConceptId(id);
+  }, []);
+
+  const handleLeaveGraph = useCallback(() => {
+    setFocalConceptId('c1');
+  }, []);
+
   const currentStage = EDITORIAL_STAGES[activeStageIndex];
 
   return (
@@ -273,16 +338,77 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
     >
       <div className="transformation-sticky">
         {/* Subtle background ambient dot grid */}
-        <div className="transformation-ambience-canvas" aria-hidden="true" />
+        <motion.div
+          className="transformation-ambience-canvas"
+          aria-hidden="true"
+          initial={{ opacity: 0 }}
+          animate={hasEntered ? { opacity: 0.14 } : { opacity: 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+        />
 
         {/* 1. Header: Eyebrow + Editorial Statement */}
         <header className="transformation-header">
-          <div className="transformation-eyebrow">
-            <span className="transformation-eyebrow-dot" aria-hidden="true" />
+          <motion.div
+            className="transformation-eyebrow"
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+            animate={
+              hasEntered
+                ? { opacity: 1, y: 0 }
+                : shouldReduceMotion
+                ? { opacity: 0 }
+                : { opacity: 0, y: 8 }
+            }
+            transition={{
+              duration: shouldReduceMotion ? 0.3 : 0.5,
+              delay: shouldReduceMotion ? 0 : 0.10,
+              ease: 'easeOut'
+            }}
+          >
+            <motion.span
+              className="transformation-eyebrow-dot"
+              aria-hidden="true"
+              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.8 }}
+              animate={
+                hasEntered
+                  ? { opacity: 1, scale: 1 }
+                  : shouldReduceMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, scale: 0.8 }
+              }
+              transition={{
+                duration: shouldReduceMotion ? 0.3 : 0.4,
+                delay: shouldReduceMotion ? 0 : 0.08,
+                ease: 'easeOut'
+              }}
+            />
             <span>From Material to Meaning</span>
-          </div>
-          <h2 className="transformation-title">
-            See how your material becomes connected knowledge.
+          </motion.div>
+          <h2
+            className="transformation-title"
+            aria-label="See how your material becomes connected knowledge."
+          >
+            {TITLE_LINES.map((line, idx) => (
+              <span key={idx} className="transformation-title-line-mask">
+                <motion.span
+                  className="transformation-title-line"
+                  initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 32 }}
+                  animate={
+                    hasEntered
+                      ? { opacity: 1, y: 0 }
+                      : shouldReduceMotion
+                      ? { opacity: 0 }
+                      : { opacity: 0, y: 32 }
+                  }
+                  transition={{
+                    duration: shouldReduceMotion ? 0.3 : 0.82,
+                    delay: shouldReduceMotion ? 0 : 0.20 + idx * 0.08,
+                    ease: [0.16, 1, 0.3, 1]
+                  }}
+                >
+                  {line}
+                </motion.span>
+              </span>
+            ))}
           </h2>
         </header>
 
@@ -292,13 +418,26 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
           <nav className="transformation-nav" aria-label="Process stages">
             <ul className="transformation-nav-list" role="list">
               {EDITORIAL_STAGES.map((s, i) => (
-                <li
+                <motion.li
                   key={s.code}
                   className={[
                     'transformation-nav-item',
                     activeStageIndex === i ? 'active' : '',
                     activeStageIndex > i ? 'passed' : ''
                   ].join(' ')}
+                  initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -16 }}
+                  animate={
+                    hasEntered
+                      ? { opacity: 1, x: 0 }
+                      : shouldReduceMotion
+                      ? { opacity: 0 }
+                      : { opacity: 0, x: -16 }
+                  }
+                  transition={{
+                    duration: shouldReduceMotion ? 0.3 : 0.52,
+                    delay: shouldReduceMotion ? 0 : 0.35 + i * 0.06,
+                    ease: [0.16, 1, 0.3, 1]
+                  }}
                   onClick={() => scrollToStage(i)}
                   role="button"
                   tabIndex={0}
@@ -311,27 +450,84 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
                   }}
                 >
                   <span className="transformation-nav-marker" aria-hidden="true">
-                    <span className="transformation-nav-dot" />
+                    {i === 0 ? (
+                      <motion.span
+                        className="transformation-nav-dot"
+                        initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
+                        animate={
+                          hasEntered
+                            ? { opacity: 1, scale: 1 }
+                            : shouldReduceMotion
+                            ? { opacity: 0 }
+                            : { opacity: 0, scale: 0.6 }
+                        }
+                        transition={{
+                          duration: 0.35,
+                          delay: shouldReduceMotion ? 0 : 0.60,
+                          ease: 'easeOut'
+                        }}
+                      />
+                    ) : (
+                      <span className="transformation-nav-dot" />
+                    )}
                   </span>
                   <span className="transformation-nav-code">{s.code}</span>
                   <span className="transformation-nav-label">{s.name}</span>
-                </li>
+                </motion.li>
               ))}
             </ul>
           </nav>
 
           {/* Center Stage: The Single Persistent Transforming Visual System */}
-          <KnowledgeTransformationVisual
-            progress={scrollProgress}
-            effectiveFocalId={effectiveFocalId}
-            activeNeighbors={activeNeighbors}
-            hoveredConceptId={hoveredConceptId}
-            onHoverConcept={setHoveredConceptId}
-            onLeaveConcept={() => setHoveredConceptId(null)}
-          />
+          <motion.div
+            className="transformation-center-stage"
+            initial={
+              shouldReduceMotion
+                ? { opacity: 0 }
+                : { opacity: 0, scale: 0.96, y: 24, rotateX: 3 }
+            }
+            animate={
+              hasEntered
+                ? { opacity: 1, scale: 1, y: 0, rotateX: 0 }
+                : shouldReduceMotion
+                ? { opacity: 0 }
+                : { opacity: 0, scale: 0.96, y: 24, rotateX: 3 }
+            }
+            transition={{
+              duration: shouldReduceMotion ? 0.3 : 1.02,
+              delay: shouldReduceMotion ? 0 : 0.45,
+              ease: [0.16, 1, 0.3, 1]
+            }}
+            style={{ transformStyle: 'preserve-3d' }}
+          >
+            <KnowledgeTransformationVisual
+              progress={scrollProgress}
+              effectiveFocalId={effectiveFocalId}
+              activeNeighbors={activeNeighbors}
+              onHoverConcept={handleHoverConcept}
+              onLeaveGraph={handleLeaveGraph}
+              isRestingRead={isRestingRead && hasEntered}
+            />
+          </motion.div>
 
           {/* Right Column: Contextual Stage Explanation */}
-          <aside className="transformation-context" aria-live="polite">
+          <motion.aside
+            className="transformation-context"
+            aria-live="polite"
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: 18 }}
+            animate={
+              hasEntered
+                ? { opacity: 1, x: 0 }
+                : shouldReduceMotion
+                ? { opacity: 0 }
+                : { opacity: 0, x: 18 }
+            }
+            transition={{
+              duration: shouldReduceMotion ? 0.3 : 0.65,
+              delay: shouldReduceMotion ? 0 : 0.55,
+              ease: [0.16, 1, 0.3, 1]
+            }}
+          >
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentStage.code}
@@ -365,15 +561,35 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
                 )}
               </motion.div>
             </AnimatePresence>
-          </aside>
+          </motion.aside>
         </div>
 
         {/* 3. Bottom Bar: GraphMind Pipeline Progress */}
-        <footer className="transformation-pipeline" aria-hidden="true">
+        <motion.footer
+          className="transformation-pipeline"
+          aria-hidden="true"
+          initial={
+            shouldReduceMotion
+              ? { opacity: 0 }
+              : { opacity: 0, scaleX: 0.92, transformOrigin: '0% 50%' }
+          }
+          animate={
+            hasEntered
+              ? { opacity: 1, scaleX: 1, transformOrigin: '0% 50%' }
+              : shouldReduceMotion
+              ? { opacity: 0 }
+              : { opacity: 0, scaleX: 0.92, transformOrigin: '0% 50%' }
+          }
+          transition={{
+            duration: shouldReduceMotion ? 0.3 : 0.60,
+            delay: shouldReduceMotion ? 0 : 0.70,
+            ease: [0.16, 1, 0.3, 1]
+          }}
+        >
           <span className="transformation-pipeline-tag">GraphMind Pipeline</span>
           <PipelineProgressTrack progress={scrollProgress} activeIndex={activeStageIndex} />
           <span className="transformation-pipeline-counter">{currentStage.step}</span>
-        </footer>
+        </motion.footer>
       </div>
     </section>
   );
@@ -389,47 +605,68 @@ interface KnowledgeTransformationVisualProps {
   progress: MotionValue<number>;
   effectiveFocalId: string | null;
   activeNeighbors: Set<string>;
-  hoveredConceptId: string | null;
   onHoverConcept: (id: string) => void;
-  onLeaveConcept: () => void;
+  onLeaveGraph: () => void;
+  isRestingRead?: boolean;
 }
 
 const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps> = ({
   progress,
   effectiveFocalId,
   activeNeighbors,
-  hoveredConceptId,
   onHoverConcept,
-  onLeaveConcept
+  onLeaveGraph,
+  isRestingRead = true
 }) => {
   // ─── Layer 1 & 2: Document Transforms ──────────────────────────────────────
-  // Reduced progressively according to Section 17:
-  // READ (0.00-0.25): 100%
-  // FIND (0.25-0.50): 80%
-  // CONNECT (0.50-0.75): 35%
-  // EXPLORE (0.75-1.00): 10% -> 8%
+  // READ (0.00-0.25): 100% stable reading surface, responds subtly as reading progresses
+  // FIND (0.25-0.50): 85% opacity, terms highlight and lift
+  // CONNECT (0.50-0.75): 35% opacity, edges draw
+  // EXPLORE (0.75-1.00): 10% -> 8% opacity, graph settled in foreground
   const docOpacity = useTransform(
     progress,
-    [0.0, 0.04, 0.25, 0.50, 0.75, 1.0],
-    [0.6, 1.0, 0.80, 0.35, 0.10, 0.08]
+    [0.0, 0.06, 0.25, 0.50, 0.75, 1.0],
+    [1.0, 1.0, 0.85, 0.35, 0.10, 0.08]
   );
+
+  // Subtle focus magnification during reading, then recedes into depth
   const docScale = useTransform(
     progress,
-    [0.0, 0.04, 0.45, 0.70, 0.90],
-    [0.98, 1.0, 1.0, 0.90, 0.86]
+    [0.0, 0.05, 0.24, 0.48, 0.72, 0.90],
+    [1.0, 1.0, 1.014, 0.99, 0.90, 0.86]
   );
-  const docTranslateZ = useTransform(progress, [0.45, 0.70, 0.90], [0, -28, -44]);
-  const docBlur = useTransform(progress, [0.50, 0.75, 0.90], ['blur(0px)', 'blur(1.5px)', 'blur(2px)']);
 
-  // Graph expands subtly as document recedes (Section 18):
-  const graphScale = useTransform(progress, [0.35, 0.65, 1.0], [0.90, 1.0, 1.06]);
+  const docTranslateZ = useTransform(
+    progress,
+    [0.0, 0.05, 0.24, 0.48, 0.72, 0.90],
+    [0, 0, 6, 0, -28, -44]
+  );
+
+  const docTranslateY = useTransform(
+    progress,
+    [0.0, 0.05, 0.24, 0.48],
+    [0, 0, -5, -8]
+  );
+
+  const docBlur = useTransform(
+    progress,
+    [0.50, 0.75, 0.90],
+    ['blur(0px)', 'blur(1.5px)', 'blur(2px)']
+  );
+
+  // Graph expands subtly as document recedes
+  const graphScale = useTransform(progress, [0.35, 0.65, 1.0], [0.92, 1.0, 1.06]);
 
   // Document body text dimming only AFTER terms are highlighted and cards emerge
   const bodyTextDim = useTransform(progress, [0.44, 0.58], [1.0, 0.35]);
 
-  // Scanline sweeping during READ
-  const scanlineTop = useTransform(progress, [0.03, 0.20], [0, 100]);
-  const scanlineOpacity = useTransform(progress, [0.0, 0.03, 0.18, 0.24], [0, 0.6, 0.6, 0]);
+  // Scanline sweeping during READ (0.05 -> 0.22)
+  const scanlineTop = useTransform(progress, [0.05, 0.22], [0, 100]);
+  const scanlineOpacity = useTransform(
+    progress,
+    [0.0, 0.05, 0.20, 0.25],
+    [0, 0.65, 0.65, 0]
+  );
 
   // Highlighting and luminous underlining of terms inside document text
   const hlTerm1 = useTransform(progress, [0.22, 0.29], [0, 1]);
@@ -486,13 +723,14 @@ const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps
 
   return (
     <div className="ktv-viewport">
-      <div className="ktv-scene">
+      <div className={['ktv-scene', isRestingRead ? 'ambient-active' : ''].join(' ')}>
         {/* Layer 1: Tactile Depth Underplate (Shadow / Thickness Slab) */}
         <motion.div
           className="ktv-underplate"
           style={{
             opacity: docOpacity,
-            scale: docScale
+            scale: docScale,
+            y: docTranslateY
           }}
           aria-hidden="true"
         />
@@ -504,6 +742,7 @@ const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps
             opacity: docOpacity,
             scale: docScale,
             translateZ: docTranslateZ,
+            y: docTranslateY,
             filter: docBlur
           }}
         >
@@ -576,6 +815,7 @@ const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps
           ref={stageRef}
           className="graph-stage"
           style={{ scale: graphScale }}
+          onMouseLeave={onLeaveGraph}
         >
           {/* Layer 1: Edge Layer (Behind nodes) */}
           <svg
@@ -621,10 +861,11 @@ const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps
                 stageDims={stageDims}
                 isFocal={effectiveFocalId === concept.id}
                 isDimmed={
-                  hoveredConceptId !== null && !activeNeighbors.has(concept.id)
+                  effectiveFocalId !== null &&
+                  effectiveFocalId !== concept.id &&
+                  !activeNeighbors.has(concept.id)
                 }
                 onHover={onHoverConcept}
-                onLeave={onLeaveConcept}
                 docPos={docPositions[concept.id]}
               />
             ))}
@@ -665,11 +906,13 @@ const InlineHighlightTerm = React.forwardRef<
     return Math.max(0, h * (1 - l));
   });
 
+  const termScale = useTransform(highlight, [0, 0.7, 1], [1, 1.025, 1]);
+
   return (
     <motion.span
       ref={ref}
       className="ktv-inline-term"
-      style={{ color, backgroundColor: bg }}
+      style={{ color, backgroundColor: bg, scale: termScale }}
     >
       {text}
       <motion.span
@@ -735,7 +978,7 @@ interface AnimatedRelationshipEdgeProps {
   docPositions: Record<string, { docX: number; docY: number }>;
 }
 
-const AnimatedRelationshipEdge: React.FC<AnimatedRelationshipEdgeProps> = ({
+const AnimatedRelationshipEdge: React.FC<AnimatedRelationshipEdgeProps> = React.memo(({
   relationship,
   concepts,
   progress,
@@ -808,7 +1051,8 @@ const AnimatedRelationshipEdge: React.FC<AnimatedRelationshipEdgeProps> = ({
       className="graph-edge-line"
     />
   );
-};
+});
+AnimatedRelationshipEdge.displayName = 'AnimatedRelationshipEdge';
 
 /* ==========================================================================
    Subcomponent: AnimatedRelationshipLabel
@@ -824,7 +1068,7 @@ interface AnimatedRelationshipLabelProps {
   docPositions: Record<string, { docX: number; docY: number }>;
 }
 
-const AnimatedRelationshipLabel: React.FC<AnimatedRelationshipLabelProps> = ({
+const AnimatedRelationshipLabel: React.FC<AnimatedRelationshipLabelProps> = React.memo(({
   relationship,
   concepts,
   progress,
@@ -903,7 +1147,8 @@ const AnimatedRelationshipLabel: React.FC<AnimatedRelationshipLabelProps> = ({
       {relationship.label}
     </motion.div>
   );
-};
+});
+AnimatedRelationshipLabel.displayName = 'AnimatedRelationshipLabel';
 
 /* ==========================================================================
    Subcomponent: AnimatedConceptNode
@@ -917,18 +1162,16 @@ interface AnimatedConceptNodeProps {
   isFocal: boolean;
   isDimmed: boolean;
   onHover: (id: string) => void;
-  onLeave: () => void;
   docPos?: { docX: number; docY: number };
 }
 
-const AnimatedConceptNode: React.FC<AnimatedConceptNodeProps> = ({
+const AnimatedConceptNode: React.FC<AnimatedConceptNodeProps> = React.memo(({
   concept,
   progress,
   stageDims,
   isFocal,
   isDimmed,
   onHover,
-  onLeave,
   docPos
 }) => {
   const startX = docPos?.docX ?? concept.docX;
@@ -951,10 +1194,9 @@ const AnimatedConceptNode: React.FC<AnimatedConceptNodeProps> = ({
       style={{
         left,
         top,
-        opacity: isDimmed ? 0.35 : opacity
+        opacity
       }}
       onMouseEnter={() => onHover(concept.id)}
-      onMouseLeave={onLeave}
       role="button"
       tabIndex={0}
       aria-label={`Concept: ${concept.name}`}
@@ -967,11 +1209,11 @@ const AnimatedConceptNode: React.FC<AnimatedConceptNodeProps> = ({
         ].join(' ')}
       >
         <span className="graph-token-text">{concept.name}</span>
-        <span className="graph-token-underline" aria-hidden="true" />
       </div>
     </motion.div>
   );
-};
+});
+AnimatedConceptNode.displayName = 'AnimatedConceptNode';
 
 /* ==========================================================================
    Subcomponent: PipelineProgressTrack (Bottom Bar)
