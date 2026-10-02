@@ -2,7 +2,8 @@ import type {
   ConceptCandidate, 
   TextChunk, 
   ScoredCandidateConcept, 
-  ConceptRelevanceReport 
+  ConceptRelevanceReport,
+  DocumentProfile
 } from '../types/knowledgeGraph';
 import {
   type ConceptQualityConfig,
@@ -32,8 +33,9 @@ function cleanLexicalWord(word: string): string {
 
 /**
  * Evaluates whether a candidate concept is a generic word, adjective, verb, or uninformative phrase.
+ * If documentProfile is provided, recognizes domain-specific terms within this document.
  */
-export function isGenericConceptPhrase(name: string): { isGeneric: boolean; reason?: string } {
+export function isGenericConceptPhrase(name: string, documentProfile?: DocumentProfile): { isGeneric: boolean; reason?: string } {
   if (!name || typeof name !== 'string') {
     return { isGeneric: true, reason: 'Empty or invalid concept string' };
   }
@@ -54,6 +56,49 @@ export function isGenericConceptPhrase(name: string): { isGeneric: boolean; reas
     return { isGeneric: true, reason: 'Candidate name too short (< 2 chars)' };
   }
 
+  // Document Context Check:
+  // If the document explicitly identifies this term as a domain keyword, definition, or major topic,
+  // do NOT classify it as generic unless it is a classic generic standalone lacking an explicit definition.
+  const ALWAYS_GENERIC_STANDALONES = new Set([
+    'system', 'data', 'method', 'important', 'example', 'process', 'use', 'information', 'object', 'property'
+  ]);
+
+  if (documentProfile) {
+    if (words.length === 1 && ALWAYS_GENERIC_STANDALONES.has(words[0])) {
+      const isExplicitlyDefined = documentProfile.definitionsFound.some(df => df.term.toLowerCase() === lower);
+      if (!isExplicitlyDefined) {
+        return { isGeneric: true, reason: `Generic standalone word ("${trimmed}") without explicit document definition` };
+      }
+      return { isGeneric: false };
+    }
+
+    const isAllGenericOrMeta = words.every(w =>
+      GENERIC_BROAD_ROOTS.has(w) ||
+      GENERIC_ADJECTIVES_AND_ADVERBS.has(w) ||
+      GENERIC_VERB_ROOTS.has(w) ||
+      ACADEMIC_META_WORDS.has(w)
+    );
+
+    if (!isAllGenericOrMeta) {
+      const isDomainTerm = 
+        !ACADEMIC_META_WORDS.has(lower) &&
+        !ALWAYS_GENERIC_STANDALONES.has(words[0]) &&
+        (documentProfile.domainKeywords.some(dk => dk.toLowerCase() === lower || dk.toLowerCase() === words[0]) ||
+         documentProfile.definitionsFound.some(df => df.term.toLowerCase() === lower) ||
+         documentProfile.majorTopics.some(mt => {
+           const cleanMt = mt.toLowerCase().replace(/^#+\s*/, '').trim();
+           const mtWords = cleanMt.split(/\s+/).filter(Boolean);
+           if (mtWords.every(w => GENERIC_BROAD_ROOTS.has(w) || GENERIC_ADJECTIVES_AND_ADVERBS.has(w) || ACADEMIC_META_WORDS.has(w))) {
+             return false;
+           }
+           return cleanMt === lower || (words.length >= 2 && cleanMt.includes(lower));
+         }));
+      if (isDomainTerm) {
+        return { isGeneric: false };
+      }
+    }
+  }
+
   // Single word checks
   if (words.length === 1) {
     const word = words[0];
@@ -61,6 +106,15 @@ export function isGenericConceptPhrase(name: string): { isGeneric: boolean; reas
     // Check if approved technical acronym (e.g. CPU, MMU, IPC, CNN, OS)
     if (TECHNICAL_DOMAIN_ACRONYMS.has(word) || (trimmed === trimmed.toUpperCase() && trimmed.length >= 2 && trimmed.length <= 6)) {
       return { isGeneric: false };
+    }
+
+    const PRONOUNS_AND_DETERMINERS = new Set([
+      'the', 'a', 'an', 'this', 'that', 'these', 'those', 'there', 'here',
+      'it', 'its', 'they', 'them', 'their', 'we', 'us', 'our', 'you', 'your', 'he', 'him', 'his', 'she', 'her',
+      'user', 'users', 'someone', 'everyone', 'anyone', 'some', 'many', 'such', 'each', 'every', 'all', 'both', 'few', 'other', 'another', 'more', 'most'
+    ]);
+    if (PRONOUNS_AND_DETERMINERS.has(word)) {
+      return { isGeneric: true, reason: `Pronoun, determiner, or generic user reference ("${trimmed}")` };
     }
 
     if (GENERIC_BROAD_ROOTS.has(word)) {
@@ -102,10 +156,10 @@ export function isGenericConceptPhrase(name: string): { isGeneric: boolean; reas
     };
   }
 
-  // Reject phrases ending with prepositions or conjunctions
+  // Reject phrases ending with prepositions, conjunctions, relative pronouns, or auxiliary verbs
   const lastWord = words[words.length - 1];
-  if (['and', 'or', 'in', 'on', 'at', 'for', 'with', 'by', 'from', 'to', 'of', 'as'].includes(lastWord)) {
-    return { isGeneric: true, reason: `Phrase ends with preposition or conjunction ("${trimmed}")` };
+  if (['and', 'or', 'in', 'on', 'at', 'for', 'with', 'by', 'from', 'to', 'of', 'as', 'that', 'which', 'who', 'whose', 'where', 'when', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has'].includes(lastWord)) {
+    return { isGeneric: true, reason: `Phrase ends with function word ("${trimmed}")` };
   }
 
   // Reject conversational fragments
@@ -121,7 +175,8 @@ export function isGenericConceptPhrase(name: string): { isGeneric: boolean; reas
  */
 export function analyzeCandidateOccurrences(
   name: string,
-  chunks: TextChunk[]
+  chunks: TextChunk[],
+  documentProfile?: DocumentProfile
 ): {
   frequency: number;
   chunkIds: string[];
@@ -217,6 +272,25 @@ export function analyzeCandidateOccurrences(
     }
   }
 
+  // Cross-reference with DocumentProfile definitions and formulas
+  if (documentProfile?.definitionsFound) {
+    if (documentProfile.definitionsFound.some(d => d.term.toLowerCase() === lower)) {
+      hasDefinitionEvidence = true;
+    }
+  }
+  if (documentProfile?.formulasFound) {
+    if (documentProfile.formulasFound.some(f => (f.term && f.term.toLowerCase() === lower) || f.formula.includes(clean))) {
+      hasRelationshipEvidence = true;
+    }
+  }
+  if (documentProfile?.sections) {
+    for (const sec of documentProfile.sections) {
+      if (termRegex.test(sec.heading)) {
+        headingSet.add(sec.heading);
+      }
+    }
+  }
+
   const onlySentenceInitial = (sentenceInitialMatches > 0 && nonSentenceInitialMatches === 0);
 
   return {
@@ -262,16 +336,22 @@ export function scoreCandidate(
   candidate: ConceptCandidate,
   allChunks: TextChunk[],
   _totalWords: number,
-  config: ConceptQualityConfig = DEFAULT_CONCEPT_QUALITY_CONFIG
+  config: ConceptQualityConfig = DEFAULT_CONCEPT_QUALITY_CONFIG,
+  documentProfile?: DocumentProfile
 ): ScoredCandidateConcept {
-  const { isGeneric, reason: genericReason } = isGenericConceptPhrase(candidate.name);
-  const occ = analyzeCandidateOccurrences(candidate.name, allChunks);
+  const { isGeneric, reason: genericReason } = isGenericConceptPhrase(candidate.name, documentProfile);
+  const occ = analyzeCandidateOccurrences(candidate.name, allChunks, documentProfile);
 
   const totalChunks = Math.max(1, allChunks.length);
   const words = candidate.name.trim().split(/[\s-]+/).filter(Boolean);
   const wordCount = words.length;
   const isAcronym = TECHNICAL_DOMAIN_ACRONYMS.has(candidate.name.toLowerCase()) || 
     (candidate.name === candidate.name.toUpperCase() && candidate.name.length >= 2 && candidate.name.length <= 6);
+
+  // If candidate has explicit evidence or definition attached
+  if (candidate.evidence) {
+    occ.hasDefinitionEvidence = true;
+  }
 
   // 1. Frequency Score (logarithmic scaling so raw repetition never dominates)
   const frequencyScore = Math.min(1.0, Math.log2(1 + occ.frequency) / 3.5);
@@ -299,6 +379,9 @@ export function scoreCandidate(
       specificityScore = 0.85;
     } else if (/^[A-Z]/.test(candidate.name) && candidate.name.length >= 6) {
       specificityScore = 0.65;
+    } else if (documentProfile?.domainKeywords.some(dk => dk.toLowerCase() === candidate.name.toLowerCase().trim())) {
+      // Specialized domain single word (e.g. "mirror" in optics)
+      specificityScore = 0.80;
     } else {
       specificityScore = 0.25;
     }
@@ -306,7 +389,7 @@ export function scoreCandidate(
 
   // 5. Relationship or Definition Score
   let relationshipScore = 0.0;
-  if (occ.hasDefinitionEvidence) {
+  if (occ.hasDefinitionEvidence || candidate.evidence) {
     relationshipScore = 1.0;
   } else if (occ.hasRelationshipEvidence) {
     relationshipScore = 0.70;
@@ -327,18 +410,28 @@ export function scoreCandidate(
     penaltyScore += config.penalties.genericStandalonePenalty;
   }
 
-  if (occ.onlySentenceInitial && !isAcronym && wordCount === 1 && !occ.hasDefinitionEvidence && candidate.type === 'concept') {
+  if (occ.onlySentenceInitial && !isAcronym && wordCount === 1 && !occ.hasDefinitionEvidence && !candidate.evidence && (candidate.type === 'concept' || candidate.type === 'Concept')) {
     penaltyScore += config.penalties.sentenceInitialOnlyPenalty;
   }
 
-  if (occ.frequency === 1 && occ.headings.length === 0 && !occ.hasDefinitionEvidence && !occ.hasRelationshipEvidence) {
-    if (isGeneric || (wordCount === 1 && candidate.type === 'concept' && contextQualityScore < 0.7)) {
+  // Never penalize single mention if explicitly defined or provided with evidence
+  if (occ.frequency === 1 && occ.headings.length === 0 && !occ.hasDefinitionEvidence && !occ.hasRelationshipEvidence && !candidate.evidence && !candidate.isCoreConcept) {
+    if (isGeneric || (wordCount === 1 && (candidate.type === 'concept' || candidate.type === 'Concept') && contextQualityScore < 0.7)) {
       penaltyScore += config.penalties.singleMentionNoContextPenalty;
     }
   }
 
   if (candidate.name.length < 4 && !isAcronym) {
     penaltyScore += config.penalties.shortWordPenalty;
+  }
+
+  // Semantic AI Evaluation Adjustment
+  let semanticBonus = 0.0;
+  if (typeof candidate.importance === 'number') {
+    semanticBonus += (candidate.importance - 0.5) * 0.20;
+  }
+  if (candidate.isCoreConcept) {
+    semanticBonus += 0.10;
   }
 
   // Weighted Composite Relevance Score
@@ -351,7 +444,7 @@ export function scoreCandidate(
     w.relationshipOrDefinition * relationshipScore +
     w.contextQuality * contextQualityScore;
 
-  const relevanceScore = Math.max(0, Math.min(1.0, Number((baseScore + penaltyScore).toFixed(4))));
+  const relevanceScore = Math.max(0, Math.min(1.0, Number((baseScore + penaltyScore + semanticBonus).toFixed(4))));
 
   // Acceptance Decision
   let isAccepted = true;
@@ -359,23 +452,23 @@ export function scoreCandidate(
 
   if (isGeneric) {
     // A generic term can ONLY be accepted if the document clearly establishes it as a defined concept
-    if (!occ.hasDefinitionEvidence || relevanceScore < 0.70) {
+    if ((!occ.hasDefinitionEvidence && !candidate.evidence) || relevanceScore < 0.70) {
       isAccepted = false;
       rejectionReason = genericReason || `Generic concept without substantive definition ("${candidate.name}")`;
     }
   }
 
-  if (isAccepted && relevanceScore < config.minRelevanceScore) {
+  if (isAccepted && relevanceScore < config.minRelevanceScore && !occ.hasDefinitionEvidence && !candidate.evidence && !candidate.isCoreConcept) {
     isAccepted = false;
     rejectionReason = `Relevance score (${relevanceScore.toFixed(2)}) below quality threshold (${config.minRelevanceScore})`;
   }
 
-  if (isAccepted && occ.frequency === 1 && occ.headings.length === 0 && !occ.hasDefinitionEvidence && !occ.hasRelationshipEvidence) {
+  if (isAccepted && occ.frequency === 1 && occ.headings.length === 0 && !occ.hasDefinitionEvidence && !occ.hasRelationshipEvidence && !candidate.evidence && !candidate.isCoreConcept) {
     isAccepted = false;
     rejectionReason = 'Single mention without meaningful heading or definition context';
   }
 
-  const isTechnicalOrTopic = !isGeneric && (isAcronym || wordCount >= 2 || headingScore > 0 || occ.hasDefinitionEvidence);
+  const isTechnicalOrTopic = !isGeneric && (isAcronym || wordCount >= 2 || headingScore > 0 || occ.hasDefinitionEvidence || Boolean(candidate.evidence));
 
   // Preserve source traceability: combine existing chunk IDs with newly found ones
   const combinedChunkIds = Array.from(new Set([
@@ -383,6 +476,10 @@ export function scoreCandidate(
     ...(candidate.sourceChunkIds || []),
     ...occ.chunkIds
   ])).filter(Boolean);
+
+  const resolvedEvidence = candidate.evidence || 
+    (occ.hasDefinitionEvidence ? occ.contextSentences.find(s => /\b(?:is an?|are|refers to|is defined as|called|known as)\b/i.test(s)) : undefined) ||
+    occ.contextSentences[0];
 
   return {
     ...candidate,
@@ -393,7 +490,7 @@ export function scoreCandidate(
     relevanceScore,
     isGeneric,
     isTechnicalOrTopic,
-    hasDefinition: occ.hasDefinitionEvidence,
+    hasDefinition: occ.hasDefinitionEvidence || Boolean(candidate.evidence),
     hasHeadingEvidence: occ.headings.length > 0,
     hasRelationshipEvidence: occ.hasRelationshipEvidence,
     scoreBreakdown: {
@@ -406,7 +503,10 @@ export function scoreCandidate(
       penaltyScore
     },
     isAccepted,
-    rejectionReason
+    rejectionReason,
+    evidence: resolvedEvidence,
+    importance: candidate.importance ?? relevanceScore,
+    isCoreConcept: candidate.isCoreConcept ?? (relevanceScore >= 0.8)
   };
 }
 
@@ -418,7 +518,8 @@ export function scoreCandidate(
 export function evaluateAndFilterCandidates(
   candidates: ConceptCandidate[],
   allChunks: TextChunk[],
-  config: ConceptQualityConfig = DEFAULT_CONCEPT_QUALITY_CONFIG
+  config: ConceptQualityConfig = DEFAULT_CONCEPT_QUALITY_CONFIG,
+  documentProfile?: DocumentProfile
 ): {
   acceptedCandidates: ConceptCandidate[];
   scoredCandidates: ScoredCandidateConcept[];
@@ -447,9 +548,9 @@ export function evaluateAndFilterCandidates(
   const totalWords = allChunks.reduce((acc, c) => acc + (c.text ? c.text.split(/\s+/).length : 0), 0);
   const maxPrimaryConcepts = getAdaptiveMaxConcepts(allChunks.length, totalWords, config);
 
-  // Score all candidates
+  // Score all candidates with document-level semantic awareness
   const scoredCandidates: ScoredCandidateConcept[] = candidates.map(c => 
-    scoreCandidate(c, allChunks, totalWords, config)
+    scoreCandidate(c, allChunks, totalWords, config, documentProfile)
   );
 
   // Partition into accepted and rejected
@@ -464,18 +565,22 @@ export function evaluateAndFilterCandidates(
     return b.frequency - a.frequency;
   });
 
-  // Apply adaptive concept limit for primary graph view
+  // Preserve all accepted concepts unless a strict hard cap override is explicitly requested
+  // Knowledge extraction preserves concepts; viewport/presentation layer controls density
   const finalAccepted: ScoredCandidateConcept[] = [];
   const excessRejected: ScoredCandidateConcept[] = [];
 
+  const shouldEnforceLimit = Boolean(config.maxConceptsOverride && config.maxConceptsOverride > 0);
+  const effectiveLimit = shouldEnforceLimit ? config.maxConceptsOverride! : Infinity;
+
   for (let i = 0; i < initialAccepted.length; i++) {
-    if (i < maxPrimaryConcepts) {
+    if (i < effectiveLimit) {
       finalAccepted.push(initialAccepted[i]);
     } else {
       excessRejected.push({
         ...initialAccepted[i],
         isAccepted: false,
-        rejectionReason: `Prioritized out: exceeded adaptive primary concept limit (${maxPrimaryConcepts})`
+        rejectionReason: `Prioritized out: exceeded configured concept limit (${effectiveLimit})`
       });
     }
   }
@@ -502,7 +607,7 @@ export function evaluateAndFilterCandidates(
     }
   };
 
-  // Convert accepted scored concepts back to ConceptCandidate with preserved traceability
+  // Convert accepted scored concepts back to ConceptCandidate with preserved traceability and semantic evidence
   const acceptedCandidates: ConceptCandidate[] = finalAccepted.map(sc => ({
     name: sc.name,
     type: sc.type,
@@ -517,7 +622,11 @@ export function evaluateAndFilterCandidates(
     sectionHeadings: sc.sectionHeadings,
     contextualSentences: sc.contextualSentences,
     isGeneric: sc.isGeneric,
-    isTechnicalOrTopic: sc.isTechnicalOrTopic
+    isTechnicalOrTopic: sc.isTechnicalOrTopic,
+    importance: sc.importance ?? sc.relevanceScore,
+    isCoreConcept: sc.isCoreConcept,
+    evidence: sc.evidence,
+    teachesOrExplains: sc.teachesOrExplains
   }));
 
   return {

@@ -227,10 +227,29 @@ export function findSemanticRelation(
   if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,35}\\b(?:such as|including|namely)\\b[\\s\\w,]{0,35}\\b${aPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'instance-of', 0.92);
   }
+  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,45}\\b(?:is called|are called|is termed|are termed|is known as|are known as)\\b[\\s\\w,]{0,35}\\b${aPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptA, conceptB, 'instance-of', 0.93);
+  }
 
-  // 8. RELATED-TO (Conservative clause-level association)
-  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,35}\\b(?:(?:is|are) (?:closely )?related to|associated with|operate[s]? in conjunction with|work[s]? alongside|(?:is|are) intertwined with)\\b[\\s\\w,]{0,35}\\b${bPat}\\b`, 'i').test(sNorm)) {
+  // 8. PART-OF (Constituent attribute of concept: e.g. "focal length of a spherical mirror", "centre of curvature of a spherical mirror")
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,25}\\b(?:of|in|within|for)\\b[\\s\\w,]{0,25}\\b(?:an?|the)?\\s*${bPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptA, conceptB, 'part-of', 0.90);
+  }
+
+  // 9. DEPENDS-ON / FORMULA GOVERNANCE
+  if (new RegExp(`\\b(?:relationship between|relates|relate|equation for|formula for)\\b[\\s\\w,]{0,40}\\b${aPat}\\b[\\s\\w,]{0,40}\\b(?:and|to|with)?\\s*${bPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptA, conceptB, 'depends-on', 0.90);
+  }
+  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,35}\\b(?:governs|describes|computes|determines|expresses|relates)\\b[\\s\\w,]{0,35}\\b${aPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptA, conceptB, 'depends-on', 0.90);
+  }
+
+  // 10. RELATED-TO (Conservative clause-level association)
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,35}\\b(?:(?:is|are) (?:closely )?related to|associated with|operate[s]? in conjunction with|work[s]? alongside|(?:is|are) intertwined with|connects to|pertains to)\\b[\\s\\w,]{0,35}\\b${bPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'related-to', 0.85);
+  }
+  if (new RegExp(`\\b(?:relationship between|known as)\\b[\\s\\w,]{0,50}\\b${aPat}\\b[\\s\\w,]{0,50}\\b${bPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptA, conceptB, 'related-to', 0.82);
   }
 
   return null;

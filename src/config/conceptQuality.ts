@@ -238,6 +238,7 @@ export const ACADEMIC_META_WORDS = new Set([
   'previous work', 'prior work', 'state of the art', 'appendix', 'appendices',
   'reference', 'references', 'bibliography', 'acknowledgements', 'acknowledgments',
   'lecture', 'lecture notes', 'notes', 'course', 'courses', 'syllabus',
+  'consideration', 'considerations', 'remark', 'remarks',
   'example', 'examples', 'exercise', 'exercises', 'problem', 'problems',
   'question', 'questions', 'solution', 'solutions', 'homework', 'assignment',
   'case study', 'case studies', 'definition', 'definitions', 'theorem', 'proof',

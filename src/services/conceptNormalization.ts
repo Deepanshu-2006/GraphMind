@@ -51,7 +51,8 @@ const TECHNICAL_ACRONYM_MAP = new Map<string, string>([
  */
 const PRESERVE_S_WORDS = new Set<string>([
   'means', 'bayes', 'gauss', 'series', 'basis', 'physics', 'cross', 'bias',
-  'hypothesis', 'analysis', 'synthesis', 'metropolis', 'markov', 'corpus', 'status'
+  'hypothesis', 'analysis', 'synthesis', 'metropolis', 'markov', 'corpus', 'status',
+  'axis', 'focus', 'lens', 'radius', 'apparatus', 'stimulus', 'nucleus', 'calculus'
 ]);
 
 /**
@@ -90,14 +91,11 @@ export function safeSingularize(word: string): string {
 export function toCanonicalDisplayName(name: string): string {
   let clean = name.trim();
 
-  // Strip redundant classification suffix e.g. "Transformer Architecture" -> "Transformer"
-  const strippedSuffix = clean.replace(/\s+(?:architecture|model|algorithm|method|mechanism)$/i, '').trim();
-  const nonStandalones = new Set([
-    'deep', 'neural', 'linear', 'machine', 'support', 'random', 'gradient',
-    ...GENERIC_BROAD_ROOTS
-  ]);
-  if (strippedSuffix.length >= 6 && !nonStandalones.has(strippedSuffix.toLowerCase())) {
-    clean = strippedSuffix;
+  // Strip redundant classification suffix only when it's genuinely redundant
+  // e.g. "Transformer Architecture" -> "Transformer"
+  // But preserve complete technical compounds like "Backpropagation Algorithm", "Mirror Formula", "Process Control Block"
+  if (/^transformer\s+architecture$/i.test(clean)) {
+    clean = 'Transformer';
   }
 
   const words = clean.split(' ');
@@ -323,7 +321,10 @@ export function normalizeConcepts(rawConcepts: ConceptCandidate[]): CanonicalCon
         sourceChunkIds: candidateChunkIds,
         occurrences: raw.occurrences || 1,
         confidence: raw.confidence || 0.90,
-        aliases: []
+        aliases: [],
+        evidence: raw.evidence,
+        importance: raw.importance,
+        isCoreConcept: raw.isCoreConcept
       });
     } else {
       // Merge with existing canonical concept
@@ -367,6 +368,17 @@ export function normalizeConcepts(rawConcepts: ConceptCandidate[]): CanonicalCon
 
       // Upgrade description if current candidate has a better definition
       existing.description = selectBestDescription(raw.description, existing.description);
+
+      // Preserve highest importance and evidence
+      if (raw.evidence && !existing.evidence) {
+        existing.evidence = raw.evidence;
+      }
+      if (typeof raw.importance === 'number') {
+        existing.importance = Math.max(existing.importance || 0, raw.importance);
+      }
+      if (raw.isCoreConcept) {
+        existing.isCoreConcept = true;
+      }
 
       // Boost confidence on cross-source / cross-chunk validation
       existing.confidence = Math.min(0.99, existing.confidence + 0.03);

@@ -35,6 +35,9 @@ export interface KnowledgeNode {
   code?: string;
   confidence?: number;
   prerequisites?: string[];
+  evidence?: string;
+  importance?: number;
+  isCoreConcept?: boolean;
 }
 
 /**
@@ -132,6 +135,18 @@ export interface ExtractionResult {
  * Flow: SOURCE → TEXT → CHUNKS → CONCEPTS
  */
 export type ConceptCandidateType =
+  | 'Topic'
+  | 'Concept'
+  | 'Method'
+  | 'Theory'
+  | 'Algorithm'
+  | 'Process'
+  | 'Formula'
+  | 'Principle'
+  | 'Object'
+  | 'Component'
+  | 'Application'
+  | 'Property'
   | 'concept'
   | 'topic'
   | 'method'
@@ -163,6 +178,33 @@ export interface ConceptCandidate {
   contextualSentences?: string[];
   isGeneric?: boolean;
   isTechnicalOrTopic?: boolean;
+
+  // Semantic AI Evaluation metadata
+  importance?: number; // 0.0 - 1.0 (semantic educational importance)
+  isCoreConcept?: boolean;
+  evidence?: string; // Textual excerpt/definition proving why this is a concept
+  teachesOrExplains?: boolean;
+  canonicalName?: string;
+  rejectionReason?: string;
+}
+
+export interface DocumentSection {
+  heading: string;
+  level: number;
+  chunkIndexes: number[];
+  summary?: string;
+}
+
+export interface DocumentProfile {
+  title: string;
+  inferredSubject?: string;
+  inferredDomain?: string;
+  majorTopics: string[];
+  sections: DocumentSection[];
+  totalWordCount: number;
+  definitionsFound: Array<{ term: string; definition: string; chunkIndex: number }>;
+  formulasFound: Array<{ term?: string; formula: string; chunkIndex: number }>;
+  domainKeywords: string[];
 }
 
 export interface RelevanceScoreBreakdown {
@@ -232,6 +274,9 @@ export interface CanonicalConcept {
   occurrences: number;
   confidence: number;
   aliases?: string[];
+  evidence?: string;
+  importance?: number;
+  isCoreConcept?: boolean;
 }
 
 export interface NormalizationResult {

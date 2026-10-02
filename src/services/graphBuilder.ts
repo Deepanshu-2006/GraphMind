@@ -65,7 +65,10 @@ export function buildGraphNodes(concepts: CanonicalConcept[]): KnowledgeNode[] {
         description: c.description?.trim() || '',
         sourceIds: [...(c.sourceIds || [])],
         sourceChunkIds: [...(c.sourceChunkIds || [])],
-        confidence: c.confidence
+        confidence: c.confidence,
+        evidence: c.evidence,
+        importance: c.importance,
+        isCoreConcept: c.isCoreConcept
       };
       nodeMap.set(trimmedId, newNode);
       if (normKey) keyMap.set(normKey, newNode);
@@ -92,6 +95,17 @@ export function buildGraphNodes(concepts: CanonicalConcept[]): KnowledgeNode[] {
       // Retain maximum confidence
       if (typeof c.confidence === 'number') {
         existing.confidence = Math.max(existing.confidence || 0, c.confidence);
+      }
+
+      // Preserve evidence, importance, and core status
+      if (c.evidence && !existing.evidence) {
+        existing.evidence = c.evidence;
+      }
+      if (typeof c.importance === 'number') {
+        existing.importance = Math.max(existing.importance || 0, c.importance);
+      }
+      if (c.isCoreConcept) {
+        existing.isCoreConcept = true;
       }
     }
   }

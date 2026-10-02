@@ -15,6 +15,7 @@ import { extractRelationshipsFromChunks, type RelationshipExtractionOptions } fr
 import { buildKnowledgeGraph, type GraphBuilderOptions } from './graphBuilder';
 import { evaluateAndFilterCandidates, isGenericConceptPhrase } from './conceptRelevance';
 import { DEFAULT_CONCEPT_QUALITY_CONFIG, type ConceptQualityConfig } from '../config/conceptQuality';
+import { buildDocumentProfile } from './documentUnderstanding';
 
 /**
  * =========================================================================
@@ -258,11 +259,21 @@ export class PipelineOrchestrator {
       }
 
       // -----------------------------------------------------------------------
+      // STAGE 2.5: DOCUMENT UNDERSTANDING (Understand Structure & Topics)
+      // -----------------------------------------------------------------------
+      const documentProfile = buildDocumentProfile(allChunks, uniqueSources[0]);
+
+      // -----------------------------------------------------------------------
       // STAGE 3: CONCEPT EXTRACTION ('extracting-concepts')
       // -----------------------------------------------------------------------
       notify('extracting-concepts', PIPELINE_STAGE_LABELS['extracting-concepts'], {
         sourceCount: successfullyExtractedSources.length
       });
+
+      const extractionOptions: ConceptExtractionOptions = {
+        ...options.conceptExtraction,
+        documentProfile
+      };
 
       let rawCandidates: ConceptCandidate[] = [];
       try {
@@ -270,7 +281,7 @@ export class PipelineOrchestrator {
         // Process chunks with incremental live candidate emission
         for (let i = 0; i < allChunks.length; i++) {
           const chunk = allChunks[i];
-          const chunkCandidates = await extractConceptsFromChunks([chunk], options.conceptExtraction);
+          const chunkCandidates = await extractConceptsFromChunks([chunk], extractionOptions);
           const newlyAdded: ConceptCandidate[] = [];
 
           for (const cand of chunkCandidates) {
@@ -278,7 +289,7 @@ export class PipelineOrchestrator {
             if (!seenKeys.has(key)) {
               seenKeys.add(key);
               rawCandidates.push(cand);
-              if (!isGenericConceptPhrase(cand.name).isGeneric) {
+              if (!isGenericConceptPhrase(cand.name, documentProfile).isGeneric) {
                 newlyAdded.push(cand);
               }
             }
@@ -336,7 +347,23 @@ export class PipelineOrchestrator {
       } = evaluateAndFilterCandidates(
         rawCandidates, 
         allChunks, 
-        qualityConfig
+        qualityConfig,
+        documentProfile
+      );
+
+      // Log accepted concepts during development for inspection as requested
+      console.log(
+        `[ConceptExtraction] Document: "${documentProfile.title}" (${documentProfile.inferredSubject || documentProfile.inferredDomain})`
+      );
+      console.log(
+        `[ConceptExtraction] Final accepted concepts (${acceptedCandidates.length}):`,
+        acceptedCandidates.map(c => ({
+          name: c.name,
+          type: c.type,
+          importance: c.importance,
+          isCore: c.isCoreConcept,
+          evidence: c.evidence?.slice(0, 80)
+        }))
       );
 
       if (acceptedCandidates.length === 0) {
@@ -358,6 +385,18 @@ export class PipelineOrchestrator {
       // STAGE 4: CONCEPT NORMALIZATION ('normalizing')
       // -----------------------------------------------------------------------
       const canonicalConcepts: CanonicalConcept[] = normalizeConcepts(acceptedCandidates);
+
+      console.log(
+        `[ConceptExtraction] Canonical knowledge concepts (${canonicalConcepts.length}):`,
+        canonicalConcepts.map(c => ({
+          name: c.name,
+          type: c.type,
+          importance: c.importance,
+          isCore: c.isCoreConcept,
+          occurrences: c.occurrences,
+          evidence: c.evidence?.slice(0, 80)
+        }))
+      );
 
       notify('normalizing', PIPELINE_STAGE_LABELS['normalizing'], {
         conceptsExtracted: canonicalConcepts.length,
