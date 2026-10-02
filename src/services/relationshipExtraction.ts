@@ -8,6 +8,7 @@ import type {
   SemanticRelationType,
   RelationshipExtractionResult 
 } from '../types/knowledgeGraph';
+import { getGeminiApiKey } from './conceptExtraction';
 
 /**
  * =========================================================================
@@ -377,10 +378,7 @@ export class LLMRelationshipExtractor implements RelationshipExtractionProvider 
   }
 
   async extractRelationships(concepts: CanonicalConcept[], chunk: TextChunk): Promise<KnowledgeRelationship[]> {
-    const envObj = typeof globalThis !== 'undefined' && 'process' in globalThis
-      ? (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env
-      : undefined;
-    const apiKey = this.options.apiKey || envObj?.VITE_GEMINI_API_KEY || envObj?.GEMINI_API_KEY;
+    const apiKey = this.options.apiKey || getGeminiApiKey();
 
     if (!apiKey && !this.options.endpoint) {
       return this.fallbackProvider.extractRelationships(concepts, chunk);
@@ -495,7 +493,8 @@ export class RelationshipExtractionService {
   }
 
   getProvider(name?: string): RelationshipExtractionProvider {
-    const targetName = name || this.defaultProviderName;
+    const key = getGeminiApiKey();
+    const targetName = name || (key ? 'llm' : this.defaultProviderName);
     return this.providers.get(targetName) || this.providers.get('heuristic')!;
   }
 

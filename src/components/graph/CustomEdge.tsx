@@ -13,7 +13,8 @@ export const CustomEdge = memo(({
   style = {},
   markerEnd,
   label,
-  selected
+  selected,
+  data
 }: EdgeProps) => {
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -23,6 +24,11 @@ export const CustomEdge = memo(({
     targetY,
     targetPosition,
   });
+
+  const edgeData = data as Record<string, unknown> | undefined;
+  const zoomLevel = (edgeData?.zoomLevel as string) || 'standard';
+  // Hide edge label pills when zoomed out unless this edge is connected to the selected concept
+  const shouldRenderLabel = Boolean(label) && (selected || zoomLevel !== 'simplified');
 
   return (
     <>
@@ -38,7 +44,7 @@ export const CustomEdge = memo(({
           ...style,
         }}
       />
-      {label && (
+      {shouldRenderLabel && (
         <EdgeLabelRenderer>
           <div
             style={{

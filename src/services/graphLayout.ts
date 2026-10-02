@@ -206,43 +206,126 @@ export function computeGraphLayout(
     return runCollisionRelaxation(nodes, positions, dims, centerX, centerY);
   }
 
-  // Larger graph layout (13 to 30+ nodes): 3 concentric tiers
-  // Inner ring: Tier 0
-  const r0 = tier0.length <= 1 ? 0 : Math.max(160, (tier0.length * minLinearStep) / (2 * Math.PI));
-  if (tier0.length === 1) {
-    positions.set(tier0[0].id, { x: centerX, y: centerY });
-  } else {
-    tier0.forEach((n, idx) => {
-      const angle = (2 * Math.PI * idx) / tier0.length - Math.PI / 2;
+  // -------------------------------------------------------------------------
+  // Medium-Large graph layout (13 to 25 nodes): 3 concentric tiers
+  // -------------------------------------------------------------------------
+  if (count <= 25) {
+    // Inner ring: Tier 0
+    const r0 = tier0.length <= 1 ? 0 : Math.max(160, (tier0.length * minLinearStep) / (2 * Math.PI));
+    if (tier0.length === 1) {
+      positions.set(tier0[0].id, { x: centerX, y: centerY });
+    } else {
+      tier0.forEach((n, idx) => {
+        const angle = (2 * Math.PI * idx) / tier0.length - Math.PI / 2;
+        positions.set(n.id, {
+          x: Math.round(centerX + r0 * Math.cos(angle)),
+          y: Math.round(centerY + r0 * Math.sin(angle) * 0.8)
+        });
+      });
+    }
+
+    // Middle ring: Tier 1
+    const r1 = Math.max(r0 + 190, (tier1.length * minLinearStep) / (2 * Math.PI));
+    tier1.forEach((n, idx) => {
+      const angle = (2 * Math.PI * idx) / Math.max(1, tier1.length);
       positions.set(n.id, {
-        x: Math.round(centerX + r0 * Math.cos(angle)),
-        y: Math.round(centerY + r0 * Math.sin(angle) * 0.8)
+        x: Math.round(centerX + r1 * Math.cos(angle)),
+        y: Math.round(centerY + r1 * Math.sin(angle) * 0.85)
+      });
+    });
+
+    // Outer ring: Tier 2
+    const r2 = Math.max(r1 + 210, (tier2.length * minLinearStep) / (2 * Math.PI));
+    tier2.forEach((n, idx) => {
+      const angle = (2 * Math.PI * idx) / Math.max(1, tier2.length) + Math.PI / 6;
+      positions.set(n.id, {
+        x: Math.round(centerX + r2 * Math.cos(angle)),
+        y: Math.round(centerY + r2 * Math.sin(angle) * 0.85)
+      });
+    });
+
+    return runCollisionRelaxation(nodes, positions, dims, centerX, centerY);
+  }
+
+  // -------------------------------------------------------------------------
+  // Very Large Graphs (26 to 100+ nodes): Multi-shell Concentric Sector Layout
+  // Avoids a giant hollow outer ring by packing nodes into progressive concentric
+  // shells with semantic category clustering to minimize edge crossings.
+  // -------------------------------------------------------------------------
+  // 1. Group nodes by category sector
+  const categoryOrder: Record<string, number> = {
+    foundation: 0,
+    paradigm: 1,
+    architecture: 2,
+    method: 3,
+    application: 4
+  };
+
+  // Sort nodes deterministically within tiers: by category sector, then by totalDegree desc, then by name
+  const sortNodes = (arr: KnowledgeNode[]) => {
+    return [...arr].sort((a, b) => {
+      const catA = categoryOrder[(a.type || '').toLowerCase()] ?? 2;
+      const catB = categoryOrder[(b.type || '').toLowerCase()] ?? 2;
+      if (catA !== catB) return catA - catB;
+      const degA = totalDegree.get(a.id) || 0;
+      const degB = totalDegree.get(b.id) || 0;
+      if (degB !== degA) return degB - degA;
+      return a.name.localeCompare(b.name);
+    });
+  };
+
+  const sortedTier0 = sortNodes(tier0);
+  const sortedTier1 = sortNodes(tier1);
+  const sortedTier2 = sortNodes(tier2);
+
+  // Shell 0: Center / innermost hub (top 1-4 core nodes)
+  const coreHubs = sortedTier0.slice(0, 4);
+  const remainingTier0 = sortedTier0.slice(4);
+
+  if (coreHubs.length === 1) {
+    positions.set(coreHubs[0].id, { x: centerX, y: centerY });
+  } else if (coreHubs.length > 1) {
+    const rCore = 160;
+    coreHubs.forEach((n, idx) => {
+      const angle = (2 * Math.PI * idx) / coreHubs.length - Math.PI / 2;
+      positions.set(n.id, {
+        x: Math.round(centerX + rCore * Math.cos(angle)),
+        y: Math.round(centerY + rCore * Math.sin(angle) * 0.8)
       });
     });
   }
 
-  // Middle ring: Tier 1
-  const r1 = Math.max(r0 + 190, (tier1.length * minLinearStep) / (2 * Math.PI));
-  tier1.forEach((n, idx) => {
-    const angle = (2 * Math.PI * idx) / Math.max(1, tier1.length);
-    positions.set(n.id, {
-      x: Math.round(centerX + r1 * Math.cos(angle)),
-      y: Math.round(centerY + r1 * Math.sin(angle) * 0.85)
-    });
-  });
+  // Shell allocation helper: distribute nodes evenly along concentric orbits
+  // Each shell has radius R and max capacity floor(2*PI*R / minLinearStep)
+  const remainingNodes = [...remainingTier0, ...sortedTier1, ...sortedTier2];
+  let currentShellRadius = coreHubs.length > 0 ? 320 : 220;
+  let nodeIndex = 0;
+  const radialGap = Math.max(dims.nodeHeight + dims.verticalSpacing + 60, 220);
 
-  // Outer ring: Tier 2
-  const r2 = Math.max(r1 + 210, (tier2.length * minLinearStep) / (2 * Math.PI));
-  tier2.forEach((n, idx) => {
-    const angle = (2 * Math.PI * idx) / Math.max(1, tier2.length) + Math.PI / 6;
-    positions.set(n.id, {
-      x: Math.round(centerX + r2 * Math.cos(angle)),
-      y: Math.round(centerY + r2 * Math.sin(angle) * 0.85)
-    });
-  });
+  while (nodeIndex < remainingNodes.length) {
+    const circumference = 2 * Math.PI * currentShellRadius;
+    const capacity = Math.max(4, Math.floor(circumference / minLinearStep));
+    const batch = remainingNodes.slice(nodeIndex, nodeIndex + capacity);
 
-  // Run final iterative overlap relaxation pass to guarantee zero overlap
-  return runCollisionRelaxation(nodes, positions, dims, centerX, centerY);
+    const stepAngle = (2 * Math.PI) / batch.length;
+    // Alternate angular offset per shell for pleasing staggered constellation
+    const shellOffset = ((nodeIndex / capacity) % 2) * (stepAngle / 2) - Math.PI / 2;
+
+    batch.forEach((n, idx) => {
+      const angle = shellOffset + idx * stepAngle;
+      positions.set(n.id, {
+        x: Math.round(centerX + currentShellRadius * Math.cos(angle)),
+        y: Math.round(centerY + currentShellRadius * Math.sin(angle) * 0.85)
+      });
+    });
+
+    nodeIndex += batch.length;
+    currentShellRadius += radialGap;
+  }
+
+  // Run collision relaxation with iterations adapted to node volume
+  const relaxationIterations = Math.min(65, 35 + Math.floor(count * 0.3));
+  return runCollisionRelaxation(nodes, positions, dims, centerX, centerY, relaxationIterations);
 }
 
 /**

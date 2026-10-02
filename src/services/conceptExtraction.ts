@@ -633,6 +633,18 @@ export class HeuristicConceptExtractor implements ConceptExtractionProvider {
   }
 }
 
+export function getGeminiApiKey(): string | undefined {
+  if (typeof import.meta !== 'undefined' && (import.meta as unknown as { env?: Record<string, string | undefined> }).env) {
+    const viteEnv = (import.meta as unknown as { env: Record<string, string | undefined> }).env;
+    if (viteEnv.VITE_GEMINI_API_KEY) return viteEnv.VITE_GEMINI_API_KEY.trim();
+    if (viteEnv.GEMINI_API_KEY) return viteEnv.GEMINI_API_KEY.trim();
+  }
+  const envObj = typeof globalThis !== 'undefined' && 'process' in globalThis
+    ? (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env
+    : undefined;
+  return envObj?.VITE_GEMINI_API_KEY?.trim() || envObj?.GEMINI_API_KEY?.trim();
+}
+
 /**
  * Structured LLM Concept Extractor
  * Pluggable provider for OpenAI / Gemini / Ollama / Custom API endpoints.
@@ -658,10 +670,7 @@ export class LLMConceptExtractor implements ConceptExtractionProvider {
   }
 
   async extractConcepts(chunk: TextChunk): Promise<ConceptCandidate[]> {
-    const envObj = typeof globalThis !== 'undefined' && 'process' in globalThis
-      ? (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env
-      : undefined;
-    const apiKey = this.options.apiKey || envObj?.VITE_GEMINI_API_KEY || envObj?.GEMINI_API_KEY;
+    const apiKey = this.options.apiKey || getGeminiApiKey();
     
     // If no API key or endpoint configured, gracefully fallback to the deterministic heuristic provider
     if (!apiKey && !this.options.endpoint) {
@@ -760,7 +769,8 @@ export class ConceptExtractionService {
   }
 
   getProvider(name?: string): ConceptExtractionProvider {
-    const targetName = name || this.defaultProviderName;
+    const key = getGeminiApiKey();
+    const targetName = name || (key ? 'llm' : this.defaultProviderName);
     return this.providers.get(targetName) || this.providers.get('heuristic')!;
   }
 

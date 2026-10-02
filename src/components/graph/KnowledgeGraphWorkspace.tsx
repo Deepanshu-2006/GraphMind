@@ -26,9 +26,15 @@ import {
   normalizeCategory 
 } from '../../data/graphData';
 import type { KnowledgeGraph } from '../../types/knowledgeGraph';
-import type { GraphConceptData, SelectedRelationshipData } from '../../types/graph';
+import type { 
+  GraphConceptData, 
+  SelectedRelationshipData, 
+  GraphDensityMode, 
+  ZoomDisclosureLevel 
+} from '../../types/graph';
 import type { PipelineStage, PipelineProgressEvent } from '../../services/pipelineOrchestrator';
 import { exportKnowledgeGraphJson, exportKnowledgeGraphPng } from '../../services/graphExport';
+import { calculateVisibleGraph } from '../../services/graphViewport';
 
 const nodeTypes = {
   conceptNode: ConceptNode
@@ -177,13 +183,35 @@ function FlowCanvas({
   const craftingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync state whenever the underlying graph updates in interactive mode
+  const [densityMode, setDensityMode] = useState<GraphDensityMode>('balanced');
+  const [zoomDisclosureLevel, setZoomDisclosureLevel] = useState<ZoomDisclosureLevel>('standard');
+
+  // Intelligent Graph Viewport Presentation: computes visible subset, visibility states & exploration depths
+  const viewportResult = useMemo(() => {
+    if (mode !== 'interactive') return null;
+    return calculateVisibleGraph({
+      allNodes: effectiveNodes,
+      allEdges: effectiveEdges,
+      selectedNodeId,
+      densityMode,
+      zoomLevel: zoomDisclosureLevel
+    });
+  }, [mode, effectiveNodes, effectiveEdges, selectedNodeId, densityMode, zoomDisclosureLevel]);
+
+  // Sync state whenever viewport presentation changes in interactive mode
   useEffect(() => {
-    if (mode === 'interactive') {
-      setNodes(effectiveNodes);
-      setEdges(effectiveEdges);
+    if (mode === 'interactive' && viewportResult) {
+      setNodes(viewportResult.visibleNodes);
+      setEdges(viewportResult.visibleEdges);
     }
-  }, [effectiveNodes, effectiveEdges, mode, setNodes, setEdges]);
+  }, [mode, viewportResult, setNodes, setEdges]);
+
+  // Viewport zoom tracker for progressive detail disclosure (simplified, standard, detailed)
+  const handleViewportMove = useCallback((_: unknown, viewport: { zoom: number }) => {
+    const z = viewport.zoom;
+    const nextLevel: ZoomDisclosureLevel = z < 0.68 ? 'simplified' : z > 1.25 ? 'detailed' : 'standard';
+    setZoomDisclosureLevel((prev) => (prev !== nextLevel ? nextLevel : prev));
+  }, []);
 
   // Active concept data for inspector: strictly based on selectedNodeId (Prompt 26, Requirement 5 & 8)
   const activeConceptData = useMemo(() => {
@@ -622,68 +650,9 @@ function FlowCanvas({
     return () => clearTimeout(timer);
   }, [initialMode, livePipelineEvent, handleStartFullSequence, runCraftingAnimation, setEdges, setNodes, effectiveNodes, effectiveEdges]);
 
-  // Apply node focus states in interactive mode
-  useEffect(() => {
-    if (mode !== 'interactive') return;
-
-    const connected = new Set<string>();
-    if (selectedNodeId) {
-      connected.add(selectedNodeId);
-      effectiveEdges.forEach((edge) => {
-        if (edge.source === selectedNodeId) connected.add(edge.target);
-        if (edge.target === selectedNodeId) connected.add(edge.source);
-      });
-    }
-
-    setNodes((prevNodes) =>
-      prevNodes.map((node) => {
-        const isSelected = node.id === selectedNodeId;
-        const isConnected = connected.has(node.id);
-        const hasSelection = Boolean(selectedNodeId);
-
-        return {
-          ...node,
-          selected: isSelected,
-          data: {
-            ...node.data,
-            craftingNew: false,
-            craftingActive: false,
-            selected: isSelected,
-            dimmed: hasSelection && !isConnected,
-            highlighted: hasSelection && isConnected && !isSelected
-          }
-        };
-      })
-    );
-
-    setEdges((prevEdges) =>
-      prevEdges.map((edge) => {
-        const isIncident = Boolean(
-          selectedNodeId && (edge.source === selectedNodeId || edge.target === selectedNodeId)
-        );
-        const hasSelection = Boolean(selectedNodeId);
-        const isDimmed = hasSelection && !isIncident;
-
-        return {
-          ...edge,
-          selected: isIncident,
-          style: {
-            stroke: isIncident ? '#A3FF12' : isDimmed ? 'rgba(255, 255, 255, 0.08)' : '#333333',
-            strokeWidth: isIncident ? 1.75 : 1.25,
-            opacity: isDimmed ? 0.3 : 1
-          },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            width: 14,
-            height: 14,
-            color: isIncident ? '#A3FF12' : isDimmed ? 'rgba(255, 255, 255, 0.15)' : '#444444'
-          }
-        };
-      })
-    );
-  }, [selectedNodeId, mode, setNodes, setEdges, effectiveEdges]);
-
   // Smooth Camera & Node Focus with history tracking (Prompt 25 & Prompt 26, Requirements 2 & 6)
+  // When a concept is selected or searched, it becomes Depth 0 (focused) and automatically reveals its
+  // Depth 1 & 2 neighborhood in calculateVisibleGraph with perfectly stable coordinates.
   const focusNodeOnCanvas = useCallback((nodeId: string, pushHistory = true) => {
     if (pushHistory && selectedNodeId && selectedNodeId !== nodeId) {
       setNavHistory((prev) => [...prev, selectedNodeId]);
@@ -692,14 +661,14 @@ function FlowCanvas({
     setSelectedNodeId(nodeId);
     setIsInspectorOpen(true);
 
-    const targetNode = nodes.find((n) => n.id === nodeId) || effectiveNodes.find((n) => n.id === nodeId);
+    const targetNode = effectiveNodes.find((n) => n.id === nodeId);
     if (targetNode) {
       reactFlowInstance.setCenter(targetNode.position.x + 100, targetNode.position.y + 45, {
-        zoom: 1.15,
+        zoom: Math.max(reactFlowInstance.getZoom(), 1.05),
         duration: 650
       });
     }
-  }, [selectedNodeId, nodes, effectiveNodes, reactFlowInstance]);
+  }, [selectedNodeId, effectiveNodes, reactFlowInstance]);
 
   // Return to previous concept (Prompt 26, Requirement 6: subtle navigation without breadcrumb clutter)
   const handleGoBack = useCallback(() => {
@@ -885,7 +854,7 @@ function FlowCanvas({
         </div>
       )}
 
-      {/* Floating Toolbar (Prompt 27: with Export image & Export JSON) */}
+      {/* Floating Toolbar (with Search, Density, Nav, Export image & Export JSON) */}
       <GraphToolbar
         onSearchSelect={focusNodeOnCanvas}
         onFitView={handleResetView}
@@ -896,7 +865,17 @@ function FlowCanvas({
         onExportImage={handleExportImage}
         onExportJson={handleExportJson}
         isExporting={isExporting}
+        densityMode={densityMode}
+        onDensityChange={setDensityMode}
       />
+
+      {/* Subtle Understated Contextual Indicator (when presentation subset is active) */}
+      {mode === 'interactive' && viewportResult?.isSubsetEnabled && viewportResult?.contextualHint && (
+        <div className="graph-presentation-hint" role="status" aria-live="polite">
+          <span className="presentation-hint-dot" aria-hidden="true" />
+          <span className="presentation-hint-text">{viewportResult.contextualHint}</span>
+        </div>
+      )}
 
       {/* Export Error Message Toast (Prompt 27 Section 5) */}
       {exportErrorMessage && (
@@ -976,6 +955,7 @@ function FlowCanvas({
           onNodeClick={handleNodeClick}
           onEdgeClick={handleEdgeClick}
           onPaneClick={handlePaneClick}
+          onMove={handleViewportMove}
           defaultViewport={{ x: 100, y: 80, zoom: 0.88 }}
           minZoom={0.2}
           maxZoom={2.4}

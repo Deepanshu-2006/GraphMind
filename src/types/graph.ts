@@ -40,6 +40,12 @@ export interface SelectedRelationshipData {
   sourceChunkIds?: string[];
 }
 
+export type ConceptVisibilityState = 'visible' | 'focused' | 'contextual' | 'hidden';
+
+export type GraphDensityMode = 'focused' | 'balanced' | 'expanded';
+
+export type ZoomDisclosureLevel = 'simplified' | 'standard' | 'detailed';
+
 export interface GraphConceptData extends Record<string, unknown> {
   id: string;
   label: string;
@@ -61,6 +67,11 @@ export interface GraphConceptData extends Record<string, unknown> {
   isMethod?: boolean;
   craftingNew?: boolean;
   craftingActive?: boolean;
+  // Scalable viewport presentation attributes
+  visibilityState?: ConceptVisibilityState;
+  visibilityPriority?: number;
+  explorationDepth?: number;
+  zoomLevel?: ZoomDisclosureLevel;
 }
 
 export interface SearchResultItem {

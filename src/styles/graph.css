@@ -194,8 +194,81 @@
 
 /* Secondary / Unrelated Dimmed Nodes (Section 4: slightly quieter, do not hide, remain readable) */
 .knowledge-node-card.dimmed {
-  opacity: 0.42 !important;
-  filter: grayscale(30%) !important;
+  opacity: 0.38 !important;
+  filter: grayscale(35%) !important;
+}
+
+/* Accessibility Focus Outline */
+.knowledge-node-card:focus-visible {
+  outline: 2px solid #A3FF12 !important;
+  outline-offset: 2px;
+}
+
+/* Progressive Zoom Disclosure: Simplified Zoomed-Out Nodes */
+.knowledge-node-card.zoom-simplified {
+  width: 172px;
+  padding: 8px 10px;
+  gap: 2px;
+}
+
+.knowledge-node-card.zoom-simplified .node-card-name {
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.node-category-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.node-category-dot.cat-foundation { background: #A3FF12; }
+.node-category-dot.cat-paradigm { background: #60A5FA; }
+.node-category-dot.cat-architecture { background: #C084FC; }
+.node-category-dot.cat-method { background: #FBBF24; }
+.node-category-dot.cat-application { background: #F43F5E; }
+
+/* Progressive Zoom Disclosure: Detailed Zoomed-In Nodes */
+.knowledge-node-card.zoom-detailed {
+  width: 232px;
+  padding: 12px 14px;
+}
+
+.node-synapse-badge {
+  font-size: 9px;
+  color: #7A8078;
+  background: #191B18;
+  border: 1px solid #282A27;
+  border-radius: 100px;
+  padding: 1px 6px;
+  line-height: 1.3;
+}
+
+.node-card-footer {
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.node-source-preview {
+  font-size: 10px;
+  color: #6E726D;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+/* Visibility State Styles */
+.knowledge-node-card.state-focused {
+  border-color: #A3FF12 !important;
+  box-shadow: 0 0 0 1px rgba(163, 255, 18, 0.3), 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+}
+
+.knowledge-node-card.state-contextual {
+  border-color: #383A38;
+  background-color: #151615;
 }
 
 /* Discrete Handles on all 4 sides (hidden during passive crafting, visible on interaction) */
@@ -356,6 +429,75 @@
   font-size: 11.5px;
   color: #666666;
   text-align: center;
+}
+
+/* Graph Density Control (Focused | Balanced | Expanded) */
+.toolbar-density-pill-group {
+  display: flex;
+  align-items: center;
+  background-color: #101110;
+  border: 1px solid #242524;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 1px;
+}
+
+.density-pill-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #7A7E79;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  line-height: 1.2;
+  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
+  user-select: none;
+}
+
+.density-pill-btn:hover {
+  color: #D4D4D4;
+  background-color: #181918;
+}
+
+.density-pill-btn.active {
+  color: #F5F5F5;
+  background-color: #1E201E;
+  border-color: #333633;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* Subtle Understated Presentation Viewport Indicator */
+.graph-presentation-hint {
+  position: absolute;
+  top: 76px;
+  left: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(14, 15, 14, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid #202220;
+  border-radius: 100px;
+  padding: 4px 11px;
+  font-size: 11px;
+  color: #8A8E89;
+  font-weight: 450;
+  letter-spacing: -0.01em;
+  pointer-events: none;
+  z-index: 10;
+  animation: fadeIn 200ms ease;
+}
+
+.presentation-hint-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #A3FF12;
+  opacity: 0.85;
 }
 
 .toolbar-vertical-divider {

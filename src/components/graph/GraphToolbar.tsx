@@ -9,7 +9,7 @@ import {
   Image as ImageIcon,
   FileJson
 } from 'lucide-react';
-import type { SearchResultItem } from '../../types/graph';
+import type { SearchResultItem, GraphDensityMode } from '../../types/graph';
 
 interface GraphToolbarProps {
   onSearchSelect: (nodeId: string) => void;
@@ -21,6 +21,8 @@ interface GraphToolbarProps {
   onExportImage: () => void;
   onExportJson: () => void;
   isExporting?: boolean;
+  densityMode?: GraphDensityMode;
+  onDensityChange?: (mode: GraphDensityMode) => void;
 }
 
 export const GraphToolbar: React.FC<GraphToolbarProps> = ({
@@ -32,7 +34,9 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   availableNodes,
   onExportImage,
   onExportJson,
-  isExporting = false
+  isExporting = false,
+  densityMode = 'balanced',
+  onDensityChange
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -144,6 +148,39 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
             )}
           </div>
         )}
+      </div>
+
+      <div className="toolbar-vertical-divider" />
+
+      {/* Lightweight Graph Density Control (Focused | Balanced | Expanded) */}
+      <div className="toolbar-density-pill-group" role="group" aria-label="Graph density control">
+        <button
+          type="button"
+          className={`density-pill-btn ${densityMode === 'focused' ? 'active' : ''}`}
+          onClick={() => onDensityChange?.('focused')}
+          title="Focused: Show selected concept and immediate neighborhood"
+          aria-pressed={densityMode === 'focused'}
+        >
+          Focused
+        </button>
+        <button
+          type="button"
+          className={`density-pill-btn ${densityMode === 'balanced' ? 'active' : ''}`}
+          onClick={() => onDensityChange?.('balanced')}
+          title="Balanced: Curated overview of major concepts across the graph"
+          aria-pressed={densityMode === 'balanced'}
+        >
+          Balanced
+        </button>
+        <button
+          type="button"
+          className={`density-pill-btn ${densityMode === 'expanded' ? 'active' : ''}`}
+          onClick={() => onDensityChange?.('expanded')}
+          title="Expanded: Reveal more of the underlying graph"
+          aria-pressed={densityMode === 'expanded'}
+        >
+          Expanded
+        </button>
       </div>
 
       <div className="toolbar-vertical-divider" />

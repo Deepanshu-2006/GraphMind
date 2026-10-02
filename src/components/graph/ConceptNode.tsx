@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
 import type { GraphConceptData } from '../../types/graph';
@@ -6,9 +6,13 @@ import type { GraphConceptData } from '../../types/graph';
 export const ConceptNode = memo(({ data, selected }: NodeProps) => {
   const concept = data as unknown as GraphConceptData;
   const isSelected = selected || concept.selected;
+  const zoomLevel = concept.zoomLevel || 'standard';
+  const visibilityState = concept.visibilityState || (isSelected ? 'focused' : 'visible');
 
   const nodeClasses = [
     'knowledge-node-card',
+    `zoom-${zoomLevel}`,
+    `state-${visibilityState}`,
     isSelected ? 'selected' : '',
     concept.highlighted ? 'highlighted' : '',
     concept.dimmed ? 'dimmed' : '',
@@ -16,13 +20,22 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
     concept.craftingActive ? 'crafting-active' : ''
   ].filter(Boolean).join(' ');
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.currentTarget.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    }
+  };
+
   return (
     <div 
       className={nodeClasses}
       role="button"
       tabIndex={0}
-      aria-label={`Concept: ${concept.label}. ${concept.category}. ${concept.description}`}
+      onKeyDown={handleKeyDown}
+      aria-label={`Concept: ${concept.label}. ${concept.category}.${isSelected ? ' Selected.' : ''} ${concept.description || ''}`}
       aria-pressed={Boolean(isSelected)}
+      aria-current={isSelected ? 'true' : undefined}
+      data-concept-id={concept.id}
     >
       {/* Handles on all 4 sides for natural organic connections */}
       <Handle
@@ -50,27 +63,50 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
         className="node-handle"
       />
 
-      {/* 1. Concept-type label + Active crafting pip */}
-      <div className="node-card-header">
-        <span className="node-card-type">{concept.category}</span>
-        {concept.craftingActive && (
-          <span className="node-crafting-pip" title="Synthesizing concept">
-            <span className="crafting-pip-dot" />
-            <span className="crafting-pip-text">Extracting</span>
-          </span>
-        )}
-      </div>
+      {/* 1. Header (Category type & status) */}
+      {zoomLevel !== 'simplified' && (
+        <div className="node-card-header">
+          <span className="node-card-type">{concept.category}</span>
+          {concept.craftingActive ? (
+            <span className="node-crafting-pip" title="Synthesizing concept">
+              <span className="crafting-pip-dot" />
+              <span className="crafting-pip-text">Extracting</span>
+            </span>
+          ) : zoomLevel === 'detailed' && concept.synapseCount > 0 ? (
+            <span className="node-synapse-badge" title={`${concept.synapseCount} connections`}>
+              {concept.synapseCount} rel
+            </span>
+          ) : null}
+        </div>
+      )}
 
-      {/* 2. Concept name */}
+      {/* 2. Concept name row */}
       <div className="node-card-name-row">
-        <span className="node-card-name">{concept.label}</span>
-        {isSelected && <span className="node-accent-pip" />}
+        {zoomLevel === 'simplified' && (
+          <span 
+            className={`node-category-dot cat-${(concept.category || 'foundation').toLowerCase()}`} 
+            title={concept.category}
+          />
+        )}
+        <span className="node-card-name" title={concept.label}>{concept.label}</span>
+        {isSelected && <span className="node-accent-pip" aria-hidden="true" />}
       </div>
 
-      {/* 3. One-line short description / brief */}
-      <p className="node-card-brief" title={concept.description}>
-        {concept.description}
-      </p>
+      {/* 3. Description: Progressive disclosure based on zoom */}
+      {zoomLevel !== 'simplified' && concept.description && (
+        <p className="node-card-brief" title={concept.description}>
+          {concept.description}
+        </p>
+      )}
+
+      {/* 4. Rich contextual meta (Zoomed In only) */}
+      {zoomLevel === 'detailed' && concept.source && (
+        <div className="node-card-footer">
+          <span className="node-source-preview" title={concept.source}>
+            {concept.source}
+          </span>
+        </div>
+      )}
     </div>
   );
 });
