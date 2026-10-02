@@ -61,35 +61,35 @@ export const mockConnectedConcepts: ConceptNode[] = [
     category: 'Foundation',
     depth: 1,
     synapseCount: 14,
-    summary: 'The meta-algorithmic discipline of systems improving automatically through statistical experience and pattern recognition.',
-    x: 20,
-    y: 35,
-    size: 28,
-    accentColor: '#38bdf8', // crisp cyan
+    summary: 'A field focused on learning patterns and relationships directly from data.',
+    x: 18,
+    y: 50,
+    size: 26,
+    accentColor: '#38bdf8',
     status: 'synapsed',
     documentsSourceCount: 18,
     connections: [
-      { targetId: 'c2', targetName: 'Neural Networks', relationType: 'generalizes', strength: 0.95 },
+      { targetId: 'c6', targetName: 'Supervised Learning', relationType: 'generalizes', strength: 0.95 },
+      { targetId: 'c3', targetName: 'Deep Learning', relationType: 'generalizes', strength: 0.96 },
       { targetId: 'c5', targetName: 'Computer Vision', relationType: 'utilizes', strength: 0.82 }
     ]
   },
   {
-    id: 'c2',
-    name: 'Neural Networks',
-    code: 'NN-02',
-    category: 'Architecture',
+    id: 'c6',
+    name: 'Supervised Learning',
+    code: 'SL-06',
+    category: 'Paradigm',
     depth: 2,
-    synapseCount: 11,
-    summary: 'Layered computational graphs modeled after biological synapses, performing parameterized non-linear transformations.',
-    x: 42,
+    synapseCount: 9,
+    summary: 'Learning predictive mapping functions from labeled training data.',
+    x: 44,
     y: 22,
-    size: 26,
-    accentColor: '#818cf8', // sleek indigo
+    size: 22,
+    accentColor: '#10b981',
     status: 'synapsed',
-    documentsSourceCount: 14,
+    documentsSourceCount: 12,
     connections: [
-      { targetId: 'c1', targetName: 'Machine Learning', relationType: 'generalizes', strength: 0.95 },
-      { targetId: 'c3', targetName: 'Deep Learning', relationType: 'hierarchical', strength: 0.98 }
+      { targetId: 'c1', targetName: 'Machine Learning', relationType: 'generalizes', strength: 0.95 }
     ]
   },
   {
@@ -97,19 +97,39 @@ export const mockConnectedConcepts: ConceptNode[] = [
     name: 'Deep Learning',
     code: 'DL-03',
     category: 'Paradigm',
-    depth: 3,
+    depth: 2,
     synapseCount: 16,
-    summary: 'Multi-tiered hierarchical representation learning capable of extracting latent feature manifolds without manual engineering.',
-    x: 55,
-    y: 60,
-    size: 30,
-    accentColor: '#00f2fe', // neon cyan
+    summary: 'Learning with multiple neural network layers to extract latent representations.',
+    x: 48,
+    y: 65,
+    size: 28,
+    accentColor: '#00f2fe',
     status: 'active',
     documentsSourceCount: 22,
     connections: [
+      { targetId: 'c1', targetName: 'Machine Learning', relationType: 'generalizes', strength: 0.96 },
       { targetId: 'c2', targetName: 'Neural Networks', relationType: 'hierarchical', strength: 0.98 },
       { targetId: 'c4', targetName: 'Transformers', relationType: 'powers', strength: 0.94 },
       { targetId: 'c5', targetName: 'Computer Vision', relationType: 'powers', strength: 0.89 }
+    ]
+  },
+  {
+    id: 'c2',
+    name: 'Neural Networks',
+    code: 'NN-02',
+    category: 'Architecture',
+    depth: 3,
+    synapseCount: 11,
+    summary: 'Layered models used to learn representations through non-linear transformations.',
+    x: 74,
+    y: 38,
+    size: 24,
+    accentColor: '#818cf8',
+    status: 'synapsed',
+    documentsSourceCount: 14,
+    connections: [
+      { targetId: 'c3', targetName: 'Deep Learning', relationType: 'hierarchical', strength: 0.98 },
+      { targetId: 'c4', targetName: 'Transformers', relationType: 'powers', strength: 0.92 }
     ]
   },
   {
@@ -119,16 +139,16 @@ export const mockConnectedConcepts: ConceptNode[] = [
     category: 'Architecture',
     depth: 4,
     synapseCount: 19,
-    summary: 'Self-attention based network structures processing entire context windows in parallel without recurrence limitations.',
-    x: 80,
-    y: 32,
-    size: 27,
-    accentColor: '#34d399', // emerald
+    summary: 'Self-attention based network structures processing parallel contextual sequences.',
+    x: 92,
+    y: 24,
+    size: 23,
+    accentColor: '#34d399',
     status: 'synapsed',
     documentsSourceCount: 16,
     connections: [
       { targetId: 'c3', targetName: 'Deep Learning', relationType: 'powers', strength: 0.94 },
-      { targetId: 'c5', targetName: 'Computer Vision', relationType: 'synthesizes', strength: 0.78 }
+      { targetId: 'c2', targetName: 'Neural Networks', relationType: 'powers', strength: 0.92 }
     ]
   },
   {
@@ -138,17 +158,16 @@ export const mockConnectedConcepts: ConceptNode[] = [
     category: 'Application',
     depth: 3,
     synapseCount: 13,
-    summary: 'High-dimensional perceptual intelligence processing spatial convolutions, image segmentations, and visual understanding.',
-    x: 75,
-    y: 78,
-    size: 25,
-    accentColor: '#fbbf24', // amber
+    summary: 'Perceptual intelligence processing spatial structures and visual understanding.',
+    x: 78,
+    y: 80,
+    size: 23,
+    accentColor: '#fbbf24',
     status: 'referenced',
     documentsSourceCount: 11,
     connections: [
       { targetId: 'c1', targetName: 'Machine Learning', relationType: 'utilizes', strength: 0.82 },
-      { targetId: 'c3', targetName: 'Deep Learning', relationType: 'powers', strength: 0.89 },
-      { targetId: 'c4', targetName: 'Transformers', relationType: 'synthesizes', strength: 0.78 }
+      { targetId: 'c3', targetName: 'Deep Learning', relationType: 'powers', strength: 0.89 }
     ]
   }
 ];
