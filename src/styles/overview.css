@@ -1219,14 +1219,16 @@
   position: relative;
   z-index: 6;
   width: 100%;
-  min-height: 92vh;
+  /* Let content determine height — no clipping */
   background-color: #0A0A0A;
   color: var(--text-primary);
   box-sizing: border-box;
-  overflow: hidden;
+  /* overflow only on the section itself must stay visible so nothing clips */
+  overflow: visible;
   display: flex;
   flex-direction: column;
 }
+
 
 /* Gradient accent separator at section top */
 .ect-section::before {
@@ -1247,21 +1249,34 @@
 }
 
 /* ── Background: giant '02' numeral ────────────────────────────────── */
+/* Contained inside overflow:hidden wrapper so it never causes page scroll */
+.ect-bg-numeral-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
 .ect-bg-numeral {
   position: absolute;
-  top: -0.12em;
-  right: -0.06em;
+  /* Anchor from bottom-right so it's always inside the section */
+  bottom: -0.08em;
+  right: -0.04em;
   font-family: var(--font-display);
-  font-size: clamp(220px, 26vw, 420px);
+  /* Use a fixed clamp that stays well inside the section width */
+  font-size: clamp(160px, 18vw, 300px);
   font-weight: 800;
   letter-spacing: -0.06em;
   line-height: 1;
   color: rgba(255,255,255,0.015);
   pointer-events: none;
   user-select: none;
-  z-index: 0;
   will-change: transform, opacity;
+  /* Never create overflow */
+  max-width: 100%;
 }
+
 
 /* ── Background: document text fragments ───────────────────────────── */
 .ect-bg-fragments {
@@ -1301,14 +1316,18 @@
   position: relative;
   z-index: 2;
   width: 100%;
-  max-width: 1480px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: clamp(60px, 8.5vh, 108px) clamp(24px, 5.5vw, 88px) clamp(48px, 6vh, 84px);
+  /* Tighter padding so headline fits on 1440x900 */
+  padding: clamp(36px, 5vh, 64px) clamp(24px, 4vw, 72px) clamp(32px, 4vh, 56px);
   display: flex;
   flex-direction: column;
-  gap: clamp(40px, 5.5vh, 68px);
-  flex: 1;
+  /* Controlled gaps — not too loose */
+  gap: clamp(20px, 3vh, 36px);
+  /* Do NOT stretch — let content size itself */
+  box-sizing: border-box;
 }
+
 
 /* ── Structural rules ───────────────────────────────────────────────── */
 .ect-rule-top,
@@ -1341,11 +1360,17 @@
 /* ── Main asymmetric composition ────────────────────────────────────── */
 .ect-composition {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(240px, 0.68fr);
-  gap: clamp(48px, 6vw, 104px);
+  /*
+   * Left col: fluid, takes available space
+   * Right col: fixed annotation width — never too narrow or too wide
+   * The sidebar is 212px, so actual content width ≈ vw - 212px
+   */
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
+  gap: clamp(32px, 4vw, 72px);
   align-items: start;
-  flex: 1;
+  /* Do NOT flex:1 — headline must size naturally, not stretch */
 }
+
 
 /* ──────────────────────────────────────────────────────────────────── */
 /*  LEFT: Giant typographic headline                                    */
@@ -1367,35 +1392,51 @@
 /* Overflow-hidden clip wrapper for each line's rise animation */
 .ect-line-clip {
   overflow: hidden;
-  /* slight bottom padding prevents descender clipping */
-  padding-bottom: 0.05em;
-  line-height: 0.88;
+  padding-bottom: 0.06em;
+  line-height: 0.90;
+  /* Prevent clips from hiding descenders */
+  display: block;
 }
 
 .ect-line {
   display: block;
   will-change: transform, opacity;
+  /* Ensure lines never wrap and break the composition */
+  white-space: nowrap;
 }
+
 
 .ect-line-primary {
   font-family: var(--font-display);
-  font-size: clamp(62px, 8.8vw, 148px);
+  /*
+   * Key fix: the content area is viewport - sidebar (212px).
+   * At 1440px: content ≈ 1228px. Left col is ~70% = ~860px.
+   * CONNECTED (9 chars) at 0.88 line-height needs to fit in ~860px.
+   * Safe max: ~88px at 1440px. At 1920px: ~100px. Min at 1280px: ~72px.
+   * Use vw-based calc to approximate the sidebar offset.
+   */
+  font-size: clamp(52px, calc(5.5vw + 4px), 100px);
   font-weight: 800;
   letter-spacing: -0.04em;
   text-transform: uppercase;
   color: #F4F4F4;
-  line-height: 0.88;
+  line-height: 0.90;
+  /* Prevent wrapping — each word is one intentional line */
+  white-space: nowrap;
 }
+
 
 /* ── Phase 3: — INTO row ─────────────────────────────────────────── */
 .ect-into-row {
   display: flex;
   align-items: center;
-  gap: 11px;
-  margin-top: clamp(16px, 2.4vh, 34px);
-  margin-bottom: clamp(12px, 2vh, 30px);
-  padding-left: clamp(3px, 0.5vw, 8px);
+  gap: 10px;
+  /* Tighter margins so the headline fits on short viewports */
+  margin-top: clamp(10px, 1.6vh, 22px);
+  margin-bottom: clamp(8px, 1.4vh, 18px);
+  padding-left: clamp(2px, 0.4vw, 6px);
 }
+
 
 .ect-into-dash {
   display: inline-block;
@@ -1422,10 +1463,17 @@
 .ect-annotation-col {
   display: flex;
   flex-direction: column;
-  gap: clamp(18px, 2.4vh, 30px);
-  /* Align annotation to roughly the 2nd headline line */
-  padding-top: clamp(10px, 1.4vh, 22px);
+  gap: clamp(14px, 1.8vh, 22px);
+  /*
+   * Align annotation to the upper-middle area of headline.
+   * Using padding-top to offset it from the very top of the grid row.
+   * This places it roughly aligned with the 2nd headline line.
+   */
+  padding-top: clamp(6px, 1vh, 16px);
+  /* Never overflow the column */
+  min-width: 0;
 }
+
 
 .ect-annotation-kicker {
   display: block;
@@ -1611,28 +1659,58 @@
 }
 
 /* ──────────────────────────────────────────────────────────────────── */
-/*  Responsive                                                          */
+/*  Responsive — tested targets: 1280×720, 1440×900, 1512×982,        */
+/*                                1728×1117, 1920×1080                  */
 /* ──────────────────────────────────────────────────────────────────── */
 
-@media (max-width: 960px) {
-  .ect-composition {
-    grid-template-columns: 1fr;
-    gap: 40px;
+/* Narrower desktops: sidebar still present, less horizontal room */
+@media (max-width: 1280px) {
+  .ect-line-primary {
+    /* At 1280px: content ≈ 1068px. Left col ~68% ≈ 726px.
+       CONNECTED at this size should be ~72px max */
+    font-size: clamp(48px, calc(5vw + 4px), 80px);
   }
 
-  .ect-line-primary {
-    font-size: clamp(52px, 11vw, 96px);
+  .ect-composition {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+    gap: clamp(24px, 3vw, 48px);
   }
 }
 
+/* Tablet/small desktop: collapse to single column */
+@media (max-width: 960px) {
+  .ect-composition {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  /* On single-column, headline uses full width — can be slightly larger */
+  .ect-line-primary {
+    font-size: clamp(48px, 9vw, 88px);
+    white-space: normal; /* allow wrap on very small screens */
+  }
+
+  .ect-annotation-col {
+    padding-top: 0;
+    max-width: 560px;
+  }
+}
+
+/* Mobile */
 @media (max-width: 640px) {
   .ect-inner {
-    padding: 52px 20px 44px;
-    gap: 36px;
+    padding: 40px 20px 36px;
+    gap: 28px;
   }
 
   .ect-line-primary {
-    font-size: clamp(42px, 12.5vw, 68px);
+    font-size: clamp(38px, 11vw, 60px);
+    white-space: normal;
+  }
+
+  .ect-into-row {
+    margin-top: 8px;
+    margin-bottom: 8px;
   }
 
   .ect-header-label { display: none; }
@@ -1641,7 +1719,11 @@
 
   .ect-stage-label {
     font-size: 8px;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
+  }
+
+  .ect-bg-numeral {
+    font-size: clamp(120px, 40vw, 200px);
   }
 }
 
@@ -1666,8 +1748,6 @@
     transition-duration: 0.01ms !important;
   }
 }
-
-
 
 
 

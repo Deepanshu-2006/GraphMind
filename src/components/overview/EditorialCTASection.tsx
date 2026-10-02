@@ -50,16 +50,18 @@ export const EditorialCTASection: React.FC<EditorialCTASectionProps> = ({
       className="ect-section"
       aria-label="GraphMind — From Material to Knowledge"
     >
-      {/* ── Background: giant '02' numeral ─────────────────────────────── */}
-      <motion.div
-        className="ect-bg-numeral"
-        aria-hidden="true"
-        initial={R ? { opacity: 0 } : { opacity: 0, y: 48 }}
-        animate={isInView ? { opacity: 1, y: 0 } : {}}
-        transition={{ duration: R ? 0.3 : 1.6, delay: R ? 0 : 0.08, ease: 'easeOut' }}
-      >
-        02
-      </motion.div>
+      {/* ── Background: giant '02' numeral (contained, never overflows) ─ */}
+      <div className="ect-bg-numeral-wrap" aria-hidden="true">
+        <motion.div
+          className="ect-bg-numeral"
+          initial={R ? { opacity: 0 } : { opacity: 0, y: 48 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: R ? 0.3 : 1.6, delay: R ? 0 : 0.08, ease: 'easeOut' }}
+        >
+          02
+        </motion.div>
+      </div>
+
 
       {/* ── Background: document text fragments ────────────────────────── */}
       <div className="ect-bg-fragments" aria-hidden="true">
