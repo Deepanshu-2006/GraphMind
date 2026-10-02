@@ -4,9 +4,11 @@ import type {
   NormalizationResult,
   ConceptCandidateType,
   KnowledgeSource,
-  TextChunk
+  TextChunk,
+  ConceptRelevanceReport
 } from '../types/knowledgeGraph';
 import { extractConcepts, type ConceptExtractionOptions } from './conceptExtraction';
+import { GENERIC_BROAD_ROOTS } from '../config/conceptQuality';
 
 /**
  * =========================================================================
@@ -90,7 +92,10 @@ export function toCanonicalDisplayName(name: string): string {
 
   // Strip redundant classification suffix e.g. "Transformer Architecture" -> "Transformer"
   const strippedSuffix = clean.replace(/\s+(?:architecture|model|algorithm|method|mechanism)$/i, '').trim();
-  const nonStandalones = new Set(['deep', 'neural', 'linear', 'machine', 'support', 'random', 'gradient']);
+  const nonStandalones = new Set([
+    'deep', 'neural', 'linear', 'machine', 'support', 'random', 'gradient',
+    ...GENERIC_BROAD_ROOTS
+  ]);
   if (strippedSuffix.length >= 6 && !nonStandalones.has(strippedSuffix.toLowerCase())) {
     clean = strippedSuffix;
   }
@@ -157,7 +162,10 @@ export function generateCanonicalKey(name: string): string {
 export function getClusterRootKey(key: string): string {
   const stripped = key.replace(/\s+(?:architecture|model|algorithm|method|technique|mechanism)$/i, '').trim();
   // Protect base words that need modifiers (e.g. "deep", "neural", "linear", "machine")
-  const nonStandalones = new Set(['deep', 'neural', 'linear', 'machine', 'support', 'random', 'gradient']);
+  const nonStandalones = new Set([
+    'deep', 'neural', 'linear', 'machine', 'support', 'random', 'gradient',
+    ...GENERIC_BROAD_ROOTS
+  ]);
   if (stripped.length >= 6 && !nonStandalones.has(stripped)) {
     return stripped;
   }
@@ -412,6 +420,7 @@ export async function extractAndNormalizeConcepts(
   success: boolean;
   sourceId: string;
   concepts: CanonicalConcept[];
+  relevanceReport?: ConceptRelevanceReport;
   error?: string;
 }> {
   const extractionResult = await extractConcepts(source, textOrChunks, options);
@@ -428,7 +437,8 @@ export async function extractAndNormalizeConcepts(
   return {
     success: true,
     sourceId: source.id,
-    concepts: canonicalConcepts
+    concepts: canonicalConcepts,
+    relevanceReport: extractionResult.relevanceReport
   };
 }
 

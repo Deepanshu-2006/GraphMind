@@ -155,6 +155,58 @@ export interface ConceptCandidate {
   sourceChunkIds?: string[];
   occurrences?: number;
   confidence?: number;
+
+  // Quality & Relevance metadata (Prompt: Concept Quality & Relevance Layer)
+  relevanceScore?: number;
+  frequency?: number;
+  sectionHeadings?: string[];
+  contextualSentences?: string[];
+  isGeneric?: boolean;
+  isTechnicalOrTopic?: boolean;
+}
+
+export interface RelevanceScoreBreakdown {
+  frequencyScore: number;
+  dispersionScore: number;
+  headingScore: number;
+  specificityScore: number;
+  relationshipScore: number;
+  contextQualityScore: number;
+  penaltyScore: number;
+}
+
+export interface ScoredCandidateConcept extends ConceptCandidate {
+  frequency: number;
+  sectionHeadings: string[];
+  contextualSentences: string[];
+  relevanceScore: number;
+  isGeneric: boolean;
+  isTechnicalOrTopic: boolean;
+  hasDefinition: boolean;
+  hasHeadingEvidence: boolean;
+  hasRelationshipEvidence: boolean;
+  scoreBreakdown: RelevanceScoreBreakdown;
+  isAccepted: boolean;
+  rejectionReason?: string;
+}
+
+export interface ConceptRelevanceReport {
+  totalCandidates: number;
+  acceptedCount: number;
+  rejectedCount: number;
+  accepted: ScoredCandidateConcept[];
+  rejected: {
+    name: string;
+    score: number;
+    reason: string;
+    isGeneric: boolean;
+    frequency: number;
+  }[];
+  thresholds: {
+    minRelevanceScore: number;
+    maxPrimaryConcepts: number;
+    documentChunkCount: number;
+  };
 }
 
 export interface ConceptExtractionResult {
@@ -162,6 +214,7 @@ export interface ConceptExtractionResult {
   sourceId: string;
   concepts: ConceptCandidate[];
   chunkCount?: number;
+  relevanceReport?: ConceptRelevanceReport;
   error?: string;
 }
 

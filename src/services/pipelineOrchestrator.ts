@@ -4,7 +4,8 @@ import type {
   TextChunk, 
   ConceptCandidate, 
   CanonicalConcept, 
-  KnowledgeRelationship 
+  KnowledgeRelationship,
+  ConceptRelevanceReport
 } from '../types/knowledgeGraph';
 import { createSourcesFromFiles } from './sourceIngestion';
 import { extractText } from './textExtraction';
@@ -12,6 +13,8 @@ import { extractConceptsFromChunks, type ConceptExtractionOptions } from './conc
 import { normalizeConcepts } from './conceptNormalization';
 import { extractRelationshipsFromChunks, type RelationshipExtractionOptions } from './relationshipExtraction';
 import { buildKnowledgeGraph, type GraphBuilderOptions } from './graphBuilder';
+import { evaluateAndFilterCandidates, isGenericConceptPhrase } from './conceptRelevance';
+import { DEFAULT_CONCEPT_QUALITY_CONFIG, type ConceptQualityConfig } from '../config/conceptQuality';
 
 /**
  * =========================================================================
@@ -97,6 +100,7 @@ export interface PipelineMetrics {
   sourcesProcessed: number;
   chunksCount: number;
   rawConceptsCount: number;
+  filteredCandidatesCount?: number;
   canonicalConceptsCount: number;
   relationshipsCount: number;
   nodesCount: number;
@@ -109,11 +113,13 @@ export interface PipelineResult {
   sources?: KnowledgeSource[];
   error?: PipelineError;
   metrics?: PipelineMetrics;
+  relevanceReport?: ConceptRelevanceReport;
 }
 
 export interface PipelineOrchestratorOptions {
   onProgress?: (event: PipelineProgressEvent) => void;
   conceptExtraction?: ConceptExtractionOptions;
+  conceptQuality?: Partial<ConceptQualityConfig>;
   relationshipExtraction?: RelationshipExtractionOptions;
   graphBuilder?: GraphBuilderOptions;
   existingSources?: KnowledgeSource[];
@@ -272,7 +278,9 @@ export class PipelineOrchestrator {
             if (!seenKeys.has(key)) {
               seenKeys.add(key);
               rawCandidates.push(cand);
-              newlyAdded.push(cand);
+              if (!isGenericConceptPhrase(cand.name).isGeneric) {
+                newlyAdded.push(cand);
+              }
             }
           }
 
@@ -315,9 +323,41 @@ export class PipelineOrchestrator {
       }
 
       // -----------------------------------------------------------------------
+      // STAGE 3.5: CONCEPT RELEVANCE SCORING & QUALITY FILTERING
+      // -----------------------------------------------------------------------
+      const qualityConfig: ConceptQualityConfig = {
+        ...DEFAULT_CONCEPT_QUALITY_CONFIG,
+        ...(options.conceptQuality || options.conceptExtraction?.qualityConfig || {})
+      };
+
+      const { 
+        acceptedCandidates, 
+        report: relevanceReport 
+      } = evaluateAndFilterCandidates(
+        rawCandidates, 
+        allChunks, 
+        qualityConfig
+      );
+
+      if (acceptedCandidates.length === 0) {
+        const error: PipelineError = {
+          stage: 'extracting-concepts',
+          code: 'NO_CONCEPTS_FOUND',
+          message: 'No meaningful technical concepts could be identified from your learning material.'
+        };
+        notify('error', error.message);
+        return { 
+          success: false, 
+          stage: 'error', 
+          error, 
+          relevanceReport 
+        };
+      }
+
+      // -----------------------------------------------------------------------
       // STAGE 4: CONCEPT NORMALIZATION ('normalizing')
       // -----------------------------------------------------------------------
-      const canonicalConcepts: CanonicalConcept[] = normalizeConcepts(rawCandidates);
+      const canonicalConcepts: CanonicalConcept[] = normalizeConcepts(acceptedCandidates);
 
       notify('normalizing', PIPELINE_STAGE_LABELS['normalizing'], {
         conceptsExtracted: canonicalConcepts.length,
@@ -410,6 +450,7 @@ export class PipelineOrchestrator {
         sourcesProcessed: successfullyExtractedSources.length,
         chunksCount: allChunks.length,
         rawConceptsCount: rawCandidates.length,
+        filteredCandidatesCount: relevanceReport.rejectedCount,
         canonicalConceptsCount: canonicalConcepts.length,
         relationshipsCount: graph.relationships.length,
         nodesCount: graph.nodes.length
@@ -426,7 +467,8 @@ export class PipelineOrchestrator {
         stage: 'complete',
         graph,
         sources: successfullyExtractedSources,
-        metrics
+        metrics,
+        relevanceReport
       };
     } catch (err: unknown) {
       // Top-level error safety: NEVER crash, NEVER show stack traces to user

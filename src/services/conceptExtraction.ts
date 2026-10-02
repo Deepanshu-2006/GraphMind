@@ -6,6 +6,13 @@ import type {
   ConceptExtractionResult 
 } from '../types/knowledgeGraph';
 import { chunkText, normalizeText } from './textExtraction';
+import { 
+  TECHNICAL_DOMAIN_ACRONYMS,
+  GENERIC_BROAD_ROOTS,
+  DEFAULT_CONCEPT_QUALITY_CONFIG,
+  type ConceptQualityConfig 
+} from '../config/conceptQuality';
+import { evaluateAndFilterCandidates } from './conceptRelevance';
 
 /**
  * =========================================================================
@@ -20,6 +27,7 @@ export interface ConceptExtractionOptions {
   endpoint?: string;
   modelName?: string;
   minOccurrences?: number;
+  qualityConfig?: Partial<ConceptQualityConfig>;
 }
 
 export interface ConceptExtractionProvider {
@@ -100,7 +108,8 @@ const GENERIC_STANDALONE_NOUNS = new Set([
   'information', 'knowledge', 'content', 'mechanism', 'mechanisms', 'procedure', 'procedures',
   'structure', 'structures', 'pattern', 'patterns', 'metric', 'metrics', 'score', 'scores',
   'input', 'inputs', 'output', 'outputs', 'loss', 'losses', 'error', 'errors',
-  'foundation', 'foundations', 'architecture', 'architectures'
+  'foundation', 'foundations', 'architecture', 'architectures',
+  ...GENERIC_BROAD_ROOTS
 ]);
 
 const CONVERSATIONAL_FRAGMENTS = new Set([
@@ -111,7 +120,8 @@ const CONVERSATIONAL_FRAGMENTS = new Set([
 ]);
 
 const APPROVED_TECHNICAL_ACRONYMS = new Set([
-  'cnn', 'rnn', 'gan', 'svm', 'lstm', 'gru', 'llm', 'nlp', 'mlp', 'gnn', 'vae', 'sgd', 'pca', 'bert', 'gpt', 'rl'
+  'cnn', 'rnn', 'gan', 'svm', 'lstm', 'gru', 'llm', 'nlp', 'mlp', 'gnn', 'vae', 'sgd', 'pca', 'bert', 'gpt', 'rl',
+  ...TECHNICAL_DOMAIN_ACRONYMS
 ]);
 
 const TECHNICAL_COMPOUND_EXCEPTIONS = new Set([
@@ -125,7 +135,13 @@ const TECHNICAL_COMPOUND_EXCEPTIONS = new Set([
   'artificial intelligence', 'computer vision', 'reinforcement learning',
   'supervised learning', 'unsupervised learning', 'gradient descent', 'generative model', 'generative models',
   'large language model', 'large language models', 'graph neural network', 'graph neural networks',
-  'stochastic gradient descent', 'natural language processing', 'self-attention'
+  'stochastic gradient descent', 'natural language processing', 'self-attention',
+  'operating system', 'operating systems', 'virtual memory', 'process scheduling',
+  'memory management', 'memory management unit', 'central processing unit',
+  'inter-process communication', 'process control block', 'translation lookaside buffer',
+  'page fault', 'file system', 'file systems', 'distributed system', 'distributed systems',
+  'relational database', 'data structure', 'data structures', 'round robin',
+  'shortest job first', 'priority scheduling', 'learning rate', 'loss function', 'activation function'
 ]);
 
 /**
@@ -199,8 +215,16 @@ export function isValidConceptName(name: string): boolean {
   const words = lower.split(/[\s-]+/).filter(Boolean);
   if (words.length === 0 || words.length > 5) return false;
 
-  // Reject if starts with a generic verb (e.g. "Using the data")
-  if (GENERIC_VERBS.has(words[0])) return false;
+  // Reject if starts with a generic verb (e.g. "Using the data"), unless recognized technical compound
+  if (GENERIC_VERBS.has(words[0])) {
+    const isApprovedVerbCompound = TECHNICAL_COMPOUND_EXCEPTIONS.has(lower) ||
+      (words[0] === 'operating' && words[1] === 'system') ||
+      (words[0] === 'learning' && (words[1] === 'rate' || words[1] === 'algorithm' || words[1] === 'curve')) ||
+      (words[0] === 'training' && (words[1] === 'set' || words[1] === 'data' || words[1] === 'loss' || words[1] === 'step')) ||
+      (words[0] === 'routing' && (words[1] === 'protocol' || words[1] === 'table' || words[1] === 'algorithm'));
+
+    if (!isApprovedVerbCompound) return false;
+  }
 
   // Reject boundary prepositions / conjunctions / determiners
   const badBoundary = /^(?:and|or|in|on|at|for|with|by|from|to|of|the|a|an|that|which|as|into|through|over|under)\b|\b(?:and|or|in|on|at|for|with|by|from|to|of|the|a|an|that|which|as|into|through|over|under)$/i;
@@ -506,7 +530,8 @@ export class HeuristicConceptExtractor implements ConceptExtractionProvider {
     // 1. Definition patterns: e.g. "Self-Attention is...", "Backpropagation computes..."
     for (const line of lines) {
       const strippedLine = line.replace(/^(?:The|A|An)\s+/i, '');
-      const defMatch = /^([A-Z][a-zA-Z0-9\s-]+?)\s+(?:is an?|are|refers to|is defined as|was proposed as|enables|allows|computes|injects)\b/i.exec(strippedLine);
+      const cleanDefLine = strippedLine.replace(/^([A-Z][a-zA-Z0-9\s-]+?)\s*\([A-Z0-9]{2,6}\)\s+/, '$1 ');
+      const defMatch = /^([A-Z][a-zA-Z0-9\s-]+?)\s+(?:is an?|are|refers to|is defined as|was proposed as|enables|allows|computes|injects|provides|manages|allocates|translates|accelerates|divides|creates)\b/i.exec(cleanDefLine);
 
       if (defMatch) {
         const rawName = defMatch[1].trim();
@@ -828,13 +853,19 @@ export async function extractConcepts(
       };
     }
 
-    const concepts = await extractConceptsFromChunks(chunks, options);
+    const rawCandidates = await extractConceptsFromChunks(chunks, options);
+    const qualityConfig: ConceptQualityConfig = {
+      ...DEFAULT_CONCEPT_QUALITY_CONFIG,
+      ...(options.qualityConfig || {})
+    };
+    const { acceptedCandidates, report } = evaluateAndFilterCandidates(rawCandidates, chunks, qualityConfig);
 
     return {
       success: true,
       sourceId: source.id,
-      concepts,
-      chunkCount: chunks.length
+      concepts: acceptedCandidates,
+      chunkCount: chunks.length,
+      relevanceReport: report
     };
   } catch {
     return {
