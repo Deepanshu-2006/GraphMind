@@ -1751,7 +1751,7 @@
 
 
 /* ==========================================================================
-   GRAPHMIND FOOTER — Editorial Typographic Wordmark (Architectural Scale)
+   GRAPHMIND FOOTER — Final Visual Statement (Architectural SVG Wordmark)
    ========================================================================== */
 
 .gmf-section {
@@ -1761,9 +1761,15 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  /* Compact architectural composition — 320–460px desktop height */
-  min-height: 320px;
-  padding: 24px clamp(20px, 3vw, 48px) 18px;
+  justify-content: space-between;
+  /* 120–180px deliberate breathing room after editorial timeline */
+  margin-top: clamp(120px, 14vh, 180px);
+  /* Subtle top border establishing footer beginning */
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  /* 420–520px desktop height */
+  min-height: 420px;
+  max-height: 520px;
+  padding: 24px clamp(24px, 3.5vw, 64px) 24px;
   overflow: hidden;
 }
 
@@ -1787,7 +1793,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 0 6px 0;
+  padding: 0 0 12px 0;
   width: 100%;
 }
 
@@ -1813,15 +1819,15 @@
   flex-shrink: 0;
 }
 
-/* ── Giant GRAPHMIND Wordmark — occupies 75–90% of visual composition ─ */
+/* ── Giant Architectural Wordmark — occupies lower 60–70% of footer ── */
 .gmf-wordmark-wrap {
   width: 100%;
+  flex: 1;
   display: flex;
-  align-items: flex-end; /* Anchored toward bottom */
+  align-items: flex-end; /* Bottom-anchored */
   justify-content: center;
-  /* Tight vertical margins: sitting close to top metadata & anchored to bottom rule */
-  padding-top: 4px;
-  padding-bottom: 12px; /* Letterform baseline sits ~16–20px above bottom rule */
+  padding-top: 8px;
+  padding-bottom: 12px; /* Sits very close to the bottom rule */
   user-select: none;
   overflow: hidden;
 }
@@ -1829,8 +1835,8 @@
 .gmf-svg {
   width: 100%;
   height: auto;
-  /* Desktop target height: 220–300px */
-  max-height: clamp(220px, 28vw, 320px);
+  /* 230–300px desktop height */
+  max-height: clamp(230px, 25vw, 300px);
   display: block;
   overflow: visible;
   cursor: default;
@@ -1845,11 +1851,13 @@
 }
 
 .gmf-meta-bottom-row {
-  padding: 10px 0 0 0;
+  padding: 12px 0 0 0;
 }
 
 .gmf-copy {
   color: rgba(255, 255, 255, 0.30);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
 }
 
 .gmf-explore-btn {
@@ -1861,7 +1869,7 @@
   cursor: pointer;
   padding: 0;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -1886,8 +1894,10 @@
 
 @media (max-width: 960px) {
   .gmf-section {
-    min-height: 260px;
-    padding: 20px 20px 16px;
+    min-height: 320px;
+    max-height: 380px;
+    margin-top: clamp(80px, 10vh, 120px);
+    padding: 20px 24px 20px;
   }
   .gmf-svg {
     max-height: 220px;
@@ -1896,17 +1906,19 @@
 
 @media (max-width: 640px) {
   .gmf-section {
-    min-height: 200px;
-    padding: 16px 14px 14px;
+    min-height: 260px;
+    max-height: 320px;
+    margin-top: 60px;
+    padding: 16px 16px 16px;
   }
   .gmf-svg {
-    max-height: 160px;
+    max-height: 180px;
   }
   .gmf-meta-row {
-    padding: 8px 0 4px;
+    padding: 0 0 8px 0;
   }
   .gmf-wordmark-wrap {
-    padding-top: 2px;
+    padding-top: 4px;
     padding-bottom: 8px;
   }
 }

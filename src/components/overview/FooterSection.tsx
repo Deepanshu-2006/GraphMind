@@ -2,21 +2,21 @@ import React, { useRef, useState, useCallback } from 'react';
 import { motion, useInView, useReducedMotion } from 'framer-motion';
 
 /* ==========================================================================
-   SVG Wordmark Constants & Layout
+   SVG Architectural Wordmark Constants & Metrics
    ========================================================================== */
 
-const SVG_W = 1200;
-const SVG_H = 224;
-const BASELINE_Y = 202; // Baseline in SVG coordinates
-const FONT_SIZE = 226;  // Scaled for maximum presence within viewBox
-const STROKE_PITCH = 2.6; // Gap between thin vertical stroke lines (SVG units)
+const SVG_W = 1400;
+const SVG_H = 280;
+const BASELINE_Y = 252; // Baseline in SVG units
+const FONT_SIZE = 255;  // Base font size before condensed architectural scaling
+const STROKE_PITCH = 2.2; // Spacing between hairline vertical strokes
 const STROKE_W = 1.0;     // Crisp hairline stroke width
 const FONT_FAMILY =
   "'Inter Tight', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
-const BASE_DELAY = 0.28; // Delay after top rule starts
-const STAGGER = 0.072;   // 72ms stagger between successive characters
+const BASE_DELAY = 0.25; // Delay before wordmark construction starts
+const STAGGER = 0.075;   // 75ms stagger between successive character reveals
 
 interface CharSlot {
   char: string;
@@ -26,29 +26,29 @@ interface CharSlot {
   dur: number;
 }
 
-// Tailored character slots for GRAPHMIND with editorial kerning
-// Total span: x=20 to x=1180 (1160px out of 1200 = 96.7% width)
+// Tailored slots spanning x=34 to x=1366 (1332px out of 1400 = 95.1% width)
+// Tall, condensed letterforms with minimal gap (almost visually touching)
 const SLOTS: CharSlot[] = [
-  { char: 'G', start: 20,   width: 136, center: 88,   dur: 0.58 },
-  { char: 'R', start: 160,  width: 126, center: 223,  dur: 0.56 },
-  { char: 'A', start: 290,  width: 130, center: 355,  dur: 0.60 },
-  { char: 'P', start: 424,  width: 122, center: 485,  dur: 0.54 },
-  { char: 'H', start: 550,  width: 132, center: 616,  dur: 0.58 },
-  { char: 'M', start: 686,  width: 162, center: 767,  dur: 0.62 },
-  { char: 'I', start: 852,  width: 50,  center: 877,  dur: 0.50 },
-  { char: 'N', start: 906,  width: 134, center: 973,  dur: 0.58 },
-  { char: 'D', start: 1044, width: 136, center: 1112, dur: 0.60 },
+  { char: 'G', start: 34,    width: 154, center: 111,   dur: 0.58 },
+  { char: 'R', start: 192.5, width: 146, center: 265.5, dur: 0.56 },
+  { char: 'A', start: 343,   width: 150, center: 418,   dur: 0.60 },
+  { char: 'P', start: 497.5, width: 140, center: 567.5, dur: 0.54 },
+  { char: 'H', start: 642,   width: 152, center: 718,   dur: 0.58 },
+  { char: 'M', start: 798.5, width: 186, center: 891.5, dur: 0.62 },
+  { char: 'I', start: 989,   width: 62,  center: 1020,  dur: 0.50 },
+  { char: 'N', start: 1055.5,width: 152, center: 1131.5,dur: 0.58 },
+  { char: 'D', start: 1212,  width: 154, center: 1289,  dur: 0.60 },
 ];
 
-// Architectural stroke colors by mouse proximity (resting in 0.55–0.70 range)
+// Architectural stroke colors by mouse proximity (subtle neutral gray/white)
 const STROKE_COLOUR = [
-  'rgba(255, 255, 255, 0.90)', // direct hovered character
-  'rgba(248, 248, 248, 0.78)', // 1st neighbour
-  'rgba(245, 245, 245, 0.68)', // 2nd neighbour
-  'rgba(245, 245, 245, 0.62)', // resting state
+  'rgba(255, 255, 255, 0.88)', // direct hovered character
+  'rgba(255, 255, 255, 0.74)', // 1st neighbour
+  'rgba(255, 255, 255, 0.64)', // 2nd neighbour
+  'rgba(255, 255, 255, 0.56)', // resting state (restrained architectural tone)
 ] as const;
 
-/** Generate crisp vertical lines for a character slot */
+/** Generate crisp vertical lines across a character slot */
 function genStrokes(slot: CharSlot, color: string): React.ReactNode[] {
   const count = Math.ceil(slot.width / STROKE_PITCH) + 1;
   return Array.from({ length: count }, (_, j) => {
@@ -82,7 +82,7 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
   const isInView = useInView(sectionRef, { amount: 0.04, once: true });
   const R = useReducedMotion();
 
-  // Mouse proximity
+  // Mouse proximity tracking across character slots
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   const handleSvgMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
@@ -112,26 +112,18 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
   };
 
   return (
-    <section
+    <footer
       ref={sectionRef}
       className="gmf-section"
       aria-label="GraphMind"
     >
-      {/* ── TOP: rule + metadata ───────────────────────────────────────────── */}
+      {/* ── TOP: Small metadata row ────────────────────────────────────────── */}
       <div className="gmf-top">
-        <motion.div
-          className="gmf-rule"
-          aria-hidden="true"
-          initial={{ scaleX: 0 }}
-          animate={isInView ? { scaleX: 1 } : {}}
-          style={{ transformOrigin: '0% 50%' }}
-          transition={{ duration: R ? 0 : 0.75, ease: EASE }}
-        />
         <motion.div
           className="gmf-meta-row"
           initial={{ opacity: 0, y: 4 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: R ? 0 : 0.45, delay: R ? 0 : 0.15, ease: EASE }}
+          transition={{ duration: R ? 0 : 0.45, delay: R ? 0 : 0.10, ease: EASE }}
         >
           <span className="gmf-meta-label">
             <span className="gmf-accent-dot" aria-hidden="true" />
@@ -141,7 +133,7 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
         </motion.div>
       </div>
 
-      {/* ── GIANT GRAPHMIND WORDMARK ───────────────────────────────────────── */}
+      {/* ── GIANT ARCHITECTURAL SVG WORDMARK (Occupies 60–70% of footer) ───── */}
       <div className="gmf-wordmark-wrap" aria-label="GRAPHMIND" role="img">
         <svg
           className="gmf-svg"
@@ -152,33 +144,33 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
           onMouseLeave={handleSvgMouseLeave}
         >
           <defs>
-            {/* Silhouette clip-path for each character */}
+            {/* 1. Silhouette clip-path for each character: tall, condensed architectural letterform */}
             {SLOTS.map((slot, i) => (
-              <clipPath key={`clip-char-${slot.char}`} id={`gmf-clip-char-${i}`}>
+              <clipPath key={`clip-char-${slot.char}`} id={`gmf-char-${i}`}>
                 <text
                   x={slot.center}
                   y={BASELINE_Y}
                   textAnchor="middle"
                   dominantBaseline="alphabetic"
                   fontSize={FONT_SIZE}
-                  fontWeight={800}
+                  fontWeight={900}
                   fontFamily={FONT_FAMILY}
-                  letterSpacing="-0.015em"
+                  transform={`translate(${slot.center}, ${BASELINE_Y}) scale(0.85, 1.25) translate(${-slot.center}, ${-BASELINE_Y})`}
                 >
                   {slot.char}
                 </text>
               </clipPath>
             ))}
 
-            {/* Bottom-to-top reveal clip-path for each character */}
+            {/* 2. Physical upward reveal clip-path: grows from baseline to cap-height */}
             {SLOTS.map((slot, i) => {
               const delay = R ? 0 : BASE_DELAY + i * STAGGER;
               const dur   = R ? 0 : slot.dur;
               return (
-                <clipPath key={`clip-reveal-${slot.char}`} id={`gmf-clip-reveal-${i}`}>
+                <clipPath key={`clip-reveal-${slot.char}`} id={`gmf-reveal-${i}`}>
                   <motion.rect
-                    x={slot.start - 4}
-                    width={slot.width + 8}
+                    x={slot.start - 2}
+                    width={slot.width + 4}
                     initial={{ y: BASELINE_Y, height: 0 }}
                     animate={
                       isInView
@@ -196,36 +188,30 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
             })}
           </defs>
 
-          {/* Render each character with dual clip: silhouette + bottom-to-top reveal */}
+          {/* Render each character group: upward construction from baseline */}
           {SLOTS.map((slot, i) => {
             const delay = R ? 0 : BASE_DELAY + i * STAGGER;
             const dur   = R ? 0 : slot.dur;
 
             return (
-              <g key={slot.char} clipPath={`url(#gmf-clip-reveal-${i})`}>
+              <g key={slot.char} clipPath={`url(#gmf-reveal-${i})`}>
                 <motion.g
-                  clipPath={`url(#gmf-clip-char-${i})`}
-                  style={{
-                    transformOrigin: `${slot.center}px ${BASELINE_Y}px`,
-                  }}
+                  clipPath={`url(#gmf-char-${i})`}
                   initial={{
-                    scaleY: 0.90,
-                    y: 18,
-                    opacity: 0.1,
+                    y: 20,
+                    opacity: 0.35,
                   }}
                   animate={
                     isInView
                       ? {
-                          scaleY: 1,
                           y: 0,
                           opacity: 1,
                         }
                       : {}
                   }
                   transition={{
-                    scaleY:  { duration: dur, delay, ease: EASE },
                     y:       { duration: dur, delay, ease: EASE },
-                    opacity: { duration: dur * 0.45, delay, ease: 'easeIn' },
+                    opacity: { duration: dur * 0.5, delay, ease: 'easeOut' },
                   }}
                 >
                   {genStrokes(slot, strokeColor(i))}
@@ -236,17 +222,8 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
         </svg>
       </div>
 
-      {/* ── BOTTOM: rule + copyright ──────────────────────────────────────── */}
-      <motion.div
-        className="gmf-bottom"
-        initial={{ opacity: 0 }}
-        animate={isInView ? { opacity: 1 } : {}}
-        transition={{
-          duration: R ? 0 : 0.50,
-          delay: R ? 0 : BASE_DELAY + SLOTS.length * STAGGER + 0.12,
-          ease: EASE,
-        }}
-      >
+      {/* ── BOTTOM: Thin rule + technical caption metadata ────────────────── */}
+      <div className="gmf-bottom">
         <motion.div
           className="gmf-rule"
           aria-hidden="true"
@@ -259,7 +236,16 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
             ease: EASE,
           }}
         />
-        <div className="gmf-meta-row gmf-meta-bottom-row">
+        <motion.div
+          className="gmf-meta-row gmf-meta-bottom-row"
+          initial={{ opacity: 0 }}
+          animate={isInView ? { opacity: 1 } : {}}
+          transition={{
+            duration: R ? 0 : 0.45,
+            delay: R ? 0 : BASE_DELAY + SLOTS.length * STAGGER + 0.10,
+            ease: EASE,
+          }}
+        >
           <span className="gmf-meta-label gmf-copy">© GRAPHMIND</span>
           <button
             type="button"
@@ -270,8 +256,8 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
             <span>EXPLORE</span>
             <span className="gmf-explore-arrow" aria-hidden="true">↗</span>
           </button>
-        </div>
-      </motion.div>
-    </section>
+        </motion.div>
+      </div>
+    </footer>
   );
 };
