@@ -193,7 +193,10 @@ export async function exportKnowledgeGraphPng(
     filter: (domNode: Node | HTMLElement) => {
       if (domNode instanceof HTMLElement) {
         if (domNode.classList.contains('node-handle')) return false;
+        if (domNode.classList.contains('canvas-floating-header')) return false;
         if (domNode.classList.contains('canvas-floating-toolbar')) return false;
+        if (domNode.classList.contains('graph-source-toggle-pill')) return false;
+        if (domNode.classList.contains('workspace-mode-controls')) return false;
         if (domNode.classList.contains('floating-node-inspector')) return false;
         if (domNode.classList.contains('react-flow__controls')) return false;
         if (domNode.classList.contains('graph-canvas-overlay')) return false;

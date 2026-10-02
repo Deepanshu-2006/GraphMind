@@ -172,7 +172,13 @@ export const GENERIC_BROAD_ROOTS = new Set([
   'application', 'applications',
   'development', 'developments',
   'difference', 'differences',
-  'similarity', 'similarities'
+  'similarity', 'similarities',
+  'number', 'numbers',
+  'length', 'lengths',
+  'size', 'sizes',
+  'power', 'powers',
+  'angle', 'angles',
+  'image', 'images'
 ]);
 
 /**

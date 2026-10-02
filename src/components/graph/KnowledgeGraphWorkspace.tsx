@@ -116,9 +116,6 @@ function FlowCanvas({
   onOpenUpload,
   initialMode = 'interactive',
   graph,
-  graphSourceType = 'demo',
-  onSwitchGraphSource,
-  hasUserGraph,
   pipelineStage,
   pipelineStatusMessage,
   pipelineError,
@@ -809,41 +806,6 @@ function FlowCanvas({
     }));
   }, [effectiveNodes]);
 
-  const handleSwitchToEmpty = () => {
-    if (craftingTimerRef.current) clearTimeout(craftingTimerRef.current);
-    if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
-    setStatusMessage('');
-    setNodes([]);
-    setEdges([]);
-    setSelectedNodeId(null);
-    setIsInspectorOpen(false);
-    setIsLoadingOrbVisible(false);
-    setIsOverlayMounted(false);
-    setIsCanvasDimmed(false);
-    setMode('empty');
-  };
-
-  const handleSwitchToInteractive = () => {
-    if (craftingTimerRef.current) clearTimeout(craftingTimerRef.current);
-    if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
-    setStatusMessage('');
-    setNodes(effectiveNodes);
-    setEdges(effectiveEdges);
-    setSelectedNodeId(effectiveNodes[0]?.id || 'dl');
-    setIsInspectorOpen(true);
-    setIsLoadingOrbVisible(false);
-    setIsOverlayMounted(false);
-    setIsCanvasDimmed(false);
-    setMode('interactive');
-    setTimeout(() => {
-      reactFlowInstance.fitView({ padding: 0.22, duration: 400 });
-    }, 50);
-  };
-
-  const handleSwitchToLoading = () => {
-    runCraftingAnimation(true);
-  };
-
   return (
     <div className="freeform-graph-container" id="knowledge-graph-workspace">
       {/* 1. Processing Status Banner (Prompt 8, Section 5 - shown once loading orb dissolves or in direct crafting) */}
@@ -882,64 +844,6 @@ function FlowCanvas({
         <div className="canvas-export-error-toast" role="alert">
           <span className="export-error-line1">Couldn't export the graph.</span>
           <span className="export-error-line2">Try again.</span>
-        </div>
-      )}
-
-      {/* Mode Controls Pill Group (Left-aligned next to toolbar for seamless inspection) */}
-      <div className="workspace-mode-controls">
-        <button
-          type="button"
-          className={`mode-btn ${mode === 'interactive' ? 'active' : ''}`}
-          onClick={handleSwitchToInteractive}
-          title="Interactive graph exploration"
-        >
-          Interactive
-        </button>
-        <button
-          type="button"
-          className={`mode-btn ${mode === 'crafting' ? 'active' : ''}`}
-          onClick={() => runCraftingAnimation(true)}
-          title="Play progressive graph crafting animation"
-        >
-          Craft graph
-        </button>
-        <button
-          type="button"
-          className={`mode-btn ${effectiveOverlayMounted || (mode === 'crafting' && effectiveLoadingOrbVisible) ? 'active' : ''}`}
-          onClick={handleSwitchToLoading}
-          title="Loading orb with crafting visible behind"
-        >
-          Loading
-        </button>
-        <button
-          type="button"
-          className={`mode-btn ${mode === 'empty' ? 'active' : ''}`}
-          onClick={handleSwitchToEmpty}
-          title="Empty canvas state"
-        >
-          Empty
-        </button>
-      </div>
-
-      {/* Graph Source Toggle Pill: Demo Graph vs User-Generated Graph (Prompt 21 Requirement 5) */}
-      {hasUserGraph && (
-        <div className="graph-source-toggle-pill" role="group" aria-label="Graph Source Selector">
-          <button
-            type="button"
-            className={`source-toggle-btn ${graphSourceType === 'user' ? 'active' : ''}`}
-            onClick={() => onSwitchGraphSource?.('user')}
-            title="Switch to your uploaded learning material graph"
-          >
-            Your Graph
-          </button>
-          <button
-            type="button"
-            className={`source-toggle-btn ${graphSourceType === 'demo' ? 'active' : ''}`}
-            onClick={() => onSwitchGraphSource?.('demo')}
-            title="Switch to demo showcase graph"
-          >
-            Demo Graph
-          </button>
         </div>
       )}
 

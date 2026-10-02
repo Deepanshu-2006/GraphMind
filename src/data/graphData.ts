@@ -319,15 +319,46 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
 /**
  * Helper to convert lowercase semantic type into display ConceptCategory
  */
-export function normalizeCategory(type: string): ConceptCategory {
-  const norm = type.toLowerCase();
+export function normalizeCategory(type: string = ''): ConceptCategory {
+  const norm = (type || '').toLowerCase().trim();
   switch (norm) {
-    case 'foundation': return 'Foundation';
-    case 'paradigm': return 'Paradigm';
-    case 'architecture': return 'Architecture';
-    case 'method': return 'Method';
-    case 'application': return 'Application';
-    default: return 'Foundation';
+    case 'foundation':
+    case 'topic':
+    case 'core':
+    case 'subject':
+      return 'Foundation';
+
+    case 'paradigm':
+    case 'theory':
+    case 'principle':
+    case 'law':
+    case 'theorem':
+      return 'Paradigm';
+
+    case 'method':
+    case 'process':
+    case 'algorithm':
+    case 'technique':
+    case 'experiment':
+      return 'Method';
+
+    case 'architecture':
+    case 'formula':
+    case 'component':
+    case 'object':
+    case 'property':
+    case 'concept':
+    case 'definition':
+      return 'Architecture';
+
+    case 'application':
+    case 'example':
+    case 'usecase':
+    case 'dataset':
+      return 'Application';
+
+    default:
+      return 'Foundation';
   }
 }
 

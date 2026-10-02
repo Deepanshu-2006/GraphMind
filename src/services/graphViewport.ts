@@ -166,6 +166,10 @@ export function calculateVisibleGraph({
       return {
         ...edge,
         selected: isIncident,
+        data: {
+          ...(edge.data || {}),
+          isHighlighted: isIncident
+        },
         style: {
           stroke: isIncident ? '#A3FF12' : isDimmed ? 'rgba(255, 255, 255, 0.08)' : '#333333',
           strokeWidth: isIncident ? 1.75 : 1.25,
@@ -414,6 +418,10 @@ export function calculateVisibleGraph({
     visibleEdges.push({
       ...edge,
       selected: isIncident,
+      data: {
+        ...(edge.data || {}),
+        isHighlighted: isIncident
+      },
       style: {
         stroke: isIncident ? '#A3FF12' : isDimmed ? 'rgba(255, 255, 255, 0.08)' : '#333333',
         strokeWidth: isIncident ? 1.75 : 1.25,

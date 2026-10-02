@@ -207,19 +207,27 @@ export function isStructurallyValidCandidateName(name: string): boolean {
   // Reject purely numbers or punctuation
   if (/^[0-9\s.,;:–—/-]+$/.test(cleaned)) return false;
 
+  // Reject math symbols, brackets, or slashes inside names (e.g. "W KHUH/v")
+  if (/[/\\<>=+_{}[\]|~^]/.test(cleaned)) return false;
+
   // Reject if contains sentence-ending punctuation or quotes
   if (/[.!?";]/.test(cleaned)) return false;
 
   // Reject conversational sentence fragments
   if (CONVERSATIONAL_FRAGMENTS.has(lower)) return false;
 
-  // Reject phrases starting with interrogatives or relative pronouns
-  if (/^(?:what|how|why|when|where|which|who|whom|whose|that|whether)\b/i.test(cleaned)) {
+  // Reject phrases starting with verbs, interrogatives, conjunctions, or prepositions (e.g. "is different in...")
+  if (/^(?:what|how|why|when|where|which|who|whom|whose|that|whether|is|are|was|were|be|been|being|have|has|had|do|does|did|can|could|will|would|should|may|might|must|and|or|if|because|since|although|while|so|but|yet)\b/i.test(cleaned)) {
     return false;
   }
 
-  // Reject phrases ending with verbs, auxiliary verbs, conjunctions, or prepositions
-  if (/\b(?:is|are|was|were|be|been|being|have|has|had|do|does|did|can|could|will|would|should|may|might|must|and|or|in|on|at|for|with|by|from|to|of|as|than|into|through|over|under)$/i.test(cleaned)) {
+  // Reject phrases ending with verbs, auxiliary verbs, conjunctions, determiners, or prepositions (e.g. "Power Of A")
+  if (/\b(?:is|are|was|were|be|been|being|have|has|had|do|does|did|can|could|will|would|should|may|might|must|and|or|in|on|at|for|with|by|from|to|of|as|than|into|through|over|under|a|an|the|that|which|whose|to)$/i.test(cleaned)) {
+    return false;
+  }
+
+  // Reject heading boilerplate phrases like "Some Terms Related To...", "Terms Related To...", "Important Terms..."
+  if (/^(?:some|key|general|important|various|basic|different|common)?\s*terms?\s+(?:related|pertaining)\s+to\b/i.test(cleaned)) {
     return false;
   }
 
@@ -228,6 +236,13 @@ export function isStructurallyValidCandidateName(name: string): boolean {
 
   const words = lower.split(/[\s-]+/).filter(Boolean);
   if (words.length === 0 || words.length > 5) return false;
+
+  // Reject OCR fragments: words with no standard vowels (e.g. "Chr Om", "Refl")
+  for (const w of words) {
+    if (w.length >= 3 && !/[aeiouy]/i.test(w) && !TECHNICAL_DOMAIN_ACRONYMS.has(w)) {
+      return false;
+    }
+  }
 
   return true;
 }
@@ -281,7 +296,10 @@ export function isValidConceptName(name: string, documentProfile?: DocumentProfi
   const isDocumentDomainTerm = Boolean(
     documentProfile && (
       documentProfile.domainKeywords.some(dk => dk.toLowerCase() === lower) ||
-      documentProfile.majorTopics.some(mt => mt.toLowerCase().includes(lower)) ||
+      documentProfile.majorTopics.some(mt => {
+        const mtLower = mt.toLowerCase();
+        return mtLower === lower || (mtLower.split(/\s+/).includes(lower) && !GENERIC_STANDALONE_NOUNS.has(lower));
+      }) ||
       documentProfile.definitionsFound.some(df => df.term.toLowerCase() === lower)
     )
   );
@@ -310,11 +328,11 @@ export function isValidConceptName(name: string, documentProfile?: DocumentProfi
   }
 
   // Single word checks:
-  if (words.length === 1 && !isDocumentDomainTerm) {
+  if (words.length === 1) {
     if (GENERIC_STANDALONE_NOUNS.has(words[0])) return false;
     if (GENERIC_ADJECTIVES.has(words[0])) return false;
     if (GENERIC_VERBS.has(words[0])) return false;
-    if (!APPROVED_TECHNICAL_ACRONYMS.has(words[0])) {
+    if (!isDocumentDomainTerm && !APPROVED_TECHNICAL_ACRONYMS.has(words[0])) {
       // Must be at least 4 chars and start with uppercase in original
       if (words[0].length < 4 || !/^[A-Z]/.test(cleaned)) return false;
     }
@@ -730,17 +748,22 @@ export class HeuristicConceptExtractor implements ConceptExtractionProvider {
           rawName = rawName.split(/\s+(?:whose|which|that|who)\s+/i)[0].trim();
         }
         rawName = rawName.replace(/\s+(?:state|states|show|shows|mean|means|indicate|indicates|imply|implies|prove|proves)$/i, '').trim();
-        const type = classifyConceptType(rawName, line);
-        const description = extractConceptDescription(rawName, type, text, chunk.heading);
-        addCandidate({
-          name: rawName,
-          type,
-          description,
-          confidence: 0.95,
-          importance: 0.95,
-          isCoreConcept: true,
-          evidence: line
-        });
+        
+        // Strict guard: definition concept names must be concise (at most 4 words) and structurally valid
+        const words = rawName.split(/\s+/);
+        if (words.length <= 4 && isStructurallyValidCandidateName(rawName)) {
+          const type = classifyConceptType(rawName, line);
+          const description = extractConceptDescription(rawName, type, text, chunk.heading);
+          addCandidate({
+            name: rawName,
+            type,
+            description,
+            confidence: 0.95,
+            importance: 0.95,
+            isCoreConcept: true,
+            evidence: line
+          });
+        }
       }
 
       // Pattern B: "... is called / is known as X"
@@ -748,17 +771,19 @@ export class HeuristicConceptExtractor implements ConceptExtractionProvider {
       if (calledMatch) {
         let term = calledMatch[1].replace(/[.,;:].*$/, '').trim();
         term = term.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-        const type = classifyConceptType(term, line);
-        const description = extractConceptDescription(term, type, text, chunk.heading);
-        addCandidate({
-          name: term,
-          type,
-          description,
-          confidence: 0.95,
-          importance: 0.95,
-          isCoreConcept: true,
-          evidence: line
-        });
+        if (term.split(/\s+/).length <= 4 && isStructurallyValidCandidateName(term)) {
+          const type = classifyConceptType(term, line);
+          const description = extractConceptDescription(term, type, text, chunk.heading);
+          addCandidate({
+            name: term,
+            type,
+            description,
+            confidence: 0.95,
+            importance: 0.95,
+            isCoreConcept: true,
+            evidence: line
+          });
+        }
       }
     }
 

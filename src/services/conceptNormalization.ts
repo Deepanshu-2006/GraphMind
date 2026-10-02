@@ -385,9 +385,65 @@ export function normalizeConcepts(rawConcepts: ConceptCandidate[]): CanonicalCon
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Subsumption Pass:
+  // 1. Subsume bare generic single-word nouns when compound concepts exist
+  //    (e.g., "Length" subsumed into "Focal Length", "Image" into "Real Image")
+  // 2. Subsume overly-specific phrase variants into the cleaner canonical concept
+  //    (e.g., "Focal Length of Concave Mirror" into "Focal Length")
+  // -------------------------------------------------------------------------
+  const multiWordConcepts = Array.from(canonicalMap.values()).filter(c => c.name.trim().split(/\s+/).length > 1);
+  const droppedIds = new Set<string>();
+
+  for (const concept of canonicalMap.values()) {
+    const words = concept.name.trim().toLowerCase().split(/\s+/);
+
+    // 1. Bare generic single word check
+    if (words.length === 1 && GENERIC_BROAD_ROOTS.has(words[0])) {
+      const parentCompound = multiWordConcepts.find(mc => {
+        const mcWords = mc.name.toLowerCase().split(/\s+/);
+        return mcWords.includes(words[0]) || mcWords.includes(safeSingularize(words[0]));
+      });
+
+      if (parentCompound) {
+        parentCompound.occurrences += concept.occurrences;
+        for (const sId of concept.sourceIds || []) {
+          if (!parentCompound.sourceIds.includes(sId)) parentCompound.sourceIds.push(sId);
+        }
+        for (const cId of concept.sourceChunkIds || []) {
+          if (!parentCompound.sourceChunkIds.includes(cId)) parentCompound.sourceChunkIds.push(cId);
+        }
+        droppedIds.add(concept.id);
+        continue;
+      }
+    }
+
+    // 2. Overly-specific phrase variant: e.g. "Focal Length Of..."
+    const lowerName = concept.name.toLowerCase();
+    if (/\b(?:of|by|for|in)\b/.test(lowerName)) {
+      const baseRoot = lowerName.split(/\s+(?:of|by|for|in)\s+/)[0].trim();
+      if (baseRoot.length >= 4) {
+        const matchingClean = Array.from(canonicalMap.values()).find(
+          c => c.id !== concept.id && !droppedIds.has(c.id) && c.name.toLowerCase() === baseRoot
+        );
+        if (matchingClean) {
+          matchingClean.occurrences += concept.occurrences;
+          for (const sId of concept.sourceIds || []) {
+            if (!matchingClean.sourceIds.includes(sId)) matchingClean.sourceIds.push(sId);
+          }
+          for (const cId of concept.sourceChunkIds || []) {
+            if (!matchingClean.sourceChunkIds.includes(cId)) matchingClean.sourceChunkIds.push(cId);
+          }
+          droppedIds.add(concept.id);
+        }
+      }
+    }
+  }
+
   // Format final canonical concepts
   const result: CanonicalConcept[] = [];
   for (const concept of canonicalMap.values()) {
+    if (droppedIds.has(concept.id)) continue;
     // Ensure aliases don't include the primary canonical name
     if (concept.aliases) {
       concept.aliases = concept.aliases.filter(a => a.toLowerCase() !== concept.name.toLowerCase());

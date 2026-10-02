@@ -30,10 +30,10 @@ export interface GraphLayoutOptions {
 }
 
 const DEFAULT_DIMENSIONS: LayoutDimensions = {
-  nodeWidth: 236,
-  nodeHeight: 124,
-  horizontalSpacing: 44,
-  verticalSpacing: 36
+  nodeWidth: 260,
+  nodeHeight: 160,
+  horizontalSpacing: 80,
+  verticalSpacing: 70
 };
 
 /**
@@ -101,15 +101,15 @@ export function computeGraphLayout(
   }
 
   if (count === 2) {
-    const spacing = dims.nodeWidth + dims.horizontalSpacing + 40;
+    const spacing = dims.nodeWidth + dims.horizontalSpacing + 60;
     positions.set(nodes[0].id, { x: Math.round(centerX - spacing / 2), y: centerY });
     positions.set(nodes[1].id, { x: Math.round(centerX + spacing / 2), y: centerY });
     return positions;
   }
 
   if (count === 3) {
-    // Equilateral triangle layout
-    const radius = 240;
+    // Equilateral triangle layout with ample spacing
+    const radius = 280;
     const angles = [-Math.PI / 2, Math.PI / 6, (5 * Math.PI) / 6];
     nodes.forEach((n, idx) => {
       positions.set(n.id, {
@@ -122,7 +122,7 @@ export function computeGraphLayout(
 
   if (count <= 5) {
     // Clean symmetric polygon layout
-    const radius = 260;
+    const radius = 320;
     const step = (2 * Math.PI) / count;
     const startAngle = -Math.PI / 2;
     nodes.forEach((n, idx) => {
@@ -182,7 +182,7 @@ export function computeGraphLayout(
     if (tier0.length === 1) {
       positions.set(tier0[0].id, { x: centerX, y: centerY });
     } else {
-      const innerRadius = 180;
+      const innerRadius = 240;
       tier0.forEach((n, idx) => {
         const angle = (2 * Math.PI * idx) / tier0.length - Math.PI / 2;
         positions.set(n.id, {
@@ -194,7 +194,7 @@ export function computeGraphLayout(
 
     // Outer tier (remaining concepts)
     const outerNodes = [...tier1, ...tier2];
-    const outerRadius = Math.max(320, (outerNodes.length * minLinearStep) / (2 * Math.PI));
+    const outerRadius = Math.max(380, (outerNodes.length * minLinearStep) / (2 * Math.PI));
     outerNodes.forEach((n, idx) => {
       const angle = (2 * Math.PI * idx) / outerNodes.length - Math.PI / 4;
       positions.set(n.id, {
@@ -211,7 +211,7 @@ export function computeGraphLayout(
   // -------------------------------------------------------------------------
   if (count <= 25) {
     // Inner ring: Tier 0
-    const r0 = tier0.length <= 1 ? 0 : Math.max(160, (tier0.length * minLinearStep) / (2 * Math.PI));
+    const r0 = tier0.length <= 1 ? 0 : Math.max(220, (tier0.length * minLinearStep) / (2 * Math.PI));
     if (tier0.length === 1) {
       positions.set(tier0[0].id, { x: centerX, y: centerY });
     } else {
@@ -224,8 +224,8 @@ export function computeGraphLayout(
       });
     }
 
-    // Middle ring: Tier 1
-    const r1 = Math.max(r0 + 190, (tier1.length * minLinearStep) / (2 * Math.PI));
+    // Middle ring: Tier 1 with ample radial gap
+    const r1 = Math.max(r0 + 320, (tier1.length * minLinearStep) / (2 * Math.PI));
     tier1.forEach((n, idx) => {
       const angle = (2 * Math.PI * idx) / Math.max(1, tier1.length);
       positions.set(n.id, {
@@ -234,8 +234,8 @@ export function computeGraphLayout(
       });
     });
 
-    // Outer ring: Tier 2
-    const r2 = Math.max(r1 + 210, (tier2.length * minLinearStep) / (2 * Math.PI));
+    // Outer ring: Tier 2 with ample radial gap
+    const r2 = Math.max(r1 + 320, (tier2.length * minLinearStep) / (2 * Math.PI));
     tier2.forEach((n, idx) => {
       const angle = (2 * Math.PI * idx) / Math.max(1, tier2.length) + Math.PI / 6;
       positions.set(n.id, {
@@ -285,7 +285,7 @@ export function computeGraphLayout(
   if (coreHubs.length === 1) {
     positions.set(coreHubs[0].id, { x: centerX, y: centerY });
   } else if (coreHubs.length > 1) {
-    const rCore = 160;
+    const rCore = 220;
     coreHubs.forEach((n, idx) => {
       const angle = (2 * Math.PI * idx) / coreHubs.length - Math.PI / 2;
       positions.set(n.id, {
@@ -298,9 +298,9 @@ export function computeGraphLayout(
   // Shell allocation helper: distribute nodes evenly along concentric orbits
   // Each shell has radius R and max capacity floor(2*PI*R / minLinearStep)
   const remainingNodes = [...remainingTier0, ...sortedTier1, ...sortedTier2];
-  let currentShellRadius = coreHubs.length > 0 ? 320 : 220;
+  let currentShellRadius = coreHubs.length > 0 ? 380 : 280;
   let nodeIndex = 0;
-  const radialGap = Math.max(dims.nodeHeight + dims.verticalSpacing + 60, 220);
+  const radialGap = Math.max(dims.nodeHeight + dims.verticalSpacing + 120, 320);
 
   while (nodeIndex < remainingNodes.length) {
     const circumference = 2 * Math.PI * currentShellRadius;
@@ -324,7 +324,7 @@ export function computeGraphLayout(
   }
 
   // Run collision relaxation with iterations adapted to node volume
-  const relaxationIterations = Math.min(65, 35 + Math.floor(count * 0.3));
+  const relaxationIterations = Math.min(80, 50 + Math.floor(count * 0.4));
   return runCollisionRelaxation(nodes, positions, dims, centerX, centerY, relaxationIterations);
 }
 
@@ -341,7 +341,7 @@ function runCollisionRelaxation(
   dims: LayoutDimensions,
   centerX: number,
   centerY: number,
-  iterations = 45
+  iterations = 60
 ): Map<string, NodePosition> {
   const minRequiredX = dims.nodeWidth + dims.horizontalSpacing;
   const minRequiredY = dims.nodeHeight + dims.verticalSpacing;
@@ -375,8 +375,8 @@ function runCollisionRelaxation(
           const signX = dx === 0 ? (i % 2 === 0 ? 1 : -1) : Math.sign(dx);
           const signY = dy === 0 ? (j % 2 === 0 ? 1 : -1) : Math.sign(dy);
 
-          const pushX = (overlapX * 0.52) * signX;
-          const pushY = (overlapY * 0.52) * signY;
+          const pushX = (overlapX * 0.60) * signX;
+          const pushY = (overlapY * 0.60) * signY;
 
           posA.x -= pushX * 0.5;
           posA.y -= pushY * 0.5;

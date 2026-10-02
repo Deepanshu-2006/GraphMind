@@ -175,6 +175,50 @@ export function buildGraphEdges(
     });
   }
 
+  // 3. Degree capping for visual clarity & decluttering
+  // If a graph has high connectivity, prevent hairball explosion by keeping the top most meaningful edges per node
+  if (cleanEdges.length > 25) {
+    const REL_PRIORITY: Record<string, number> = {
+      'prerequisite': 10,
+      'foundation-for': 10,
+      'part-of': 8,
+      'implements': 8,
+      'extends': 7,
+      'uses': 6,
+      'applied-to': 5,
+      'instance-of': 5,
+      'depends-on': 5,
+      'related-to': 4
+    };
+
+    const edgeScores = new Map<KnowledgeRelationship, number>();
+    for (const edge of cleanEdges) {
+      const typeWeight = REL_PRIORITY[edge.type] || 5;
+      const conf = edge.confidence || 0.85;
+      edgeScores.set(edge, typeWeight * 10 + conf * 10);
+    }
+
+    const maxDegreePerNode = 4;
+    const finalEdges = new Set<KnowledgeRelationship>();
+    const nodeDegree = new Map<string, number>();
+
+    const sortedEdges = [...cleanEdges].sort((a, b) => (edgeScores.get(b) || 0) - (edgeScores.get(a) || 0));
+
+    for (const edge of sortedEdges) {
+      const degS = nodeDegree.get(edge.source) || 0;
+      const degT = nodeDegree.get(edge.target) || 0;
+
+      // Allow edge if both endpoints are under the degree cap
+      if (degS < maxDegreePerNode && degT < maxDegreePerNode) {
+        finalEdges.add(edge);
+        nodeDegree.set(edge.source, degS + 1);
+        nodeDegree.set(edge.target, degT + 1);
+      }
+    }
+
+    return Array.from(finalEdges);
+  }
+
   return cleanEdges;
 }
 

@@ -221,19 +221,25 @@ export function findSemanticRelation(
   }
 
   // 7. INSTANCE-OF (A is an instance/example of B)
-  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,35}\\b(?:(?:is|are) (?:an? )?(?:instance|example|type|kind|category|form|implementation) of)\\b[\\s\\w,]{0,35}\\b${bPat}\\b`, 'i').test(sNorm)) {
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,30}\\b(?:(?:is|are) (?:an? )?(?:instance|example|type|kind|category|variety|form) of)\\b[\\s\\w,]{0,30}\\b${bPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'instance-of', 0.92);
   }
-  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,35}\\b(?:such as|including|namely)\\b[\\s\\w,]{0,35}\\b${aPat}\\b`, 'i').test(sNorm)) {
+  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,30}\\b(?:such as|for example|including|namely)\\b[\\s\\w,]{0,30}\\b${aPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'instance-of', 0.92);
-  }
-  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,45}\\b(?:is called|are called|is termed|are termed|is known as|are known as)\\b[\\s\\w,]{0,35}\\b${aPat}\\b`, 'i').test(sNorm)) {
-    return buildRel(conceptA, conceptB, 'instance-of', 0.93);
   }
 
-  // 8. PART-OF (Constituent attribute of concept: e.g. "focal length of a spherical mirror", "centre of curvature of a spherical mirror")
-  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,25}\\b(?:of|in|within|for)\\b[\\s\\w,]{0,25}\\b(?:an?|the)?\\s*${bPat}\\b`, 'i').test(sNorm)) {
-    return buildRel(conceptA, conceptB, 'part-of', 0.90);
+  // 8. PART-OF (Constituent attribute or structural component)
+  // Requires explicit partitive phrases: "consists of", "is composed of", "component of", "constituent of", "part of"
+  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,30}\\b(?:consist[s]? of|(?:is|are) composed of|comprise[s]?|(?:is|are) made up of)\\b[\\s\\w,]{0,30}\\b${aPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptA, conceptB, 'part-of', 0.94);
+  }
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,30}\\b(?:(?:is|are) (?:a |an )?(?:component|constituent|part|element|subsystem|feature) of|forms? (?:a |an )?part of)\\b[\\s\\w,]{0,30}\\b${bPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptA, conceptB, 'part-of', 0.94);
+  }
+  // Optical / physics specific constituent attribute: e.g. "focal length of a spherical mirror", "centre of curvature of a spherical mirror"
+  if (new RegExp(`\\b(?:focal length|radius of curvature|centre of curvature|pole|principal axis|aperture)\\b[\\s\\w,]{0,15}\\b(?:of (?:a|the|this)?|in (?:a|the|this)?)\\b[\\s\\w,]{0,15}\\b${bPat}\\b`, 'i').test(sNorm) &&
+      new RegExp(`\\b${aPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptA, conceptB, 'part-of', 0.92);
   }
 
   // 9. DEPENDS-ON / FORMULA GOVERNANCE
@@ -245,11 +251,8 @@ export function findSemanticRelation(
   }
 
   // 10. RELATED-TO (Conservative clause-level association)
-  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,35}\\b(?:(?:is|are) (?:closely )?related to|associated with|operate[s]? in conjunction with|work[s]? alongside|(?:is|are) intertwined with|connects to|pertains to)\\b[\\s\\w,]{0,35}\\b${bPat}\\b`, 'i').test(sNorm)) {
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,30}\\b(?:(?:is|are) (?:closely )?related to|associated with|operates? in conjunction with|connects to|pertains to)\\b[\\s\\w,]{0,30}\\b${bPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'related-to', 0.85);
-  }
-  if (new RegExp(`\\b(?:relationship between|known as)\\b[\\s\\w,]{0,50}\\b${aPat}\\b[\\s\\w,]{0,50}\\b${bPat}\\b`, 'i').test(sNorm)) {
-    return buildRel(conceptA, conceptB, 'related-to', 0.82);
   }
 
   return null;
