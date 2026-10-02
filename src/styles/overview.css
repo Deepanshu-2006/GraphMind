@@ -1,4 +1,4 @@
-/* Overview Page Styles — Minimal, Editorial Knowledge Product */
+/* Overview Page Styles — Linear / Editorial Minimal */
 
 .overview-page {
   max-width: 1040px;
@@ -7,146 +7,99 @@
   padding: 44px 32px 96px 32px;
   display: flex;
   flex-direction: column;
-  gap: 56px;
+  gap: 40px;
 }
 
-/* 1. Hero Section (Two-zone layout: Typography & Actions on Left, Living Mini Graph on Right) */
+/* 1. Hero Section */
 .overview-hero {
-  display: grid;
-  grid-template-columns: 1fr 1.12fr;
-  gap: 48px;
-  align-items: center;
-  padding: 8px 0 12px 0;
-}
-
-.overview-hero-left {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border-default);
+  background: radial-gradient(ellipse at 50% 0%, rgba(24, 24, 24, 0.55) 0%, rgba(12, 12, 12, 0.98) 100%);
+  padding: 56px 44px;
+  min-height: 360px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  justify-content: center;
+  isolation: isolate;
+  touch-action: pan-y;
+}
+
+.overview-hero-particle-field {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.overview-hero-particle-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  display: block;
+}
+
+/* Subtle Vignette to keep typography completely legible and calm */
+.overview-hero-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: radial-gradient(
+    ellipse at 35% 50%,
+    rgba(12, 12, 12, 0.72) 0%,
+    rgba(12, 12, 12, 0.35) 55%,
+    transparent 85%
+  );
+}
+
+.overview-hero-content {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 680px;
+}
+
+.overview-hero-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: -0.01em;
 }
 
 .overview-hero-title {
   font-family: var(--font-display);
-  font-size: clamp(32px, 3.8vw, 44px);
+  font-size: clamp(30px, 3.6vw, 40px);
   font-weight: 600;
-  line-height: 1.14;
-  letter-spacing: -0.028em;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
   color: var(--text-primary);
+  max-width: 720px;
 }
 
 .overview-hero-desc {
-  font-size: 14.5px;
+  font-size: 14px;
   line-height: 1.55;
   color: var(--text-secondary);
-  max-width: 440px;
+  max-width: 580px;
 }
 
 .overview-hero-actions {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 10px;
+  margin-top: 6px;
 }
 
-/* Hero Right: Miniature Knowledge Graph */
-.overview-hero-right {
-  width: 100%;
-}
-
-.hero-graph-canvas-frame {
-  background-color: #0E0E0E;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: var(--radius-card);
-  padding: 14px 18px 14px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  position: relative;
-  transition: border-color var(--transition-fast);
-}
-
-.hero-graph-canvas-frame:hover {
-  border-color: rgba(255, 255, 255, 0.11);
-}
-
-.hero-graph-topbar {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  min-height: 18px;
-}
-
-.hero-workspace-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: none;
-  border: none;
-  font-size: 12px;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 0;
-  transition: color var(--transition-fast);
-}
-
-.hero-workspace-link:hover {
-  color: var(--text-primary);
-}
-
-.hero-mini-svg {
-  width: 100%;
-  height: auto;
-  display: block;
-  user-select: none;
-}
-
-.hero-mini-svg.initial {
-  opacity: 0.5;
-  transform: translateY(3px);
-}
-
-.hero-mini-svg.settled {
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity 300ms ease, transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.hero-graph-context {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  padding-top: 10px;
-  margin-top: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.hero-context-header {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.hero-context-name {
-  font-size: 13.5px;
-  font-weight: 500;
-  color: var(--text-primary);
-  letter-spacing: -0.01em;
-}
-
-.hero-context-type {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-weight: 400;
-}
-
-.hero-context-desc {
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-/* 2. Empty State */
+/* Empty State (Section 15) */
 .overview-empty-state {
   display: flex;
   flex-direction: column;
@@ -159,7 +112,7 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-card);
   background-color: var(--bg-surface);
-  padding: 48px 32px 36px 32px;
+  padding: 48px 32px 32px 32px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -187,13 +140,22 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-bottom: 36px;
+}
+
+.empty-state-mini-graph {
+  width: 100%;
+  max-width: 600px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-default);
+  opacity: 0.85;
 }
 
 /* 3. Overview Sections Container */
 .overview-sections-container {
   display: flex;
   flex-direction: column;
-  gap: 56px;
+  gap: 64px;
 }
 
 .overview-section-header {
@@ -204,7 +166,7 @@
 }
 
 .overview-section-title {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: -0.015em;
@@ -213,7 +175,7 @@
 .overview-section-desc {
   font-size: 13.5px;
   color: var(--text-muted);
-  margin-top: 3px;
+  margin-top: 2px;
 }
 
 .overview-text-btn {
@@ -222,162 +184,221 @@
   gap: 4px;
   font-size: 13px;
   color: var(--text-secondary);
-  background: none;
-  border: none;
-  cursor: pointer;
   transition: color var(--transition-fast);
-  padding: 0;
 }
 
 .overview-text-btn:hover {
   color: var(--text-primary);
 }
 
-/* 4. Your Knowledge Graph Section */
-.overview-graph-canvas-frame {
-  background-color: #0E0E0E;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+/* Centerpiece Graph Board (Section 7 & 8: The Graph is the Hero) */
+.centerpiece-graph-board-wrap {
+  width: 100%;
+}
+
+.centerpiece-graph-board {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-card);
-  padding: 16px 20px;
+  padding: 16px;
   width: 100%;
   position: relative;
   overflow: hidden;
   display: flex;
   align-items: center;
-  justify-content: center;
-  min-height: 350px;
-  transition: border-color var(--transition-fast);
+  min-height: 380px;
 }
 
-.overview-graph-canvas-frame:hover {
-  border-color: rgba(255, 255, 255, 0.11);
-}
-
-.overview-graph-svg {
+.centerpiece-svg {
   width: 100%;
-  height: 340px;
-  display: block;
-  user-select: none;
+  height: 360px;
 }
 
-/* 5. Editorial Concepts List */
-.concepts-editorial-list {
-  background-color: #0E0E0E;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+/* Compact Floating Node Inspector (Section 8) */
+.centerpiece-node-panel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 250px;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-card);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 10;
+}
+
+.node-panel-category {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: -0.01em;
+}
+
+.node-panel-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.node-panel-desc {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.node-panel-conn-chip {
+  padding: 3px 8px;
+  border-radius: 4px;
+  background-color: var(--bg-inset);
+  border: 1px solid var(--border-default);
+  font-size: 11.5px;
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.node-panel-conn-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Clean Concepts List (Section 12: simple list instead of cards) */
+.concepts-clean-list {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-card);
   overflow: hidden;
 }
 
-.concept-editorial-row {
-  display: grid;
-  grid-template-columns: 2px 210px 1fr auto;
+.concept-clean-row {
+  display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 14px 24px 14px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-default);
   cursor: pointer;
   transition: background-color var(--transition-fast);
 }
 
-.concept-editorial-row:last-child {
+.concept-clean-row:last-child {
   border-bottom: none;
 }
 
-.concept-editorial-row:hover,
-.concept-editorial-row.selected {
-  background-color: rgba(255, 255, 255, 0.025);
+.concept-clean-row:hover,
+.concept-clean-row.selected {
+  background-color: var(--bg-surface-elevated);
 }
 
-.concept-editorial-indicator {
-  width: 2px;
-  height: 24px;
-  border-radius: 1px;
-  background-color: transparent;
+.concept-clean-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.concept-clean-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
   transition: background-color var(--transition-fast);
 }
 
-.concept-editorial-row:hover .concept-editorial-indicator,
-.concept-editorial-row.selected .concept-editorial-indicator {
-  background-color: var(--accent);
-}
-
-.concept-editorial-ident {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-
-.concept-editorial-name {
+.concept-clean-name {
   font-size: 14px;
   font-weight: 500;
   color: var(--text-primary);
-  letter-spacing: -0.01em;
-  transition: color var(--transition-fast);
 }
 
-.concept-editorial-row:hover .concept-editorial-name,
-.concept-editorial-row.selected .concept-editorial-name {
-  color: #FFFFFF;
-}
-
-.concept-editorial-type {
-  font-size: 11.5px;
-  color: var(--text-muted);
-  font-weight: 400;
-}
-
-.concept-editorial-desc {
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-.concept-editorial-meta {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  min-width: 95px;
-}
-
-.concept-editorial-count {
+.concept-clean-category {
   font-size: 12px;
   color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
 }
 
-/* 6. Responsive Adjustments */
-@media (max-width: 960px) {
+.concept-clean-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.concept-clean-count {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Responsive adjustments */
+@media (min-width: 769px) and (max-width: 1180px) {
   .overview-page {
     padding: 36px 24px 80px 24px;
-    gap: 48px;
+  }
+}
+
+@media (max-width: 900px) {
+  .centerpiece-node-panel {
+    position: static;
+    width: 100%;
+    margin-top: 16px;
+  }
+  .centerpiece-graph-board {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 768px) {
+  .overview-page {
+    padding: 24px 16px 64px 16px;
+    gap: 32px;
   }
 
   .overview-hero {
-    grid-template-columns: 1fr;
-    gap: 36px;
-  }
-
-  .concept-editorial-row {
-    grid-template-columns: 2px 180px 1fr auto;
-    gap: 14px;
-    padding-right: 18px;
-  }
-}
-
-@media (max-width: 680px) {
-  .overview-page {
-    padding: 24px 16px 64px 16px;
-    gap: 40px;
+    padding: 38px 24px;
+    min-height: 310px;
   }
 
   .overview-hero-title {
-    font-size: clamp(28px, 6vw, 36px);
+    font-size: clamp(26px, 6vw, 34px);
+  }
+
+  .overview-hero-actions {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .overview-section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .concept-clean-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px 16px;
+  }
+
+  .concept-clean-meta {
+    align-self: flex-start;
+  }
+
+  .centerpiece-svg {
+    height: 280px;
+  }
+}
+
+@media (max-width: 480px) {
+  .overview-hero {
+    padding: 32px 18px;
+    min-height: 270px;
   }
 
   .overview-hero-actions {
     flex-direction: column;
-    width: 100%;
   }
 
   .overview-hero-actions button {
@@ -385,34 +406,7 @@
     justify-content: center;
   }
 
-  .overview-graph-canvas-frame {
-    padding: 12px 14px;
-    min-height: 280px;
-  }
-
-  .overview-graph-svg {
-    height: 260px;
-  }
-
-  .concept-editorial-row {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 14px 16px 14px 16px;
-    position: relative;
-  }
-
-  .concept-editorial-indicator {
-    position: absolute;
-    left: 0;
-    top: 10px;
-    bottom: 10px;
-    height: auto;
-  }
-
-  .concept-editorial-meta {
-    align-self: flex-start;
-    min-width: auto;
+  .centerpiece-svg {
+    height: 220px;
   }
 }
