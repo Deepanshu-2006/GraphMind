@@ -47,32 +47,32 @@ describe('FromMaterialToMeaning - Pinned Continuous Transformation Logic', () =>
     const c1 = KNOWLEDGE_CONCEPTS.find(c => c.id === 'c1');
     assert.ok(c1);
     assert.equal(c1.name, 'Neural Networks');
-    assert.equal(c1.docX, -105);
-    assert.equal(c1.docY, -42);
-    assert.equal(c1.graphX, 0);
-    assert.equal(c1.graphY, -80);
+    assert.equal(c1.docX, 0.28);
+    assert.equal(c1.docY, 0.38);
+    assert.equal(c1.graphX, 0.58);
+    assert.equal(c1.graphY, 0.28);
   });
 
   test('node coordinates interpolate smoothly from doc position to settled graph position', () => {
-    const node = KNOWLEDGE_CONCEPTS[0]; // Neural Networks: doc (-105, -42), graph (0, -80)
+    const node = KNOWLEDGE_CONCEPTS[0]; // Neural Networks: doc (0.28, 0.38), graph (0.58, 0.28)
 
     // Travel range is 0.36 to 0.65
     const emergeStart = smoothstep(0.36, 0.65, 0.36);
     const xStart = node.docX + (node.graphX - node.docX) * emergeStart;
     const yStart = node.docY + (node.graphY - node.docY) * emergeStart;
-    assert.equal(xStart, -105);
-    assert.equal(yStart, -42);
+    assert.equal(xStart, 0.28);
+    assert.equal(yStart, 0.38);
 
     const emergeEnd = smoothstep(0.36, 0.65, 0.65);
     const xEnd = node.docX + (node.graphX - node.docX) * emergeEnd;
     const yEnd = node.docY + (node.graphY - node.docY) * emergeEnd;
-    assert.equal(xEnd, 0);
-    assert.equal(yEnd, -80);
+    assert.equal(xEnd, 0.58);
+    assert.equal(yEnd, 0.28);
 
     // Midpoint interpolation
     const emergeMid = smoothstep(0.36, 0.65, 0.505);
     const xMid = node.docX + (node.graphX - node.docX) * emergeMid;
-    assert.ok(xMid > -105 && xMid < 0);
+    assert.ok(xMid > 0.28 && xMid < 0.58);
   });
 
   test('reversible scroll: forward scroll and reverse scroll produce identical transformation values', () => {

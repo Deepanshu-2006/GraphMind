@@ -16,10 +16,13 @@ export interface ConceptDefinition {
   id: string;
   name: string;
   category: string;
-  docX: number;   // coordinate overlaying initial document text position
+  isPrimary?: boolean;
+  docX: number;   // normalized (0-1) coordinate over document text position
   docY: number;
-  graphX: number; // settled coordinate in balanced knowledge graph
+  graphX: number; // normalized (0-1) coordinate in knowledge graph space
   graphY: number;
+  halfWidth: number;
+  halfHeight: number;
 }
 
 export interface RelationshipDefinition {
@@ -36,37 +39,49 @@ export const KNOWLEDGE_CONCEPTS: ConceptDefinition[] = [
     id: 'c1',
     name: 'Neural Networks',
     category: 'Architecture',
-    docX: -105,
-    docY: -42,
-    graphX: 0,
-    graphY: -80
+    isPrimary: true,
+    docX: 0.28,
+    docY: 0.38,
+    graphX: 0.58,
+    graphY: 0.28,
+    halfWidth: 105,
+    halfHeight: 19
   },
   {
     id: 'c2',
     name: 'Activation Functions',
     category: 'Function',
-    docX: 95,
-    docY: -16,
-    graphX: -165,
-    graphY: 10
+    isPrimary: false,
+    docX: 0.70,
+    docY: 0.42,
+    graphX: 0.32,
+    graphY: 0.55,
+    halfWidth: 95,
+    halfHeight: 17
   },
   {
     id: 'c3',
     name: 'Backpropagation',
     category: 'Optimization',
-    docX: -90,
-    docY: 36,
-    graphX: 160,
-    graphY: 15
+    isPrimary: false,
+    docX: 0.36,
+    docY: 0.58,
+    graphX: 0.72,
+    graphY: 0.55,
+    halfWidth: 92,
+    halfHeight: 17
   },
   {
     id: 'c4',
     name: 'Gradient Descent',
     category: 'Algorithm',
-    docX: 90,
-    docY: 66,
-    graphX: 125,
-    graphY: 115
+    isPrimary: false,
+    docX: 0.68,
+    docY: 0.64,
+    graphX: 0.72,
+    graphY: 0.80,
+    halfWidth: 86,
+    halfHeight: 17
   }
 ];
 
@@ -310,6 +325,7 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
             progress={scrollProgress}
             effectiveFocalId={effectiveFocalId}
             activeNeighbors={activeNeighbors}
+            hoveredConceptId={hoveredConceptId}
             onHoverConcept={setHoveredConceptId}
             onLeaveConcept={() => setHoveredConceptId(null)}
           />
@@ -373,6 +389,7 @@ interface KnowledgeTransformationVisualProps {
   progress: MotionValue<number>;
   effectiveFocalId: string | null;
   activeNeighbors: Set<string>;
+  hoveredConceptId: string | null;
   onHoverConcept: (id: string) => void;
   onLeaveConcept: () => void;
 }
@@ -381,20 +398,31 @@ const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps
   progress,
   effectiveFocalId,
   activeNeighbors,
+  hoveredConceptId,
   onHoverConcept,
   onLeaveConcept
 }) => {
   // ─── Layer 1 & 2: Document Transforms ──────────────────────────────────────
-  // READ (0.00 → 0.22): Document surface is fully opaque, prominent.
-  // FIND (0.22 → 0.48): Document body text gently dims; concepts highlight.
-  // CONNECT (0.48 → 0.74): Document recedes in depth (scales down, dims to 0.18,
-  //   moves backward) but remains subtly visible underneath.
-  // EXPLORE (0.74 → 1.00): Document gracefully settles as quiet context underneath (0.10)
-  //   while the knowledge graph structure completely dominates the central stage.
-  const docOpacity = useTransform(progress, [0.0, 0.04, 0.44, 0.64, 0.80], [0.5, 1.0, 1.0, 0.18, 0.10]);
-  const docScale = useTransform(progress, [0.0, 0.04, 0.44, 0.64, 0.80], [0.98, 1.0, 1.0, 0.88, 0.84]);
-  const docTranslateZ = useTransform(progress, [0.44, 0.64, 0.80], [0, -32, -48]);
-  const docBlur = useTransform(progress, [0.48, 0.68, 0.80], ['blur(0px)', 'blur(1.5px)', 'blur(2px)']);
+  // Reduced progressively according to Section 17:
+  // READ (0.00-0.25): 100%
+  // FIND (0.25-0.50): 80%
+  // CONNECT (0.50-0.75): 35%
+  // EXPLORE (0.75-1.00): 10% -> 8%
+  const docOpacity = useTransform(
+    progress,
+    [0.0, 0.04, 0.25, 0.50, 0.75, 1.0],
+    [0.6, 1.0, 0.80, 0.35, 0.10, 0.08]
+  );
+  const docScale = useTransform(
+    progress,
+    [0.0, 0.04, 0.45, 0.70, 0.90],
+    [0.98, 1.0, 1.0, 0.90, 0.86]
+  );
+  const docTranslateZ = useTransform(progress, [0.45, 0.70, 0.90], [0, -28, -44]);
+  const docBlur = useTransform(progress, [0.50, 0.75, 0.90], ['blur(0px)', 'blur(1.5px)', 'blur(2px)']);
+
+  // Graph expands subtly as document recedes (Section 18):
+  const graphScale = useTransform(progress, [0.35, 0.65, 1.0], [0.90, 1.0, 1.06]);
 
   // Document body text dimming during FIND & CONNECT
   const bodyTextDim = useTransform(progress, [0.22, 0.42], [1.0, 0.38]);
@@ -404,10 +432,28 @@ const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps
   const scanlineOpacity = useTransform(progress, [0.0, 0.03, 0.18, 0.24], [0, 0.6, 0.6, 0]);
 
   // Highlighting of terms inside document text
-  const hlTerm1 = useTransform(progress, [0.20, 0.30], [0, 1]);
-  const hlTerm2 = useTransform(progress, [0.24, 0.34], [0, 1]);
-  const hlTerm3 = useTransform(progress, [0.28, 0.38], [0, 1]);
-  const hlTerm4 = useTransform(progress, [0.32, 0.42], [0, 1]);
+  const hlTerm1 = useTransform(progress, [0.20, 0.28], [0, 1]);
+  const hlTerm2 = useTransform(progress, [0.24, 0.32], [0, 1]);
+  const hlTerm3 = useTransform(progress, [0.28, 0.36], [0, 1]);
+  const hlTerm4 = useTransform(progress, [0.32, 0.40], [0, 1]);
+
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [stageDims, setStageDims] = useState({ width: 680, height: 460 });
+
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const updateDims = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setStageDims({ width: rect.width, height: rect.height });
+      }
+    };
+    updateDims();
+    const ro = new ResizeObserver(updateDims);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   return (
     <div className="ktv-viewport">
@@ -476,41 +522,62 @@ const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps
           </div>
         </motion.div>
 
-        {/* Layer 3: Relationship Edges (SVG overlay) */}
-        <svg className="ktv-edges-svg" viewBox="-320 -200 640 400" aria-hidden="true">
-          <defs>
-            <linearGradient id="ktv-edge-active" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#A3FF12" stopOpacity="0.95" />
-              <stop offset="100%" stopColor="#A3FF12" stopOpacity="0.45" />
-            </linearGradient>
-          </defs>
-          {KNOWLEDGE_RELATIONSHIPS.map((rel) => (
-            <AnimatedRelationshipEdge
-              key={rel.id}
-              relationship={rel}
-              concepts={KNOWLEDGE_CONCEPTS}
-              progress={progress}
-              effectiveFocalId={effectiveFocalId}
-            />
-          ))}
-        </svg>
+        {/* Central Graph Canvas: Unified system (EdgeLayer -> LabelLayer -> NodeLayer) */}
+        <motion.div
+          ref={stageRef}
+          className="graph-stage"
+          style={{ scale: graphScale }}
+        >
+          {/* Layer 1: Edge Layer (Behind nodes) */}
+          <svg
+            className="graph-edges"
+            viewBox={`0 0 ${stageDims.width} ${stageDims.height}`}
+            aria-hidden="true"
+          >
+            {KNOWLEDGE_RELATIONSHIPS.map((rel) => (
+              <AnimatedRelationshipEdge
+                key={rel.id}
+                relationship={rel}
+                concepts={KNOWLEDGE_CONCEPTS}
+                progress={progress}
+                stageDims={stageDims}
+                effectiveFocalId={effectiveFocalId}
+              />
+            ))}
+          </svg>
 
-        {/* Layer 4: Extracted Concept Nodes (Physically travel from doc to graph) */}
-        <div className="ktv-concepts-layer" aria-label="Extracted concepts">
-          {KNOWLEDGE_CONCEPTS.map((concept) => (
-            <AnimatedConceptNode
-              key={concept.id}
-              concept={concept}
-              progress={progress}
-              isFocal={effectiveFocalId === concept.id}
-              isDimmed={
-                effectiveFocalId !== null && !activeNeighbors.has(concept.id)
-              }
-              onHover={onHoverConcept}
-              onLeave={onLeaveConcept}
-            />
-          ))}
-        </div>
+          {/* Layer 2: Relationship Label Layer (Between edges and nodes) */}
+          <div className="graph-labels" aria-hidden="true">
+            {KNOWLEDGE_RELATIONSHIPS.map((rel) => (
+              <AnimatedRelationshipLabel
+                key={rel.id}
+                relationship={rel}
+                concepts={KNOWLEDGE_CONCEPTS}
+                progress={progress}
+                stageDims={stageDims}
+                effectiveFocalId={effectiveFocalId}
+              />
+            ))}
+          </div>
+
+          {/* Layer 3: Node Layer (Cleanly sits above edges and labels) */}
+          <div className="graph-nodes" aria-label="Knowledge concepts">
+            {KNOWLEDGE_CONCEPTS.map((concept) => (
+              <AnimatedConceptNode
+                key={concept.id}
+                concept={concept}
+                progress={progress}
+                stageDims={stageDims}
+                isFocal={effectiveFocalId === concept.id}
+                isDimmed={
+                  hoveredConceptId !== null && !activeNeighbors.has(concept.id)
+                }
+                onHover={onHoverConcept}
+                onLeave={onLeaveConcept}
+              />
+            ))}
+          </div>
+        </motion.div>
       </div>
     </div>
   );
@@ -545,81 +612,44 @@ const InlineHighlightTerm: React.FC<{
 };
 
 /* ==========================================================================
-   Subcomponent: AnimatedConceptNode
-   Continuous physical transformation:
-   - Emerges at its exact document text position
-   - Detaches with 3D elevation and chip background
-   - Travels smoothly to settled graph coordinate
-   - Shows category badge and focal glowing ring in final EXPLORE stage
+   Geometry Helper: Rectangular Boundary Intersection
+   Computes exact entry and exit coordinates for clean edge termination
    ========================================================================== */
 
-interface AnimatedConceptNodeProps {
-  concept: ConceptDefinition;
-  progress: MotionValue<number>;
-  isFocal: boolean;
-  isDimmed: boolean;
-  onHover: (id: string) => void;
-  onLeave: () => void;
+interface RectBounds {
+  x: number;
+  y: number;
+  hw: number;
+  hh: number;
 }
 
-const AnimatedConceptNode: React.FC<AnimatedConceptNodeProps> = ({
-  concept,
-  progress,
-  isFocal,
-  isDimmed,
-  onHover,
-  onLeave
-}) => {
-  // Physical travel from document text position to settled graph position
-  const x = useTransform(progress, [0.36, 0.65], [concept.docX, concept.graphX]);
-  const y = useTransform(progress, [0.36, 0.65], [concept.docY, concept.graphY]);
+export function getRectIntersection(
+  source: RectBounds,
+  target: RectBounds
+): { x1: number; y1: number; x2: number; y2: number } {
+  const dx = target.x - source.x;
+  const dy = target.y - source.y;
 
-  // Elevation: lifts off the document surface into 3D space
-  const translateZ = useTransform(progress, [0.22, 0.40, 0.70], [2, 14, 24]);
+  if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) {
+    return { x1: source.x, y1: source.y, x2: target.x, y2: target.y };
+  }
 
-  // Overall node opacity: emerges as terms highlight in FIND
-  const opacity = useTransform(progress, [0.22, 0.36], [0, 1]);
-
-  // Category badge visibility: reveals cleanly as concepts leave the document
-  const tagOpacity = useTransform(progress, [0.46, 0.64], [0, 1]);
-
-  return (
-    <motion.div
-      className={[
-        'ktv-concept-node',
-        isFocal ? 'focal' : '',
-        isDimmed ? 'dimmed' : ''
-      ].join(' ')}
-      style={{
-        x,
-        y,
-        translateZ,
-        opacity: isDimmed ? 0.28 : opacity
-      }}
-      onMouseEnter={() => onHover(concept.id)}
-      onMouseLeave={onLeave}
-      role="button"
-      tabIndex={0}
-      aria-label={`Concept: ${concept.name}`}
-    >
-      <div className="ktv-node-card">
-        <span
-          className="ktv-node-dot"
-          style={{
-            backgroundColor: isFocal ? 'var(--accent)' : 'rgba(255, 255, 255, 0.35)'
-          }}
-          aria-hidden="true"
-        />
-        <div className="ktv-node-text-wrap">
-          <span className="ktv-node-title">{concept.name}</span>
-          <motion.span className="ktv-node-tag" style={{ opacity: tagOpacity }}>
-            {concept.category}
-          </motion.span>
-        </div>
-      </div>
-    </motion.div>
+  const sScale = Math.min(
+    Math.abs(dx) > 0.001 ? source.hw / Math.abs(dx) : Infinity,
+    Math.abs(dy) > 0.001 ? source.hh / Math.abs(dy) : Infinity
   );
-};
+  const x1 = source.x + dx * sScale;
+  const y1 = source.y + dy * sScale;
+
+  const tScale = Math.min(
+    Math.abs(dx) > 0.001 ? target.hw / Math.abs(dx) : Infinity,
+    Math.abs(dy) > 0.001 ? target.hh / Math.abs(dy) : Infinity
+  );
+  const x2 = target.x - dx * tScale;
+  const y2 = target.y - dy * tScale;
+
+  return { x1, y1, x2, y2 };
+}
 
 /* ==========================================================================
    Subcomponent: AnimatedRelationshipEdge
@@ -630,6 +660,7 @@ interface AnimatedRelationshipEdgeProps {
   relationship: RelationshipDefinition;
   concepts: ConceptDefinition[];
   progress: MotionValue<number>;
+  stageDims: { width: number; height: number };
   effectiveFocalId: string | null;
 }
 
@@ -637,66 +668,220 @@ const AnimatedRelationshipEdge: React.FC<AnimatedRelationshipEdgeProps> = ({
   relationship,
   concepts,
   progress,
+  stageDims,
   effectiveFocalId
 }) => {
   const src = concepts.find((c) => c.id === relationship.sourceId) || concepts[0];
   const tgt = concepts.find((c) => c.id === relationship.targetId) || concepts[1];
 
-  // Node endpoints follow the identical physical motion interpolation
-  const srcX = useTransform(progress, [0.36, 0.65], [src.docX, src.graphX]);
-  const srcY = useTransform(progress, [0.36, 0.65], [src.docY, src.graphY]);
-  const tgtX = useTransform(progress, [0.36, 0.65], [tgt.docX, tgt.graphX]);
-  const tgtY = useTransform(progress, [0.36, 0.65], [tgt.docY, tgt.graphY]);
+  const srcNormX = useTransform(progress, [0.36, 0.65], [src.docX, src.graphX]);
+  const srcNormY = useTransform(progress, [0.36, 0.65], [src.docY, src.graphY]);
+  const tgtNormX = useTransform(progress, [0.36, 0.65], [tgt.docX, tgt.graphX]);
+  const tgtNormY = useTransform(progress, [0.36, 0.65], [tgt.docY, tgt.graphY]);
 
-  // Progressive line drawing timeline
+  const srcX = useTransform(srcNormX, (nx) => nx * stageDims.width);
+  const srcY = useTransform(srcNormY, (ny) => ny * stageDims.height);
+  const tgtX = useTransform(tgtNormX, (nx) => nx * stageDims.width);
+  const tgtY = useTransform(tgtNormY, (ny) => ny * stageDims.height);
+
+  const x1 = useTransform([srcX, srcY, tgtX, tgtY], ([sx, sy, tx, ty]: number[]) => {
+    return getRectIntersection(
+      { x: sx, y: sy, hw: src.halfWidth, hh: src.halfHeight },
+      { x: tx, y: ty, hw: tgt.halfWidth, hh: tgt.halfHeight }
+    ).x1;
+  });
+  const y1 = useTransform([srcX, srcY, tgtX, tgtY], ([sx, sy, tx, ty]: number[]) => {
+    return getRectIntersection(
+      { x: sx, y: sy, hw: src.halfWidth, hh: src.halfHeight },
+      { x: tx, y: ty, hw: tgt.halfWidth, hh: tgt.halfHeight }
+    ).y1;
+  });
+  const x2 = useTransform([srcX, srcY, tgtX, tgtY], ([sx, sy, tx, ty]: number[]) => {
+    return getRectIntersection(
+      { x: sx, y: sy, hw: src.halfWidth, hh: src.halfHeight },
+      { x: tx, y: ty, hw: tgt.halfWidth, hh: tgt.halfHeight }
+    ).x2;
+  });
+  const y2 = useTransform([srcX, srcY, tgtX, tgtY], ([sx, sy, tx, ty]: number[]) => {
+    return getRectIntersection(
+      { x: sx, y: sy, hw: src.halfWidth, hh: src.halfHeight },
+      { x: tx, y: ty, hw: tgt.halfWidth, hh: tgt.halfHeight }
+    ).y2;
+  });
+
   const pathLength = useTransform(
     progress,
     [relationship.drawStart, relationship.drawEnd],
     [0, 1]
   );
 
-  // Label badge fades in as line completes drawing
+  const isEdgeActive =
+    effectiveFocalId !== null &&
+    (relationship.sourceId === effectiveFocalId || relationship.targetId === effectiveFocalId);
+
+  return (
+    <motion.line
+      x1={x1}
+      y1={y1}
+      x2={x2}
+      y2={y2}
+      stroke={isEdgeActive ? 'rgba(163, 255, 18, 0.65)' : 'rgba(255, 255, 255, 0.18)'}
+      strokeWidth={1}
+      style={{ pathLength }}
+      className="graph-edge-line"
+    />
+  );
+};
+
+/* ==========================================================================
+   Subcomponent: AnimatedRelationshipLabel
+   Quiet horizontal edge annotation anchored to the edge midpoint
+   ========================================================================== */
+
+interface AnimatedRelationshipLabelProps {
+  relationship: RelationshipDefinition;
+  concepts: ConceptDefinition[];
+  progress: MotionValue<number>;
+  stageDims: { width: number; height: number };
+  effectiveFocalId: string | null;
+}
+
+const AnimatedRelationshipLabel: React.FC<AnimatedRelationshipLabelProps> = ({
+  relationship,
+  concepts,
+  progress,
+  stageDims,
+  effectiveFocalId
+}) => {
+  const src = concepts.find((c) => c.id === relationship.sourceId) || concepts[0];
+  const tgt = concepts.find((c) => c.id === relationship.targetId) || concepts[1];
+
+  const srcNormX = useTransform(progress, [0.36, 0.65], [src.docX, src.graphX]);
+  const srcNormY = useTransform(progress, [0.36, 0.65], [src.docY, src.graphY]);
+  const tgtNormX = useTransform(progress, [0.36, 0.65], [tgt.docX, tgt.graphX]);
+  const tgtNormY = useTransform(progress, [0.36, 0.65], [tgt.docY, tgt.graphY]);
+
+  const srcX = useTransform(srcNormX, (nx) => nx * stageDims.width);
+  const srcY = useTransform(srcNormY, (ny) => ny * stageDims.height);
+  const tgtX = useTransform(tgtNormX, (nx) => nx * stageDims.width);
+  const tgtY = useTransform(tgtNormY, (ny) => ny * stageDims.height);
+
+  const x1 = useTransform([srcX, srcY, tgtX, tgtY], ([sx, sy, tx, ty]: number[]) => {
+    return getRectIntersection(
+      { x: sx, y: sy, hw: src.halfWidth, hh: src.halfHeight },
+      { x: tx, y: ty, hw: tgt.halfWidth, hh: tgt.halfHeight }
+    ).x1;
+  });
+  const y1 = useTransform([srcX, srcY, tgtX, tgtY], ([sx, sy, tx, ty]: number[]) => {
+    return getRectIntersection(
+      { x: sx, y: sy, hw: src.halfWidth, hh: src.halfHeight },
+      { x: tx, y: ty, hw: tgt.halfWidth, hh: tgt.halfHeight }
+    ).y1;
+  });
+  const x2 = useTransform([srcX, srcY, tgtX, tgtY], ([sx, sy, tx, ty]: number[]) => {
+    return getRectIntersection(
+      { x: sx, y: sy, hw: src.halfWidth, hh: src.halfHeight },
+      { x: tx, y: ty, hw: tgt.halfWidth, hh: tgt.halfHeight }
+    ).x2;
+  });
+  const y2 = useTransform([srcX, srcY, tgtX, tgtY], ([sx, sy, tx, ty]: number[]) => {
+    return getRectIntersection(
+      { x: sx, y: sy, hw: src.halfWidth, hh: src.halfHeight },
+      { x: tx, y: ty, hw: tgt.halfWidth, hh: tgt.halfHeight }
+    ).y2;
+  });
+
+  const midX = useTransform([x1, x2], ([a, b]: number[]) => (a + b) * 0.5);
+  const midY = useTransform([y1, y2], ([a, b]: number[]) => (a + b) * 0.5);
+
   const labelOpacity = useTransform(
     progress,
-    [relationship.drawStart + 0.05, relationship.drawEnd + 0.04],
+    [relationship.drawStart + 0.04, relationship.drawEnd + 0.04],
     [0, 1]
   );
 
-  const midX = (src.graphX + tgt.graphX) * 0.5;
-  const midY = (src.graphY + tgt.graphY) * 0.5;
+  const left = useTransform(midX, (v) => `${v}px`);
+  const top = useTransform(midY, (v) => `${v}px`);
 
   const isEdgeActive =
     effectiveFocalId !== null &&
     (relationship.sourceId === effectiveFocalId || relationship.targetId === effectiveFocalId);
 
   return (
-    <g className="ktv-edge-group">
-      <motion.line
-        x1={srcX}
-        y1={srcY}
-        x2={tgtX}
-        y2={tgtY}
-        stroke={isEdgeActive ? 'url(#ktv-edge-active)' : 'rgba(255, 255, 255, 0.14)'}
-        strokeWidth={isEdgeActive ? 1.8 : 1.1}
-        strokeDasharray={isEdgeActive ? undefined : '3 4'}
-        style={{ pathLength }}
-      />
-      <foreignObject
-        x={midX - 44}
-        y={midY - 11}
-        width={88}
-        height={22}
-        className="ktv-edge-label-container"
+    <motion.div
+      className={`graph-edge-label ${isEdgeActive ? 'active' : ''}`}
+      style={{
+        left,
+        top,
+        opacity: labelOpacity
+      }}
+    >
+      {relationship.label}
+    </motion.div>
+  );
+};
+
+/* ==========================================================================
+   Subcomponent: AnimatedConceptNode
+   Emerges at source text position, travels cleanly, settles into graph position
+   ========================================================================== */
+
+interface AnimatedConceptNodeProps {
+  concept: ConceptDefinition;
+  progress: MotionValue<number>;
+  stageDims: { width: number; height: number };
+  isFocal: boolean;
+  isDimmed: boolean;
+  onHover: (id: string) => void;
+  onLeave: () => void;
+}
+
+const AnimatedConceptNode: React.FC<AnimatedConceptNodeProps> = ({
+  concept,
+  progress,
+  stageDims,
+  isFocal,
+  isDimmed,
+  onHover,
+  onLeave
+}) => {
+  // Emergence: fades in as terms highlight in FIND stage
+  const opacity = useTransform(progress, [0.22, 0.36], [0, 1]);
+
+  // Interpolate normalized position from document to graph
+  const normX = useTransform(progress, [0.36, 0.65], [concept.docX, concept.graphX]);
+  const normY = useTransform(progress, [0.36, 0.65], [concept.docY, concept.graphY]);
+
+  // Convert to stage pixels
+  const left = useTransform(normX, (nx) => `${nx * stageDims.width}px`);
+  const top = useTransform(normY, (ny) => `${ny * stageDims.height}px`);
+
+  return (
+    <motion.div
+      className={['graph-node-anchor', isDimmed ? 'dimmed' : ''].join(' ')}
+      style={{
+        left,
+        top,
+        opacity: isDimmed ? 0.40 : opacity
+      }}
+      onMouseEnter={() => onHover(concept.id)}
+      onMouseLeave={onLeave}
+      role="button"
+      tabIndex={0}
+      aria-label={`Concept: ${concept.name}`}
+    >
+      <div
+        className={[
+          'graph-node-card',
+          concept.isPrimary ? 'primary' : '',
+          isFocal ? 'selected' : ''
+        ].join(' ')}
       >
-        <motion.div
-          className={`ktv-edge-label-badge ${isEdgeActive ? 'active' : ''}`}
-          style={{ opacity: labelOpacity }}
-          title={relationship.label}
-        >
-          {relationship.label}
-        </motion.div>
-      </foreignObject>
-    </g>
+        <span className="graph-node-dot" aria-hidden="true" />
+        <span className="graph-node-title">{concept.name}</span>
+        <span className="graph-node-category">{concept.category}</span>
+      </div>
+    </motion.div>
   );
 };
 
