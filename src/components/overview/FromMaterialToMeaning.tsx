@@ -295,9 +295,9 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
                     }
                   }}
                 >
-                  <div className="transformation-nav-dot-wrap" aria-hidden="true">
+                  <span className="transformation-nav-marker" aria-hidden="true">
                     <span className="transformation-nav-dot" />
-                  </div>
+                  </span>
                   <span className="transformation-nav-code">{s.code}</span>
                   <span className="transformation-nav-label">{s.name}</span>
                 </li>
@@ -320,13 +320,15 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
               <motion.div
                 key={currentStage.code}
                 className="transformation-context-card"
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
               >
                 <div className="transformation-context-step-row">
-                  <span className="transformation-context-step">{currentStage.step}</span>
+                  <span className="transformation-context-step">{currentStage.code}</span>
+                  <span className="transformation-context-divider">/</span>
+                  <span className="transformation-context-total">04</span>
                   <span className="transformation-context-name">{currentStage.name}</span>
                 </div>
                 <h3 className="transformation-context-tagline">{currentStage.tagline}</h3>
@@ -339,7 +341,7 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
                     onClick={onExploreWorkspace}
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.22, delay: 0.12 }}
+                    transition={{ duration: 0.2, delay: 0.1 }}
                   >
                     <span>Open workspace</span>
                     <ArrowUpRight size={13} aria-hidden="true" />
@@ -386,11 +388,13 @@ const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps
   // READ (0.00 → 0.22): Document surface is fully opaque, prominent.
   // FIND (0.22 → 0.48): Document body text gently dims; concepts highlight.
   // CONNECT (0.48 → 0.74): Document recedes in depth (scales down, dims to 0.18,
-  //   moves backward) but remains subtly visible underneath, matching the reference.
-  const docOpacity = useTransform(progress, [0.0, 0.04, 0.44, 0.64], [0.5, 1.0, 1.0, 0.18]);
-  const docScale = useTransform(progress, [0.0, 0.04, 0.44, 0.64], [0.98, 1.0, 1.0, 0.88]);
-  const docTranslateZ = useTransform(progress, [0.44, 0.64], [0, -32]);
-  const docBlur = useTransform(progress, [0.48, 0.68], ['blur(0px)', 'blur(1.5px)']);
+  //   moves backward) but remains subtly visible underneath.
+  // EXPLORE (0.74 → 1.00): Document gracefully settles as quiet context underneath (0.10)
+  //   while the knowledge graph structure completely dominates the central stage.
+  const docOpacity = useTransform(progress, [0.0, 0.04, 0.44, 0.64, 0.80], [0.5, 1.0, 1.0, 0.18, 0.10]);
+  const docScale = useTransform(progress, [0.0, 0.04, 0.44, 0.64, 0.80], [0.98, 1.0, 1.0, 0.88, 0.84]);
+  const docTranslateZ = useTransform(progress, [0.44, 0.64, 0.80], [0, -32, -48]);
+  const docBlur = useTransform(progress, [0.48, 0.68, 0.80], ['blur(0px)', 'blur(1.5px)', 'blur(2px)']);
 
   // Document body text dimming during FIND & CONNECT
   const bodyTextDim = useTransform(progress, [0.22, 0.42], [1.0, 0.38]);
@@ -438,22 +442,31 @@ const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps
             aria-hidden="true"
           />
 
-          {/* Document metadata bar */}
+          {/* Editorial study material source header */}
           <div className="ktv-doc-meta">
-            <span className="ktv-doc-badge">Source Material</span>
-            <span className="ktv-doc-filename">Neural_Networks_CS229.md</span>
+            <div className="ktv-doc-source-info">
+              <span className="ktv-doc-source-institution">CS229 · MACHINE LEARNING</span>
+              <span className="ktv-doc-source-divider" aria-hidden="true">·</span>
+              <span className="ktv-doc-source-topic">AUTUMN 2024</span>
+            </div>
+            <span className="ktv-doc-folio">FOLIO 04 / 12</span>
           </div>
 
-          {/* Document title & prose */}
+          {/* Editorial reading column with deliberate negative space */}
           <div className="ktv-doc-content">
-            <h3 className="ktv-doc-heading">Representation Learning &amp; Optimization</h3>
-            <motion.p className="ktv-doc-paragraph" style={{ opacity: bodyTextDim }}>
+            <div className="ktv-doc-heading-wrap">
+              <h3 className="ktv-doc-heading">
+                <span className="ktv-doc-kicker">Neural Networks</span>
+                Representation Learning &amp; Optimization
+              </h3>
+            </div>
+            <motion.p className="ktv-doc-paragraph primary" style={{ opacity: bodyTextDim }}>
               <InlineHighlightTerm text="Neural Networks" highlight={hlTerm1} /> consist of
               stacked parameter layers transforming inputs through non-linear{' '}
               <InlineHighlightTerm text="Activation Functions" highlight={hlTerm2} /> to isolate
-              continuous representations.
+              continuous representations across high-dimensional manifolds.
             </motion.p>
-            <motion.p className="ktv-doc-paragraph" style={{ opacity: bodyTextDim }}>
+            <motion.p className="ktv-doc-paragraph secondary" style={{ opacity: bodyTextDim }}>
               During learning, error gradients flow backward via{' '}
               <InlineHighlightTerm text="Backpropagation" highlight={hlTerm3} />. The objective loss
               is iteratively minimized by{' '}

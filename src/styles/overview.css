@@ -491,12 +491,12 @@
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
-  padding: clamp(16px, 2.4vh, 26px) clamp(24px, 4.2vw, 56px) clamp(14px, 1.8vh, 20px);
+  padding: clamp(18px, 2.5vh, 28px) clamp(24px, 4vw, 56px) clamp(14px, 1.8vh, 20px);
   box-sizing: border-box;
   z-index: 10;
 }
 
-/* Subtle background ambience */
+/* Subtle background ambience - reduced to quiet, almost invisible texture */
 .transformation-ambience-canvas {
   position: absolute;
   inset: 0;
@@ -504,19 +504,20 @@
   background: 
     radial-gradient(
       ellipse 60% 50% at 50% 50%,
-      rgba(163, 255, 18, 0.016) 0%,
+      rgba(163, 255, 18, 0.012) 0%,
       transparent 70%
     ),
     radial-gradient(
-      circle 1.5px at center,
-      rgba(255, 255, 255, 0.035) 1px,
+      circle 1px at center,
+      rgba(255, 255, 255, 0.08) 0.8px,
       transparent 1px
     );
-  background-size: 100% 100%, 36px 36px;
+  background-size: 100% 100%, 32px 32px;
+  opacity: 0.14;
   z-index: 1;
 }
 
-/* 1. Header & Title Block (Top) */
+/* 1. Header & Title Block (Top) - Editorial Authority */
 .transformation-header {
   position: relative;
   z-index: 5;
@@ -524,8 +525,9 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 8px;
-  max-width: 680px;
+  gap: 18px; /* Deliberate rhythm: eyebrow -> 18-20px -> heading */
+  max-width: 900px;
+  margin-inline: auto;
 }
 
 .transformation-eyebrow {
@@ -533,53 +535,59 @@
   align-items: center;
   gap: 8px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: #7A7A7A;
+  color: #6E6E6E;
 }
 
+/* Non-glowing, precise 4px section index marker */
 .transformation-eyebrow-dot {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background-color: var(--accent);
-  box-shadow: 0 0 8px rgba(163, 255, 18, 0.7);
+  box-shadow: none;
   display: inline-block;
 }
 
+/* Hero text element: elegant, controlled, authoritative */
 .transformation-title {
   font-family: var(--font-display);
-  font-size: clamp(21px, 2.5vw, 29px);
+  font-size: clamp(40px, 3.6vw, 58px);
   font-weight: 500;
-  line-height: 1.25;
-  letter-spacing: -0.025em;
-  color: #F5F5F5;
+  line-height: 1.06;
+  letter-spacing: -0.018em;
+  color: #F2F2F2;
   margin: 0;
+  max-width: 900px;
+  text-wrap: balance;
 }
 
-/* 2. Main 3-Column Body Composition */
+/* 2. Main 3-Column Body Composition: 18% / 64% / 18% */
 .transformation-body {
   position: relative;
   z-index: 5;
   width: 100%;
-  max-width: 1180px;
+  max-width: 1260px;
   display: grid;
-  grid-template-columns: 140px minmax(480px, 1fr) 250px;
+  grid-template-columns: minmax(130px, 18%) minmax(480px, 64%) minmax(200px, 18%);
   align-items: center;
   justify-content: center;
-  gap: clamp(20px, 3.2vw, 44px);
+  gap: clamp(24px, 3.6vw, 48px);
   flex: 1;
   min-height: 0;
-  padding: 8px 0;
+  padding: 4px 0;
+  margin-top: clamp(20px, 3vh, 36px);
 }
 
-/* Left Navigation: Process Stages Index */
+/* Left Navigation: Editorial Process Index */
 .transformation-nav {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-self: center;
 }
 
 .transformation-nav-list {
@@ -588,58 +596,39 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 20px; /* Controlled vertical spacing 18-24px */
 }
 
 .transformation-nav-item {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  color: #4A4A4A;
+  gap: 8px;
   cursor: pointer;
   user-select: none;
   transition: color 180ms ease;
+  background: none;
+  border: none;
+  padding: 3px 0;
 }
 
-.transformation-nav-item:hover {
-  color: #A0A0A0;
-}
-
-.transformation-nav-item.active {
-  color: #F0F0F0;
-  font-weight: 600;
-}
-
-.transformation-nav-item.passed {
-  color: #707070;
-}
-
-.transformation-nav-dot-wrap {
-  width: 14px;
-  height: 14px;
-  display: flex;
+.transformation-nav-marker {
+  width: 10px;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   flex-shrink: 0;
 }
 
 .transformation-nav-dot {
-  width: 4px;
-  height: 4px;
+  width: 3.5px;
+  height: 3.5px;
   border-radius: 50%;
   background-color: #383838;
-  transition: background-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+  transition: background-color 200ms ease;
 }
 
 .transformation-nav-item.active .transformation-nav-dot {
-  width: 6px;
-  height: 6px;
   background-color: var(--accent);
-  box-shadow: 0 0 8px rgba(163, 255, 18, 0.85);
-  transform: scale(1.15);
 }
 
 .transformation-nav-item.passed .transformation-nav-dot {
@@ -647,43 +636,78 @@
 }
 
 .transformation-nav-code {
-  color: #606060;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: #555555;
   transition: color 180ms ease;
+  flex-shrink: 0;
 }
 
 .transformation-nav-item.active .transformation-nav-code {
-  color: var(--accent);
+  color: #B5B5B5;
+  font-weight: 500;
+}
+
+.transformation-nav-item.passed .transformation-nav-code {
+  color: #707070;
 }
 
 .transformation-nav-label {
   font-family: var(--font-body);
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-size: 12px;
+  font-weight: 450;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #6E6E6E;
+  transition: color 180ms ease;
 }
 
-/* Right Context Column */
+.transformation-nav-item:hover .transformation-nav-label {
+  color: #A0A0A0;
+}
+
+.transformation-nav-item.active .transformation-nav-label {
+  color: #EDEDED;
+  font-weight: 500;
+}
+
+.transformation-nav-item.passed .transformation-nav-label {
+  color: #888888;
+}
+
+/* Right Context Column: Editorial Caption anchored to upper-third of document */
 .transformation-context {
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
+  align-self: flex-start;
+  margin-top: clamp(24px, 4.5vh, 48px); /* Anchored to upper third of central document */
   min-height: 160px;
 }
 
 .transformation-context-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  max-width: 250px;
 }
 
 .transformation-context-step-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: baseline;
+  gap: 5px;
+  margin-bottom: 2px;
+}
+
+.transformation-context-step,
+.transformation-context-divider,
+.transformation-context-total {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10.5px;
   letter-spacing: 0.06em;
-  color: #707070;
+  color: #555555;
 }
 
 .transformation-context-step {
@@ -691,39 +715,48 @@
 }
 
 .transformation-context-name {
-  color: #A0A0A0;
+  font-family: var(--font-body);
+  font-size: 11px;
   font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8A8A8A;
+  margin-left: 5px;
 }
 
 .transformation-context-tagline {
   font-family: var(--font-display);
-  font-size: clamp(16px, 1.4vw, 19px);
+  font-size: clamp(21px, 1.8vw, 25px);
   font-weight: 500;
-  line-height: 1.35;
-  letter-spacing: -0.02em;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
   color: #EDEDED;
   margin: 0;
+  max-width: 240px;
+  text-wrap: balance;
 }
 
 .transformation-context-desc {
   font-family: var(--font-body);
-  font-size: 13px;
-  line-height: 1.55;
-  color: #858585;
+  font-size: 13.5px;
+  line-height: 1.68;
+  color: #8A8A8A;
+  opacity: 0.85;
   margin: 0;
+  max-width: 245px;
 }
 
 .transformation-cta-link {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background: none;
   border: none;
   padding: 0;
   margin-top: 6px;
   color: var(--accent);
   font-family: var(--font-body);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: -0.01em;
   cursor: pointer;
@@ -732,13 +765,13 @@
 }
 
 .transformation-cta-link:hover {
-  opacity: 0.8;
+  opacity: 0.75;
 }
 
-/* 3. Central Visual: KnowledgeTransformationVisual */
+/* 3. Central Visual: KnowledgeTransformationVisual (Spatial Hero Object) */
 .ktv-viewport {
   position: relative;
-  perspective: 1200px;
+  perspective: 1400px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -750,109 +783,145 @@
 
 .ktv-scene {
   position: relative;
-  width: clamp(480px, 56vw, 650px);
-  height: clamp(330px, 48vh, 410px);
+  width: clamp(520px, 58vw, 680px);
+  height: clamp(340px, 46vh, 420px);
   transform-style: preserve-3d;
-  transform: rotateX(5deg) rotateY(-3deg);
+  transform: rotateX(4deg) rotateY(-2.5deg);
   will-change: transform;
 }
 
-/* Layer 1: Tactile Depth Underplate */
+/* Layer 1: Tactile Depth Underplate - Subtle, no excessive shadow */
 .ktv-underplate {
   position: absolute;
   inset: 0;
-  border-radius: 10px;
-  background-color: #0C0C0C;
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  transform: translate3d(8px, 10px, -20px);
-  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.7);
+  border-radius: 8px;
+  background-color: #0E0E0E;
+  border: 1px solid rgba(255, 255, 255, 0.035);
+  transform: translate3d(6px, 8px, -18px);
+  box-shadow: 0 20px 44px -10px rgba(0, 0, 0, 0.65);
   pointer-events: none;
   transition: opacity 180ms ease;
 }
 
-/* Layer 2: Primary Study Material Surface */
+/* Layer 2: Primary Study Material Surface - Editorial research sheet */
 .ktv-material-surface {
   position: absolute;
   inset: 0;
-  border-radius: 10px;
-  background-color: #111111;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 22px 28px;
+  border-radius: 8px; /* Controlled 8px radius, not generic SaaS card */
+  background-color: #101010;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 24px 34px;
   overflow: hidden;
-  box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 16px 36px -12px rgba(0, 0, 0, 0.55);
   will-change: transform, opacity, filter;
   transform-style: preserve-3d;
 }
 
+/* Subtle reading progress sweep */
 .ktv-scanline {
   position: absolute;
   left: 0;
   right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent 0%, rgba(163, 255, 18, 0.8) 50%, transparent 100%);
-  box-shadow: 0 0 14px rgba(163, 255, 18, 0.6);
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(163, 255, 18, 0.45) 50%, transparent 100%);
+  box-shadow: 0 0 8px rgba(163, 255, 18, 0.25);
   pointer-events: none;
   z-index: 4;
 }
 
+/* Document Header: quiet, scholarly source metadata */
 .ktv-doc-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
 }
 
-.ktv-doc-badge {
+.ktv-doc-source-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-family: var(--font-mono);
   font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--accent);
-  background: rgba(163, 255, 18, 0.08);
-  padding: 2.5px 7px;
-  border-radius: 4px;
-  border: 1px solid rgba(163, 255, 18, 0.2);
+  letter-spacing: 0.12em;
+  color: #555555;
 }
 
-.ktv-doc-file {
+.ktv-doc-source-divider {
+  color: #383838;
+}
+
+.ktv-doc-source-topic {
+  color: #6E6E6E;
+}
+
+.ktv-doc-folio {
   font-family: var(--font-mono);
-  font-size: 11px;
-  color: #6A6A6A;
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  color: #4A4A4A;
 }
 
+/* Editorial Reading Column with deliberate negative space */
 .ktv-doc-content {
+  max-width: 550px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+}
+
+.ktv-doc-heading-wrap {
+  margin-bottom: 2px;
+}
+
+.ktv-doc-kicker {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6E6E6E;
+  margin-bottom: 3px;
+  font-weight: 500;
 }
 
 .ktv-doc-heading {
   font-family: var(--font-display);
-  font-size: 16.5px;
-  font-weight: 600;
-  color: #EDEDED;
-  margin: 0 0 6px 0;
-  letter-spacing: -0.015em;
-  line-height: 1.3;
+  font-size: 19px;
+  font-weight: 550;
+  color: #F0F0F0;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 0;
 }
 
 .ktv-doc-paragraph {
   font-family: var(--font-body);
-  font-size: 12.5px;
-  line-height: 1.62;
-  color: #7A7A7A;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: #9A9A9A;
   margin: 0;
   transition: opacity 160ms ease;
 }
 
+.ktv-doc-paragraph.secondary {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #707070;
+  opacity: 0.75;
+}
+
+/* Inline highlighted concept terms inside document */
 .ktv-inline-term {
   position: relative;
   display: inline-block;
-  font-weight: 500;
-  padding: 0 3px;
-  border-radius: 3px;
+  font-weight: inherit;
+  padding: 0 2px;
+  border-radius: 2px;
+  transition: background-color 200ms ease;
 }
 
 .ktv-inline-underline {
@@ -860,9 +929,9 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 1.5px;
+  height: 1px;
   background-color: var(--accent);
-  opacity: 0.8;
+  opacity: 0.7;
 }
 
 /* Layer 3: Relationship Edges SVG */
@@ -887,10 +956,10 @@
   justify-content: center;
   height: 100%;
   font-family: var(--font-mono);
-  font-size: 9.5px;
-  color: #727272;
-  background: #141414;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 9px;
+  color: #6E6E6E;
+  background: #111111;
+  border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 3px;
   padding: 0 6px;
   white-space: nowrap;
@@ -902,11 +971,11 @@
 .ktv-edge-label-badge.active {
   color: var(--accent);
   border-color: rgba(163, 255, 18, 0.35);
-  background: #151812;
-  box-shadow: 0 0 10px rgba(163, 255, 18, 0.15);
+  background: #131610;
+  box-shadow: 0 0 10px rgba(163, 255, 18, 0.12);
 }
 
-/* Layer 4: Extracted Concepts Layer */
+/* Layer 4: Extracted Concepts Layer - Expanding into surrounding space */
 .ktv-concepts-layer {
   position: absolute;
   inset: 0;
@@ -928,37 +997,36 @@
 }
 
 .ktv-concept-node.dimmed {
-  opacity: 0.28;
+  opacity: 0.55;
   transition: opacity 180ms ease;
 }
 
 .ktv-node-card {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 11px;
-  background: rgba(20, 20, 20, 0.92);
+  gap: 7px;
+  padding: 6px 10px;
+  background: rgba(18, 18, 18, 0.94);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 6px;
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 6px 20px -4px rgba(0, 0, 0, 0.55);
   transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
 }
 
 .ktv-concept-node:hover .ktv-node-card,
 .ktv-concept-node.focal .ktv-node-card {
-  border-color: rgba(163, 255, 18, 0.5);
-  background: #171816;
+  border-color: rgba(163, 255, 18, 0.45);
+  background: #141513;
   box-shadow: 
-    0 0 0 1px rgba(163, 255, 18, 0.3),
-    0 12px 28px -4px rgba(0, 0, 0, 0.7),
-    0 0 18px rgba(163, 255, 18, 0.18);
+    0 0 0 1px rgba(163, 255, 18, 0.22),
+    0 10px 24px -4px rgba(0, 0, 0, 0.65);
 }
 
 .ktv-node-dot {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   flex-shrink: 0;
   transition: background-color 160ms ease;
@@ -967,56 +1035,56 @@
 .ktv-node-text-wrap {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
 }
 
 .ktv-node-title {
   font-family: var(--font-body);
   font-size: 12px;
   font-weight: 500;
-  color: #F0F0F0;
+  color: #EDEDED;
   white-space: nowrap;
 }
 
 .ktv-node-tag {
   font-family: var(--font-mono);
   font-size: 9px;
-  color: #7A7A7A;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 1.5px 5px;
+  color: #666666;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 1.5px 4.5px;
   border-radius: 3px;
   white-space: nowrap;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* 4. Bottom Pipeline Bar */
+/* 4. Bottom Pipeline Bar - Quiet, whisper-thin milestone indicator */
 .transformation-pipeline {
   position: relative;
   z-index: 5;
   width: 100%;
-  max-width: 880px;
+  max-width: 820px;
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  gap: 20px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.035);
+  opacity: 0.75;
 }
 
 .transformation-pipeline-tag {
   font-family: var(--font-mono);
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: #555555;
+  letter-spacing: 0.16em;
+  color: #484848;
   white-space: nowrap;
 }
 
 .transformation-pipeline-track {
   position: relative;
   flex: 1;
-  height: 2px;
-  background-color: rgba(255, 255, 255, 0.08);
-  border-radius: 1px;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.06);
 }
 
 .transformation-pipeline-fill {
@@ -1026,31 +1094,31 @@
   bottom: 0;
   right: 0;
   background-color: var(--accent);
-  box-shadow: 0 0 6px rgba(163, 255, 18, 0.5);
-  border-radius: 1px;
+  box-shadow: none;
 }
 
 .transformation-pipeline-pip {
   position: absolute;
   top: 50%;
-  width: 4px;
-  height: 4px;
+  width: 3px;
+  height: 3px;
   border-radius: 50%;
-  background-color: #333333;
+  background-color: #282828;
   transform: translate(-50%, -50%);
-  transition: background-color 180ms ease, box-shadow 180ms ease;
+  box-shadow: none;
+  transition: background-color 180ms ease;
 }
 
 .transformation-pipeline-pip.reached {
   background-color: var(--accent);
-  box-shadow: 0 0 6px rgba(163, 255, 18, 0.7);
+  box-shadow: none;
 }
 
 .transformation-pipeline-counter {
   font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  color: #707070;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #555555;
   white-space: nowrap;
 }
 
@@ -1157,12 +1225,13 @@
 
 @media (max-width: 1080px) {
   .transformation-body {
-    grid-template-columns: 110px minmax(320px, 1fr) 220px;
+    grid-template-columns: 120px minmax(360px, 1fr) 210px;
     gap: 20px;
   }
 
   .transformation-context-tagline {
-    font-size: 15.5px;
+    font-size: 19px;
+    line-height: 1.2;
   }
 }
 
@@ -1347,15 +1416,18 @@
   }
 
   .transformation-title {
-    font-size: 19px;
+    font-size: 27px;
+    line-height: 1.05;
   }
 
   .transformation-context-tagline {
-    font-size: 15px;
+    font-size: 18px;
+    line-height: 1.2;
   }
 
   .transformation-context-desc {
-    font-size: 12px;
+    font-size: 12.5px;
+    line-height: 1.6;
   }
 
   .transformation-nav-list {
@@ -1363,7 +1435,7 @@
   }
 
   .transformation-nav-item {
-    font-size: 10px;
+    font-size: 11px;
     gap: 6px;
   }
 }
