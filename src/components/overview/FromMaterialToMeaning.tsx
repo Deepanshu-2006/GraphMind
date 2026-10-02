@@ -44,8 +44,8 @@ export const KNOWLEDGE_CONCEPTS: ConceptDefinition[] = [
     docY: 0.38,
     graphX: 0.58,
     graphY: 0.28,
-    halfWidth: 105,
-    halfHeight: 19
+    halfWidth: 64,
+    halfHeight: 15
   },
   {
     id: 'c2',
@@ -56,8 +56,8 @@ export const KNOWLEDGE_CONCEPTS: ConceptDefinition[] = [
     docY: 0.42,
     graphX: 0.32,
     graphY: 0.55,
-    halfWidth: 95,
-    halfHeight: 17
+    halfWidth: 72,
+    halfHeight: 15
   },
   {
     id: 'c3',
@@ -68,8 +68,8 @@ export const KNOWLEDGE_CONCEPTS: ConceptDefinition[] = [
     docY: 0.58,
     graphX: 0.72,
     graphY: 0.55,
-    halfWidth: 92,
-    halfHeight: 17
+    halfWidth: 64,
+    halfHeight: 15
   },
   {
     id: 'c4',
@@ -80,8 +80,8 @@ export const KNOWLEDGE_CONCEPTS: ConceptDefinition[] = [
     docY: 0.64,
     graphX: 0.72,
     graphY: 0.80,
-    halfWidth: 86,
-    halfHeight: 17
+    halfWidth: 62,
+    halfHeight: 15
   }
 ];
 
@@ -91,24 +91,24 @@ export const KNOWLEDGE_RELATIONSHIPS: RelationshipDefinition[] = [
     sourceId: 'c1',
     targetId: 'c2',
     label: 'uses',
-    drawStart: 0.50,
-    drawEnd: 0.62
+    drawStart: 0.58,
+    drawEnd: 0.68
   },
   {
     id: 'r2',
     sourceId: 'c1',
     targetId: 'c3',
     label: 'trained with',
-    drawStart: 0.56,
-    drawEnd: 0.68
+    drawStart: 0.64,
+    drawEnd: 0.74
   },
   {
     id: 'r3',
     sourceId: 'c3',
     targetId: 'c4',
     label: 'optimizes',
-    drawStart: 0.62,
-    drawEnd: 0.74
+    drawStart: 0.70,
+    drawEnd: 0.80
   }
 ];
 
@@ -225,7 +225,7 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
       (document.querySelector('.workspace-viewport') as HTMLElement | null) ||
       window;
 
-    const targets = [0.06, 0.36, 0.62, 0.88];
+    const targets = [0.06, 0.38, 0.62, 0.88];
     const targetProgress = targets[index] ?? 0;
 
     if (scrollContainer instanceof Window) {
@@ -424,33 +424,62 @@ const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps
   // Graph expands subtly as document recedes (Section 18):
   const graphScale = useTransform(progress, [0.35, 0.65, 1.0], [0.90, 1.0, 1.06]);
 
-  // Document body text dimming during FIND & CONNECT
-  const bodyTextDim = useTransform(progress, [0.22, 0.42], [1.0, 0.38]);
+  // Document body text dimming only AFTER terms are highlighted and cards emerge
+  const bodyTextDim = useTransform(progress, [0.44, 0.58], [1.0, 0.35]);
 
   // Scanline sweeping during READ
   const scanlineTop = useTransform(progress, [0.03, 0.20], [0, 100]);
   const scanlineOpacity = useTransform(progress, [0.0, 0.03, 0.18, 0.24], [0, 0.6, 0.6, 0]);
 
-  // Highlighting of terms inside document text
-  const hlTerm1 = useTransform(progress, [0.20, 0.28], [0, 1]);
-  const hlTerm2 = useTransform(progress, [0.24, 0.32], [0, 1]);
-  const hlTerm3 = useTransform(progress, [0.28, 0.36], [0, 1]);
-  const hlTerm4 = useTransform(progress, [0.32, 0.40], [0, 1]);
+  // Highlighting and luminous underlining of terms inside document text
+  const hlTerm1 = useTransform(progress, [0.22, 0.29], [0, 1]);
+  const hlTerm2 = useTransform(progress, [0.26, 0.33], [0, 1]);
+  const hlTerm3 = useTransform(progress, [0.30, 0.37], [0, 1]);
+  const hlTerm4 = useTransform(progress, [0.34, 0.41], [0, 1]);
+
+  // Lift progress: hands off from inline highlighted text to floating concept token
+  const liftProgress = useTransform(progress, [0.44, 0.52], [0, 1]);
+
+  const term1Ref = useRef<HTMLSpanElement>(null);
+  const term2Ref = useRef<HTMLSpanElement>(null);
+  const term3Ref = useRef<HTMLSpanElement>(null);
+  const term4Ref = useRef<HTMLSpanElement>(null);
 
   const stageRef = useRef<HTMLDivElement>(null);
   const [stageDims, setStageDims] = useState({ width: 680, height: 460 });
+  const [docPositions, setDocPositions] = useState<
+    Record<string, { docX: number; docY: number }>
+  >({});
 
   useEffect(() => {
     const el = stageRef.current;
     if (!el) return;
-    const updateDims = () => {
+    const updateDimsAndPositions = () => {
       const rect = el.getBoundingClientRect();
       if (rect.width > 0 && rect.height > 0) {
         setStageDims({ width: rect.width, height: rect.height });
+
+        const termRefs = [term1Ref, term2Ref, term3Ref, term4Ref];
+        const newPos: Record<string, { docX: number; docY: number }> = {};
+        termRefs.forEach((tRef, idx) => {
+          const tEl = tRef.current;
+          if (tEl) {
+            const tRect = tEl.getBoundingClientRect();
+            const cx = tRect.left + tRect.width / 2 - rect.left;
+            const cy = tRect.top + tRect.height / 2 - rect.top;
+            newPos[KNOWLEDGE_CONCEPTS[idx].id] = {
+              docX: cx / rect.width,
+              docY: cy / rect.height
+            };
+          }
+        });
+        if (Object.keys(newPos).length === 4) {
+          setDocPositions(newPos);
+        }
       }
     };
-    updateDims();
-    const ro = new ResizeObserver(updateDims);
+    updateDimsAndPositions();
+    const ro = new ResizeObserver(updateDimsAndPositions);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -507,16 +536,36 @@ const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps
               </h3>
             </div>
             <motion.p className="ktv-doc-paragraph primary" style={{ opacity: bodyTextDim }}>
-              <InlineHighlightTerm text="Neural Networks" highlight={hlTerm1} /> consist of
+              <InlineHighlightTerm
+                ref={term1Ref}
+                text="Neural Networks"
+                highlight={hlTerm1}
+                liftProgress={liftProgress}
+              /> consist of
               stacked parameter layers transforming inputs through non-linear{' '}
-              <InlineHighlightTerm text="Activation Functions" highlight={hlTerm2} /> to isolate
+              <InlineHighlightTerm
+                ref={term2Ref}
+                text="Activation Functions"
+                highlight={hlTerm2}
+                liftProgress={liftProgress}
+              /> to isolate
               continuous representations across high-dimensional manifolds.
             </motion.p>
             <motion.p className="ktv-doc-paragraph secondary" style={{ opacity: bodyTextDim }}>
               During learning, error gradients flow backward via{' '}
-              <InlineHighlightTerm text="Backpropagation" highlight={hlTerm3} />. The objective loss
+              <InlineHighlightTerm
+                ref={term3Ref}
+                text="Backpropagation"
+                highlight={hlTerm3}
+                liftProgress={liftProgress}
+              />. The objective loss
               is iteratively minimized by{' '}
-              <InlineHighlightTerm text="Gradient Descent" highlight={hlTerm4} /> across parameter
+              <InlineHighlightTerm
+                ref={term4Ref}
+                text="Gradient Descent"
+                highlight={hlTerm4}
+                liftProgress={liftProgress}
+              /> across parameter
               space.
             </motion.p>
           </div>
@@ -542,6 +591,7 @@ const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps
                 progress={progress}
                 stageDims={stageDims}
                 effectiveFocalId={effectiveFocalId}
+                docPositions={docPositions}
               />
             ))}
           </svg>
@@ -556,6 +606,7 @@ const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps
                 progress={progress}
                 stageDims={stageDims}
                 effectiveFocalId={effectiveFocalId}
+                docPositions={docPositions}
               />
             ))}
           </div>
@@ -574,6 +625,7 @@ const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps
                 }
                 onHover={onHoverConcept}
                 onLeave={onLeaveConcept}
+                docPos={docPositions[concept.id]}
               />
             ))}
           </div>
@@ -586,22 +638,39 @@ const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps
 /* ==========================================================================
    Subcomponent: InlineHighlightTerm
    Displays in-document highlighted term during FIND stage
+   Smoothly hands off highlight to lifting concept node token
    ========================================================================== */
 
-const InlineHighlightTerm: React.FC<{
-  text: string;
-  highlight: MotionValue<number>;
-}> = ({ text, highlight }) => {
-  const color = useTransform(highlight, [0, 1], ['#8A8A8A', '#FFFFFF']);
-  const bg = useTransform(
-    highlight,
-    [0, 1],
-    ['rgba(163,255,18,0)', 'rgba(163,255,18,0.12)']
-  );
-  const underlineScale = useTransform(highlight, [0, 1], [0, 1]);
+const InlineHighlightTerm = React.forwardRef<
+  HTMLSpanElement,
+  {
+    text: string;
+    highlight: MotionValue<number>;
+    liftProgress: MotionValue<number>;
+  }
+>(({ text, highlight, liftProgress }, ref) => {
+  const color = useTransform([highlight, liftProgress], ([h, l]: number[]) => {
+    if (l > 0.05) {
+      return `rgba(255, 255, 255, ${Math.max(0.2, 1 - l * 0.8)})`;
+    }
+    return h > 0.5 ? '#FFFFFF' : '#8A8A8A';
+  });
+
+  const bg = useTransform([highlight, liftProgress], ([h, l]: number[]) => {
+    const opacity = Math.max(0, h * 0.18 * (1 - l));
+    return `rgba(163, 255, 18, ${opacity})`;
+  });
+
+  const underlineScale = useTransform([highlight, liftProgress], ([h, l]: number[]) => {
+    return Math.max(0, h * (1 - l));
+  });
 
   return (
-    <motion.span className="ktv-inline-term" style={{ color, backgroundColor: bg }}>
+    <motion.span
+      ref={ref}
+      className="ktv-inline-term"
+      style={{ color, backgroundColor: bg }}
+    >
       {text}
       <motion.span
         className="ktv-inline-underline"
@@ -609,7 +678,8 @@ const InlineHighlightTerm: React.FC<{
       />
     </motion.span>
   );
-};
+});
+InlineHighlightTerm.displayName = 'InlineHighlightTerm';
 
 /* ==========================================================================
    Geometry Helper: Rectangular Boundary Intersection
@@ -662,6 +732,7 @@ interface AnimatedRelationshipEdgeProps {
   progress: MotionValue<number>;
   stageDims: { width: number; height: number };
   effectiveFocalId: string | null;
+  docPositions: Record<string, { docX: number; docY: number }>;
 }
 
 const AnimatedRelationshipEdge: React.FC<AnimatedRelationshipEdgeProps> = ({
@@ -669,15 +740,21 @@ const AnimatedRelationshipEdge: React.FC<AnimatedRelationshipEdgeProps> = ({
   concepts,
   progress,
   stageDims,
-  effectiveFocalId
+  effectiveFocalId,
+  docPositions
 }) => {
   const src = concepts.find((c) => c.id === relationship.sourceId) || concepts[0];
   const tgt = concepts.find((c) => c.id === relationship.targetId) || concepts[1];
 
-  const srcNormX = useTransform(progress, [0.36, 0.65], [src.docX, src.graphX]);
-  const srcNormY = useTransform(progress, [0.36, 0.65], [src.docY, src.graphY]);
-  const tgtNormX = useTransform(progress, [0.36, 0.65], [tgt.docX, tgt.graphX]);
-  const tgtNormY = useTransform(progress, [0.36, 0.65], [tgt.docY, tgt.graphY]);
+  const srcStartX = docPositions[src.id]?.docX ?? src.docX;
+  const srcStartY = docPositions[src.id]?.docY ?? src.docY;
+  const tgtStartX = docPositions[tgt.id]?.docX ?? tgt.docX;
+  const tgtStartY = docPositions[tgt.id]?.docY ?? tgt.docY;
+
+  const srcNormX = useTransform(progress, [0.54, 0.74], [srcStartX, src.graphX]);
+  const srcNormY = useTransform(progress, [0.54, 0.74], [srcStartY, src.graphY]);
+  const tgtNormX = useTransform(progress, [0.54, 0.74], [tgtStartX, tgt.graphX]);
+  const tgtNormY = useTransform(progress, [0.54, 0.74], [tgtStartY, tgt.graphY]);
 
   const srcX = useTransform(srcNormX, (nx) => nx * stageDims.width);
   const srcY = useTransform(srcNormY, (ny) => ny * stageDims.height);
@@ -744,6 +821,7 @@ interface AnimatedRelationshipLabelProps {
   progress: MotionValue<number>;
   stageDims: { width: number; height: number };
   effectiveFocalId: string | null;
+  docPositions: Record<string, { docX: number; docY: number }>;
 }
 
 const AnimatedRelationshipLabel: React.FC<AnimatedRelationshipLabelProps> = ({
@@ -751,15 +829,21 @@ const AnimatedRelationshipLabel: React.FC<AnimatedRelationshipLabelProps> = ({
   concepts,
   progress,
   stageDims,
-  effectiveFocalId
+  effectiveFocalId,
+  docPositions
 }) => {
   const src = concepts.find((c) => c.id === relationship.sourceId) || concepts[0];
   const tgt = concepts.find((c) => c.id === relationship.targetId) || concepts[1];
 
-  const srcNormX = useTransform(progress, [0.36, 0.65], [src.docX, src.graphX]);
-  const srcNormY = useTransform(progress, [0.36, 0.65], [src.docY, src.graphY]);
-  const tgtNormX = useTransform(progress, [0.36, 0.65], [tgt.docX, tgt.graphX]);
-  const tgtNormY = useTransform(progress, [0.36, 0.65], [tgt.docY, tgt.graphY]);
+  const srcStartX = docPositions[src.id]?.docX ?? src.docX;
+  const srcStartY = docPositions[src.id]?.docY ?? src.docY;
+  const tgtStartX = docPositions[tgt.id]?.docX ?? tgt.docX;
+  const tgtStartY = docPositions[tgt.id]?.docY ?? tgt.docY;
+
+  const srcNormX = useTransform(progress, [0.54, 0.74], [srcStartX, src.graphX]);
+  const srcNormY = useTransform(progress, [0.54, 0.74], [srcStartY, src.graphY]);
+  const tgtNormX = useTransform(progress, [0.54, 0.74], [tgtStartX, tgt.graphX]);
+  const tgtNormY = useTransform(progress, [0.54, 0.74], [tgtStartY, tgt.graphY]);
 
   const srcX = useTransform(srcNormX, (nx) => nx * stageDims.width);
   const srcY = useTransform(srcNormY, (ny) => ny * stageDims.height);
@@ -834,6 +918,7 @@ interface AnimatedConceptNodeProps {
   isDimmed: boolean;
   onHover: (id: string) => void;
   onLeave: () => void;
+  docPos?: { docX: number; docY: number };
 }
 
 const AnimatedConceptNode: React.FC<AnimatedConceptNodeProps> = ({
@@ -843,14 +928,18 @@ const AnimatedConceptNode: React.FC<AnimatedConceptNodeProps> = ({
   isFocal,
   isDimmed,
   onHover,
-  onLeave
+  onLeave,
+  docPos
 }) => {
-  // Emergence: fades in as terms highlight in FIND stage
-  const opacity = useTransform(progress, [0.22, 0.36], [0, 1]);
+  const startX = docPos?.docX ?? concept.docX;
+  const startY = docPos?.docY ?? concept.docY;
+
+  // Emergence: fades in seamlessly over the exact text location at lift-off
+  const opacity = useTransform(progress, [0.44, 0.50], [0, 1]);
 
   // Interpolate normalized position from document to graph
-  const normX = useTransform(progress, [0.36, 0.65], [concept.docX, concept.graphX]);
-  const normY = useTransform(progress, [0.36, 0.65], [concept.docY, concept.graphY]);
+  const normX = useTransform(progress, [0.54, 0.74], [startX, concept.graphX]);
+  const normY = useTransform(progress, [0.54, 0.74], [startY, concept.graphY]);
 
   // Convert to stage pixels
   const left = useTransform(normX, (nx) => `${nx * stageDims.width}px`);
@@ -862,7 +951,7 @@ const AnimatedConceptNode: React.FC<AnimatedConceptNodeProps> = ({
       style={{
         left,
         top,
-        opacity: isDimmed ? 0.40 : opacity
+        opacity: isDimmed ? 0.35 : opacity
       }}
       onMouseEnter={() => onHover(concept.id)}
       onMouseLeave={onLeave}
@@ -872,14 +961,13 @@ const AnimatedConceptNode: React.FC<AnimatedConceptNodeProps> = ({
     >
       <div
         className={[
-          'graph-node-card',
+          'graph-node-token',
           concept.isPrimary ? 'primary' : '',
           isFocal ? 'selected' : ''
         ].join(' ')}
       >
-        <span className="graph-node-dot" aria-hidden="true" />
-        <span className="graph-node-title">{concept.name}</span>
-        <span className="graph-node-category">{concept.category}</span>
+        <span className="graph-token-text">{concept.name}</span>
+        <span className="graph-token-underline" aria-hidden="true" />
       </div>
     </motion.div>
   );

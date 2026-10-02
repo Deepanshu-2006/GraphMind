@@ -56,21 +56,21 @@ describe('FromMaterialToMeaning - Pinned Continuous Transformation Logic', () =>
   test('node coordinates interpolate smoothly from doc position to settled graph position', () => {
     const node = KNOWLEDGE_CONCEPTS[0]; // Neural Networks: doc (0.28, 0.38), graph (0.58, 0.28)
 
-    // Travel range is 0.36 to 0.65
-    const emergeStart = smoothstep(0.36, 0.65, 0.36);
+    // Travel range is 0.54 to 0.74
+    const emergeStart = smoothstep(0.54, 0.74, 0.54);
     const xStart = node.docX + (node.graphX - node.docX) * emergeStart;
     const yStart = node.docY + (node.graphY - node.docY) * emergeStart;
     assert.equal(xStart, 0.28);
     assert.equal(yStart, 0.38);
 
-    const emergeEnd = smoothstep(0.36, 0.65, 0.65);
+    const emergeEnd = smoothstep(0.54, 0.74, 0.74);
     const xEnd = node.docX + (node.graphX - node.docX) * emergeEnd;
     const yEnd = node.docY + (node.graphY - node.docY) * emergeEnd;
     assert.equal(xEnd, 0.58);
     assert.equal(yEnd, 0.28);
 
     // Midpoint interpolation
-    const emergeMid = smoothstep(0.36, 0.65, 0.505);
+    const emergeMid = smoothstep(0.54, 0.74, 0.64);
     const xMid = node.docX + (node.graphX - node.docX) * emergeMid;
     assert.ok(xMid > 0.28 && xMid < 0.58);
   });
@@ -83,8 +83,8 @@ describe('FromMaterialToMeaning - Pinned Continuous Transformation Logic', () =>
       const stageReverse = getActiveStageIndex(p);
       assert.equal(stageForward, stageReverse);
 
-      const emergeForward = smoothstep(0.36, 0.65, p);
-      const emergeReverse = smoothstep(0.36, 0.65, p);
+      const emergeForward = smoothstep(0.54, 0.74, p);
+      const emergeReverse = smoothstep(0.54, 0.74, p);
       assert.equal(emergeForward, emergeReverse);
     }
   });
@@ -92,18 +92,18 @@ describe('FromMaterialToMeaning - Pinned Continuous Transformation Logic', () =>
   test('relationship edges draw progressively across CONNECT stage', () => {
     assert.equal(KNOWLEDGE_RELATIONSHIPS.length, 3);
 
-    // Edge 1 (Neural Networks -> Activation Functions) draws 0.50 -> 0.62
+    // Edge 1 (Neural Networks -> Activation Functions) draws 0.58 -> 0.68
     const edge1 = KNOWLEDGE_RELATIONSHIPS[0];
     assert.equal(edge1.label, 'uses');
-    assert.equal(smoothstep(edge1.drawStart, edge1.drawEnd, 0.48), 0);
-    assert.ok(smoothstep(edge1.drawStart, edge1.drawEnd, 0.56) > 0);
-    assert.equal(smoothstep(edge1.drawStart, edge1.drawEnd, 0.62), 1);
+    assert.equal(smoothstep(edge1.drawStart, edge1.drawEnd, 0.55), 0);
+    assert.ok(smoothstep(edge1.drawStart, edge1.drawEnd, 0.63) > 0);
+    assert.equal(smoothstep(edge1.drawStart, edge1.drawEnd, 0.68), 1);
 
-    // Edge 3 (Backpropagation -> Gradient Descent) draws 0.62 -> 0.74
+    // Edge 3 (Backpropagation -> Gradient Descent) draws 0.70 -> 0.80
     const edge3 = KNOWLEDGE_RELATIONSHIPS[2];
     assert.equal(edge3.label, 'optimizes');
-    assert.equal(smoothstep(edge3.drawStart, edge3.drawEnd, 0.60), 0);
-    assert.equal(smoothstep(edge3.drawStart, edge3.drawEnd, 0.74), 1);
+    assert.equal(smoothstep(edge3.drawStart, edge3.drawEnd, 0.68), 0);
+    assert.equal(smoothstep(edge3.drawStart, edge3.drawEnd, 0.80), 1);
   });
 
   test('active focal concept illuminates direct neighbors and dims non-connected nodes', () => {
