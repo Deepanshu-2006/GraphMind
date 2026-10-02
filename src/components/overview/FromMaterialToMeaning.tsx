@@ -12,11 +12,19 @@ import { ArrowUpRight } from 'lucide-react';
 /* ==========================================================================
    Editorial Constants: Heading lines for staggered entrance
    ========================================================================== */
-export const TITLE_LINES = [
+export const DESKTOP_TITLE_LINES = [
+  'See how your material',
+  'becomes connected',
+  'knowledge.'
+];
+
+export const MOBILE_TITLE_LINES = [
   'See how your',
   'material becomes',
   'connected knowledge.'
 ];
+
+export const TITLE_LINES = DESKTOP_TITLE_LINES;
 
 /* ==========================================================================
    Data Structures: Core Concepts, Relationships & Editorial Stage Copy
@@ -387,28 +395,67 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
             className="transformation-title"
             aria-label="See how your material becomes connected knowledge."
           >
-            {TITLE_LINES.map((line, idx) => (
-              <span key={idx} className="transformation-title-line-mask">
-                <motion.span
-                  className="transformation-title-line"
-                  initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 32 }}
-                  animate={
-                    hasEntered
-                      ? { opacity: 1, y: 0 }
-                      : shouldReduceMotion
-                      ? { opacity: 0 }
-                      : { opacity: 0, y: 32 }
-                  }
-                  transition={{
-                    duration: shouldReduceMotion ? 0.3 : 0.82,
-                    delay: shouldReduceMotion ? 0 : 0.20 + idx * 0.08,
-                    ease: [0.16, 1, 0.3, 1]
-                  }}
+            {/* Desktop & Tablet: Deliberate 3-line composition */}
+            <span className="transformation-title-desktop" aria-hidden="true">
+              {DESKTOP_TITLE_LINES.map((line, idx) => (
+                <span
+                  key={idx}
+                  className={`transformation-title-line-mask line-${idx + 1}${
+                    idx === 2 ? ' line-destination' : ''
+                  }`}
                 >
-                  {line}
-                </motion.span>
-              </span>
-            ))}
+                  <motion.span
+                    className="transformation-title-line"
+                    initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 28 }}
+                    animate={
+                      hasEntered
+                        ? { opacity: 1, y: 0 }
+                        : shouldReduceMotion
+                        ? { opacity: 0 }
+                        : { opacity: 0, y: 28 }
+                    }
+                    transition={{
+                      duration: shouldReduceMotion ? 0.3 : 0.62,
+                      delay: shouldReduceMotion ? 0 : 0.16 + idx * 0.10,
+                      ease: [0.16, 1, 0.3, 1]
+                    }}
+                  >
+                    {line}
+                  </motion.span>
+                </span>
+              ))}
+            </span>
+
+            {/* Mobile: Intentional 3-line composition */}
+            <span className="transformation-title-mobile" aria-hidden="true">
+              {MOBILE_TITLE_LINES.map((line, idx) => (
+                <span
+                  key={idx}
+                  className={`transformation-title-line-mask line-${idx + 1}${
+                    idx === 2 ? ' line-destination' : ''
+                  }`}
+                >
+                  <motion.span
+                    className="transformation-title-line"
+                    initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 20 }}
+                    animate={
+                      hasEntered
+                        ? { opacity: 1, y: 0 }
+                        : shouldReduceMotion
+                        ? { opacity: 0 }
+                        : { opacity: 0, y: 20 }
+                    }
+                    transition={{
+                      duration: shouldReduceMotion ? 0.3 : 0.58,
+                      delay: shouldReduceMotion ? 0 : 0.16 + idx * 0.09,
+                      ease: [0.16, 1, 0.3, 1]
+                    }}
+                  >
+                    {line}
+                  </motion.span>
+                </span>
+              ))}
+            </span>
           </h2>
         </header>
 
