@@ -46,8 +46,16 @@ export interface BatchIngestionResult {
  */
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024) {
+    const kb = bytes / 1024;
+    return `${Number(kb.toFixed(1))} KB`;
+  }
+  if (bytes < 1024 * 1024 * 1024) {
+    const mb = bytes / (1024 * 1024);
+    return `${Number(mb.toFixed(1))} MB`;
+  }
+  const gb = bytes / (1024 * 1024 * 1024);
+  return `${Number(gb.toFixed(1))} GB`;
 }
 
 /**
@@ -136,6 +144,8 @@ export async function createSourceFromFile(
     fileName: file.name,
     type: sourceType,
     size: sizeFormatted,
+    sizeBytes: file.size,
+    mimeType: file.type || undefined,
     createdAt: new Date().toISOString(),
     status: 'pending' // Initial lifecycle state
   };
@@ -201,36 +211,141 @@ export function transitionSourceStatus(
 }
 
 /**
+ * Derive file type from file name, extension, mimeType, or type
+ */
+export function getFileType(source: { 
+  type?: string; 
+  fileName?: string; 
+  name?: string; 
+  mimeType?: string; 
+  format?: string 
+}): string {
+  if (source.format && source.format.length <= 5 && source.format !== 'Unknown') {
+    return source.format.toUpperCase();
+  }
+
+  if (source.mimeType) {
+    const mime = source.mimeType.toLowerCase();
+    if (mime.includes('pdf')) return 'PDF';
+    if (mime.includes('word') || mime.includes('docx') || mime.includes('document')) return 'DOCX';
+    if (mime.includes('doc')) return 'DOC';
+    if (mime.includes('markdown') || mime.includes('md')) return 'MD';
+    if (mime.includes('text/plain') || mime.includes('txt')) return 'TXT';
+    if (mime.includes('json')) return 'JSON';
+    if (mime.includes('csv')) return 'CSV';
+  }
+
+  const name = source.fileName || source.name || '';
+  const ext = name.split('.').pop()?.toLowerCase();
+  if (ext && ext !== name.toLowerCase()) {
+    if (ext === 'pdf') return 'PDF';
+    if (ext === 'md' || ext === 'markdown') return 'MD';
+    if (ext === 'txt') return 'TXT';
+    if (ext === 'docx') return 'DOCX';
+    if (ext === 'doc') return 'DOC';
+    if (ext === 'json') return 'JSON';
+    if (ext === 'csv') return 'CSV';
+    if (ext.length <= 5) return ext.toUpperCase();
+  }
+
+  if (source.type) {
+    const t = source.type.toLowerCase();
+    if (t === 'pdf') return 'PDF';
+    if (t === 'markdown' || t === 'md') return 'MD';
+    if (t === 'text' || t === 'txt') return 'TXT';
+    if (t.length <= 5) return t.toUpperCase();
+  }
+
+  return 'PDF';
+}
+
+/**
+ * Format timestamp into concise relative or archival date
+ */
+export function formatRelativeTime(createdAt?: string | number): string {
+  if (!createdAt) return '';
+
+  const date = typeof createdAt === 'number' ? new Date(createdAt) : new Date(createdAt);
+  const time = date.getTime();
+  if (isNaN(time)) {
+    if (typeof createdAt === 'string' && /^(added\s|just\snow)/i.test(createdAt)) {
+      return createdAt.replace(/^Added\s+/i, 'ADDED ').toUpperCase();
+    }
+    return '';
+  }
+
+  const now = Date.now();
+  const diffMs = now - time;
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHours = Math.floor(diffMin / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffSec < 45) {
+    return 'ADDED JUST NOW';
+  }
+  if (diffMin < 60) {
+    return `ADDED ${diffMin} ${diffMin === 1 ? 'MIN' : 'MIN'} AGO`;
+  }
+  if (diffHours < 24) {
+    return `ADDED ${diffHours} ${diffHours === 1 ? 'HOUR' : 'HOURS'} AGO`;
+  }
+  if (diffDays === 1) {
+    return 'ADDED YESTERDAY';
+  }
+  if (diffDays < 7) {
+    return `ADDED ${diffDays} DAYS AGO`;
+  }
+
+  const day = date.getDate();
+  const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const month = monthNames[date.getMonth()];
+  const year = date.getFullYear();
+  return `ADDED ${day} ${month} ${year}`;
+}
+
+/**
  * Adapter: Convert canonical KnowledgeSource to UI RecentMaterial
  */
 export function sourceToRecentMaterial(source: KnowledgeSource): RecentMaterial {
-  let formatDisplay = 'PDF';
-  switch (source.type) {
-    case 'pdf': formatDisplay = 'PDF'; break;
-    case 'text': formatDisplay = 'TXT'; break;
-    case 'markdown': formatDisplay = 'MD'; break;
-    default: formatDisplay = 'DOC';
-  }
+  const formatDisplay = getFileType(source);
 
   let statusDisplay = 'Ready';
   const normStatus = (source.status || 'pending').toLowerCase();
   if (normStatus === 'ready' || normStatus === 'indexed' || normStatus === 'synced') {
     statusDisplay = 'Indexed';
+  } else if (normStatus.includes('read')) {
+    statusDisplay = 'reading';
+  } else if (normStatus.includes('concept')) {
+    statusDisplay = 'extracting-concepts';
+  } else if (normStatus.includes('connect') || normStatus.includes('idea') || normStatus.includes('normaliz')) {
+    statusDisplay = 'normalizing';
+  } else if (normStatus.includes('build') || normStatus.includes('graph')) {
+    statusDisplay = 'building-graph';
   } else if (normStatus === 'processing' || normStatus === 'indexing') {
     statusDisplay = 'Processing';
-  } else if (normStatus === 'failed') {
+  } else if (normStatus === 'failed' || normStatus === 'error') {
     statusDisplay = 'Failed';
   } else {
     statusDisplay = 'Pending';
   }
 
+  const rawSize = source.size || (source.sizeBytes ? formatFileSize(source.sizeBytes) : '');
+
   return {
     id: source.id,
     title: source.fileName || source.name,
+    fileName: source.fileName || source.name,
+    name: source.name,
     format: formatDisplay,
-    size: source.size || 'Unknown size',
+    size: rawSize || 'SIZE UNAVAILABLE',
+    sizeBytes: source.sizeBytes,
+    mimeType: source.mimeType,
     conceptsExtracted: source.conceptsExtracted,
-    timestamp: 'Added just now',
-    status: statusDisplay
+    conceptIds: source.conceptIds,
+    timestamp: formatRelativeTime(source.createdAt) || 'ADDED JUST NOW',
+    createdAt: source.createdAt,
+    status: statusDisplay,
+    error: source.errorMessage || source.error
   };
 }

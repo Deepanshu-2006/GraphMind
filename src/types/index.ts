@@ -53,11 +53,18 @@ export type SourceStatus = 'Ready' | 'Processing' | 'Failed' | 'Indexed' | 'sync
 export interface RecentMaterial {
   id: string;
   title: string;
+  name?: string;
+  fileName?: string;
   format: 'PDF' | 'TXT' | 'MD' | 'TRANSCRIPT' | 'ARXIV' | 'NOTE' | string;
   size: string;
+  sizeBytes?: number;
+  mimeType?: string;
   conceptsExtracted?: number;
+  conceptIds?: string[];
   timestamp: string;
+  createdAt?: string | number;
   status: 'Ready' | 'Processing' | 'Failed' | 'Indexed' | 'synced' | 'indexing' | string;
+  error?: string;
 }
 
 export interface LearningPath {

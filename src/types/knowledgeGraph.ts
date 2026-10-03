@@ -97,9 +97,14 @@ export interface KnowledgeSource {
   status: SourceLifecycleState | 'Ready' | 'Processing' | 'Failed' | 'Indexed' | string;
   errorMessage?: string;
   
-  // Optional metadata needed by UI
+  // Optional metadata needed by UI and provenance tracking
   size?: string;
+  sizeBytes?: number;
+  mimeType?: string;
   conceptsExtracted?: number;
+  conceptIds?: string[];
+  chunkIds?: string[];
+  error?: string;
 }
 
 export interface KnowledgeGraph {

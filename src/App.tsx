@@ -9,13 +9,20 @@ import { SourcesView } from './components/sources/SourcesView';
 import { LearningPathsView } from './components/paths/LearningPathsView';
 import { 
   mockProjectWorkspace, 
-  mockRecentMaterials, 
   mockLearningPaths 
 } from './data/mockData';
-import { defaultKnowledgeGraph, demoKnowledgeGraph, normalizeCategory } from './data/graphData';
+import { demoKnowledgeGraph, normalizeCategory } from './data/graphData';
 import type { KnowledgeSource, KnowledgeGraph } from './types/knowledgeGraph';
 import { sourceToRecentMaterial } from './services/sourceIngestion';
 import { pipelineOrchestrator, type PipelineStage, type PipelineProgressEvent } from './services/pipelineOrchestrator';
+import { 
+  loadUserSources, 
+  saveUserSources, 
+  loadUserGraph, 
+  saveUserGraph, 
+  loadGraphSourceType, 
+  saveGraphSourceType 
+} from './services/storage';
 import type { NavSection, RecentMaterial } from './types';
 
 export function App() {
@@ -40,18 +47,18 @@ export function App() {
     return 'interactive';
   };
 
-  // Demo vs User-generated graph separation (Prompt 21 Requirement 5)
+  // Demo vs User-generated graph separation
   const [demoGraph] = useState<KnowledgeGraph>(demoKnowledgeGraph);
-  const [userGraph, setUserGraph] = useState<KnowledgeGraph | null>(null);
-  const [graphSourceType, setGraphSourceType] = useState<'demo' | 'user'>('demo');
-  const [userSources, setUserSources] = useState<KnowledgeSource[]>([]);
+  const [userGraph, setUserGraph] = useState<KnowledgeGraph | null>(() => loadUserGraph());
+  const [userSources, setUserSources] = useState<KnowledgeSource[]>(() => loadUserSources());
+  const [graphSourceType, setGraphSourceType] = useState<'demo' | 'user'>(() => loadGraphSourceType());
   const [pipelineStage, setPipelineStage] = useState<PipelineStage>('complete');
   const [pipelineStatusMessage, setPipelineStatusMessage] = useState<string>('');
   const [pipelineError, setPipelineError] = useState<string | undefined>(undefined);
   const [livePipelineEvent, setLivePipelineEvent] = useState<PipelineProgressEvent | null>(null);
   const [focusedConceptId, setFocusedConceptId] = useState<string | null>(null);
 
-  // Active graph: strictly userGraph when in 'user' mode, demoGraph when in 'demo' mode
+  // Active graph: strictly userGraph when in 'user' mode and userGraph exists, demoGraph when in 'demo' mode
   const activeGraph = graphSourceType === 'user' && userGraph ? userGraph : demoGraph;
 
   // Searchable concepts dynamically derived from the active knowledge graph (Prompt 25)
@@ -67,11 +74,10 @@ export function App() {
     return [];
   }, [activeGraph]);
 
-  const [canonicalSources, setCanonicalSources] = useState<KnowledgeSource[]>(() => defaultKnowledgeGraph.sources);
-  const [sources, setSources] = useState<RecentMaterial[]>(() => [
-    ...defaultKnowledgeGraph.sources.map(sourceToRecentMaterial),
-    ...mockRecentMaterials.filter(m => !defaultKnowledgeGraph.sources.some(s => s.fileName === m.title))
-  ]);
+  const [canonicalSources, setCanonicalSources] = useState<KnowledgeSource[]>(() => loadUserSources());
+  const [sources, setSources] = useState<RecentMaterial[]>(() => {
+    return loadUserSources().map(sourceToRecentMaterial);
+  });
   const [graphMode, setGraphMode] = useState<WorkspaceMode>(getInitialMode);
 
   const navigateToSection = (section: NavSection) => {
@@ -120,31 +126,82 @@ export function App() {
     });
     setGraphMode('crafting');
     setGraphSourceType('user');
+    saveGraphSourceType('user');
     navigateToSection('graph');
 
-    // Combine ONLY with previously uploaded user sources (never with demo sources!)
-    const targetUserSources = [...newSources, ...userSources];
-    setUserSources(targetUserSources);
+    // Mark newly uploaded sources as pending/reading
+    const initialNewSources: KnowledgeSource[] = newSources.map(s => ({
+      ...s,
+      status: 'processing' as const,
+      processingStage: 'reading' as const
+    }));
 
-    const newMaterials = newSources.map(sourceToRecentMaterial);
-    setSources(prev => [...newMaterials, ...prev]);
+    // Combine ONLY with previously uploaded user sources (never with demo sources!)
+    const targetUserSources = [...initialNewSources, ...userSources];
+    setUserSources(targetUserSources);
+    setCanonicalSources(targetUserSources);
+    setSources(targetUserSources.map(sourceToRecentMaterial));
+    saveUserSources(targetUserSources);
 
     // Execute complete end-to-end pipeline via orchestrator:
-    // UPLOAD → SOURCE → TEXT EXTRACTION → TEXT CLEANING → CHUNKING →
-    // CONCEPT EXTRACTION → CONCEPT NORMALIZATION → RELATIONSHIP EXTRACTION →
-    // GRAPH CONSTRUCTION → KNOWLEDGE GRAPH → VISUALIZATION
     try {
       const result = await pipelineOrchestrator.execute(targetUserSources, {
         onProgress: (evt) => {
           setPipelineStage(evt.stage);
           setPipelineStatusMessage(evt.message);
           setLivePipelineEvent(evt);
+
+          // Update active processing stage on the newly added sources
+          setUserSources(prev => {
+            const updated = prev.map(s => {
+              if (newSources.some(ns => ns.id === s.id)) {
+                return {
+                  ...s,
+                  status: (evt.stage === 'error' ? 'failed' : evt.stage === 'complete' ? 'ready' : 'processing') as KnowledgeSource['status'],
+                  processingStage: evt.stage
+                };
+              }
+              return s;
+            });
+            saveUserSources(updated);
+            return updated;
+          });
+          setSources(prev => prev.map(s => {
+            if (newSources.some(ns => ns.id === s.id)) {
+              return {
+                ...s,
+                status: (evt.stage === 'error' ? 'failed' : evt.stage === 'complete' ? 'ready' : 'processing') as RecentMaterial['status']
+              };
+            }
+            return s;
+          }));
         }
       });
 
       if (result.success && result.graph && result.graph.nodes.length > 0) {
+        // Compute provenance for each source from the actual resulting graph
+        const finalizedSources: KnowledgeSource[] = targetUserSources.map(s => {
+          const matchingNodes = result.graph!.nodes.filter(n => n.sourceIds && n.sourceIds.includes(s.id));
+          const conceptIds = matchingNodes.map(n => n.id);
+          return {
+            ...s,
+            status: 'ready' as const,
+            processingStage: 'complete' as const,
+            conceptIds,
+            conceptsExtracted: conceptIds.length
+          };
+        });
+
+        setUserSources(finalizedSources);
+        setCanonicalSources(finalizedSources);
+        setSources(finalizedSources.map(sourceToRecentMaterial));
+        saveUserSources(finalizedSources);
+
         setUserGraph(result.graph);
+        saveUserGraph(result.graph);
         setGraphSourceType('user');
+        saveGraphSourceType('user');
+
         setPipelineStage('complete');
         setPipelineStatusMessage('Your knowledge graph is ready.');
         setLivePipelineEvent({
@@ -156,6 +213,22 @@ export function App() {
         setGraphMode('interactive');
       } else {
         const errorMsg = result.error?.message || 'Failed to construct knowledge graph from uploaded material.';
+        const failedSources: KnowledgeSource[] = targetUserSources.map(s => {
+          if (newSources.some(ns => ns.id === s.id)) {
+            return {
+              ...s,
+              status: 'failed' as const,
+              processingStage: 'error' as const,
+              error: errorMsg
+            };
+          }
+          return s;
+        });
+        setUserSources(failedSources);
+        setCanonicalSources(failedSources);
+        setSources(failedSources.map(sourceToRecentMaterial));
+        saveUserSources(failedSources);
+
         setPipelineStage('error');
         setPipelineError(errorMsg);
         setPipelineStatusMessage(errorMsg);
@@ -167,6 +240,22 @@ export function App() {
       }
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred during processing.';
+      const failedSources: KnowledgeSource[] = targetUserSources.map(s => {
+        if (newSources.some(ns => ns.id === s.id)) {
+          return {
+            ...s,
+            status: 'failed' as const,
+            processingStage: 'error' as const,
+            error: errorMsg
+          };
+        }
+        return s;
+      });
+      setUserSources(failedSources);
+      setCanonicalSources(failedSources);
+      setSources(failedSources.map(sourceToRecentMaterial));
+      saveUserSources(failedSources);
+
       setPipelineStage('error');
       setPipelineError(errorMsg);
       setPipelineStatusMessage(errorMsg);
@@ -179,26 +268,59 @@ export function App() {
   };
 
   const handleRemoveSource = (sourceId: string) => {
-    setCanonicalSources(prev => prev.filter(s => s.id !== sourceId));
-    setUserSources(prev => prev.filter(s => s.id !== sourceId));
-    setSources(prev => prev.filter(s => s.id !== sourceId));
+    const nextSources = userSources.filter(s => s.id !== sourceId);
+    setCanonicalSources(nextSources);
+    setUserSources(nextSources);
+    setSources(nextSources.map(sourceToRecentMaterial));
+    saveUserSources(nextSources);
+
     if (userGraph) {
-      setUserGraph(prev => {
-        if (!prev) return null;
-        const remainingSources = prev.sources.filter(s => s.id !== sourceId);
-        const remainingNodes = prev.nodes.filter(n => !n.sourceIds.includes(sourceId) || n.sourceIds.length > 1);
-        const validNodeIds = new Set(remainingNodes.map(n => n.id));
-        const remainingEdges = prev.relationships.filter(r => validNodeIds.has(r.source) && validNodeIds.has(r.target));
-        if (remainingNodes.length === 0) {
-          setGraphSourceType('demo');
-          return null;
-        }
-        return {
-          nodes: remainingNodes,
-          relationships: remainingEdges,
-          sources: remainingSources
+      // Clean up graph provenance:
+      // Keep nodes that either don't have this sourceId, or are shared across multiple sources
+      const updatedNodes = userGraph.nodes
+        .filter(n => {
+          if (!n.sourceIds || !n.sourceIds.includes(sourceId)) return true;
+          return n.sourceIds.length > 1; // Preserve shared concepts
+        })
+        .map(n => {
+          if (n.sourceIds && n.sourceIds.includes(sourceId)) {
+            return {
+              ...n,
+              sourceIds: n.sourceIds.filter(id => id !== sourceId)
+            };
+          }
+          return n;
+        });
+
+      const validNodeIds = new Set(updatedNodes.map(n => n.id));
+      const updatedRelationships = userGraph.relationships
+        .filter(r => validNodeIds.has(r.source) && validNodeIds.has(r.target))
+        .map(r => {
+          if (r.sourceIds && r.sourceIds.includes(sourceId)) {
+            return {
+              ...r,
+              sourceIds: r.sourceIds.filter(id => id !== sourceId)
+            };
+          }
+          return r;
+        });
+
+      const updatedGraphSources = userGraph.sources.filter(s => s.id !== sourceId);
+
+      if (updatedNodes.length === 0 || nextSources.length === 0) {
+        setUserGraph(null);
+        saveUserGraph(null);
+        setGraphSourceType('demo');
+        saveGraphSourceType('demo');
+      } else {
+        const nextGraph: KnowledgeGraph = {
+          nodes: updatedNodes,
+          relationships: updatedRelationships,
+          sources: updatedGraphSources
         };
-      });
+        setUserGraph(nextGraph);
+        saveUserGraph(nextGraph);
+      }
     }
   };
 
@@ -257,10 +379,11 @@ export function App() {
           />
         )}
 
-        {/* Sources View (Prompt 7) */}
+        {/* Sources View */}
         {currentSection === 'sources' && (
           <SourcesView
-            sources={sources}
+            sources={userSources}
+            activeGraph={userGraph}
             onAddSource={() => setCreateModalOpen(true)}
             onRemoveSource={handleRemoveSource}
           />
