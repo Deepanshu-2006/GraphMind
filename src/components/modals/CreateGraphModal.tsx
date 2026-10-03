@@ -1,13 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { 
-  X, 
-  ArrowUp,
-  FileText, 
-  AlertCircle
-} from 'lucide-react';
+import { X, FileText, Loader2 } from 'lucide-react';
 import type { KnowledgeSource } from '../../types/knowledgeGraph';
-import type { PipelineProgressEvent, PipelineStage } from '../../services/pipelineOrchestrator';
+import type { PipelineProgressEvent } from '../../services/pipelineOrchestrator';
 import { 
   createSourcesFromFiles, 
   validateFileForIngestion, 
@@ -25,35 +20,6 @@ interface CreateGraphModalProps {
   existingSources?: KnowledgeSource[];
 }
 
-type ModalStep = 'select' | 'processing' | 'error';
-
-const STAGE_CONTENT: Record<string, { title: string; subtitle: string }> = {
-  'reading': {
-    title: 'READING YOUR MATERIAL',
-    subtitle: 'Finding the ideas inside your material.'
-  },
-  'extracting-concepts': {
-    title: 'FINDING CONCEPTS',
-    subtitle: 'Extracting key technical concepts and definitions.'
-  },
-  'normalizing': {
-    title: 'FINDING CONCEPTS',
-    subtitle: 'Consolidating canonical entities across your notes.'
-  },
-  'mapping-relationships': {
-    title: 'CONNECTING IDEAS',
-    subtitle: 'Mapping structural connections between concepts.'
-  },
-  'building-graph': {
-    title: 'CRAFTING YOUR KNOWLEDGE GRAPH',
-    subtitle: 'Synthesizing the knowledge space.'
-  },
-  'complete': {
-    title: 'GRAPH READY',
-    subtitle: 'Your knowledge graph is assembled.'
-  }
-};
-
 export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
   isOpen,
   onClose,
@@ -61,39 +27,31 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
   existingSources = []
 }) => {
   const shouldReduceMotion = useReducedMotion();
-  const [step, setStep] = useState<ModalStep>('select');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isDragging, setIsDragging] = useState(false);
-  const [processingStage, setProcessingStage] = useState<PipelineStage>('reading');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Close and reset modal state
   const handleClose = useCallback(() => {
-    if (isSubmitting && step === 'processing') return; // Prevent closing while processing
-    setStep('select');
     setSelectedFiles([]);
     setIsSubmitting(false);
     setErrorMessage('');
     setIsDragging(false);
-    setProcessingStage('reading');
     onClose();
-  }, [onClose, isSubmitting, step]);
+  }, [onClose]);
 
   // Keyboard close on Escape and submit on Enter
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return;
 
-      if (e.key === 'Escape') {
-        if (!isSubmitting && step !== 'processing') {
-          handleClose();
-        }
+      if (e.key === 'Escape' && !isSubmitting) {
+        handleClose();
       }
 
-      if (e.key === 'Enter' && step === 'select' && selectedFiles.length > 0 && !isSubmitting) {
-        // Trigger start processing unless focusing on an interactive element
+      if (e.key === 'Enter' && selectedFiles.length > 0 && !isSubmitting) {
         const target = e.target as HTMLElement | null;
         if (target && target.tagName !== 'BUTTON' && target.tagName !== 'A') {
           e.preventDefault();
@@ -103,14 +61,13 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isSubmitting, step, selectedFiles, handleClose]);
+  }, [isOpen, isSubmitting, selectedFiles, handleClose]);
 
   // Process incoming files from file picker or drag-and-drop
   const handleFilesAdded = (files: FileList | File[]) => {
     const incoming = Array.from(files);
     if (incoming.length === 0) return;
 
-    // Validate against already selected files + existing sources
     const currentVirtualSources: KnowledgeSource[] = [
       ...existingSources,
       ...selectedFiles.map(f => ({
@@ -128,7 +85,6 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
       const validation = validateFileForIngestion(file, currentVirtualSources);
       if (!validation.valid) {
         setErrorMessage(validation.error || "Couldn't accept this file.");
-        setStep('error');
         return;
       }
       currentVirtualSources.push({
@@ -142,9 +98,7 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
       });
     }
 
-    // All valid: append to selectedFiles
     setSelectedFiles(prev => [...prev, ...incoming]);
-    setStep('select');
     setErrorMessage('');
   };
 
@@ -179,6 +133,7 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
 
   const handleRemoveFile = (indexToRemove: number) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== indexToRemove));
+    setErrorMessage('');
   };
 
   // Submit and ingest real sources
@@ -186,48 +141,27 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
     if (selectedFiles.length === 0 || isSubmitting) return;
 
     setIsSubmitting(true);
-    setStep('processing');
-    setProcessingStage('reading');
+    setErrorMessage('');
 
     try {
       const { successful, errors } = await createSourcesFromFiles(selectedFiles, existingSources);
 
       if (successful.length === 0 && errors.length > 0) {
         setErrorMessage(errors[0].error);
-        setStep('error');
         setIsSubmitting(false);
         return;
       }
 
-      // Propagate live stage events through the pipeline
-      const success = await onSuccess(successful, (evt: PipelineProgressEvent) => {
-        setProcessingStage(evt.stage);
-      });
-
-      if (success !== false) {
-        setProcessingStage('complete');
-        // Brief pause to display "GRAPH READY" before smooth modal exit
-        await new Promise((res) => setTimeout(res, 550));
-        handleClose();
-      } else {
-        setErrorMessage('Failed to construct knowledge graph from uploaded material.');
-        setStep('error');
-        setIsSubmitting(false);
-      }
+      // Close modal immediately so it does not overlap or interfere with the knowledge graph
+      handleClose();
+      onSuccess(successful);
     } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to process file.');
-      setStep('error');
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to process document.');
       setIsSubmitting(false);
     }
   };
 
-  const handleRetry = () => {
-    setStep('select');
-    setErrorMessage('');
-    setIsSubmitting(false);
-  };
-
-  // Demo file helper for quick inspection
+  // Sample document helper
   const handleSelectDemo = () => {
     const demoContent = new Blob([
       'Stanford CS229: Machine Learning Course Notes on Deep Neural Architectures and Representation Learning.'
@@ -240,20 +174,20 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
     handleFilesAdded([demoFile]);
   };
 
-  const currentStageInfo = STAGE_CONTENT[processingStage] || STAGE_CONTENT['reading'];
+  const selectedFile = selectedFiles[0];
 
   return (
     <AnimatePresence>
       {isOpen && (
         <div className="upload-modal-root">
-          {/* Subtle Dim Backdrop */}
+          {/* Subtle Dark Backdrop */}
           <motion.div 
             className="upload-modal-backdrop" 
-            onClick={step === 'processing' ? undefined : handleClose}
+            onClick={isSubmitting ? undefined : handleClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.20 }}
             aria-hidden="true"
           />
 
@@ -264,12 +198,12 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
               role="dialog"
               aria-modal="true"
               aria-labelledby="upload-modal-title"
-              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 18, scale: 0.985 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 14, scale: 0.985 }}
-              transition={{ duration: 0.40, ease: [0.16, 1, 0.3, 1] }}
+              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 6 }}
+              transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
             >
-              {/* Hidden Native File Picker */}
+              {/* Native File Picker */}
               <input
                 type="file"
                 id="file-upload-input"
@@ -278,257 +212,158 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
                 accept=".pdf,.txt,.md,.markdown"
                 multiple
                 style={{ display: 'none' }}
-                aria-label="Select learning material files"
+                aria-label="Select files"
               />
 
-              {/* 1. Modal Header */}
+              {/* Header */}
               <div className="upload-modal-header">
                 <div className="upload-modal-title-group">
                   <h2 id="upload-modal-title" className="upload-modal-title">
-                    Upload material
+                    Add material
                   </h2>
                   <p className="upload-modal-subtitle">
-                    Bring your study material into GraphMind.
+                    Turn a document into a knowledge graph.
                   </p>
                 </div>
 
-                {step !== 'processing' && (
+                {!isSubmitting && (
                   <button 
                     type="button"
                     className="upload-modal-close-btn" 
                     onClick={handleClose} 
                     aria-label="Close dialog"
-                    title="Close (Esc)"
                   >
-                    <X size={15} aria-hidden="true" />
+                    <X size={16} aria-hidden="true" />
                   </button>
                 )}
               </div>
 
-              {/* 2. Editorial Workflow Indicator (01 / 02 MATERIAL → KNOWLEDGE) */}
-              <div className="upload-modal-workflow" aria-hidden="true">
-                <span className="upload-workflow-step">
-                  {step === 'processing' ? '02 / 02' : '01 / 02'}
-                </span>
-                <span className="upload-workflow-divider">·</span>
-                <span className={step === 'processing' ? 'upload-workflow-inactive' : 'upload-workflow-active'}>
-                  MATERIAL
-                </span>
-                <span className="upload-workflow-arrow">→</span>
-                <span className={step === 'processing' ? 'upload-workflow-active' : 'upload-workflow-inactive'}>
-                  KNOWLEDGE
-                </span>
-              </div>
-
-              {/* 3. Modal Body */}
-              <div className="upload-modal-body">
-                {/* STEP A: FILE SELECTION */}
-                {step === 'select' && (
-                  <>
-                    {selectedFiles.length === 0 ? (
-                      /* Empty Drop Zone */
-                      <div
-                        className={`upload-modal-dropzone ${isDragging ? 'is-dragging' : ''}`}
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
-                        onDrop={handleDrop}
-                        onClick={() => fileInputRef.current?.click()}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            fileInputRef.current?.click();
-                          }
+              {/* Drop Area or Selected File Row */}
+              {selectedFiles.length === 0 ? (
+                <div
+                  className={`upload-modal-dropzone ${isDragging ? 'is-dragging' : ''}`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label="Drop a file here or choose from your computer"
+                  id="modal-upload-dropzone"
+                >
+                  <div className="upload-dropzone-top-content">
+                    <h3 className="upload-dropzone-heading">
+                      {isDragging ? 'Drop to add material' : 'Drop a file here'}
+                    </h3>
+                    <p className="upload-dropzone-action-line">
+                      or{' '}
+                      <button
+                        type="button"
+                        className="upload-dropzone-browse-link"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          fileInputRef.current?.click();
                         }}
-                        tabIndex={0}
-                        role="button"
-                        aria-label="Drop your material here, or browse from your computer"
-                        id="modal-upload-dropzone"
                       >
-                        <div className="upload-dropzone-icon-square">
-                          <ArrowUp size={18} strokeWidth={2.2} />
-                        </div>
-
-                        <div className="upload-dropzone-heading-wrap">
-                          {isDragging && <span className="upload-dropzone-marker" aria-hidden="true" />}
-                          <span className="upload-dropzone-heading">
-                            {isDragging ? 'DROP TO ADD TO GRAPH' : 'DROP YOUR MATERIAL HERE'}
-                          </span>
-                        </div>
-
-                        <p className="upload-dropzone-subtext">
-                          or{' '}
-                          <button
-                            type="button"
-                            className="upload-dropzone-browse-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              fileInputRef.current?.click();
-                            }}
-                          >
-                            browse
-                          </button>{' '}
-                          from your computer
-                        </p>
-
-                        <div className="upload-dropzone-meta">
-                          <span>PDF · TXT · MARKDOWN</span>
-                          <span>Up to 50 MB</span>
-                        </div>
-                      </div>
-                    ) : (
-                      /* Selected Material State */
-                      <div className="upload-selected-container">
-                        {selectedFiles.map((file, idx) => {
-                          const ext = file.name.split('.').pop()?.toUpperCase() || 'FILE';
-                          const formattedSize = formatFileSize(file.size);
-
-                          return (
-                            <motion.div
-                              key={`${file.name}-${idx}`}
-                              className="upload-selected-card"
-                              initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                            >
-                              <div className="upload-selected-left">
-                                <div className="upload-selected-icon-square">
-                                  <FileText size={18} />
-                                </div>
-                                <div className="upload-selected-info">
-                                  <span className="upload-selected-filename" title={file.name}>
-                                    {file.name}
-                                  </span>
-                                  <div className="upload-selected-meta">
-                                    <span>{ext} · {formattedSize}</span>
-                                    <span className="upload-selected-status-tag">
-                                      <span className="upload-selected-dot" aria-hidden="true" />
-                                      READY TO PROCESS
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <button
-                                type="button"
-                                className="upload-selected-remove-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRemoveFile(idx);
-                                }}
-                                aria-label={`Remove file ${file.name}`}
-                              >
-                                REMOVE
-                              </button>
-                            </motion.div>
-                          );
-                        })}
-
-                        <button
-                          type="button"
-                          className="upload-selected-add-more"
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          + Add another file
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {/* STEP B: REAL PROCESSING STATE */}
-                {step === 'processing' && (
-                  <div className="upload-processing-container" aria-live="polite">
-                    <div className="upload-processing-kicker">
-                      <span className="upload-processing-pulse-dot" aria-hidden="true" />
-                      <span>PROCESSING</span>
-                    </div>
-
-                    <AnimatePresence mode="wait">
-                      <motion.div
-                        key={processingStage}
-                        initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
-                        transition={{ duration: 0.30, ease: [0.16, 1, 0.3, 1] }}
-                        className="upload-processing-text-wrap"
-                      >
-                        <div className="upload-processing-title">
-                          {currentStageInfo.title}
-                        </div>
-                        <p className="upload-processing-subtitle">
-                          {currentStageInfo.subtitle}
-                        </p>
-                      </motion.div>
-                    </AnimatePresence>
-                  </div>
-                )}
-
-                {/* STEP C: ERROR STATE */}
-                {step === 'error' && (
-                  <div className="upload-error-container">
-                    <div className="upload-error-icon-square">
-                      <AlertCircle size={20} />
-                    </div>
-                    <div className="upload-error-title">Could not assemble knowledge graph</div>
-                    <p className="upload-error-desc">
-                      {errorMessage || 'There was an issue processing your uploaded material.'}
+                        choose from your computer
+                      </button>
                     </p>
+                  </div>
+
+                  <p className="upload-dropzone-meta">
+                    PDF, TXT, Markdown · up to 50 MB
+                  </p>
+                </div>
+              ) : (
+                <div className="upload-selected-card">
+                  <div className="upload-selected-left">
+                    <div className="upload-selected-icon-square" aria-hidden="true">
+                      <FileText size={18} />
+                    </div>
+                    <div className="upload-selected-info">
+                      <span className="upload-selected-filename" title={selectedFile.name}>
+                        {selectedFile.name}
+                      </span>
+                      <span className="upload-selected-meta">
+                        {selectedFile.name.split('.').pop()?.toUpperCase() || 'FILE'} · {formatFileSize(selectedFile.size)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {!isSubmitting && (
                     <button
                       type="button"
-                      className="upload-error-retry-btn"
-                      onClick={handleRetry}
+                      className="upload-selected-remove-btn"
+                      onClick={() => handleRemoveFile(0)}
+                      aria-label={`Remove ${selectedFile.name}`}
                     >
-                      <span>TRY AGAIN</span>
-                      <span style={{ display: 'inline-block', marginLeft: '4px' }}>↗</span>
+                      Remove
                     </button>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
 
-              {/* 4. Sample Material Action (Subtle Text Action) */}
-              {step === 'select' && selectedFiles.length === 0 && (
-                <div className="upload-modal-sample-zone">
+              {/* Inline Error (if any) */}
+              {errorMessage && (
+                <div className="upload-inline-error" role="alert">
+                  {errorMessage}
+                </div>
+              )}
+
+              {/* Supporting row: note + optional sample link */}
+              <div className="upload-modal-support-row">
+                <p className="upload-support-note">
+                  You can add more material later.
+                </p>
+
+                {selectedFiles.length === 0 && !isSubmitting && (
                   <button
                     type="button"
-                    className="upload-sample-action"
+                    className="upload-sample-link"
                     onClick={handleSelectDemo}
-                    aria-label="Try with sample notes"
                   >
-                    <span>TRY WITH A SAMPLE</span>
-                    <span className="upload-sample-action-arrow" aria-hidden="true">↗</span>
+                    Try a sample instead
                   </button>
-                </div>
-              )}
+                )}
+              </div>
 
-              {/* 5. Editorial Modal Footer */}
-              {step === 'select' && (
-                <div className="upload-modal-footer">
-                  <div className="upload-footer-hint">
-                    ESC to cancel
-                  </div>
+              {/* Footer Actions */}
+              <div className="upload-modal-footer">
+                <button
+                  type="button"
+                  className="upload-footer-cancel-btn"
+                  onClick={handleClose}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </button>
 
-                  <div className="upload-footer-actions">
-                    <button
-                      type="button"
-                      className="upload-footer-cancel-btn"
-                      onClick={handleClose}
-                    >
-                      CANCEL
-                    </button>
-
-                    <button
-                      type="button"
-                      className="upload-footer-primary-btn"
-                      onClick={handleStartProcessing}
-                      disabled={selectedFiles.length === 0 || isSubmitting}
-                      id="btn-modal-create-graph"
-                    >
-                      <span>CREATE KNOWLEDGE GRAPH</span>
-                      <span className="upload-footer-arrow" aria-hidden="true">↗</span>
-                    </button>
-                  </div>
-                </div>
-              )}
+                <button
+                  type="button"
+                  className="upload-footer-primary-btn"
+                  onClick={handleStartProcessing}
+                  disabled={selectedFiles.length === 0 || isSubmitting}
+                  id="btn-modal-create-graph"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+                      <span>Adding material...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Add material</span>
+                      <span className="upload-footer-primary-btn-arrow" aria-hidden="true">→</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </motion.div>
           </div>
         </div>

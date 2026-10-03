@@ -808,8 +808,8 @@ function FlowCanvas({
 
   return (
     <div className="freeform-graph-container" id="knowledge-graph-workspace">
-      {/* 1. Processing Status Banner (Prompt 8, Section 5 - shown once loading orb dissolves or in direct crafting) */}
-      {mode === 'crafting' && !isLoadingOrbVisible && displayStatusMessage && (
+      {/* 1. Processing Status Banner (shown once loading orb dissolves or in direct crafting without central overlay) */}
+      {mode === 'crafting' && !effectiveOverlayMounted && displayStatusMessage && (
         <div className="graph-crafting-indicator" role="status" aria-live="polite">
           <span className="crafting-indicator-dot" />
           <span className="crafting-indicator-text">{displayStatusMessage}</span>

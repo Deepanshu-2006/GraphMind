@@ -118,6 +118,7 @@ export function App() {
     newSources: KnowledgeSource[],
     onModalProgress?: (event: PipelineProgressEvent) => void
   ): Promise<boolean> => {
+    setCreateModalOpen(false);
     setHasGraphContent(true);
     setPipelineError(undefined);
     setPipelineStage('reading');
