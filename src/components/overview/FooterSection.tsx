@@ -1,5 +1,5 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react';
-import { motion, useInView, useReducedMotion } from 'framer-motion';
+import { motion, useMotionValue, useTransform, useReducedMotion } from 'framer-motion';
 
 /* ==========================================================================
    Procedural Architectural SVG Wordmark — "GRAPH"
@@ -119,7 +119,7 @@ const SLOTS: SlotDef[] = [
 ];
 
 /* ──────────────────────────────────────────────────────────────────────── */
-/* Precomputed Stroke Items with Architectural Wave Delays & Physical Overshoot */
+/* Precomputed Stroke Items with Continuous Bidirectional Wave Parameters   */
 /* ──────────────────────────────────────────────────────────────────────── */
 
 export interface StrokeItem {
@@ -132,13 +132,9 @@ export interface StrokeItem {
   y1: number;
   y2: number;
   targetHeight: number;
-  extra: number;
-  fullLen: number;
-  yTopGeom: number;
-  yBotGeom: number;
   isBaseline: boolean;
-  delay: number;
-  dur: number;
+  startP: number;
+  endP: number;
 }
 
 const MIN_X = SLOTS[0].x0; // 100
@@ -158,25 +154,16 @@ SLOTS.forEach((slot, letterIdx) => {
     const segs = slot.fn(colIdx, slot.n);
     segs.forEach(([y1, y2], segIdx) => {
       const targetHeight = y2 - y1;
-      // 1.8% physical overshoot
-      const extra = Math.max(1.5, Math.round(targetHeight * 0.018 * 10) / 10);
-      const fullLen = targetHeight + extra;
-      const yTopGeom = y1 - extra;
-      const yBotGeom = y2;
       const isBaseline = y2 === Y_BASE;
 
       const normX = (x - MIN_X) / (MAX_X - MIN_X);
       const normH = targetHeight / (Y_BASE - Y_TOP);
       const jitter = getDeterministicJitter(x, colIdx, segIdx);
 
-      // Architectural construction wave moving Left -> Right across G -> R -> A -> P -> H
-      const waveTime = 0.35 + normX * 1.50; // 0.35s to 1.85s
-      const heightLag = (1 - normH) * 0.08; // taller strokes rise slightly earlier
-      const jitterDelay = jitter * 0.12;    // neighboring strokes vary deterministically
-      const upperSegDelay = isBaseline ? 0 : 0.09; // baseline anchors form first
-
-      const delay = Math.max(0.35, waveTime + heightLag + jitterDelay + upperSegDelay);
-      const dur = 0.50 + normH * 0.08 + jitter * 0.05; // 480ms–620ms per stroke
+      // Continuous overlapping wave across G -> R -> A -> P -> H
+      const startP = 0.06 + normX * 0.54 + (1 - normH) * 0.03 + jitter * 0.02 + (isBaseline ? 0 : 0.025);
+      const strokeWindow = 0.28 + normH * 0.04;
+      const endP = startP + strokeWindow;
 
       const item: StrokeItem = {
         key: `${slot.char}-${colIdx}-${segIdx}`,
@@ -188,13 +175,9 @@ SLOTS.forEach((slot, letterIdx) => {
         y1,
         y2,
         targetHeight,
-        extra,
-        fullLen,
-        yTopGeom,
-        yBotGeom,
         isBaseline,
-        delay,
-        dur,
+        startP,
+        endP,
       };
 
       LETTER_STROKES[letterIdx].push(item);
@@ -203,12 +186,43 @@ SLOTS.forEach((slot, letterIdx) => {
   }
 });
 
-// Construction completes around ~2.47s
-const SETTLE_DELAY_MS = 2480;
-const LIGHT_PASS_DELAY_MS = 2780;
-const METADATA_DELAY_S = 2.85;
+interface LineBinding {
+  el: SVGLineElement;
+  y2: number;
+  targetHeight: number;
+  isBaseline: boolean;
+  startP: number;
+  endP: number;
+}
 
-const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
+function getScrollMetrics(container: HTMLElement | null, footerEl: HTMLElement | null): number {
+  let scrollTop = 0;
+  let scrollHeight = 0;
+  let clientHeight = 0;
+
+  if (container) {
+    scrollTop = container.scrollTop;
+    scrollHeight = container.scrollHeight;
+    clientHeight = container.clientHeight;
+  } else {
+    scrollTop = window.scrollY || document.documentElement.scrollTop;
+    scrollHeight = document.documentElement.scrollHeight;
+    clientHeight = window.innerHeight;
+  }
+
+  const maxScroll = Math.max(0, scrollHeight - clientHeight);
+  if (maxScroll <= 0) return 1;
+
+  const footerH = footerEl ? footerEl.offsetHeight : 420;
+  // Dedicated travel range for footer reveal
+  const travel = Math.min(maxScroll, Math.max(340, footerH + 60));
+  const startScroll = Math.max(0, maxScroll - travel);
+
+  if (scrollTop <= startScroll) return 0;
+  if (scrollTop >= maxScroll) return 1;
+
+  return (scrollTop - startScroll) / (maxScroll - startScroll);
+}
 
 interface FooterSectionProps {
   onUploadMaterial?: () => void;
@@ -217,120 +231,123 @@ interface FooterSectionProps {
 export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }) => {
   const sectionRef       = useRef<HTMLElement>(null);
   const svgRef           = useRef<SVGSVGElement>(null);
-  const baselineRef      = useRef<SVGLineElement>(null);
   const wordmarkGroupRef = useRef<SVGGElement>(null);
-  const lightPassRef     = useRef<SVGRectElement>(null);
-  const hasAnimatedRef   = useRef(false);
+  const lineBindingsRef  = useRef<LineBinding[] | null>(null);
 
-  const isInView    = useInView(sectionRef, { amount: 0.05, once: true });
   const prefersLess = useReducedMotion();
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
-  const [hoveredIdx, setHoveredIdx]   = useState<number | null>(null);
-  const [isCompleted, setIsCompleted] = useState<boolean>(false);
+  // Single normalized progress value: 0 (unrevealed) -> 1 (fully revealed)
+  const footerProgress = useMotionValue(0);
 
+  // Baseline: scaleX 0 -> 1 over progress 0.00 -> 0.14 (retracts toward center on reverse)
+  const baselineScaleX = useTransform(footerProgress, [0, 0.14], [0, 1]);
+
+  // Top metadata: quiet opacity 0.45 -> 1.0
+  const topOpacity = useTransform(footerProgress, [0, 1], [0.45, 1.0]);
+
+  // Structural settle: subtle 1px mechanical lock near completion (reversible)
+  const wordmarkY = useTransform(
+    footerProgress,
+    [0, 0.85, 0.93, 1.0],
+    ['0px', '0px', '-1px', '0px']
+  );
+
+  // Bottom rule: scaleX 0 -> 1 over progress 0.80 -> 0.96
+  const bottomRuleScaleX = useTransform(footerProgress, [0.80, 0.96], [0, 1]);
+
+  // Bottom metadata: opacity 0 -> 1, translateY 6px -> 0px over progress 0.84 -> 1.0
+  const bottomOpacity = useTransform(footerProgress, [0.84, 1.0], [0, 1]);
+  const bottomY = useTransform(footerProgress, [0.84, 1.0], [6, 0]);
+
+  // Direct high-performance DOM update function (pure function of progress)
+  const updateStrokes = useCallback((p: number) => {
+    const bindings = lineBindingsRef.current;
+    if (!bindings) return;
+    const len = bindings.length;
+
+    for (let i = 0; i < len; i++) {
+      const b = bindings[i];
+      if (p <= b.startP) {
+        if (b.isBaseline) {
+          b.el.setAttribute('y1', String(b.y2 - 2));
+          b.el.style.opacity = '0.06';
+        } else {
+          b.el.setAttribute('y1', String(b.y2));
+          b.el.style.opacity = '0';
+        }
+      } else if (p >= b.endP) {
+        b.el.setAttribute('y1', String(b.y2 - b.targetHeight));
+        b.el.style.opacity = '1';
+      } else {
+        const u = (p - b.startP) / (b.endP - b.startP);
+        // Smoothstep curve: zero derivative at start and end for seamless physical feel
+        const t = u * u * (3 - 2 * u);
+        const h = b.targetHeight * t;
+        b.el.setAttribute('y1', String(b.y2 - h));
+        b.el.style.opacity = b.isBaseline ? String(0.06 + 0.94 * t) : String(t);
+      }
+    }
+  }, []);
+
+  // Subscribe to footerProgress MotionValue without causing React re-renders
+  useEffect(() => {
+    if (prefersLess) return;
+    const unsubscribe = footerProgress.on('change', (latestProgress) => {
+      updateStrokes(latestProgress);
+    });
+    return unsubscribe;
+  }, [footerProgress, updateStrokes, prefersLess]);
+
+  // Scroll listener: directly controls footerProgress based on scroll position
   useEffect(() => {
     if (prefersLess) {
-      setIsCompleted(true);
+      footerProgress.set(1);
       return;
     }
-    if (!isInView || hasAnimatedRef.current) return;
-    hasAnimatedRef.current = true;
 
-    // 1. Baseline reveal: 0.0s to 0.40s
-    if (baselineRef.current) {
-      baselineRef.current.animate(
-        [
-          { strokeDashoffset: 884 },
-          { strokeDashoffset: 0 },
-        ],
-        {
-          duration: 400,
-          delay: 0,
-          easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
-          fill: 'forwards',
-        }
-      );
+    const scrollContainer = sectionRef.current?.closest('.workspace-viewport') as HTMLElement | null;
+    const scrollTarget = scrollContainer || window;
+
+    // Cache line element references once on mount for ultra-fast scrubbing
+    const lines = svgRef.current?.querySelectorAll<SVGLineElement>('.gmf-stroke-line');
+    if (lines && lines.length === ALL_STROKES.length) {
+      lineBindingsRef.current = ALL_STROKES.map((s, idx) => ({
+        el: lines[idx],
+        y2: s.y2,
+        targetHeight: s.targetHeight,
+        isBaseline: s.isBaseline,
+        startP: s.startP,
+        endP: s.endP,
+      }));
     }
 
-    // 2. Individual vertical stroke construction wave (left -> right)
-    const lineEls = svgRef.current?.querySelectorAll<SVGLineElement>('.gmf-stroke-line');
-    if (lineEls) {
-      lineEls.forEach((line) => {
-        const fullLen = parseFloat(line.dataset.fullLen || '0');
-        const extra = parseFloat(line.dataset.extra || '0');
-        const delayMs = parseFloat(line.dataset.delay || '0') * 1000;
-        const durMs = parseFloat(line.dataset.dur || '0') * 1000;
-        const isBase = line.dataset.isBase === 'true';
-
-        const initialOffset = isBase ? fullLen - 2 : fullLen;
-        const initialOpacity = isBase ? 0.06 : 0;
-
-        line.animate(
-          [
-            { strokeDashoffset: initialOffset, opacity: initialOpacity, offset: 0 },
-            { strokeDashoffset: fullLen * 0.55, opacity: 0.85, offset: 0.35 },
-            { strokeDashoffset: 0, opacity: 1.0, offset: 0.72 }, // peak overshoot (1.8%)
-            { strokeDashoffset: extra + 0.8, opacity: 1.0, offset: 0.88 }, // precision settle
-            { strokeDashoffset: extra, opacity: 1.0, offset: 1.0 }, // locked into position
-          ],
-          {
-            duration: durMs,
-            delay: delayMs,
-            easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-            fill: 'forwards',
-          }
-        );
+    let rafId: number | null = null;
+    const onScroll = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const p = getScrollMetrics(scrollContainer, sectionRef.current);
+        footerProgress.set(p);
       });
-    }
+    };
 
-    // 3. Structural settle when H finishes: translateY 0 -> -1px -> 0
-    if (wordmarkGroupRef.current) {
-      wordmarkGroupRef.current.animate(
-        [
-          { transform: 'translateY(0px)' },
-          { transform: 'translateY(-1px)', offset: 0.35 },
-          { transform: 'translateY(0px)', offset: 1.0 },
-        ],
-        {
-          duration: 280,
-          delay: SETTLE_DELAY_MS,
-          easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
-          fill: 'forwards',
-        }
-      );
-    }
+    // Initial check
+    onScroll();
 
-    // 4. Subtle inspection light pass: travels left to right across strokes
-    if (lightPassRef.current) {
-      lightPassRef.current.animate(
-        [
-          { transform: 'translateX(30px)', opacity: 0 },
-          { transform: 'translateX(80px)', opacity: 1, offset: 0.08 },
-          { transform: 'translateX(900px)', opacity: 1, offset: 0.92 },
-          { transform: 'translateX(960px)', opacity: 0, offset: 1.0 },
-        ],
-        {
-          duration: 820,
-          delay: LIGHT_PASS_DELAY_MS,
-          easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
-          fill: 'forwards',
-        }
-      );
-    }
-
-    // Mark completed once all sequences finish (~3.6s)
-    const completeTimer = setTimeout(() => {
-      setIsCompleted(true);
-    }, LIGHT_PASS_DELAY_MS + 820);
+    scrollTarget.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
 
     return () => {
-      clearTimeout(completeTimer);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      scrollTarget.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
     };
-  }, [isInView, prefersLess]);
+  }, [footerProgress, prefersLess]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
-    // Only enable interactive hover after initial construction sequence has completed
-    if (!isCompleted && !prefersLess) return;
+    // Only activate letter hover when wordmark is mostly constructed (progress >= 0.85)
+    if (footerProgress.get() < 0.85 && !prefersLess) return;
 
     const rect   = e.currentTarget.getBoundingClientRect();
     const svgX   = ((e.clientX - rect.left) / rect.width) * SVG_W;
@@ -342,22 +359,27 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
       if (dist < minDist) { minDist = dist; closest = idx; }
     });
     setHoveredIdx(closest);
-  }, [isCompleted, prefersLess]);
+  }, [footerProgress, prefersLess]);
 
   const handleMouseLeave = useCallback(() => setHoveredIdx(null), []);
 
   return (
     <footer ref={sectionRef} className="gmf-section" aria-label="GRAPH wordmark footer">
 
-      {/* ── Top metadata row (quiet, minimal, visible before GRAPH begins) ── */}
+      {/* ── Top metadata row (quiet, minimal, progress-linked) ────────────── */}
       <div className="gmf-top">
-        <div className="gmf-meta-row">
+        <motion.div
+          className="gmf-meta-row"
+          style={{
+            opacity: prefersLess ? 1 : topOpacity,
+          }}
+        >
           <span className="gmf-meta-label">
             <span className="gmf-accent-dot" aria-hidden="true" />
             GRAPH / KNOWLEDGE MAPPING
           </span>
           <span className="gmf-meta-label">2026</span>
-        </div>
+        </motion.div>
       </div>
 
       {/* ── Giant procedural-line GRAPH wordmark ──────────────────────────── */}
@@ -397,41 +419,10 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
               <stop offset="96%"  stopColor="#A0A0A0" stopOpacity="0.35" />
               <stop offset="100%" stopColor="#0A0A0A" stopOpacity="0.00" />
             </linearGradient>
-
-            {/* Subtle inspection light pass gradient — purely monochromatic, no glow */}
-            <linearGradient
-              id="gmf-light-pass-gradient"
-              x1="0%" y1="0%" x2="100%" y2="0%"
-            >
-              <stop offset="0%"   stopColor="#FFFFFF" stopOpacity="0.00" />
-              <stop offset="25%"  stopColor="#FFFFFF" stopOpacity="0.05" />
-              <stop offset="50%"  stopColor="#FFFFFF" stopOpacity="0.14" />
-              <stop offset="75%"  stopColor="#FFFFFF" stopOpacity="0.05" />
-              <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.00" />
-            </linearGradient>
-
-            {/* Mask of all completed strokes — ensures inspection light pass only illuminates the lines */}
-            <mask id="gmf-all-strokes-mask">
-              <rect x="0" y="0" width={SVG_W} height={SVG_H} fill="#000000" />
-              {ALL_STROKES.map((s) => (
-                <line
-                  key={`mask-${s.key}`}
-                  x1={s.x}
-                  y1={s.yBotGeom}
-                  x2={s.x}
-                  y2={s.y1}
-                  stroke="#FFFFFF"
-                  strokeWidth={STROKE}
-                  strokeLinecap="butt"
-                  vectorEffect="non-scaling-stroke"
-                />
-              ))}
-            </mask>
           </defs>
 
-          {/* ── Subtle origin baseline beneath GRAPH (scaleX 0 -> 1) ────────── */}
-          <line
-            ref={baselineRef}
+          {/* ── Subtle origin baseline beneath GRAPH (scaleX 0 -> 1 reversible) ─ */}
+          <motion.line
             x1="70"
             y1={Y_BASE}
             x2="954"
@@ -440,14 +431,20 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
             strokeWidth={1}
             strokeLinecap="butt"
             vectorEffect="non-scaling-stroke"
-            strokeDasharray="884 884"
             style={{
-              strokeDashoffset: prefersLess ? 0 : 884,
+              scaleX: prefersLess ? 1 : baselineScaleX,
+              transformOrigin: '512px 208px',
             }}
           />
 
           {/* ── Main architectural wordmark group with structural settle ─────── */}
-          <g ref={wordmarkGroupRef} id="gmf-wordmark-group">
+          <motion.g
+            ref={wordmarkGroupRef}
+            id="gmf-wordmark-group"
+            style={{
+              y: prefersLess ? '0px' : wordmarkY,
+            }}
+          >
             {SLOTS.map((slot, letterIdx) => {
               const isHov = hoveredIdx === letterIdx;
               const gradUrl = isHov ? 'url(#arena-hover-gradient)' : 'url(#arena-line-gradient)';
@@ -455,82 +452,44 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
 
               return (
                 <g key={slot.char} stroke={gradUrl}>
-                  {strokes.map((s) => {
-                    const isDone = isCompleted || prefersLess;
-                    const initOffset = s.isBaseline ? s.fullLen - 2 : s.fullLen;
-                    const initOpacity = s.isBaseline ? 0.06 : 0;
-
-                    return (
-                      <line
-                        key={s.key}
-                        className="gmf-stroke-line"
-                        data-full-len={s.fullLen}
-                        data-extra={s.extra}
-                        data-delay={s.delay}
-                        data-dur={s.dur}
-                        data-is-base={s.isBaseline}
-                        x1={s.x}
-                        y1={s.yBotGeom}
-                        x2={s.x}
-                        y2={s.yTopGeom}
-                        strokeWidth={STROKE}
-                        strokeLinecap="butt"
-                        vectorEffect="non-scaling-stroke"
-                        strokeDasharray={`${s.fullLen + 20} ${s.fullLen + 20}`}
-                        style={{
-                          strokeDashoffset: isDone ? s.extra : initOffset,
-                          opacity: isDone ? 1 : initOpacity,
-                        }}
-                      />
-                    );
-                  })}
+                  {strokes.map((s) => (
+                    <line
+                      key={s.key}
+                      className="gmf-stroke-line"
+                      x1={s.x}
+                      y1={prefersLess ? s.y1 : (s.isBaseline ? s.y2 - 2 : s.y2)}
+                      x2={s.x}
+                      y2={s.y2}
+                      strokeWidth={STROKE}
+                      strokeLinecap="butt"
+                      vectorEffect="non-scaling-stroke"
+                      style={{
+                        opacity: prefersLess ? 1 : (s.isBaseline ? 0.06 : 0),
+                      }}
+                    />
+                  ))}
                 </g>
               );
             })}
-          </g>
-
-          {/* ── Final inspection light pass (travels across GRAPH) ─────────── */}
-          {!prefersLess && (
-            <g mask="url(#gmf-all-strokes-mask)" style={{ pointerEvents: 'none' }}>
-              <rect
-                ref={lightPassRef}
-                x={0}
-                y={Y_TOP - 6}
-                width={84}
-                height={(Y_BASE - Y_TOP) + 12}
-                fill="url(#gmf-light-pass-gradient)"
-                style={{
-                  opacity: 0,
-                  transform: 'translateX(30px)',
-                }}
-              />
-            </g>
-          )}
+          </motion.g>
         </svg>
       </div>
 
-      {/* ── Bottom: rule + copyright / explore ───────────────────────────── */}
+      {/* ── Bottom: rule + copyright / explore (progress-driven) ─────────── */}
       <div className="gmf-bottom">
         <motion.div
           className="gmf-rule"
           aria-hidden="true"
-          initial={{ scaleX: 0 }}
-          animate={isInView ? { scaleX: 1 } : {}}
-          style={{ transformOrigin: '0% 50%' }}
-          transition={{
-            duration: prefersLess ? 0 : 0.50,
-            delay:    prefersLess ? 0 : METADATA_DELAY_S - 0.05,
-            ease:     EASE,
+          style={{
+            scaleX: prefersLess ? 1 : bottomRuleScaleX,
+            transformOrigin: '50% 50%',
           }}
         />
         <motion.div
           className="gmf-meta-row gmf-meta-bottom-row"
-          initial={{ opacity: 0, y: 6 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{
-            duration: prefersLess ? 0 : 0.45,
-            delay:    prefersLess ? 0 : METADATA_DELAY_S,
-            ease:     EASE,
+          style={{
+            opacity: prefersLess ? 1 : bottomOpacity,
+            y: prefersLess ? 0 : bottomY,
           }}
         >
           <span className="gmf-meta-label gmf-copy">© GRAPH</span>
