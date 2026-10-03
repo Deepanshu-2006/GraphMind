@@ -1,24 +1,26 @@
 /* ==========================================================================
-   GraphMind Learning Paths — Editorial Curriculum & Workspace
-   Refined balance: Premium Product + Editorial Design.
-   Controlled scale, coherent rhythm, architectural alignment.
+   GraphMind Learning Paths — Curated Knowledge Routes
+   Editorial Curriculum + Knowledge Architecture + Premium Workspace.
+   GPU-accelerated, zero-jitter motion system with conflict-free hover states.
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
-   1. Page Container & Composition
+   1. Page Container & Composition (Left-Weighted, Editorial Canvas)
    -------------------------------------------------------------------------- */
 .paths-page-container {
   width: 100%;
   max-width: 1080px;
   margin: 0 auto;
-  padding: 52px 32px 100px 32px;
+  padding: 56px 32px 120px 32px;
   display: flex;
   flex-direction: column;
   color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* --------------------------------------------------------------------------
-   2. Page Header
+   2. Page Header: Architectural Editorial Header
    -------------------------------------------------------------------------- */
 .paths-header {
   display: flex;
@@ -43,12 +45,13 @@
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.20em;
   text-transform: uppercase;
   color: #666666;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
   display: inline-block;
   user-select: none;
+  will-change: opacity, transform;
 }
 
 /* Page Heading: Two-line editorial composition */
@@ -56,47 +59,52 @@
   display: flex;
   flex-direction: column;
   font-family: var(--font-display);
-  font-size: clamp(72px, 5.8vw, 92px);
+  font-size: clamp(78px, 6.4vw, 92px);
   font-weight: 620;
-  line-height: 0.90;
+  line-height: 0.89;
   letter-spacing: -0.045em;
   color: #F5F5F5;
   margin: 0;
   padding: 0;
+  text-align: left;
 }
 
 .paths-title-clip {
   display: block;
   overflow: hidden;
-  padding-bottom: 0.08em;
-  margin-bottom: -0.08em;
+  padding-bottom: 0.04em;
 }
 
 .paths-title-line {
   display: block;
   transform-origin: 0% 100%;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
-/* Header Subtext: Quiet supporting editorial text */
+/* Header Subtext: Quiet supporting editorial text with deliberate gap */
 .paths-subtext {
   font-family: var(--font-body);
-  font-size: 14.5px;
+  font-size: 15px;
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 1.55;
   color: #8E8E8E;
   max-width: 380px;
-  margin-top: 20px;
+  margin-top: 24px;
   margin-bottom: 0;
   letter-spacing: -0.01em;
+  will-change: opacity, transform;
 }
 
-/* Header Meta: 03 PATHS balancing the upper right */
+/* Header Meta: 03 PATHS balancing upper-right */
 .paths-header-meta {
   display: flex;
   align-items: flex-start;
   padding-top: 8px;
   flex-shrink: 0;
   user-select: none;
+  will-change: opacity, transform;
 }
 
 .paths-meta-count {
@@ -104,22 +112,24 @@
   font-size: 10px;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.20em;
   color: #666666;
   line-height: 1;
 }
 
-/* Header Divider: Thin horizontal rule */
+/* Header Divider: Deliberate transition gap into the curriculum */
 .paths-header-divider {
   width: 100%;
   height: 1px;
   background-color: rgba(255, 255, 255, 0.08);
-  margin-top: 32px;
+  margin-top: 36px;
+  margin-bottom: 8px;
   transform-origin: 0% 50%;
+  will-change: transform, opacity;
 }
 
 /* --------------------------------------------------------------------------
-   3. Path List & Architectural Grid
+   3. Curriculum Route List — Differentiated Hierarchy (Hero -> Secondary -> Quiet)
    -------------------------------------------------------------------------- */
 .paths-list {
   display: flex;
@@ -128,15 +138,13 @@
   margin-top: 0;
 }
 
-/* Single Path Row: Target height 135–155px per row */
+/* Base Path Row Entry */
 .paths-row {
   position: relative;
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) 120px;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 24px;
-  min-height: 138px;
-  padding: 32px 0;
+  gap: 28px;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -145,37 +153,47 @@
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .paths-row:focus-visible {
   outline: none;
 }
 
-.paths-row:focus-visible .paths-row-title {
-  color: #FFFFFF;
+/* --------------------------------------------------------------------------
+   4. Left Rail: Number Column + Architectural Route Marker Line
+   -------------------------------------------------------------------------- */
+.paths-row-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  height: 100%;
+  position: relative;
 }
 
-/* --------------------------------------------------------------------------
-   4. Left Column: Number (01, 02, 03) + Vertical Navigation Marker (│)
-   -------------------------------------------------------------------------- */
-.paths-row-number-col {
+.paths-rail-header {
   display: flex;
   align-items: center;
   gap: 10px;
+  line-height: 1;
 }
 
 .paths-row-number {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 500;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.16em;
   color: #555555;
   line-height: 1;
-  transition: color 220ms ease-out;
+  transition: color 200ms ease-out;
 }
 
-/* Active path number tint */
+/* Active number: Slightly larger, green-tinted */
 .paths-row.is-active .paths-row-number {
+  font-size: 12.5px;
+  letter-spacing: 0.18em;
   color: var(--accent);
 }
 
@@ -187,29 +205,51 @@
   color: #C0FF38;
 }
 
-/* Editorial vertical marker line (│) */
-.paths-vertical-marker {
+/* Route Vertical Marker Line (│) */
+.paths-rail-marker {
   width: 1px;
-  height: 16px;
+  height: 18px;
   background-color: rgba(255, 255, 255, 0.10);
-  transition: height 220ms ease-out, background-color 220ms ease-out;
   flex-shrink: 0;
+  transform-origin: 0% 0%;
+  will-change: transform, opacity;
 }
 
-/* Active vertical marker: GraphMind green */
-.paths-row.is-active .paths-vertical-marker {
+/* Active vertical marker: 28px tall, GraphMind green */
+.paths-row.is-active .paths-rail-marker {
+  height: 28px;
   background-color: var(--accent);
-  box-shadow: 0 0 6px rgba(163, 255, 18, 0.35);
+  box-shadow: 0 0 8px rgba(163, 255, 18, 0.35);
 }
 
-/* Marker extends a few pixels on hover */
-.paths-row:hover .paths-vertical-marker {
-  height: 20px;
+/* Subtle architectural route guide line extending through active route */
+.paths-rail-route-guide {
+  position: absolute;
+  top: 36px;
+  left: 28px;
+  bottom: 8px;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    rgba(163, 255, 18, 0.30) 0%,
+    rgba(163, 255, 18, 0.12) 36px,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  pointer-events: none;
+  transform-origin: 0% 0%;
+  will-change: transform, opacity;
 }
 
-.paths-row.is-active:hover .paths-vertical-marker {
-  background-color: #B8FF24;
+/* Extension on hover applies strictly on hover */
+.paths-row:hover .paths-rail-marker {
   height: 22px;
+  transition: height 200ms ease-out;
+}
+
+.paths-row.is-active:hover .paths-rail-marker {
+  height: 32px;
+  background-color: #B8FF24;
+  transition: height 200ms ease-out, background-color 200ms ease-out;
 }
 
 /* --------------------------------------------------------------------------
@@ -218,33 +258,8 @@
 .paths-row-center {
   display: flex;
   flex-direction: column;
-  gap: 9px;
   min-width: 0;
-}
-
-/* Path Title: 20–23px, font-weight 500–550, color #E5E5E5 */
-.paths-row-title-wrap {
-  display: flex;
-  align-items: baseline;
-}
-
-.paths-row-title {
-  font-family: var(--font-display);
-  font-size: 21px;
-  font-weight: 520;
-  line-height: 1.32;
-  letter-spacing: -0.015em;
-  color: #E5E5E5;
-  margin: 0;
-  padding: 0;
-  transition: transform 220ms ease-out, color 220ms ease-out;
-  word-break: break-word;
-}
-
-/* Active in-progress path slightly brighter */
-.paths-row.is-active .paths-row-title {
-  color: #F5F5F5;
-  font-weight: 550;
+  will-change: opacity;
 }
 
 /* Title arrow symbol "→" */
@@ -253,31 +268,23 @@
   margin: 0 0.35em;
   font-weight: 400;
   display: inline-block;
-  transition: color 220ms ease-out;
+  will-change: transform, color;
+  transition: color 200ms ease-out;
 }
 
-/* Title slide on hover */
-.paths-row:hover .paths-row-title {
-  transform: translateX(4px);
-  color: #FFFFFF;
-}
-
-.paths-row:hover .paths-title-arrow {
-  color: #CCCCCC;
-}
-
-/* Metadata: 18 concepts · 4.5 hrs · 68% complete */
+/* Metadata: Clean format */
 .paths-row-meta {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 7px;
+  gap: 8px;
   font-family: var(--font-body);
   font-size: 12.5px;
   font-weight: 400;
   color: #777777;
   letter-spacing: -0.01em;
   line-height: 1;
+  will-change: opacity;
 }
 
 .paths-meta-dot {
@@ -302,22 +309,22 @@
   color: #555555;
 }
 
-/* Progress Line: 240–300px wide, directly underneath metadata */
+/* Progress Track */
 .paths-progress-track {
-  width: clamp(220px, 24vw, 260px);
   height: 1.5px;
   background-color: rgba(255, 255, 255, 0.06);
   border-radius: 1px;
   overflow: hidden;
-  margin-top: 3px;
-  transition: background-color 220ms ease-out;
+  transition: background-color 200ms ease-out;
+  will-change: opacity;
 }
 
 .paths-progress-fill {
   height: 100%;
   background-color: var(--accent);
   transform-origin: 0% 50%;
-  transition: opacity 220ms ease-out, filter 220ms ease-out;
+  transition: filter 200ms ease-out, opacity 200ms ease-out;
+  will-change: transform;
 }
 
 .paths-row:hover .paths-progress-track {
@@ -325,27 +332,29 @@
 }
 
 .paths-row:hover .paths-progress-fill {
-  opacity: 1;
   filter: brightness(1.1);
 }
 
 /* --------------------------------------------------------------------------
-   6. Right Column: Action Link (Continue → / Start →)
+   6. Right Column: Action Link (CONTINUE ↗ / START ↗)
    -------------------------------------------------------------------------- */
 .paths-row-action {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  padding-left: 16px;
+  will-change: opacity;
 }
 
 .paths-action-link {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 450;
-  letter-spacing: -0.01em;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
   color: #8A8A8A;
   background: transparent;
   border: none;
@@ -357,20 +366,166 @@
 
 .paths-action-arrow {
   color: #777777;
-  transition: transform 220ms ease-out, color 200ms ease-out;
+  display: inline-block;
+  will-change: transform, color;
+  transition: color 200ms ease-out;
 }
 
+/* Hover on action applies transform smoothly ONLY on hover */
 .paths-row:hover .paths-action-link {
   color: #F5F5F5;
 }
 
 .paths-row:hover .paths-action-arrow {
-  transform: translateX(5px);
+  transform: translate3d(4px, -2px, 0);
   color: #F5F5F5;
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), color 200ms ease-out;
 }
 
 /* --------------------------------------------------------------------------
-   7. Row Divider Hairlines
+   7. SPECIFIC HIERARCHY LEVELS
+   -------------------------------------------------------------------------- */
+
+/* ─── Level 01: ACTIVE PATH (HERO OBJECT) ────────────────────────────────── */
+.paths-row.level-hero {
+  min-height: 205px;
+  padding: 44px 0 46px 0;
+}
+
+.paths-row.level-hero .paths-row-center {
+  gap: 13px;
+}
+
+.paths-hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 2.7vw, 34px);
+  font-weight: 560;
+  line-height: 1.22;
+  letter-spacing: -0.025em;
+  color: #F5F5F5;
+  margin: 0;
+  padding: 0;
+  will-change: transform, color, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transition: color 200ms ease-out;
+}
+
+.paths-hero-title-line {
+  display: block;
+}
+
+.paths-hero-title-line.destination {
+  color: #EDEDED;
+}
+
+/* Hover transform applies smoothly ONLY on hover without fighting entrance RAF */
+.paths-row.level-hero:hover .paths-hero-title {
+  transform: translate3d(4px, 0, 0);
+  color: #FFFFFF;
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), color 200ms ease-out;
+}
+
+.paths-row.level-hero:hover .paths-title-arrow {
+  transform: translate3d(3px, 0, 0);
+  color: #CCCCCC;
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), color 200ms ease-out;
+}
+
+.paths-row.level-hero .paths-progress-track {
+  width: clamp(280px, 32vw, 360px);
+  margin-top: 6px;
+}
+
+.paths-row.level-hero .paths-action-link {
+  color: #A0A0A0;
+}
+
+/* ─── Level 02: SECONDARY PATH ───────────────────────────────────────────── */
+.paths-row.level-secondary {
+  min-height: 156px;
+  padding: 34px 0;
+}
+
+.paths-row.level-secondary .paths-row-center {
+  gap: 10px;
+}
+
+.paths-secondary-title {
+  font-family: var(--font-display);
+  font-size: 23px;
+  font-weight: 510;
+  line-height: 1.30;
+  letter-spacing: -0.015em;
+  color: #DCDCDC;
+  margin: 0;
+  padding: 0;
+  will-change: transform, color, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transition: color 200ms ease-out;
+}
+
+.paths-row.level-secondary:hover .paths-secondary-title {
+  transform: translate3d(3px, 0, 0);
+  color: #FFFFFF;
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), color 200ms ease-out;
+}
+
+.paths-row.level-secondary:hover .paths-title-arrow {
+  transform: translate3d(3px, 0, 0);
+  color: #CCCCCC;
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), color 200ms ease-out;
+}
+
+.paths-row.level-secondary .paths-progress-track {
+  width: clamp(220px, 24vw, 260px);
+  margin-top: 4px;
+}
+
+/* ─── Level 03: TERTIARY / QUIET PATH (UNSTARTED) ────────────────────────── */
+.paths-row.level-tertiary {
+  min-height: 145px;
+  padding: 28px 0;
+}
+
+.paths-row.level-tertiary .paths-row-center {
+  gap: 8px;
+}
+
+.paths-tertiary-title {
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 480;
+  line-height: 1.32;
+  letter-spacing: -0.012em;
+  color: #BFBFBF;
+  margin: 0;
+  padding: 0;
+  will-change: transform, color, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transition: color 200ms ease-out;
+}
+
+.paths-row.level-tertiary:hover .paths-tertiary-title {
+  transform: translate3d(3px, 0, 0);
+  color: #E5E5E5;
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), color 200ms ease-out;
+}
+
+.paths-row.level-tertiary .paths-progress-track {
+  width: 200px;
+  margin-top: 4px;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.paths-row.level-tertiary .paths-action-link {
+  color: #777777;
+}
+
+/* --------------------------------------------------------------------------
+   8. Row Divider Hairlines
    -------------------------------------------------------------------------- */
 .paths-row-divider {
   position: absolute;
@@ -380,10 +535,16 @@
   height: 1px;
   background-color: rgba(255, 255, 255, 0.08);
   transform-origin: 0% 50%;
+  transition: background-color 200ms ease-out;
+  will-change: transform, opacity;
+}
+
+.paths-row:hover .paths-row-divider {
+  background-color: rgba(255, 255, 255, 0.12);
 }
 
 /* --------------------------------------------------------------------------
-   8. Empty State (Editorial)
+   9. Empty State (Editorial)
    -------------------------------------------------------------------------- */
 .paths-empty-state {
   display: flex;
@@ -418,9 +579,11 @@
   background: transparent;
   border: none;
   padding: 0;
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 480;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: #EDEDED;
   cursor: pointer;
   transition: color 200ms ease-out;
@@ -431,35 +594,46 @@
 }
 
 .paths-empty-action svg {
-  transition: transform 220ms ease-out;
+  transition: transform 200ms ease-out;
 }
 
 .paths-empty-action:hover svg {
-  transform: translateX(4px);
+  transform: translate3d(3px, -2px, 0);
 }
 
 /* --------------------------------------------------------------------------
-   9. Responsive Adaptations
+   10. Responsive Adaptations
    -------------------------------------------------------------------------- */
 
 /* Tablet (<= 900px) */
 @media (max-width: 900px) {
   .paths-page-container {
-    padding: 40px 24px 80px 24px;
+    padding: 44px 24px 80px 24px;
   }
 
   .paths-title {
-    font-size: clamp(56px, 5.8vw, 76px);
+    font-size: clamp(58px, 6vw, 76px);
   }
 
   .paths-row {
-    grid-template-columns: 50px minmax(0, 1fr) 110px;
-    gap: 18px;
-    min-height: 130px;
-    padding: 26px 0;
+    grid-template-columns: 50px minmax(0, 1fr) auto;
+    gap: 20px;
   }
 
-  .paths-row-title {
+  .paths-row.level-hero {
+    min-height: 180px;
+    padding: 36px 0;
+  }
+
+  .paths-hero-title {
+    font-size: 26px;
+  }
+
+  .paths-secondary-title {
+    font-size: 21px;
+  }
+
+  .paths-tertiary-title {
     font-size: 19.5px;
   }
 }
@@ -481,39 +655,60 @@
   }
 
   .paths-title {
-    font-size: clamp(44px, 12vw, 56px);
-    line-height: 0.92;
+    font-size: clamp(46px, 12.5vw, 60px);
+    line-height: 0.91;
   }
 
   .paths-subtext {
-    font-size: 13.5px;
-    margin-top: 16px;
+    font-size: 14px;
+    margin-top: 18px;
   }
 
   .paths-header-divider {
-    margin-top: 26px;
+    margin-top: 28px;
   }
 
   .paths-row {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: 14px;
     min-height: auto;
-    padding: 24px 0;
+    padding: 28px 0;
   }
 
-  .paths-row-title {
+  .paths-rail-route-guide {
+    display: none;
+  }
+
+  .paths-row.level-hero {
+    min-height: auto;
+    padding: 30px 0;
+  }
+
+  .paths-hero-title {
+    font-size: 24px;
+  }
+
+  .paths-secondary-title {
+    font-size: 20px;
+  }
+
+  .paths-tertiary-title {
     font-size: 18.5px;
   }
 
-  .paths-progress-track {
+  .paths-progress-track,
+  .paths-row.level-hero .paths-progress-track,
+  .paths-row.level-secondary .paths-progress-track,
+  .paths-row.level-tertiary .paths-progress-track {
     width: 100%;
     max-width: 240px;
   }
 
   .paths-row-action {
-    margin-top: 2px;
+    padding-left: 0;
+    margin-top: 4px;
     justify-content: flex-start;
   }
 }
