@@ -256,6 +256,7 @@ interface ContextualStageCardProps {
   progress: MotionValue<number>;
   activeStageIndex: number;
   shouldReduceMotion: boolean | null;
+  hasEntered: boolean;
   onExploreWorkspace: () => void;
 }
 
@@ -265,6 +266,7 @@ const ContextualStageCard: React.FC<ContextualStageCardProps> = ({
   progress,
   activeStageIndex,
   shouldReduceMotion,
+  hasEntered,
   onExploreWorkspace
 }) => {
   const range = STAGE_TRANSITION_RANGES[index];
@@ -359,40 +361,124 @@ const ContextualStageCard: React.FC<ContextualStageCardProps> = ({
       }}
       aria-hidden={activeStageIndex !== index}
     >
-      <motion.div
-        className="transformation-context-step-row"
-        style={{ y: labelY, opacity: labelOpacity }}
-      >
-        <span className="transformation-context-step">{stage.code}</span>
-        <span className="transformation-context-divider">/</span>
-        <span className="transformation-context-total">04</span>
-        <span className="transformation-context-name">{stage.name}</span>
-      </motion.div>
+      {index === 0 ? (
+        <>
+          <div className="transformation-context-clip">
+            <motion.div
+              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+              animate={
+                hasEntered
+                  ? { opacity: 1, y: 0 }
+                  : shouldReduceMotion
+                  ? { opacity: 1, y: 0 }
+                  : { opacity: 0, y: 12 }
+              }
+              transition={{
+                duration: shouldReduceMotion ? 0.01 : 0.44,
+                delay: shouldReduceMotion ? 0 : 0.76,
+                ease: [0.22, 1, 0.36, 1]
+              }}
+            >
+              <motion.div
+                className="transformation-context-step-row"
+                style={{ y: labelY, opacity: labelOpacity }}
+              >
+                <span className="transformation-context-step">{stage.code}</span>
+                <span className="transformation-context-divider">/</span>
+                <span className="transformation-context-total">04</span>
+                <span className="transformation-context-name">{stage.name}</span>
+              </motion.div>
+            </motion.div>
+          </div>
 
-      <motion.h3
-        className="transformation-context-tagline"
-        style={{ y: headingY, opacity: headingOpacity }}
-      >
-        {stage.tagline}
-      </motion.h3>
+          <div className="transformation-context-clip">
+            <motion.div
+              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+              animate={
+                hasEntered
+                  ? { opacity: 1, y: 0 }
+                  : shouldReduceMotion
+                  ? { opacity: 1, y: 0 }
+                  : { opacity: 0, y: 16 }
+              }
+              transition={{
+                duration: shouldReduceMotion ? 0.01 : 0.48,
+                delay: shouldReduceMotion ? 0 : 0.81,
+                ease: [0.22, 1, 0.36, 1]
+              }}
+            >
+              <motion.h3
+                className="transformation-context-tagline"
+                style={{ y: headingY, opacity: headingOpacity }}
+              >
+                {stage.tagline}
+              </motion.h3>
+            </motion.div>
+          </div>
 
-      <motion.p
-        className="transformation-context-desc"
-        style={{ y: descY, opacity: descOpacity }}
-      >
-        {stage.desc}
-      </motion.p>
+          <div className="transformation-context-clip">
+            <motion.div
+              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
+              animate={
+                hasEntered
+                  ? { opacity: 1, y: 0 }
+                  : shouldReduceMotion
+                  ? { opacity: 1, y: 0 }
+                  : { opacity: 0, y: 14 }
+              }
+              transition={{
+                duration: shouldReduceMotion ? 0.01 : 0.50,
+                delay: shouldReduceMotion ? 0 : 0.87,
+                ease: [0.22, 1, 0.36, 1]
+              }}
+            >
+              <motion.p
+                className="transformation-context-desc"
+                style={{ y: descY, opacity: descOpacity }}
+              >
+                {stage.desc}
+              </motion.p>
+            </motion.div>
+          </div>
+        </>
+      ) : (
+        <>
+          <motion.div
+            className="transformation-context-step-row"
+            style={{ y: labelY, opacity: labelOpacity }}
+          >
+            <span className="transformation-context-step">{stage.code}</span>
+            <span className="transformation-context-divider">/</span>
+            <span className="transformation-context-total">04</span>
+            <span className="transformation-context-name">{stage.name}</span>
+          </motion.div>
 
-      {index === 3 && (
-        <motion.button
-          type="button"
-          className="transformation-cta-link"
-          onClick={onExploreWorkspace}
-          style={{ y: ctaY, opacity: ctaOpacity }}
-        >
-          <span>Open workspace</span>
-          <ArrowUpRight size={13} aria-hidden="true" />
-        </motion.button>
+          <motion.h3
+            className="transformation-context-tagline"
+            style={{ y: headingY, opacity: headingOpacity }}
+          >
+            {stage.tagline}
+          </motion.h3>
+
+          <motion.p
+            className="transformation-context-desc"
+            style={{ y: descY, opacity: descOpacity }}
+          >
+            {stage.desc}
+          </motion.p>
+
+          {index === 3 && (
+            <motion.button
+              type="button"
+              className="transformation-cta-link"
+              onClick={onExploreWorkspace}
+              style={{ y: ctaY, opacity: ctaOpacity }}
+            >
+              <span>Open workspace</span>
+              <ArrowUpRight size={13} aria-hidden="true" />
+            </motion.button>
+          )}
+        </>
       )}
     </motion.div>
   );
@@ -591,107 +677,217 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
           transition={{ duration: 0.6, ease: 'easeOut' }}
         />
 
-        {/* 1. Header: Eyebrow + Editorial Statement */}
-        <header className="transformation-header">
+        {/* Underlying architectural calibration layout grid */}
+        <div className="transformation-grid-scaffold" aria-hidden="true">
           <motion.div
-            className="transformation-eyebrow"
-            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+            className="transformation-grid-line horizontal-header"
+            initial={shouldReduceMotion ? { opacity: 0.08, scaleX: 1 } : { opacity: 0, scaleX: 0 }}
             animate={
               hasEntered
-                ? { opacity: 1, y: 0 }
+                ? { opacity: 0.08, scaleX: 1 }
                 : shouldReduceMotion
-                ? { opacity: 0 }
-                : { opacity: 0, y: 8 }
+                ? { opacity: 0.08, scaleX: 1 }
+                : { opacity: 0, scaleX: 0 }
             }
             transition={{
-              duration: shouldReduceMotion ? 0.3 : 0.5,
-              delay: shouldReduceMotion ? 0 : 0.10,
-              ease: 'easeOut'
+              duration: shouldReduceMotion ? 0.01 : 0.65,
+              delay: 0.0,
+              ease: [0.22, 1, 0.36, 1]
             }}
-          >
+          />
+          <motion.div
+            className="transformation-grid-line vertical-left"
+            initial={shouldReduceMotion ? { opacity: 0.06, scaleY: 1 } : { opacity: 0, scaleY: 0 }}
+            animate={
+              hasEntered
+                ? { opacity: 0.06, scaleY: 1 }
+                : shouldReduceMotion
+                ? { opacity: 0.06, scaleY: 1 }
+                : { opacity: 0, scaleY: 0 }
+            }
+            transition={{
+              duration: shouldReduceMotion ? 0.01 : 0.65,
+              delay: 0.04,
+              ease: [0.22, 1, 0.36, 1]
+            }}
+          />
+          <motion.div
+            className="transformation-grid-line vertical-right"
+            initial={shouldReduceMotion ? { opacity: 0.06, scaleY: 1 } : { opacity: 0, scaleY: 0 }}
+            animate={
+              hasEntered
+                ? { opacity: 0.06, scaleY: 1 }
+                : shouldReduceMotion
+                ? { opacity: 0.06, scaleY: 1 }
+                : { opacity: 0, scaleY: 0 }
+            }
+            transition={{
+              duration: shouldReduceMotion ? 0.01 : 0.65,
+              delay: 0.06,
+              ease: [0.22, 1, 0.36, 1]
+            }}
+          />
+          <motion.div
+            className="transformation-grid-line horizontal-bottom"
+            initial={shouldReduceMotion ? { opacity: 0.08, scaleX: 1 } : { opacity: 0, scaleX: 0 }}
+            animate={
+              hasEntered
+                ? { opacity: 0.08, scaleX: 1 }
+                : shouldReduceMotion
+                ? { opacity: 0.08, scaleX: 1 }
+                : { opacity: 0, scaleX: 0 }
+            }
+            transition={{
+              duration: shouldReduceMotion ? 0.01 : 0.60,
+              delay: 0.08,
+              ease: [0.22, 1, 0.36, 1]
+            }}
+          />
+        </div>
+
+        {/* 1. Header: Eyebrow + Editorial Statement */}
+        <header className="transformation-header">
+          <div className="transformation-eyebrow">
             <motion.span
               className="transformation-eyebrow-dot"
               aria-hidden="true"
-              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.8 }}
+              initial={shouldReduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0 }}
               animate={
                 hasEntered
                   ? { opacity: 1, scale: 1 }
                   : shouldReduceMotion
-                  ? { opacity: 0 }
-                  : { opacity: 0, scale: 0.8 }
+                  ? { opacity: 1, scale: 1 }
+                  : { opacity: 0, scale: 0 }
               }
               transition={{
-                duration: shouldReduceMotion ? 0.3 : 0.4,
+                duration: shouldReduceMotion ? 0.01 : 0.28,
                 delay: shouldReduceMotion ? 0 : 0.08,
-                ease: 'easeOut'
+                ease: [0.22, 1, 0.36, 1]
               }}
             />
-            <span>From Material to Meaning</span>
-          </motion.div>
+            <motion.span
+              className="transformation-eyebrow-text"
+              initial={
+                shouldReduceMotion
+                  ? { opacity: 1, y: 0, letterSpacing: '0.22em' }
+                  : { opacity: 0.15, y: -8, letterSpacing: '0.36em' }
+              }
+              animate={
+                hasEntered
+                  ? { opacity: 1, y: 0, letterSpacing: '0.22em' }
+                  : shouldReduceMotion
+                  ? { opacity: 1, y: 0, letterSpacing: '0.22em' }
+                  : { opacity: 0.15, y: -8, letterSpacing: '0.36em' }
+              }
+              transition={{
+                duration: shouldReduceMotion ? 0.01 : 0.48,
+                delay: shouldReduceMotion ? 0 : 0.14,
+                ease: [0.22, 1, 0.36, 1]
+              }}
+            >
+              From Material to Meaning
+            </motion.span>
+          </div>
           <h2
             className="transformation-title"
             aria-label="See how your material becomes connected knowledge."
           >
             {/* Desktop & Tablet: Deliberate 3-line composition */}
             <span className="transformation-title-desktop" aria-hidden="true">
-              {DESKTOP_TITLE_LINES.map((line, idx) => (
-                <span
-                  key={idx}
-                  className={`transformation-title-line-mask line-${idx + 1}${
-                    idx === 2 ? ' line-destination' : ''
-                  }`}
-                >
-                  <motion.span
-                    className="transformation-title-line"
-                    initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 28 }}
-                    animate={
-                      hasEntered
-                        ? { opacity: 1, y: 0 }
-                        : shouldReduceMotion
-                        ? { opacity: 0 }
-                        : { opacity: 0, y: 28 }
-                    }
-                    transition={{
-                      duration: shouldReduceMotion ? 0.3 : 0.62,
-                      delay: shouldReduceMotion ? 0 : 0.16 + idx * 0.10,
-                      ease: [0.16, 1, 0.3, 1]
-                    }}
+              {DESKTOP_TITLE_LINES.map((line, idx) => {
+                const horizontalOffsets = [-18, 10, -8];
+                const xOffset = horizontalOffsets[idx] ?? 0;
+                const delays = [0.20, 0.29, 0.38];
+                const delay = delays[idx] ?? 0.20;
+
+                return (
+                  <span
+                    key={idx}
+                    className={`transformation-title-line-mask line-${idx + 1}${
+                      idx === 2 ? ' line-destination' : ''
+                    }`}
                   >
-                    {line}
-                  </motion.span>
-                </span>
-              ))}
+                    <motion.span
+                      className="transformation-title-line"
+                      initial={
+                        shouldReduceMotion
+                          ? { opacity: 1, y: 0, x: 0 }
+                          : { opacity: 0, y: '110%', x: xOffset }
+                      }
+                      animate={
+                        hasEntered
+                          ? idx === 2
+                            ? {
+                                opacity: 1,
+                                y: [40, -1.5, 0],
+                                x: [xOffset, 0, 0]
+                              }
+                            : { opacity: 1, y: 0, x: 0 }
+                          : shouldReduceMotion
+                          ? { opacity: 1, y: 0, x: 0 }
+                          : { opacity: 0, y: '110%', x: xOffset }
+                      }
+                      transition={{
+                        duration: shouldReduceMotion ? 0.01 : idx === 2 ? 0.78 : 0.72,
+                        delay: shouldReduceMotion ? 0 : delay,
+                        times: idx === 2 ? [0, 0.82, 1] : undefined,
+                        ease: [0.22, 1, 0.36, 1]
+                      }}
+                    >
+                      {line}
+                    </motion.span>
+                  </span>
+                );
+              })}
             </span>
 
             {/* Mobile: Intentional 3-line composition */}
             <span className="transformation-title-mobile" aria-hidden="true">
-              {MOBILE_TITLE_LINES.map((line, idx) => (
-                <span
-                  key={idx}
-                  className={`transformation-title-line-mask line-${idx + 1}${
-                    idx === 2 ? ' line-destination' : ''
-                  }`}
-                >
-                  <motion.span
-                    className="transformation-title-line"
-                    initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 20 }}
-                    animate={
-                      hasEntered
-                        ? { opacity: 1, y: 0 }
-                        : shouldReduceMotion
-                        ? { opacity: 0 }
-                        : { opacity: 0, y: 20 }
-                    }
-                    transition={{
-                      duration: shouldReduceMotion ? 0.3 : 0.58,
-                      delay: shouldReduceMotion ? 0 : 0.16 + idx * 0.09,
-                      ease: [0.16, 1, 0.3, 1]
-                    }}
+              {MOBILE_TITLE_LINES.map((line, idx) => {
+                const horizontalOffsets = [-14, 8, -6];
+                const xOffset = horizontalOffsets[idx] ?? 0;
+                const delays = [0.20, 0.29, 0.38];
+                const delay = delays[idx] ?? 0.20;
+
+                return (
+                  <span
+                    key={idx}
+                    className={`transformation-title-line-mask line-${idx + 1}${
+                      idx === 2 ? ' line-destination' : ''
+                    }`}
                   >
-                    {line}
-                  </motion.span>
-                </span>
-              ))}
+                    <motion.span
+                      className="transformation-title-line"
+                      initial={
+                        shouldReduceMotion
+                          ? { opacity: 1, y: 0, x: 0 }
+                          : { opacity: 0, y: '110%', x: xOffset }
+                      }
+                      animate={
+                        hasEntered
+                          ? idx === 2
+                            ? {
+                                opacity: 1,
+                                y: [34, -1.5, 0],
+                                x: [xOffset, 0, 0]
+                              }
+                            : { opacity: 1, y: 0, x: 0 }
+                          : shouldReduceMotion
+                          ? { opacity: 1, y: 0, x: 0 }
+                          : { opacity: 0, y: '110%', x: xOffset }
+                      }
+                      transition={{
+                        duration: shouldReduceMotion ? 0.01 : idx === 2 ? 0.76 : 0.70,
+                        delay: shouldReduceMotion ? 0 : delay,
+                        times: idx === 2 ? [0, 0.82, 1] : undefined,
+                        ease: [0.22, 1, 0.36, 1]
+                      }}
+                    >
+                      {line}
+                    </motion.span>
+                  </span>
+                );
+              })}
             </span>
           </h2>
         </header>
@@ -709,18 +905,18 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
                     activeStageIndex === i ? 'active' : '',
                     activeStageIndex > i ? 'passed' : ''
                   ].join(' ')}
-                  initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -16 }}
+                  initial={shouldReduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -10 }}
                   animate={
                     hasEntered
                       ? { opacity: 1, x: 0 }
                       : shouldReduceMotion
-                      ? { opacity: 0 }
-                      : { opacity: 0, x: -16 }
+                      ? { opacity: 1, x: 0 }
+                      : { opacity: 0, x: -10 }
                   }
                   transition={{
-                    duration: shouldReduceMotion ? 0.3 : 0.52,
-                    delay: shouldReduceMotion ? 0 : 0.35 + i * 0.06,
-                    ease: [0.16, 1, 0.3, 1]
+                    duration: shouldReduceMotion ? 0.01 : 0.46,
+                    delay: shouldReduceMotion ? 0 : 0.45 + i * 0.06,
+                    ease: [0.22, 1, 0.36, 1]
                   }}
                   onClick={() => scrollToStage(i)}
                   role="button"
@@ -736,23 +932,42 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
                   <span className="transformation-nav-marker" aria-hidden="true">
                     {i === 0 ? (
                       <motion.span
+                        className="transformation-nav-dot active-marker"
+                        initial={
+                          shouldReduceMotion
+                            ? { opacity: 1, scaleY: 1 }
+                            : { opacity: 0, scaleY: 0.2, scaleX: 0.6 }
+                        }
+                        animate={
+                          hasEntered
+                            ? { opacity: 1, scaleY: 1, scaleX: 1 }
+                            : shouldReduceMotion
+                            ? { opacity: 1, scaleY: 1 }
+                            : { opacity: 0, scaleY: 0.2, scaleX: 0.6 }
+                        }
+                        transition={{
+                          duration: shouldReduceMotion ? 0.01 : 0.35,
+                          delay: shouldReduceMotion ? 0 : 0.42,
+                          ease: [0.22, 1, 0.36, 1]
+                        }}
+                      />
+                    ) : (
+                      <motion.span
                         className="transformation-nav-dot"
-                        initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
+                        initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.4 }}
                         animate={
                           hasEntered
                             ? { opacity: 1, scale: 1 }
                             : shouldReduceMotion
-                            ? { opacity: 0 }
-                            : { opacity: 0, scale: 0.6 }
+                            ? { opacity: 1 }
+                            : { opacity: 0, scale: 0.4 }
                         }
                         transition={{
-                          duration: 0.35,
-                          delay: shouldReduceMotion ? 0 : 0.60,
+                          duration: shouldReduceMotion ? 0.01 : 0.30,
+                          delay: shouldReduceMotion ? 0 : 0.44 + i * 0.06,
                           ease: 'easeOut'
                         }}
                       />
-                    ) : (
-                      <span className="transformation-nav-dot" />
                     )}
                   </span>
                   <span className="transformation-nav-code">{s.code}</span>
@@ -767,20 +982,38 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
             className="transformation-center-stage"
             initial={
               shouldReduceMotion
-                ? { opacity: 0 }
-                : { opacity: 0, scale: 0.96, y: 24, rotateX: 3 }
+                ? { opacity: 1 }
+                : {
+                    opacity: 0.15,
+                    scaleY: 0.94,
+                    scaleX: 0.985,
+                    y: 24,
+                    clipPath: 'inset(0% 0% 100% 0%)'
+                  }
             }
             animate={
               hasEntered
-                ? { opacity: 1, scale: 1, y: 0, rotateX: 0 }
+                ? {
+                    opacity: 1,
+                    scaleY: 1,
+                    scaleX: 1,
+                    y: 0,
+                    clipPath: 'inset(0% 0% 0% 0%)'
+                  }
                 : shouldReduceMotion
-                ? { opacity: 0 }
-                : { opacity: 0, scale: 0.96, y: 24, rotateX: 3 }
+                ? { opacity: 1 }
+                : {
+                    opacity: 0.15,
+                    scaleY: 0.94,
+                    scaleX: 0.985,
+                    y: 24,
+                    clipPath: 'inset(0% 0% 100% 0%)'
+                  }
             }
             transition={{
-              duration: shouldReduceMotion ? 0.3 : 1.02,
-              delay: shouldReduceMotion ? 0 : 0.45,
-              ease: [0.16, 1, 0.3, 1]
+              duration: shouldReduceMotion ? 0.01 : 0.72,
+              delay: shouldReduceMotion ? 0 : 0.55,
+              ease: [0.22, 1, 0.36, 1]
             }}
             style={{ transformStyle: 'preserve-3d' }}
           >
@@ -791,6 +1024,8 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
               onHoverConcept={handleHoverConcept}
               onLeaveGraph={handleLeaveGraph}
               isRestingRead={isRestingRead && hasEntered}
+              hasEntered={hasEntered}
+              shouldReduceMotion={shouldReduceMotion}
             />
           </motion.div>
 
@@ -798,18 +1033,22 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
           <motion.aside
             className="transformation-context"
             aria-live="polite"
-            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: 18 }}
+            initial={
+              shouldReduceMotion
+                ? { opacity: 1, x: 0, scaleY: 1 }
+                : { opacity: 0, x: 24, scaleY: 0.98 }
+            }
             animate={
               hasEntered
-                ? { opacity: 1, x: 0 }
+                ? { opacity: 1, x: 0, scaleY: 1 }
                 : shouldReduceMotion
-                ? { opacity: 0 }
-                : { opacity: 0, x: 18 }
+                ? { opacity: 1, x: 0, scaleY: 1 }
+                : { opacity: 0, x: 24, scaleY: 0.98 }
             }
             transition={{
-              duration: shouldReduceMotion ? 0.3 : 0.65,
-              delay: shouldReduceMotion ? 0 : 0.55,
-              ease: [0.16, 1, 0.3, 1]
+              duration: shouldReduceMotion ? 0.01 : 0.58,
+              delay: shouldReduceMotion ? 0 : 0.75,
+              ease: [0.22, 1, 0.36, 1]
             }}
           >
             <div className="transformation-context-stack">
@@ -821,6 +1060,7 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
                   progress={scrollProgress}
                   activeStageIndex={activeStageIndex}
                   shouldReduceMotion={shouldReduceMotion}
+                  hasEntered={hasEntered}
                   onExploreWorkspace={onExploreWorkspace}
                 />
               ))}
@@ -834,25 +1074,55 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
           aria-hidden="true"
           initial={
             shouldReduceMotion
-              ? { opacity: 0 }
-              : { opacity: 0, scaleX: 0.92, transformOrigin: '0% 50%' }
+              ? { opacity: 1, scaleX: 1 }
+              : { opacity: 0, scaleX: 0, transformOrigin: '0% 50%' }
           }
           animate={
             hasEntered
               ? { opacity: 1, scaleX: 1, transformOrigin: '0% 50%' }
               : shouldReduceMotion
-              ? { opacity: 0 }
-              : { opacity: 0, scaleX: 0.92, transformOrigin: '0% 50%' }
+              ? { opacity: 1, scaleX: 1 }
+              : { opacity: 0, scaleX: 0, transformOrigin: '0% 50%' }
           }
           transition={{
-            duration: shouldReduceMotion ? 0.3 : 0.60,
-            delay: shouldReduceMotion ? 0 : 0.70,
-            ease: [0.16, 1, 0.3, 1]
+            duration: shouldReduceMotion ? 0.01 : 0.62,
+            delay: shouldReduceMotion ? 0 : 0.90,
+            ease: [0.22, 1, 0.36, 1]
           }}
         >
-          <span className="transformation-pipeline-tag">GraphMind Pipeline</span>
+          <motion.span
+            className="transformation-pipeline-tag"
+            initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, x: -8 }}
+            animate={
+              hasEntered
+                ? { opacity: 1, x: 0 }
+                : shouldReduceMotion
+                ? { opacity: 1 }
+                : { opacity: 0, x: -8 }
+            }
+            transition={{
+              duration: shouldReduceMotion ? 0.01 : 0.40,
+              delay: shouldReduceMotion ? 0 : 0.94,
+              ease: [0.22, 1, 0.36, 1]
+            }}
+          >
+            GraphMind Pipeline
+          </motion.span>
           <PipelineProgressTrack progress={scrollProgress} activeIndex={activeStageIndex} />
-          <span className="transformation-pipeline-counter">{currentStage.step}</span>
+          <motion.span
+            className="transformation-pipeline-counter"
+            initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+            animate={
+              hasEntered ? { opacity: 1 } : shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }
+            }
+            transition={{
+              duration: shouldReduceMotion ? 0.01 : 0.35,
+              delay: shouldReduceMotion ? 0 : 1.10,
+              ease: 'easeOut'
+            }}
+          >
+            {currentStage.step}
+          </motion.span>
         </motion.footer>
       </div>
     </section>
@@ -872,6 +1142,8 @@ interface KnowledgeTransformationVisualProps {
   onHoverConcept: (id: string) => void;
   onLeaveGraph: () => void;
   isRestingRead?: boolean;
+  hasEntered?: boolean;
+  shouldReduceMotion?: boolean | null;
 }
 
 const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps> = ({
@@ -880,7 +1152,9 @@ const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps
   activeNeighbors,
   onHoverConcept,
   onLeaveGraph,
-  isRestingRead = true
+  isRestingRead = true,
+  hasEntered = false,
+  shouldReduceMotion = false
 }) => {
   // ─── Layer 1 & 2: Document Transforms ──────────────────────────────────────
   // READ (0.00-0.25): 100% stable reading surface, responds subtly as reading progresses
@@ -1016,6 +1290,23 @@ const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps
             style={{
               top: useTransform(scanlineTop, (v) => `${v}%`),
               opacity: scanlineOpacity
+            }}
+            aria-hidden="true"
+          />
+
+          {/* Initial assembly reading-line progression sweep */}
+          <motion.div
+            className="ktv-entrance-scanline"
+            initial={{ top: '0%', opacity: 0 }}
+            animate={
+              hasEntered && !shouldReduceMotion
+                ? { top: ['0%', '100%'], opacity: [0, 0.22, 0.16, 0] }
+                : { top: '0%', opacity: 0 }
+            }
+            transition={{
+              duration: 0.65,
+              delay: 0.72,
+              ease: [0.25, 0.1, 0.25, 1]
             }}
             aria-hidden="true"
           />

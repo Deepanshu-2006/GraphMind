@@ -517,6 +517,53 @@
   z-index: 1;
 }
 
+/* Underlying architectural layout calibration scaffold */
+.transformation-grid-scaffold {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  overflow: hidden;
+}
+
+.transformation-grid-line {
+  position: absolute;
+  background-color: rgba(255, 255, 255, 0.10);
+  pointer-events: none;
+}
+
+.transformation-grid-line.horizontal-header {
+  top: clamp(140px, 18vh, 185px);
+  left: clamp(24px, 4.5vw, 64px);
+  right: clamp(24px, 4.5vw, 64px);
+  height: 1px;
+  transform-origin: 50% 50%;
+}
+
+.transformation-grid-line.vertical-left {
+  top: clamp(140px, 18vh, 185px);
+  bottom: clamp(50px, 7vh, 80px);
+  left: calc(clamp(24px, 4.5vw, 64px) + minmax(130px, 18%));
+  width: 1px;
+  transform-origin: 50% 0%;
+}
+
+.transformation-grid-line.vertical-right {
+  top: clamp(140px, 18vh, 185px);
+  bottom: clamp(50px, 7vh, 80px);
+  right: calc(clamp(24px, 4.5vw, 64px) + minmax(200px, 18%));
+  width: 1px;
+  transform-origin: 50% 0%;
+}
+
+.transformation-grid-line.horizontal-bottom {
+  bottom: clamp(50px, 6.5vh, 80px);
+  left: clamp(24px, 4.5vw, 64px);
+  right: clamp(24px, 4.5vw, 64px);
+  height: 1px;
+  transform-origin: 0% 50%;
+}
+
 /* 1. Header & Title Block (Top) — Editorial Restraint & Typographic Hierarchy */
 .transformation-header {
   position: relative;
@@ -767,6 +814,11 @@
   will-change: transform, opacity;
 }
 
+.transformation-context-clip {
+  display: block;
+  overflow: hidden;
+}
+
 .transformation-context-step-row {
   display: flex;
   align-items: baseline;
@@ -928,6 +980,18 @@
   box-shadow: 0 0 8px rgba(163, 255, 18, 0.25);
   pointer-events: none;
   z-index: 4;
+}
+
+/* Subtle reading position sweep during initial assembly */
+.ktv-entrance-scanline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.22) 50%, transparent 100%);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.10);
+  pointer-events: none;
+  z-index: 5;
 }
 
 /* Document Header: quiet, scholarly source metadata */
@@ -2065,6 +2129,11 @@
   .transformation-cta-link {
     align-self: center;
   }
+
+  .transformation-grid-line.vertical-left,
+  .transformation-grid-line.vertical-right {
+    display: none;
+  }
 }
 
 @media (max-width: 640px) {
@@ -2277,8 +2346,10 @@
     padding: 48px clamp(24px, 4.5vw, 56px);
   }
 
-  .ktv-scanline {
-    display: none;
+  .ktv-scanline,
+  .ktv-entrance-scanline,
+  .transformation-grid-scaffold {
+    display: none !important;
   }
 
   .ktv-material-surface {
