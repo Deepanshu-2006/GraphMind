@@ -30,7 +30,6 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
 
   // Format title with editorial directional arrow
   const renderFormattedTitle = (rawTitle: string) => {
-    // Check if title contains "to" or "→"
     const arrowRegex = /\s+(?:to|→)\s+/i;
     if (arrowRegex.test(rawTitle)) {
       const parts = rawTitle.split(arrowRegex);
@@ -54,9 +53,9 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
             {/* Small uppercase technical eyebrow */}
             <motion.span
               className="paths-eyebrow"
-              initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, letterSpacing: '0.28em' }}
-              animate={{ opacity: 1, letterSpacing: '0.20em' }}
-              transition={{ duration: 0.65, delay: 0.08, ease: REVEAL_EASE }}
+              initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, letterSpacing: '0.24em' }}
+              animate={{ opacity: 1, letterSpacing: '0.18em' }}
+              transition={{ duration: 0.55, delay: 0.06, ease: REVEAL_EASE }}
             >
               Curriculum
             </motion.span>
@@ -66,9 +65,9 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
               <span className="paths-title-clip">
                 <motion.span
                   className="paths-title-line"
-                  initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: '108%' }}
+                  initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: '105%' }}
                   animate={{ opacity: 1, y: '0%' }}
-                  transition={{ duration: 0.85, delay: 0.18, ease: REVEAL_EASE }}
+                  transition={{ duration: 0.75, delay: 0.12, ease: REVEAL_EASE }}
                 >
                   Learning
                 </motion.span>
@@ -76,9 +75,9 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
               <span className="paths-title-clip">
                 <motion.span
                   className="paths-title-line"
-                  initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: '108%' }}
+                  initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: '105%' }}
                   animate={{ opacity: 1, y: '0%' }}
-                  transition={{ duration: 0.85, delay: 0.30, ease: REVEAL_EASE }}
+                  transition={{ duration: 0.75, delay: 0.22, ease: REVEAL_EASE }}
                 >
                   paths
                 </motion.span>
@@ -88,9 +87,9 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
             {/* Supporting editorial subtext */}
             <motion.p
               className="paths-subtext"
-              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.70, delay: 0.42, ease: REVEAL_EASE }}
+              transition={{ duration: 0.60, delay: 0.32, ease: REVEAL_EASE }}
             >
               Generated from the relationships in your knowledge graph.
             </motion.p>
@@ -99,9 +98,9 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
           {/* Quiet header metadata: actual path count */}
           <motion.div
             className="paths-header-meta"
-            initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: -6 }}
+            initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.60, delay: 0.28, ease: REVEAL_EASE }}
+            transition={{ duration: 0.50, delay: 0.20, ease: REVEAL_EASE }}
           >
             <span className="paths-meta-count">{formattedCount} PATHS</span>
           </motion.div>
@@ -112,7 +111,7 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
           className="paths-header-divider"
           initial={shouldReduceMotion ? { opacity: 1, scaleX: 1 } : { opacity: 0, scaleX: 0 }}
           animate={{ opacity: 1, scaleX: 1 }}
-          transition={{ duration: 0.85, delay: 0.46, ease: REVEAL_EASE }}
+          transition={{ duration: 0.75, delay: 0.36, ease: REVEAL_EASE }}
         />
       </header>
 
@@ -124,7 +123,7 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
             const isCompleted = path.progress === 100;
             const isPlanned = path.progress === 0;
             const rowNumber = String(idx + 1).padStart(2, '0');
-            const rowDelay = 0.54 + idx * 0.09;
+            const rowDelay = 0.42 + idx * 0.08;
 
             return (
               <motion.article
@@ -140,46 +139,44 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
                     onSelectPath(path.id);
                   }
                 }}
-                initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
+                initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.75, delay: rowDelay, ease: REVEAL_EASE }}
+                transition={{ duration: 0.65, delay: rowDelay, ease: REVEAL_EASE }}
               >
-                {/* 1. Left Column: Monospace Number with quiet active indicator */}
+                {/* 1. Left Column: Monospace Number with vertical navigation marker (│) */}
                 <motion.div
                   className="paths-row-number-col"
-                  initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, x: -6 }}
+                  initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, x: -4 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.60, delay: rowDelay + 0.04, ease: REVEAL_EASE }}
+                  transition={{ duration: 0.50, delay: rowDelay + 0.03, ease: REVEAL_EASE }}
                 >
                   <span className="paths-row-number">{rowNumber}</span>
-                  {isActive && (
-                    <span
-                      className="paths-number-indicator"
-                      aria-label="Active in-progress path"
-                      title="Currently active"
-                    />
-                  )}
+                  <span
+                    className="paths-vertical-marker"
+                    aria-hidden="true"
+                    title={isActive ? 'Active path' : undefined}
+                  />
                 </motion.div>
 
-                {/* 2. Center Column: Title, Metadata, Progress Line */}
+                {/* 2. Center Column: Title, Metadata, Progress Track */}
                 <div className="paths-row-center">
                   <motion.div
                     className="paths-row-title-wrap"
-                    initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+                    initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.70, delay: rowDelay + 0.06, ease: REVEAL_EASE }}
+                    transition={{ duration: 0.60, delay: rowDelay + 0.05, ease: REVEAL_EASE }}
                   >
                     <h2 className="paths-row-title">
                       {renderFormattedTitle(path.title)}
                     </h2>
                   </motion.div>
 
-                  {/* Clean metadata line without pills or badges */}
+                  {/* Clean metadata line */}
                   <motion.div
                     className="paths-row-meta"
-                    initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 6 }}
+                    initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.65, delay: rowDelay + 0.08, ease: REVEAL_EASE }}
+                    transition={{ duration: 0.55, delay: rowDelay + 0.07, ease: REVEAL_EASE }}
                   >
                     <span>{path.nodeCount} concepts</span>
                     <span className="paths-meta-dot" aria-hidden="true">·</span>
@@ -194,32 +191,32 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
                     )}
                   </motion.div>
 
-                  {/* Editorial thin progress line (only for active or started paths) */}
-                  {!isPlanned && (
-                    <motion.div
-                      className="paths-progress-track"
-                      aria-hidden="true"
-                      initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.60, delay: rowDelay + 0.10, ease: REVEAL_EASE }}
-                    >
+                  {/* Editorial thin progress line (with faint track for unstarted) */}
+                  <motion.div
+                    className="paths-progress-track"
+                    aria-hidden="true"
+                    initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.50, delay: rowDelay + 0.08, ease: REVEAL_EASE }}
+                  >
+                    {!isPlanned && (
                       <motion.div
                         className="paths-progress-fill"
                         style={{ width: `${Math.min(100, Math.max(0, path.progress))}%` }}
                         initial={shouldReduceMotion ? { scaleX: 1 } : { scaleX: 0 }}
                         animate={{ scaleX: 1 }}
-                        transition={{ duration: 0.85, delay: rowDelay + 0.12, ease: REVEAL_EASE }}
+                        transition={{ duration: 0.70, delay: rowDelay + 0.10, ease: REVEAL_EASE }}
                       />
-                    </motion.div>
-                  )}
+                    )}
+                  </motion.div>
                 </div>
 
                 {/* 3. Right Column: Quiet Text Action */}
                 <motion.div
                   className="paths-row-action"
-                  initial={shouldReduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: 8 }}
+                  initial={shouldReduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: 6 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.60, delay: rowDelay + 0.10, ease: REVEAL_EASE }}
+                  transition={{ duration: 0.50, delay: rowDelay + 0.08, ease: REVEAL_EASE }}
                 >
                   <span className="paths-action-link">
                     <span>{path.progress > 0 ? 'Continue' : 'Start'}</span>
@@ -233,7 +230,7 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
                   aria-hidden="true"
                   initial={shouldReduceMotion ? { opacity: 1, scaleX: 1 } : { opacity: 0, scaleX: 0 }}
                   animate={{ opacity: 1, scaleX: 1 }}
-                  transition={{ duration: 0.80, delay: rowDelay + 0.02, ease: REVEAL_EASE }}
+                  transition={{ duration: 0.70, delay: rowDelay + 0.02, ease: REVEAL_EASE }}
                 />
               </motion.article>
             );

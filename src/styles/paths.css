@@ -1,7 +1,7 @@
 /* ==========================================================================
    GraphMind Learning Paths — Editorial Curriculum & Workspace
-   Minimal, precise, quiet, typographic, architectural, human-designed.
-   Zero SaaS card clutter. The near-black canvas is the sole surface.
+   Refined balance: Premium Product + Editorial Design.
+   Controlled scale, coherent rhythm, architectural alignment.
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
@@ -9,9 +9,9 @@
    -------------------------------------------------------------------------- */
 .paths-page-container {
   width: 100%;
-  max-width: min(100% - 96px, 1120px);
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 88px 0 140px 0;
+  padding: 52px 32px 100px 32px;
   display: flex;
   flex-direction: column;
   color: var(--text-primary);
@@ -41,12 +41,12 @@
 /* Eyebrow: CURRICULUM */
 .paths-eyebrow {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.20em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: #666666;
-  margin-bottom: 22px;
+  margin-bottom: 16px;
   display: inline-block;
   user-select: none;
 }
@@ -56,10 +56,10 @@
   display: flex;
   flex-direction: column;
   font-family: var(--font-display);
-  font-size: clamp(64px, 6vw, 92px);
+  font-size: clamp(72px, 5.8vw, 92px);
   font-weight: 620;
-  line-height: 0.91;
-  letter-spacing: -0.04em;
+  line-height: 0.90;
+  letter-spacing: -0.045em;
   color: #F5F5F5;
   margin: 0;
   padding: 0;
@@ -80,41 +80,41 @@
 /* Header Subtext: Quiet supporting editorial text */
 .paths-subtext {
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 400;
-  line-height: 1.55;
+  line-height: 1.5;
   color: #8E8E8E;
   max-width: 380px;
-  margin-top: 26px;
+  margin-top: 20px;
   margin-bottom: 0;
   letter-spacing: -0.01em;
 }
 
-/* Header Meta: 03 PATHS balancing the right */
+/* Header Meta: 03 PATHS balancing the upper right */
 .paths-header-meta {
   display: flex;
   align-items: flex-start;
-  padding-top: 10px;
+  padding-top: 8px;
   flex-shrink: 0;
   user-select: none;
 }
 
 .paths-meta-count {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.20em;
+  letter-spacing: 0.18em;
   color: #666666;
   line-height: 1;
 }
 
-/* Header Divider: 1px hairline rule */
+/* Header Divider: Thin horizontal rule */
 .paths-header-divider {
   width: 100%;
   height: 1px;
-  background-color: rgba(255, 255, 255, 0.09);
-  margin-top: 48px;
+  background-color: rgba(255, 255, 255, 0.08);
+  margin-top: 32px;
   transform-origin: 0% 50%;
 }
 
@@ -128,15 +128,15 @@
   margin-top: 0;
 }
 
-/* Single Path Row: Editorial entry with generous vertical breathing room */
+/* Single Path Row: Target height 135–155px per row */
 .paths-row {
   position: relative;
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) 140px;
+  grid-template-columns: 56px minmax(0, 1fr) 120px;
   align-items: center;
-  gap: 28px;
-  min-height: 156px;
-  padding: 44px 0;
+  gap: 24px;
+  min-height: 138px;
+  padding: 32px 0;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -147,7 +147,6 @@
   width: 100%;
 }
 
-/* Focus visibility without ugly rings */
 .paths-row:focus-visible {
   outline: none;
 }
@@ -157,15 +156,14 @@
 }
 
 /* --------------------------------------------------------------------------
-   4. Left Column: Number Column (01, 02, 03)
+   4. Left Column: Number (01, 02, 03) + Vertical Navigation Marker (│)
    -------------------------------------------------------------------------- */
 .paths-row-number-col {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
-/* Small technical monospace number */
 .paths-row-number {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -173,35 +171,58 @@
   letter-spacing: 0.15em;
   color: #555555;
   line-height: 1;
-  transition: color 200ms ease-out;
-}
-
-/* Restrained active indicator: tiny 3px dot */
-.paths-number-indicator {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background-color: var(--accent);
-  box-shadow: 0 0 6px rgba(163, 255, 18, 0.5);
-  flex-shrink: 0;
+  transition: color 220ms ease-out;
 }
 
 /* Active path number tint */
 .paths-row.is-active .paths-row-number {
-  color: #777777;
+  color: var(--accent);
+}
+
+.paths-row:hover .paths-row-number {
+  color: #888888;
+}
+
+.paths-row.is-active:hover .paths-row-number {
+  color: #C0FF38;
+}
+
+/* Editorial vertical marker line (│) */
+.paths-vertical-marker {
+  width: 1px;
+  height: 16px;
+  background-color: rgba(255, 255, 255, 0.10);
+  transition: height 220ms ease-out, background-color 220ms ease-out;
+  flex-shrink: 0;
+}
+
+/* Active vertical marker: GraphMind green */
+.paths-row.is-active .paths-vertical-marker {
+  background-color: var(--accent);
+  box-shadow: 0 0 6px rgba(163, 255, 18, 0.35);
+}
+
+/* Marker extends a few pixels on hover */
+.paths-row:hover .paths-vertical-marker {
+  height: 20px;
+}
+
+.paths-row.is-active:hover .paths-vertical-marker {
+  background-color: #B8FF24;
+  height: 22px;
 }
 
 /* --------------------------------------------------------------------------
-   5. Center Column: Title, Metadata, Progress
+   5. Center Column: Title, Metadata, Progress Track
    -------------------------------------------------------------------------- */
 .paths-row-center {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 9px;
   min-width: 0;
 }
 
-/* Path Title: Dominant editorial element */
+/* Path Title: 20–23px, font-weight 500–550, color #E5E5E5 */
 .paths-row-title-wrap {
   display: flex;
   align-items: baseline;
@@ -209,33 +230,33 @@
 
 .paths-row-title {
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: 21px;
   font-weight: 520;
-  line-height: 1.35;
+  line-height: 1.32;
   letter-spacing: -0.015em;
-  color: #D6D6D6;
+  color: #E5E5E5;
   margin: 0;
   padding: 0;
   transition: transform 220ms ease-out, color 220ms ease-out;
   word-break: break-word;
 }
 
-/* Path with active progress gets slightly stronger hierarchy */
+/* Active in-progress path slightly brighter */
 .paths-row.is-active .paths-row-title {
-  color: #F0F0F0;
-  font-weight: 560;
+  color: #F5F5F5;
+  font-weight: 550;
 }
 
-/* Arrow inside title: "→" */
+/* Title arrow symbol "→" */
 .paths-title-arrow {
-  color: #888888;
+  color: #777777;
   margin: 0 0.35em;
   font-weight: 400;
   display: inline-block;
   transition: color 220ms ease-out;
 }
 
-/* Hover Interaction: Title subtly slides 4px right and brightens */
+/* Title slide on hover */
 .paths-row:hover .paths-row-title {
   transform: translateX(4px);
   color: #FFFFFF;
@@ -245,12 +266,12 @@
   color: #CCCCCC;
 }
 
-/* Metadata: Clean textual format without pills or badges */
+/* Metadata: 18 concepts · 4.5 hrs · 68% complete */
 .paths-row-meta {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 7px;
   font-family: var(--font-body);
   font-size: 12.5px;
   font-weight: 400;
@@ -264,7 +285,6 @@
   user-select: none;
 }
 
-/* Status text for unstarted / complete */
 .paths-meta-status {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -282,25 +302,30 @@
   color: #555555;
 }
 
-/* Progress Line: Thin editorial line */
+/* Progress Line: 240–300px wide, directly underneath metadata */
 .paths-progress-track {
-  width: clamp(200px, 24vw, 280px);
+  width: clamp(220px, 24vw, 260px);
   height: 1.5px;
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: rgba(255, 255, 255, 0.06);
   border-radius: 1px;
   overflow: hidden;
-  margin-top: 4px;
+  margin-top: 3px;
+  transition: background-color 220ms ease-out;
 }
 
 .paths-progress-fill {
   height: 100%;
   background-color: var(--accent);
   transform-origin: 0% 50%;
-  transition: opacity 220ms ease-out;
+  transition: opacity 220ms ease-out, filter 220ms ease-out;
+}
+
+.paths-row:hover .paths-progress-track {
+  background-color: rgba(255, 255, 255, 0.09);
 }
 
 .paths-row:hover .paths-progress-fill {
-  opacity: 0.95;
+  opacity: 1;
   filter: brightness(1.1);
 }
 
@@ -335,7 +360,6 @@
   transition: transform 220ms ease-out, color 200ms ease-out;
 }
 
-/* Hover on entire row or link triggers arrow slide */
 .paths-row:hover .paths-action-link {
   color: #F5F5F5;
 }
@@ -365,37 +389,37 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding: 96px 0;
+  padding: 80px 0;
   max-width: 480px;
 }
 
 .paths-empty-label {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: #666666;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .paths-empty-desc {
   font-family: var(--font-body);
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 14.5px;
+  line-height: 1.55;
   color: #8E8E8E;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
 .paths-empty-action {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   background: transparent;
   border: none;
   padding: 0;
   font-family: var(--font-body);
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 480;
   color: #EDEDED;
   cursor: pointer;
@@ -421,38 +445,35 @@
 /* Tablet (<= 900px) */
 @media (max-width: 900px) {
   .paths-page-container {
-    max-width: min(100% - 48px, 1120px);
-    padding: 60px 0 100px 0;
+    padding: 40px 24px 80px 24px;
   }
 
   .paths-title {
-    font-size: clamp(52px, 5.5vw, 72px);
+    font-size: clamp(56px, 5.8vw, 76px);
   }
 
   .paths-row {
-    grid-template-columns: 52px minmax(0, 1fr) 120px;
-    gap: 20px;
-    min-height: 140px;
-    padding: 36px 0;
+    grid-template-columns: 50px minmax(0, 1fr) 110px;
+    gap: 18px;
+    min-height: 130px;
+    padding: 26px 0;
   }
 
   .paths-row-title {
-    font-size: 20px;
+    font-size: 19.5px;
   }
 }
 
 /* Mobile (<= 640px) */
 @media (max-width: 640px) {
   .paths-page-container {
-    width: calc(100% - 40px);
-    margin: 0 20px;
-    padding: 44px 0 80px 0;
+    padding: 32px 18px 64px 18px;
   }
 
   .paths-header-intro {
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
+    gap: 12px;
   }
 
   .paths-header-meta {
@@ -461,30 +482,29 @@
 
   .paths-title {
     font-size: clamp(44px, 12vw, 56px);
-    line-height: 0.94;
+    line-height: 0.92;
   }
 
   .paths-subtext {
-    font-size: 14px;
-    margin-top: 20px;
+    font-size: 13.5px;
+    margin-top: 16px;
   }
 
   .paths-header-divider {
-    margin-top: 36px;
+    margin-top: 26px;
   }
 
-  /* Single-column vertical curriculum entry */
   .paths-row {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 14px;
+    gap: 12px;
     min-height: auto;
-    padding: 32px 0;
+    padding: 24px 0;
   }
 
   .paths-row-title {
-    font-size: 19px;
+    font-size: 18.5px;
   }
 
   .paths-progress-track {
@@ -493,7 +513,7 @@
   }
 
   .paths-row-action {
-    margin-top: 4px;
+    margin-top: 2px;
     justify-content: flex-start;
   }
 }
