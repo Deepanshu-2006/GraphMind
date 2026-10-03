@@ -1,10 +1,14 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUp, ArrowUpRight } from 'lucide-react';
 import type { RecentMaterial } from '../../types';
+import type { KnowledgeSource, KnowledgeGraph } from '../../types/knowledgeGraph';
+import { getFileType, formatFileSize, formatRelativeTime } from '../../services/sourceIngestion';
 
 interface SourcesViewProps {
-  sources: RecentMaterial[];
+  sources: (KnowledgeSource | RecentMaterial)[];
+  activeGraph?: KnowledgeGraph | null;
+  isLoading?: boolean;
   onAddSource: () => void;
   onRemoveSource?: (sourceId: string) => void;
 }
@@ -14,6 +18,8 @@ const REVEAL_EASE = [0.16, 1, 0.3, 1] as const;
 
 export const SourcesView: React.FC<SourcesViewProps> = ({
   sources,
+  activeGraph,
+  isLoading = false,
   onAddSource,
   onRemoveSource
 }) => {
@@ -71,28 +77,124 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
     }, 500);
   };
 
-  // Aggregate real stats
-  const totalConcepts = useMemo(() => {
-    return sources.reduce((acc, s) => acc + (s.conceptsExtracted || 0), 0);
+  // Sort real sources: newest first (createdAt DESC)
+  const sortedSources = useMemo(() => {
+    return [...sources].sort((a, b) => {
+      const timeA = typeof a.createdAt === 'number' 
+        ? a.createdAt 
+        : a.createdAt 
+        ? new Date(a.createdAt).getTime() 
+        : 0;
+      const timeB = typeof b.createdAt === 'number' 
+        ? b.createdAt 
+        : b.createdAt 
+        ? new Date(b.createdAt).getTime() 
+        : 0;
+      return timeB - timeA;
+    });
   }, [sources]);
+
+  // Calculate total unique concepts in the active knowledge graph
+  const totalConcepts = useMemo(() => {
+    if (activeGraph && activeGraph.nodes && activeGraph.nodes.length > 0) {
+      return activeGraph.nodes.length;
+    }
+    // Fallback: sum of unique concepts extracted across sources
+    return sources.reduce((acc, s) => acc + (s.conceptsExtracted || 0), 0);
+  }, [sources, activeGraph]);
 
   const formattedSourceCount = String(sources.length).padStart(2, '0');
 
-  // Format metadata line: PDF · 1.4 MB · ADDED JUST NOW
-  const formatMetadata = (source: RecentMaterial) => {
+  // Format metadata line from real file attributes: PDF · 1.4 MB · ADDED JUST NOW
+  const formatMetadata = (source: KnowledgeSource | RecentMaterial) => {
     const parts: string[] = [];
-    if (source.format) parts.push(source.format.toUpperCase());
-    if (source.size) parts.push(source.size);
-    if (source.timestamp) {
-      const cleanTs = source.timestamp.replace(/^Added\s+/i, '');
-      parts.push(`ADDED ${cleanTs.toUpperCase()}`);
+
+    // 1. Real file type (derived from file name, extension, mimeType, or type)
+    const fileType = getFileType(source);
+    if (fileType) parts.push(fileType);
+
+    // 2. Real file size
+    const rawSize = source.size || (source.sizeBytes ? formatFileSize(source.sizeBytes) : '');
+    if (rawSize && rawSize !== 'Unknown size' && rawSize !== 'SIZE UNAVAILABLE') {
+      parts.push(rawSize);
     }
+
+    // 3. Real upload timestamp
+    const relTime = formatRelativeTime(source.createdAt || (source as any).timestamp);
+    if (relTime) {
+      parts.push(relTime);
+    }
+
     return parts;
   };
 
-  // Render state indicator: • INDEXED / • PROCESSING / • NEEDS ATTENTION
-  const renderState = (status: string) => {
+  // Check if a source is currently undergoing processing in the pipeline
+  const isSourceProcessing = (status?: string) => {
+    if (!status) return false;
     const norm = status.toLowerCase();
+    return (
+      norm.includes('read') ||
+      norm.includes('concept') ||
+      norm.includes('connect') ||
+      norm.includes('idea') ||
+      norm.includes('normaliz') ||
+      norm.includes('build') ||
+      norm.includes('graph') ||
+      norm === 'pending' ||
+      norm === 'waiting' ||
+      norm === 'processing' ||
+      norm === 'indexing'
+    );
+  };
+
+  // Provenance calculation: count of unique concepts attributed to this source
+  const getConceptCount = (source: KnowledgeSource | RecentMaterial) => {
+    // 1. Check activeGraph nodes whose sourceIds include this source ID
+    if (activeGraph && activeGraph.nodes && activeGraph.nodes.length > 0) {
+      const matching = activeGraph.nodes.filter(n => n.sourceIds && n.sourceIds.includes(source.id));
+      if (matching.length > 0) {
+        return matching.length;
+      }
+    }
+
+    // 2. Direct property on source if available
+    if (source.conceptsExtracted !== undefined && source.conceptsExtracted !== null) {
+      return source.conceptsExtracted;
+    }
+
+    if (source.conceptIds && Array.isArray(source.conceptIds)) {
+      return source.conceptIds.length;
+    }
+
+    return undefined;
+  };
+
+  // Render concept count column: shows "— CONCEPTS" during processing
+  const renderConceptCount = (source: KnowledgeSource | RecentMaterial) => {
+    if (isSourceProcessing(source.status)) {
+      return <span>— CONCEPTS</span>;
+    }
+
+    const count = getConceptCount(source);
+    if (count !== undefined) {
+      return <span>{count} CONCEPTS</span>;
+    }
+
+    return <span className="source-concepts-pending">—</span>;
+  };
+
+  // Render state indicator: follows the real GraphMind pipeline stages
+  const renderState = (status?: string) => {
+    const norm = (status || 'ready').toLowerCase();
+
+    if (norm === 'pending' || norm === 'waiting') {
+      return (
+        <div className="source-state-col">
+          <span className="source-state-point processing" aria-hidden="true" />
+          <span className="source-state-label">WAITING</span>
+        </div>
+      );
+    }
 
     if (norm.includes('read')) {
       return (
@@ -112,7 +214,7 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
       );
     }
 
-    if (norm.includes('connect') || norm.includes('idea')) {
+    if (norm.includes('connect') || norm.includes('idea') || norm.includes('normaliz')) {
       return (
         <div className="source-state-col">
           <span className="source-state-point processing" aria-hidden="true" />
@@ -121,11 +223,11 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
       );
     }
 
-    if (norm === 'ready' || norm === 'synced' || norm === 'indexed') {
+    if (norm.includes('build') || norm.includes('graph')) {
       return (
         <div className="source-state-col">
-          <span className="source-state-point indexed" aria-hidden="true" />
-          <span className="source-state-label">INDEXED</span>
+          <span className="source-state-point processing" aria-hidden="true" />
+          <span className="source-state-label">BUILDING GRAPH</span>
         </div>
       );
     }
@@ -143,7 +245,7 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
       return (
         <div className="source-state-col">
           <span className="source-state-point failed" aria-hidden="true" />
-          <span className="source-state-label failed">NEEDS ATTENTION</span>
+          <span className="source-state-label failed">FAILED</span>
         </div>
       );
     }
@@ -151,7 +253,7 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
     return (
       <div className="source-state-col">
         <span className="source-state-point indexed" aria-hidden="true" />
-        <span className="source-state-label">{status.toUpperCase()}</span>
+        <span className="source-state-label">INDEXED</span>
       </div>
     );
   };
@@ -209,16 +311,34 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
               <span className="sources-stat-item">{totalConcepts} CONCEPTS</span>
             </div>
 
-            <button
+            <motion.button
               type="button"
-              className="sources-upload-action"
+              className="hero-action-primary hero-btn-primary"
               onClick={onAddSource}
               id="btn-sources-add-source"
               aria-label="Upload material"
+              initial="initial"
+              whileHover="hover"
+              whileTap={{ scale: 0.985 }}
+              variants={{
+                initial: {},
+                hover: {}
+              }}
             >
-              <span>UPLOAD MATERIAL</span>
-              <ArrowUpRight size={12} strokeWidth={1.8} className="sources-upload-arrow" aria-hidden="true" />
-            </button>
+              <span className="hero-action-primary-inner">
+                <span className="hero-action-text">Upload material</span>
+                <motion.span
+                  className="hero-action-arrow-wrap"
+                  variants={{
+                    initial: { y: 0 },
+                    hover: { y: -3.5, transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1] } }
+                  }}
+                >
+                  <ArrowUp size={15} strokeWidth={2.2} className="hero-action-arrow" />
+                </motion.span>
+              </span>
+              <span className="hero-action-line" aria-hidden="true" />
+            </motion.button>
           </motion.div>
         </div>
 
@@ -270,16 +390,26 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
         />
       </header>
 
-      {/* 3. Horizontal Editorial Archival List */}
-      {sources.length > 0 ? (
+      {/* 3. Loading State: Subtle Hairline Placeholders */}
+      {isLoading ? (
+        <div className="sources-loading-container" aria-busy="true" aria-label="Loading library sources">
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="source-loading-row">
+              <div className="source-loading-line" />
+            </div>
+          ))}
+        </div>
+      ) : sortedSources.length > 0 ? (
+        /* 4. Horizontal Editorial Archival List */
         <div className="sources-list" role="list">
-          {sources.map((source, idx) => {
+          {sortedSources.map((source, idx) => {
             const isFirst = idx === 0;
             const rowNumber = String(idx + 1).padStart(2, '0');
             const metaParts = formatMetadata(source);
             const rowBaseDelay = 0.38 + idx * 0.07;
             const isConfirming = confirmingId === source.id;
             const isDeleting = deletingId === source.id;
+            const displayName = source.fileName || source.name || (source as any).title || 'Untitled Source';
 
             return (
               <motion.article
@@ -291,7 +421,7 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
                   isDeleting ? 'is-deleting' : ''
                 ].filter(Boolean).join(' ')}
                 role="listitem"
-                aria-label={`Source ${rowNumber}: ${source.title}`}
+                aria-label={`Source ${rowNumber}: ${displayName}`}
                 initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
                 animate={
                   isDeleting
@@ -348,12 +478,12 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
                         <span className="source-filename-clip">
                           <motion.h2
                             className="source-filename"
-                            title={source.title}
+                            title={displayName}
                             initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: '105%' }}
                             animate={{ opacity: 1, y: '0%' }}
                             transition={{ duration: 0.60, delay: rowBaseDelay + 0.04, ease: REVEAL_EASE }}
                           >
-                            {source.title}
+                            {displayName}
                           </motion.h2>
                         </span>
 
@@ -372,21 +502,17 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
                         </motion.div>
                       </div>
 
-                      {/* Zone 3: Concept Count */}
+                      {/* Zone 3: Concept Count (Real provenance from graph) */}
                       <motion.div
                         className="source-concepts-col"
                         initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.45, delay: rowBaseDelay + 0.10, ease: REVEAL_EASE }}
                       >
-                        {source.conceptsExtracted !== undefined ? (
-                          <span>{source.conceptsExtracted} CONCEPTS</span>
-                        ) : (
-                          <span className="source-concepts-pending">—</span>
-                        )}
+                        {renderConceptCount(source)}
                       </motion.div>
 
-                      {/* Zone 4: Source State (• INDEXED) */}
+                      {/* Zone 4: Source State (Follows real pipeline stages) */}
                       <motion.div
                         className="source-state-cell"
                         initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
@@ -411,7 +537,7 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
                               e.stopPropagation();
                               handleStartRemove(source.id);
                             }}
-                            aria-label={`Remove ${source.title}`}
+                            aria-label={`Remove ${displayName}`}
                           >
                             REMOVE
                           </button>
@@ -441,7 +567,7 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
                     >
                       <div className="source-confirm-content">
                         <span className="source-confirm-title">Remove this source?</span>
-                        <span className="source-confirm-filename">{source.title}</span>
+                        <span className="source-confirm-filename">{displayName}</span>
                       </div>
 
                       <div className="source-confirm-actions">
@@ -452,7 +578,7 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
                             e.stopPropagation();
                             handleCancelRemove();
                           }}
-                          aria-label={`Cancel removal of ${source.title}`}
+                          aria-label={`Cancel removal of ${displayName}`}
                         >
                           CANCEL
                         </button>
@@ -463,7 +589,7 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
                             e.stopPropagation();
                             handleConfirmRemove(source.id);
                           }}
-                          aria-label={`Confirm remove ${source.title}`}
+                          aria-label={`Confirm remove ${displayName}`}
                           autoFocus
                         >
                           REMOVE
@@ -497,15 +623,33 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
           <p className="sources-empty-desc">
             Your knowledge graph begins with study material.
           </p>
-          <button
+          <motion.button
             type="button"
-            className="sources-empty-action"
+            className="hero-action-primary hero-btn-primary"
             onClick={onAddSource}
             aria-label="Upload material"
+            initial="initial"
+            whileHover="hover"
+            whileTap={{ scale: 0.985 }}
+            variants={{
+              initial: {},
+              hover: {}
+            }}
           >
-            <span>UPLOAD MATERIAL</span>
-            <ArrowUpRight size={12} strokeWidth={1.8} aria-hidden="true" />
-          </button>
+            <span className="hero-action-primary-inner">
+              <span className="hero-action-text">Upload material</span>
+              <motion.span
+                className="hero-action-arrow-wrap"
+                variants={{
+                  initial: { y: 0 },
+                  hover: { y: -3.5, transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1] } }
+                }}
+              >
+                <ArrowUp size={15} strokeWidth={2.2} className="hero-action-arrow" />
+              </motion.span>
+            </span>
+            <span className="hero-action-line" aria-hidden="true" />
+          </motion.button>
         </div>
       )}
     </div>
