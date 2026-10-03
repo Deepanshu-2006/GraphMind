@@ -1,0 +1,499 @@
+/* ==========================================================================
+   GraphMind Learning Paths — Editorial Curriculum & Workspace
+   Minimal, precise, quiet, typographic, architectural, human-designed.
+   Zero SaaS card clutter. The near-black canvas is the sole surface.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Page Container & Composition
+   -------------------------------------------------------------------------- */
+.paths-page-container {
+  width: 100%;
+  max-width: min(100% - 96px, 1120px);
+  margin: 0 auto;
+  padding: 88px 0 140px 0;
+  display: flex;
+  flex-direction: column;
+  color: var(--text-primary);
+}
+
+/* --------------------------------------------------------------------------
+   2. Page Header
+   -------------------------------------------------------------------------- */
+.paths-header {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+}
+
+.paths-header-intro {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+}
+
+.paths-header-main {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Eyebrow: CURRICULUM */
+.paths-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: #666666;
+  margin-bottom: 22px;
+  display: inline-block;
+  user-select: none;
+}
+
+/* Page Heading: Two-line editorial composition */
+.paths-title {
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-display);
+  font-size: clamp(64px, 6vw, 92px);
+  font-weight: 620;
+  line-height: 0.91;
+  letter-spacing: -0.04em;
+  color: #F5F5F5;
+  margin: 0;
+  padding: 0;
+}
+
+.paths-title-clip {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+  margin-bottom: -0.08em;
+}
+
+.paths-title-line {
+  display: block;
+  transform-origin: 0% 100%;
+}
+
+/* Header Subtext: Quiet supporting editorial text */
+.paths-subtext {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.55;
+  color: #8E8E8E;
+  max-width: 380px;
+  margin-top: 26px;
+  margin-bottom: 0;
+  letter-spacing: -0.01em;
+}
+
+/* Header Meta: 03 PATHS balancing the right */
+.paths-header-meta {
+  display: flex;
+  align-items: flex-start;
+  padding-top: 10px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.paths-meta-count {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.20em;
+  color: #666666;
+  line-height: 1;
+}
+
+/* Header Divider: 1px hairline rule */
+.paths-header-divider {
+  width: 100%;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.09);
+  margin-top: 48px;
+  transform-origin: 0% 50%;
+}
+
+/* --------------------------------------------------------------------------
+   3. Path List & Architectural Grid
+   -------------------------------------------------------------------------- */
+.paths-list {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-top: 0;
+}
+
+/* Single Path Row: Editorial entry with generous vertical breathing room */
+.paths-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 140px;
+  align-items: center;
+  gap: 28px;
+  min-height: 156px;
+  padding: 44px 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  user-select: none;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+}
+
+/* Focus visibility without ugly rings */
+.paths-row:focus-visible {
+  outline: none;
+}
+
+.paths-row:focus-visible .paths-row-title {
+  color: #FFFFFF;
+}
+
+/* --------------------------------------------------------------------------
+   4. Left Column: Number Column (01, 02, 03)
+   -------------------------------------------------------------------------- */
+.paths-row-number-col {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Small technical monospace number */
+.paths-row-number {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  color: #555555;
+  line-height: 1;
+  transition: color 200ms ease-out;
+}
+
+/* Restrained active indicator: tiny 3px dot */
+.paths-number-indicator {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background-color: var(--accent);
+  box-shadow: 0 0 6px rgba(163, 255, 18, 0.5);
+  flex-shrink: 0;
+}
+
+/* Active path number tint */
+.paths-row.is-active .paths-row-number {
+  color: #777777;
+}
+
+/* --------------------------------------------------------------------------
+   5. Center Column: Title, Metadata, Progress
+   -------------------------------------------------------------------------- */
+.paths-row-center {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Path Title: Dominant editorial element */
+.paths-row-title-wrap {
+  display: flex;
+  align-items: baseline;
+}
+
+.paths-row-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 520;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+  color: #D6D6D6;
+  margin: 0;
+  padding: 0;
+  transition: transform 220ms ease-out, color 220ms ease-out;
+  word-break: break-word;
+}
+
+/* Path with active progress gets slightly stronger hierarchy */
+.paths-row.is-active .paths-row-title {
+  color: #F0F0F0;
+  font-weight: 560;
+}
+
+/* Arrow inside title: "→" */
+.paths-title-arrow {
+  color: #888888;
+  margin: 0 0.35em;
+  font-weight: 400;
+  display: inline-block;
+  transition: color 220ms ease-out;
+}
+
+/* Hover Interaction: Title subtly slides 4px right and brightens */
+.paths-row:hover .paths-row-title {
+  transform: translateX(4px);
+  color: #FFFFFF;
+}
+
+.paths-row:hover .paths-title-arrow {
+  color: #CCCCCC;
+}
+
+/* Metadata: Clean textual format without pills or badges */
+.paths-row-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 400;
+  color: #777777;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.paths-meta-dot {
+  color: #444444;
+  user-select: none;
+}
+
+/* Status text for unstarted / complete */
+.paths-meta-status {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #666666;
+}
+
+.paths-meta-status.is-complete {
+  color: #8A8A8A;
+}
+
+.paths-meta-status.is-planned {
+  color: #555555;
+}
+
+/* Progress Line: Thin editorial line */
+.paths-progress-track {
+  width: clamp(200px, 24vw, 280px);
+  height: 1.5px;
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 1px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.paths-progress-fill {
+  height: 100%;
+  background-color: var(--accent);
+  transform-origin: 0% 50%;
+  transition: opacity 220ms ease-out;
+}
+
+.paths-row:hover .paths-progress-fill {
+  opacity: 0.95;
+  filter: brightness(1.1);
+}
+
+/* --------------------------------------------------------------------------
+   6. Right Column: Action Link (Continue → / Start →)
+   -------------------------------------------------------------------------- */
+.paths-row-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.paths-action-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 450;
+  letter-spacing: -0.01em;
+  color: #8A8A8A;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 200ms ease-out;
+}
+
+.paths-action-arrow {
+  color: #777777;
+  transition: transform 220ms ease-out, color 200ms ease-out;
+}
+
+/* Hover on entire row or link triggers arrow slide */
+.paths-row:hover .paths-action-link {
+  color: #F5F5F5;
+}
+
+.paths-row:hover .paths-action-arrow {
+  transform: translateX(5px);
+  color: #F5F5F5;
+}
+
+/* --------------------------------------------------------------------------
+   7. Row Divider Hairlines
+   -------------------------------------------------------------------------- */
+.paths-row-divider {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.08);
+  transform-origin: 0% 50%;
+}
+
+/* --------------------------------------------------------------------------
+   8. Empty State (Editorial)
+   -------------------------------------------------------------------------- */
+.paths-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 96px 0;
+  max-width: 480px;
+}
+
+.paths-empty-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #666666;
+  margin-bottom: 16px;
+}
+
+.paths-empty-desc {
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  color: #8E8E8E;
+  margin-bottom: 28px;
+}
+
+.paths-empty-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 480;
+  color: #EDEDED;
+  cursor: pointer;
+  transition: color 200ms ease-out;
+}
+
+.paths-empty-action:hover {
+  color: #FFFFFF;
+}
+
+.paths-empty-action svg {
+  transition: transform 220ms ease-out;
+}
+
+.paths-empty-action:hover svg {
+  transform: translateX(4px);
+}
+
+/* --------------------------------------------------------------------------
+   9. Responsive Adaptations
+   -------------------------------------------------------------------------- */
+
+/* Tablet (<= 900px) */
+@media (max-width: 900px) {
+  .paths-page-container {
+    max-width: min(100% - 48px, 1120px);
+    padding: 60px 0 100px 0;
+  }
+
+  .paths-title {
+    font-size: clamp(52px, 5.5vw, 72px);
+  }
+
+  .paths-row {
+    grid-template-columns: 52px minmax(0, 1fr) 120px;
+    gap: 20px;
+    min-height: 140px;
+    padding: 36px 0;
+  }
+
+  .paths-row-title {
+    font-size: 20px;
+  }
+}
+
+/* Mobile (<= 640px) */
+@media (max-width: 640px) {
+  .paths-page-container {
+    width: calc(100% - 40px);
+    margin: 0 20px;
+    padding: 44px 0 80px 0;
+  }
+
+  .paths-header-intro {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .paths-header-meta {
+    padding-top: 0;
+  }
+
+  .paths-title {
+    font-size: clamp(44px, 12vw, 56px);
+    line-height: 0.94;
+  }
+
+  .paths-subtext {
+    font-size: 14px;
+    margin-top: 20px;
+  }
+
+  .paths-header-divider {
+    margin-top: 36px;
+  }
+
+  /* Single-column vertical curriculum entry */
+  .paths-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    min-height: auto;
+    padding: 32px 0;
+  }
+
+  .paths-row-title {
+    font-size: 19px;
+  }
+
+  .paths-progress-track {
+    width: 100%;
+    max-width: 240px;
+  }
+
+  .paths-row-action {
+    margin-top: 4px;
+    justify-content: flex-start;
+  }
+}
