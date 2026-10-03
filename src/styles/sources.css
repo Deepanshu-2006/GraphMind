@@ -1,21 +1,38 @@
-/* Sources Page Styles — Editorial, Academic, and Quiet */
+/* ==========================================================================
+   GraphMind Sources Page — Premium Digital Archive & Source Index
+   Editorial Archive + Research Library + Knowledge Architecture.
+   Unmistakably GraphMind. Zero SaaS cards, zero AI clutter.
+   ========================================================================== */
 
+/* --------------------------------------------------------------------------
+   1. Page Container & Architectural Composition
+   -------------------------------------------------------------------------- */
 .sources-page-container {
-  max-width: 1040px;
-  margin: 0 auto;
-  padding: 44px 32px 96px 32px;
   width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 56px 32px 120px 32px;
+  display: flex;
+  flex-direction: column;
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Editorial Header */
-.sources-page-header {
+/* --------------------------------------------------------------------------
+   2. Page Header: Asymmetric Editorial Header
+   -------------------------------------------------------------------------- */
+.sources-header {
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  margin-bottom: 0;
+}
+
+.sources-header-intro {
+  display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 20px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--border-default);
-  margin-bottom: 8px;
+  gap: 32px;
 }
 
 .sources-header-left {
@@ -23,272 +40,645 @@
   flex-direction: column;
 }
 
-.sources-kicker {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-muted);
-  letter-spacing: -0.01em;
-  margin-bottom: 4px;
-}
-
-.sources-title {
-  font-family: var(--font-display);
-  font-size: clamp(26px, 3.2vw, 32px);
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-
-.sources-subtitle {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin-top: 4px;
-  line-height: 1.55;
-}
-
-.sources-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-/* Editorial List */
-.sources-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.source-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 22px 0;
-  border-bottom: 1px solid var(--border-default);
-  transition: background-color var(--transition-fast);
-}
-
-.source-info-col {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-  flex: 1;
-}
-
-.source-title-row {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  min-width: 0;
-}
-
-.source-format-tag {
+/* Eyebrow: LIBRARY */
+.sources-eyebrow {
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 500;
-  color: var(--text-muted);
-  background-color: var(--bg-surface-elevated);
-  border: 1px solid var(--border-default);
-  padding: 1.5px 5.5px;
-  border-radius: 4px;
-  flex-shrink: 0;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: #666666;
+  margin-bottom: 18px;
+  display: inline-block;
+  user-select: none;
+  will-change: opacity, transform;
 }
 
-.source-filename {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--text-primary);
-  white-space: nowrap;
+/* Page Title: "Sources" — Editorial section title */
+.sources-title {
+  font-family: var(--font-display);
+  font-size: clamp(72px, 6vw, 104px);
+  font-weight: 600;
+  line-height: 0.90;
+  letter-spacing: -0.05em;
+  color: #F5F5F5;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.sources-title-clip {
+  display: block;
   overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
+  padding-bottom: 0.04em;
 }
 
-.source-meta-row {
+.sources-title-line {
+  display: block;
+  transform-origin: 0% 100%;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Subtext: Quiet editorial statement */
+.sources-subtext {
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #777777;
+  max-width: 420px;
+  margin-top: 22px;
+  margin-bottom: 0;
+  letter-spacing: -0.01em;
+  will-change: opacity, transform;
+}
+
+/* Header Right: Quiet utility area with technical stats + upload action */
+.sources-header-right {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  color: var(--text-muted);
-}
-
-.source-meta-separator {
-  color: var(--text-muted);
-  opacity: 0.6;
-}
-
-/* Status and Counts */
-.source-state-col {
-  display: flex;
-  align-items: center;
-  gap: 28px;
-  flex-shrink: 0;
-}
-
-.source-concept-stat {
-  font-size: 12.5px;
-  color: var(--text-secondary);
-  min-width: 85px;
+  flex-direction: column;
+  align-items: flex-end;
   text-align: right;
+  gap: 20px;
+  padding-top: 10px;
+  flex-shrink: 0;
+  user-select: none;
 }
 
-.source-concept-pending {
-  color: var(--text-muted);
-  font-style: italic;
-  font-size: 12px;
-}
-
-.source-status-wrap {
-  min-width: 75px;
+.sources-header-stats {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
 }
 
-.source-remove-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.5;
-  transition: opacity 150ms ease, color 150ms ease, background-color 150ms ease;
+.sources-stat-item {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: #666666;
+  line-height: 1.2;
 }
 
-.source-remove-btn:hover {
-  opacity: 1;
-  color: #FF5C5C;
-  background-color: rgba(255, 92, 92, 0.08);
-}
-
-.source-status-badge {
+/* Typographic Upload Action: UPLOAD MATERIAL ↗ with thin underline */
+.sources-upload-action {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  padding: 0 0 2px 0;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #CCCCCC;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+  transition: color 200ms ease-out, border-color 200ms ease-out;
+  user-select: none;
+  will-change: color, border-color;
 }
 
-.source-status-pip {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+.sources-upload-arrow {
+  color: #888888;
+  display: inline-block;
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), color 200ms ease-out;
+  will-change: transform, color;
+}
+
+.sources-upload-action:hover {
+  color: #FFFFFF;
+  border-bottom-color: rgba(255, 255, 255, 0.75);
+}
+
+.sources-upload-action:hover .sources-upload-arrow {
+  transform: translate3d(4px, -1px, 0);
+  color: #FFFFFF;
+}
+
+.sources-upload-action:focus-visible {
+  outline: none;
+  border-bottom-color: var(--accent);
+}
+
+/* --------------------------------------------------------------------------
+   3. Source Index Label & Header Divider
+   -------------------------------------------------------------------------- */
+.sources-index-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 48px;
+  margin-bottom: 12px;
+  user-select: none;
+}
+
+.sources-index-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: #666666;
+}
+
+.sources-index-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: #555555;
+}
+
+.sources-index-divider {
+  width: 100%;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.08);
+  transform-origin: 0% 50%;
+  will-change: transform, opacity;
+}
+
+/* --------------------------------------------------------------------------
+   4. Source List & Architectural Grid
+   -------------------------------------------------------------------------- */
+.sources-list {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-top: 0;
+}
+
+/* Single Source Row: Zero cards, 105–125px vertical breathing room */
+.source-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) 150px 130px 60px;
+  align-items: center;
+  gap: 24px;
+  min-height: 112px;
+  padding: 26px 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  user-select: none;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.source-row:focus-visible {
+  outline: none;
+}
+
+/* --------------------------------------------------------------------------
+   5. Number Column + Conceptual Route Indicator
+   -------------------------------------------------------------------------- */
+.source-rail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.source-number {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  color: #555555;
+  line-height: 1;
+  transition: color 200ms ease-out;
+  will-change: color;
+}
+
+/* Subtle vertical green line appearing beside number on hover (SOURCE → CONCEPTS → GRAPH) */
+.source-indicator-line {
+  width: 1px;
+  height: 16px;
+  background-color: transparent;
+  transition: background-color 200ms ease-out, height 200ms ease-out, box-shadow 200ms ease-out;
   flex-shrink: 0;
 }
 
-.source-status-pip.ready {
-  background-color: #666666;
+.source-row:hover .source-number {
+  color: #888888;
 }
 
-.source-status-pip.failed {
+.source-row:hover .source-indicator-line {
+  background-color: var(--accent);
+  height: 20px;
+  box-shadow: 0 0 6px rgba(163, 255, 18, 0.4);
+}
+
+/* First source subtly more prominent */
+.source-row.is-first .source-number {
+  color: #666666;
+}
+
+/* --------------------------------------------------------------------------
+   6. File Name & Quiet File Metadata
+   -------------------------------------------------------------------------- */
+.source-content-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.source-filename-clip {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.04em;
+}
+
+.source-filename {
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 500;
+  line-height: 1.30;
+  letter-spacing: -0.025em;
+  color: #E8E8E8;
+  margin: 0;
+  padding: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  will-change: transform, color, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transition: color 200ms ease-out;
+}
+
+/* First source filename subtly brighter */
+.source-row.is-first .source-filename {
+  color: #F5F5F5;
+  font-weight: 520;
+}
+
+/* Hover: Filename shifts right 5px and brightens */
+.source-row:hover .source-filename {
+  transform: translate3d(5px, 0, 0);
+  color: #FFFFFF;
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), color 200ms ease-out;
+}
+
+/* Quiet Metadata: PDF · 1.4 MB · ADDED JUST NOW */
+.source-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 450;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: #666666;
+  line-height: 1;
+}
+
+.source-meta-dot {
+  color: #444444;
+  user-select: none;
+}
+
+/* --------------------------------------------------------------------------
+   7. Concept Count Column
+   -------------------------------------------------------------------------- */
+.source-concepts-col {
+  display: flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: #888888;
+  transition: color 200ms ease-out;
+  will-change: color;
+}
+
+.source-row:hover .source-concepts-col {
+  color: #CCCCCC;
+}
+
+.source-concepts-pending {
+  color: #555555;
+  font-style: normal;
+}
+
+/* --------------------------------------------------------------------------
+   8. State Column: Quiet Status with Tiny 3px Point
+   -------------------------------------------------------------------------- */
+.source-state-col {
+  display: flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #777777;
+  gap: 7px;
+  user-select: none;
+}
+
+/* Tiny 3px status point */
+.source-state-point {
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: transform 200ms ease-out, box-shadow 200ms ease-out, background-color 200ms ease-out;
+}
+
+.source-state-point.indexed {
+  background-color: var(--accent);
+  box-shadow: 0 0 5px rgba(163, 255, 18, 0.4);
+}
+
+.source-row:hover .source-state-point.indexed {
+  box-shadow: 0 0 8px rgba(163, 255, 18, 0.7);
+  transform: scale(1.2);
+}
+
+.source-state-point.processing {
+  background-color: var(--accent);
+  animation: pulsePoint 1.2s ease-in-out infinite;
+}
+
+.source-state-point.failed {
   background-color: #FF5C5C;
 }
 
-.source-status-badge.status-failed {
+.source-state-label.failed {
   color: #FF5C5C;
 }
 
-.source-status-spinner {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  border: 1.5px solid var(--border-default);
-  border-top-color: var(--text-secondary);
-  animation: spin 0.8s linear infinite;
-  flex-shrink: 0;
+@keyframes pulsePoint {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+    box-shadow: 0 0 6px rgba(163, 255, 18, 0.6);
+  }
 }
 
-/* Empty State (Prompt 7, Section 7) */
-.sources-empty-state {
-  padding: 80px 0;
+/* --------------------------------------------------------------------------
+   9. Action Column: Arrow (↗) and Discreet Delete
+   -------------------------------------------------------------------------- */
+.source-action-col {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  position: relative;
+}
+
+.source-link-arrow {
+  color: #666666;
+  display: inline-block;
+  opacity: 0.4;
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease-out, color 200ms ease-out;
+  will-change: transform, opacity, color;
+}
+
+.source-row:hover .source-link-arrow {
+  opacity: 1;
+  color: #F5F5F5;
+  transform: translate3d(3px, -2px, 0);
+}
+
+/* Subtle Trash Action: Appears only on row hover */
+.source-delete-btn {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  color: #666666;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  text-align: center;
+  opacity: 0;
+  transform: translate3d(4px, 0, 0);
+  transition: opacity 180ms ease-out, transform 180ms ease-out, color 150ms ease-out;
+  border-radius: 3px;
+  will-change: opacity, transform, color;
 }
 
-.sources-empty-card {
-  max-width: 440px;
+.source-row:hover .source-delete-btn {
+  opacity: 0.7;
+  transform: translate3d(0, 0, 0);
+}
+
+.source-delete-btn:hover {
+  opacity: 1 !important;
+  color: #FF5C5C;
+}
+
+.source-delete-btn:focus-visible {
+  outline: none;
+  opacity: 1;
+  color: #FF5C5C;
+}
+
+/* --------------------------------------------------------------------------
+   10. Row Divider Hairlines
+   -------------------------------------------------------------------------- */
+.source-row-divider {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.08);
+  transform-origin: 0% 50%;
+  transition: background-color 200ms ease-out;
+  will-change: transform, opacity;
+}
+
+.source-row:hover .source-row-divider {
+  background-color: rgba(255, 255, 255, 0.14);
+}
+
+/* --------------------------------------------------------------------------
+   11. Empty State (Quiet Editorial Archive)
+   -------------------------------------------------------------------------- */
+.sources-empty-state {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 14px;
+  align-items: flex-start;
+  padding: 80px 0;
+  max-width: 480px;
 }
 
-.sources-empty-title {
-  font-size: 19px;
+.sources-empty-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
   font-weight: 500;
-  color: var(--text-primary);
-  line-height: 1.35;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #666666;
+  margin-bottom: 14px;
 }
 
 .sources-empty-desc {
-  font-size: 13.5px;
-  color: var(--text-muted);
-  line-height: 1.5;
-  max-width: 360px;
-  margin-bottom: 6px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  color: #8E8E8E;
+  margin-bottom: 24px;
 }
 
-/* Responsive adjustments */
-@media (min-width: 769px) and (max-width: 1180px) {
-  .sources-page-container {
-    padding: 36px 24px 80px 24px;
-  }
+.sources-empty-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: transparent;
+  border: none;
+  padding: 0 0 2px 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #EDEDED;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: color 200ms ease-out, border-color 200ms ease-out;
 }
 
-@media (max-width: 768px) {
-  .sources-page-container {
-    padding: 24px 16px 64px 16px;
-  }
+.sources-empty-action:hover {
+  color: #FFFFFF;
+  border-bottom-color: #FFFFFF;
+}
 
-  .sources-page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
+.sources-empty-action svg {
+  transition: transform 220ms ease-out;
+}
+
+.sources-empty-action:hover svg {
+  transform: translate3d(3px, -2px, 0);
+}
+
+/* --------------------------------------------------------------------------
+   12. Responsive Adaptations
+   -------------------------------------------------------------------------- */
+
+/* Tablet (<= 960px) */
+@media (max-width: 960px) {
+  .sources-page-container {
+    padding: 44px 24px 80px 24px;
   }
 
   .sources-title {
-    font-size: clamp(24px, 5.5vw, 28px);
-  }
-
-  .sources-header-actions {
-    width: 100%;
-    justify-content: flex-start;
+    font-size: clamp(56px, 6.2vw, 76px);
   }
 
   .source-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 18px 0;
-  }
-
-  .source-state-col {
-    width: 100%;
-    justify-content: space-between;
+    grid-template-columns: 50px minmax(0, 1fr) 110px 110px 40px;
     gap: 16px;
-  }
-
-  .source-concept-stat {
-    text-align: left;
-    min-width: 0;
+    min-height: 104px;
   }
 
   .source-filename {
-    white-space: normal;
-    line-height: 1.35;
+    font-size: 19px;
+  }
+}
+
+/* Mobile (<= 640px) */
+@media (max-width: 640px) {
+  .sources-page-container {
+    padding: 32px 18px 64px 18px;
   }
 
-  .source-status-wrap {
-    justify-content: flex-start;
-    min-width: 0;
+  .sources-header-intro {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .sources-header-right {
+    align-items: flex-start;
+    text-align: left;
+    gap: 16px;
+    padding-top: 0;
+  }
+
+  .sources-header-stats {
+    align-items: flex-start;
+  }
+
+  .sources-title {
+    font-size: clamp(48px, 13vw, 64px);
+    line-height: 0.90;
+  }
+
+  .sources-subtext {
+    font-size: 14.5px;
+    margin-top: 16px;
+  }
+
+  /* Compact stacked editorial row for mobile */
+  .source-row {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    gap: 10px 12px;
+    align-items: start;
+    min-height: auto;
+    padding: 22px 0;
+  }
+
+  .source-rail {
+    grid-column: 1;
+    grid-row: 1;
+    padding-top: 3px;
+  }
+
+  .source-content-col {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .source-action-col {
+    grid-column: 3;
+    grid-row: 1;
+    padding-top: 3px;
+  }
+
+  .source-concepts-col {
+    grid-column: 2;
+    grid-row: 2;
+    margin-top: 2px;
+  }
+
+  .source-state-cell {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+  }
+
+  .source-filename {
+    font-size: 18px;
+    white-space: normal;
+  }
+
+  .source-delete-btn {
+    opacity: 0.6;
+    transform: none;
   }
 }
