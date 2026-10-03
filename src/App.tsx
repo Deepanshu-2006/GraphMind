@@ -114,7 +114,10 @@ export function App() {
   }, []);
 
   // Ingestion handler: accepts newly created real KnowledgeSources
-  const handleCreateSuccess = async (newSources: KnowledgeSource[]) => {
+  const handleCreateSuccess = async (
+    newSources: KnowledgeSource[],
+    onModalProgress?: (event: PipelineProgressEvent) => void
+  ): Promise<boolean> => {
     setHasGraphContent(true);
     setPipelineError(undefined);
     setPipelineStage('reading');
@@ -150,6 +153,7 @@ export function App() {
           setPipelineStage(evt.stage);
           setPipelineStatusMessage(evt.message);
           setLivePipelineEvent(evt);
+          onModalProgress?.(evt);
 
           // Update active processing stage on the newly added sources
           setUserSources(prev => {
@@ -211,6 +215,7 @@ export function App() {
           partialGraph: result.graph
         });
         setGraphMode('interactive');
+        return true;
       } else {
         const errorMsg = result.error?.message || 'Failed to construct knowledge graph from uploaded material.';
         const failedSources: KnowledgeSource[] = targetUserSources.map(s => {
@@ -237,6 +242,7 @@ export function App() {
           message: errorMsg,
           timestamp: Date.now()
         });
+        return false;
       }
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred during processing.';
@@ -264,6 +270,7 @@ export function App() {
         message: errorMsg,
         timestamp: Date.now()
       });
+      return false;
     }
   };
 

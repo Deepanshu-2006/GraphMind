@@ -664,7 +664,7 @@
   display: inline-block;
   width: 3px;
   height: 11px;
-  background-color: #22C55E;
+  background-color: var(--accent);
   border-radius: 1px;
   flex-shrink: 0;
 }
@@ -710,8 +710,8 @@
 
 .sources-empty-action:hover,
 .sources-empty-action:focus-visible {
-  color: #22C55E;
-  border-bottom-color: #22C55E;
+  color: var(--accent);
+  border-bottom-color: var(--accent);
 }
 
 .sources-empty-action-arrow {

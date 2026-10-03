@@ -6,6 +6,7 @@
 @import './styles/graph.css';
 @import './styles/sources.css';
 @import './styles/paths.css';
+@import './styles/uploadModal.css';
 
 :root {
   /* Typography System */
