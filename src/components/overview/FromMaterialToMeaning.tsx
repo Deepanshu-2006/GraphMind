@@ -3,8 +3,8 @@ import {
   motion,
   useMotionValue,
   useTransform,
-  AnimatePresence,
   useReducedMotion,
+  cubicBezier,
   type MotionValue
 } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
@@ -162,6 +162,243 @@ export const EDITORIAL_STAGES = [
 ];
 
 /* ==========================================================================
+   Editorial Stage Transition Definitions & Contextual Stage Card
+   ========================================================================== */
+
+// Refined easing curve: calm, editorial deceleration without overshoot or bounce
+const EDITORIAL_EASE = cubicBezier(0.25, 0.1, 0.25, 1);
+
+interface StageTransitionRange {
+  enter: [number, number] | null;
+  exit: [number, number] | null;
+}
+
+const STAGE_TRANSITION_RANGES: StageTransitionRange[] = [
+  {
+    // Stage 0: 01 READ
+    enter: null,
+    exit: [0.24, 0.34]
+  },
+  {
+    // Stage 1: 02 FIND
+    enter: [0.24, 0.34],
+    exit: [0.49, 0.59]
+  },
+  {
+    // Stage 2: 03 CONNECT
+    enter: [0.49, 0.59],
+    exit: [0.74, 0.84]
+  },
+  {
+    // Stage 3: 04 EXPLORE
+    enter: [0.74, 0.84],
+    exit: null
+  }
+];
+
+function interpolateSublayer(
+  p: number,
+  enterWindow: [number, number] | null,
+  exitWindow: [number, number] | null,
+  inY: number,
+  outY: number,
+  shouldReduceMotion: boolean | null,
+  easeFn: (t: number) => number
+): { y: number; opacity: number } {
+  // If element has an entrance transition (stages 1, 2, 3)
+  if (enterWindow) {
+    const [e0, e1] = enterWindow;
+    if (p <= e0) {
+      return { y: shouldReduceMotion ? 0 : inY, opacity: 0 };
+    }
+    if (p < e1) {
+      const rawT = (p - e0) / (e1 - e0);
+      const factor = easeFn(Math.max(0, Math.min(1, rawT)));
+      return {
+        y: shouldReduceMotion ? 0 : inY * (1 - factor),
+        opacity: factor
+      };
+    }
+  }
+
+  // If element is before its exit (or stage 0 before exit)
+  if (exitWindow) {
+    const [x0, x1] = exitWindow;
+    if (p <= x0) {
+      return { y: 0, opacity: 1 };
+    }
+    if (p < x1) {
+      const rawT = (p - x0) / (x1 - x0);
+      const factor = easeFn(Math.max(0, Math.min(1, rawT)));
+      return {
+        y: shouldReduceMotion ? 0 : outY * factor,
+        opacity: 1 - factor
+      };
+    }
+    return { y: shouldReduceMotion ? 0 : outY, opacity: 0 };
+  }
+
+  // Fully active plateau (or stage 3 settled)
+  return { y: 0, opacity: 1 };
+}
+
+function isStageVisible(p: number, index: number): boolean {
+  if (index === 0) return p < 0.34;
+  if (index === 1) return p > 0.239 && p < 0.59;
+  if (index === 2) return p > 0.489 && p < 0.84;
+  if (index === 3) return p > 0.739;
+  return false;
+}
+
+interface ContextualStageCardProps {
+  stage: (typeof EDITORIAL_STAGES)[0];
+  index: number;
+  progress: MotionValue<number>;
+  activeStageIndex: number;
+  shouldReduceMotion: boolean | null;
+  onExploreWorkspace: () => void;
+}
+
+const ContextualStageCard: React.FC<ContextualStageCardProps> = ({
+  stage,
+  index,
+  progress,
+  activeStageIndex,
+  shouldReduceMotion,
+  onExploreWorkspace
+}) => {
+  const range = STAGE_TRANSITION_RANGES[index];
+
+  // Micro-staggered sublayer ranges within 0.10 window:
+  // 1. Stage label: delay 0ms (starts at W0)
+  const labelEnter: [number, number] | null = range.enter
+    ? [range.enter[0], range.enter[0] + 0.080]
+    : null;
+  const labelExit: [number, number] | null = range.exit
+    ? [range.exit[0], range.exit[0] + 0.080]
+    : null;
+
+  // 2. Heading: delay ~30ms (progress offset 0.008)
+  const headingEnter: [number, number] | null = range.enter
+    ? [range.enter[0] + 0.008, range.enter[0] + 0.088]
+    : null;
+  const headingExit: [number, number] | null = range.exit
+    ? [range.exit[0] + 0.008, range.exit[0] + 0.088]
+    : null;
+
+  // 3. Paragraph: delay ~60ms (progress offset 0.016)
+  const descEnter: [number, number] | null = range.enter
+    ? [range.enter[0] + 0.016, range.enter[0] + 0.096]
+    : null;
+  const descExit: [number, number] | null = range.exit
+    ? [range.exit[0] + 0.016, range.exit[0] + 0.096]
+    : null;
+
+  // 4. CTA Button (stage 3): delay ~60ms
+  const ctaEnter: [number, number] | null = range.enter
+    ? [range.enter[0] + 0.020, range.enter[0] + 0.100]
+    : null;
+
+  const cardVisibility = useTransform(progress, (p) =>
+    isStageVisible(p, index) ? 'visible' : 'hidden'
+  );
+  const cardPointerEvents = useTransform(progress, (p) =>
+    index === 3 && p >= 0.78 ? 'auto' : 'none'
+  );
+
+  const labelY = useTransform(
+    progress,
+    (p) =>
+      interpolateSublayer(p, labelEnter, labelExit, 10, -10, shouldReduceMotion, EDITORIAL_EASE).y
+  );
+  const labelOpacity = useTransform(
+    progress,
+    (p) =>
+      interpolateSublayer(p, labelEnter, labelExit, 10, -10, shouldReduceMotion, EDITORIAL_EASE).opacity
+  );
+
+  const headingY = useTransform(
+    progress,
+    (p) =>
+      interpolateSublayer(p, headingEnter, headingExit, 20, -20, shouldReduceMotion, EDITORIAL_EASE).y
+  );
+  const headingOpacity = useTransform(
+    progress,
+    (p) =>
+      interpolateSublayer(p, headingEnter, headingExit, 20, -20, shouldReduceMotion, EDITORIAL_EASE).opacity
+  );
+
+  const descY = useTransform(
+    progress,
+    (p) =>
+      interpolateSublayer(p, descEnter, descExit, 12, -12, shouldReduceMotion, EDITORIAL_EASE).y
+  );
+  const descOpacity = useTransform(
+    progress,
+    (p) =>
+      interpolateSublayer(p, descEnter, descExit, 12, -12, shouldReduceMotion, EDITORIAL_EASE).opacity
+  );
+
+  const ctaY = useTransform(
+    progress,
+    (p) =>
+      interpolateSublayer(p, ctaEnter, null, 12, -12, shouldReduceMotion, EDITORIAL_EASE).y
+  );
+  const ctaOpacity = useTransform(
+    progress,
+    (p) =>
+      interpolateSublayer(p, ctaEnter, null, 12, -12, shouldReduceMotion, EDITORIAL_EASE).opacity
+  );
+
+  return (
+    <motion.div
+      className="transformation-context-card"
+      style={{
+        visibility: cardVisibility,
+        pointerEvents: cardPointerEvents
+      }}
+      aria-hidden={activeStageIndex !== index}
+    >
+      <motion.div
+        className="transformation-context-step-row"
+        style={{ y: labelY, opacity: labelOpacity }}
+      >
+        <span className="transformation-context-step">{stage.code}</span>
+        <span className="transformation-context-divider">/</span>
+        <span className="transformation-context-total">04</span>
+        <span className="transformation-context-name">{stage.name}</span>
+      </motion.div>
+
+      <motion.h3
+        className="transformation-context-tagline"
+        style={{ y: headingY, opacity: headingOpacity }}
+      >
+        {stage.tagline}
+      </motion.h3>
+
+      <motion.p
+        className="transformation-context-desc"
+        style={{ y: descY, opacity: descOpacity }}
+      >
+        {stage.desc}
+      </motion.p>
+
+      {index === 3 && (
+        <motion.button
+          type="button"
+          className="transformation-cta-link"
+          onClick={onExploreWorkspace}
+          style={{ y: ctaY, opacity: ctaOpacity }}
+        >
+          <span>Open workspace</span>
+          <ArrowUpRight size={13} aria-hidden="true" />
+        </motion.button>
+      )}
+    </motion.div>
+  );
+};
+
+/* ==========================================================================
    Main Component: FromMaterialToMeaning
    ========================================================================== */
 
@@ -235,7 +472,7 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
           const isResting = p < 0.04;
           setIsRestingRead((prev) => (prev !== isResting ? isResting : prev));
 
-          const nextIndex = p >= 0.75 ? 3 : p >= 0.50 ? 2 : p >= 0.25 ? 1 : 0;
+          const nextIndex = p >= 0.79 ? 3 : p >= 0.54 ? 2 : p >= 0.29 ? 1 : 0;
           setActiveStageIndex((prev) => (prev !== nextIndex ? nextIndex : prev));
         }
       });
@@ -575,39 +812,19 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
               ease: [0.16, 1, 0.3, 1]
             }}
           >
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentStage.code}
-                className="transformation-context-card"
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <div className="transformation-context-step-row">
-                  <span className="transformation-context-step">{currentStage.code}</span>
-                  <span className="transformation-context-divider">/</span>
-                  <span className="transformation-context-total">04</span>
-                  <span className="transformation-context-name">{currentStage.name}</span>
-                </div>
-                <h3 className="transformation-context-tagline">{currentStage.tagline}</h3>
-                <p className="transformation-context-desc">{currentStage.desc}</p>
-
-                {activeStageIndex === 3 && (
-                  <motion.button
-                    type="button"
-                    className="transformation-cta-link"
-                    onClick={onExploreWorkspace}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2, delay: 0.1 }}
-                  >
-                    <span>Open workspace</span>
-                    <ArrowUpRight size={13} aria-hidden="true" />
-                  </motion.button>
-                )}
-              </motion.div>
-            </AnimatePresence>
+            <div className="transformation-context-stack">
+              {EDITORIAL_STAGES.map((stage, index) => (
+                <ContextualStageCard
+                  key={stage.code}
+                  stage={stage}
+                  index={index}
+                  progress={scrollProgress}
+                  activeStageIndex={activeStageIndex}
+                  shouldReduceMotion={shouldReduceMotion}
+                  onExploreWorkspace={onExploreWorkspace}
+                />
+              ))}
+            </div>
           </motion.aside>
         </div>
 
