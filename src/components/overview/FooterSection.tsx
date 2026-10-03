@@ -1,5 +1,5 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react';
-import { motion, useMotionValue, useTransform, useReducedMotion } from 'framer-motion';
+import { motion, useMotionValue, useTransform, useSpring, useReducedMotion } from 'framer-motion';
 
 /* ==========================================================================
    Procedural Architectural SVG Wordmark — "GRAPH"
@@ -119,7 +119,7 @@ const SLOTS: SlotDef[] = [
 ];
 
 /* ──────────────────────────────────────────────────────────────────────── */
-/* Precomputed Stroke Items with Continuous Bidirectional Wave Parameters   */
+/* Precomputed Stroke Items with Deliberate Wave Milestones                 */
 /* ──────────────────────────────────────────────────────────────────────── */
 
 export interface StrokeItem {
@@ -160,9 +160,15 @@ SLOTS.forEach((slot, letterIdx) => {
       const normH = targetHeight / (Y_BASE - Y_TOP);
       const jitter = getDeterministicJitter(x, colIdx, segIdx);
 
-      // Continuous overlapping wave across G -> R -> A -> P -> H
-      const startP = 0.06 + normX * 0.54 + (1 - normH) * 0.03 + jitter * 0.02 + (isBaseline ? 0 : 0.025);
-      const strokeWindow = 0.28 + normH * 0.04;
+      // Calibrated milestones in graphProgress (0.0 -> 1.0):
+      // 0.10: First few strokes beginning
+      // 0.30: G becoming recognizable (~79%)
+      // 0.50: GR / GRA developing
+      // 0.70: GRAP mostly formed
+      // 0.90: H completing
+      // 1.00: GRAPH fully settled
+      const startP = 0.06 + normX * 0.58 + (1 - normH) * 0.02 + jitter * 0.02 + (isBaseline ? 0 : 0.02);
+      const strokeWindow = 0.26 + normH * 0.02;
       const endP = startP + strokeWindow;
 
       const item: StrokeItem = {
@@ -213,9 +219,9 @@ function getScrollMetrics(container: HTMLElement | null, footerEl: HTMLElement |
   const maxScroll = Math.max(0, scrollHeight - clientHeight);
   if (maxScroll <= 0) return 1;
 
-  const footerH = footerEl ? footerEl.offsetHeight : 420;
-  // Dedicated travel range for footer reveal
-  const travel = Math.min(maxScroll, Math.max(340, footerH + 60));
+  const footerH = footerEl ? footerEl.offsetHeight : 440;
+  // Generous travel distance so the construction occupies a deliberate, substantial scroll range
+  const travel = Math.min(maxScroll, Math.max(520, footerH + 160));
   const startScroll = Math.max(0, maxScroll - travel);
 
   if (scrollTop <= startScroll) return 0;
@@ -237,30 +243,37 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
   const prefersLess = useReducedMotion();
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
-  // Single normalized progress value: 0 (unrevealed) -> 1 (fully revealed)
-  const footerProgress = useMotionValue(0);
+  // 1. Raw scroll progress from scroll position: 0 -> 1
+  const rawScrollProgress = useMotionValue(0);
 
-  // Baseline: scaleX 0 -> 1 over progress 0.00 -> 0.14 (retracts toward center on reverse)
-  const baselineScaleX = useTransform(footerProgress, [0, 0.14], [0, 1]);
+  // 2. Dead zone (0.00 -> 0.20): GRAPH remains completely unconstructed.
+  //    Remapped progress (0.20 -> 1.00): maps to graphProgress 0 -> 1.
+  const remappedProgress = useTransform(rawScrollProgress, [0, 0.20, 1.00], [0, 0, 1]);
 
-  // Top metadata: quiet opacity 0.45 -> 1.0
-  const topOpacity = useTransform(footerProgress, [0, 1], [0.45, 1.0]);
+  // 3. Physical spring smoothing: prevents instantaneous visual jumps during fast scrolls/flings
+  //    (stiffness: 100, damping: 28, mass: 0.8 -> ~150-200ms perceived smooth motion)
+  const smoothGraphProgress = useSpring(remappedProgress, {
+    stiffness: 100,
+    damping: 28,
+    mass: 0.8,
+    restDelta: 0.0001,
+  });
+
+  // Effective progress for visuals (bypassed if prefers-reduced-motion)
+  const activeProgress = prefersLess ? rawScrollProgress : smoothGraphProgress;
 
   // Structural settle: subtle 1px mechanical lock near completion (reversible)
   const wordmarkY = useTransform(
-    footerProgress,
-    [0, 0.85, 0.93, 1.0],
+    activeProgress,
+    [0, 0.88, 0.94, 1.0],
     ['0px', '0px', '-1px', '0px']
   );
 
-  // Bottom rule: scaleX 0 -> 1 over progress 0.80 -> 0.96
-  const bottomRuleScaleX = useTransform(footerProgress, [0.80, 0.96], [0, 1]);
+  // Bottom metadata: opacity 0 -> 1, translateY 6px -> 0px over graphProgress 0.88 -> 1.0
+  const bottomOpacity = useTransform(activeProgress, [0.88, 1.0], [0, 1]);
+  const bottomY = useTransform(activeProgress, [0.88, 1.0], [6, 0]);
 
-  // Bottom metadata: opacity 0 -> 1, translateY 6px -> 0px over progress 0.84 -> 1.0
-  const bottomOpacity = useTransform(footerProgress, [0.84, 1.0], [0, 1]);
-  const bottomY = useTransform(footerProgress, [0.84, 1.0], [6, 0]);
-
-  // Direct high-performance DOM update function (pure function of progress)
+  // Direct high-performance DOM update function (pure function of graphProgress)
   const updateStrokes = useCallback((p: number) => {
     const bindings = lineBindingsRef.current;
     if (!bindings) return;
@@ -290,19 +303,19 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
     }
   }, []);
 
-  // Subscribe to footerProgress MotionValue without causing React re-renders
+  // Subscribe to smoothGraphProgress MotionValue without causing React re-renders
   useEffect(() => {
     if (prefersLess) return;
-    const unsubscribe = footerProgress.on('change', (latestProgress) => {
+    const unsubscribe = smoothGraphProgress.on('change', (latestProgress) => {
       updateStrokes(latestProgress);
     });
     return unsubscribe;
-  }, [footerProgress, updateStrokes, prefersLess]);
+  }, [smoothGraphProgress, updateStrokes, prefersLess]);
 
-  // Scroll listener: directly controls footerProgress based on scroll position
+  // Scroll listener: directly controls rawScrollProgress based on scroll position
   useEffect(() => {
     if (prefersLess) {
-      footerProgress.set(1);
+      rawScrollProgress.set(1);
       return;
     }
 
@@ -328,7 +341,7 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
       rafId = requestAnimationFrame(() => {
         rafId = null;
         const p = getScrollMetrics(scrollContainer, sectionRef.current);
-        footerProgress.set(p);
+        rawScrollProgress.set(p);
       });
     };
 
@@ -343,11 +356,11 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
       scrollTarget.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
     };
-  }, [footerProgress, prefersLess]);
+  }, [rawScrollProgress, prefersLess]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
-    // Only activate letter hover when wordmark is mostly constructed (progress >= 0.85)
-    if (footerProgress.get() < 0.85 && !prefersLess) return;
+    // Only activate letter hover when wordmark is mostly constructed (graphProgress >= 0.85)
+    if (smoothGraphProgress.get() < 0.85 && !prefersLess) return;
 
     const rect   = e.currentTarget.getBoundingClientRect();
     const svgX   = ((e.clientX - rect.left) / rect.width) * SVG_W;
@@ -359,28 +372,12 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
       if (dist < minDist) { minDist = dist; closest = idx; }
     });
     setHoveredIdx(closest);
-  }, [footerProgress, prefersLess]);
+  }, [smoothGraphProgress, prefersLess]);
 
   const handleMouseLeave = useCallback(() => setHoveredIdx(null), []);
 
   return (
     <footer ref={sectionRef} className="gmf-section" aria-label="GRAPH wordmark footer">
-
-      {/* ── Top metadata row (quiet, minimal, progress-linked) ────────────── */}
-      <div className="gmf-top">
-        <motion.div
-          className="gmf-meta-row"
-          style={{
-            opacity: prefersLess ? 1 : topOpacity,
-          }}
-        >
-          <span className="gmf-meta-label">
-            <span className="gmf-accent-dot" aria-hidden="true" />
-            GRAPH / KNOWLEDGE MAPPING
-          </span>
-          <span className="gmf-meta-label">2026</span>
-        </motion.div>
-      </div>
 
       {/* ── Giant procedural-line GRAPH wordmark ──────────────────────────── */}
       <div className="gmf-wordmark-wrap" aria-label="GRAPH" role="img">
@@ -421,22 +418,6 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
             </linearGradient>
           </defs>
 
-          {/* ── Subtle origin baseline beneath GRAPH (scaleX 0 -> 1 reversible) ─ */}
-          <motion.line
-            x1="70"
-            y1={Y_BASE}
-            x2="954"
-            y2={Y_BASE}
-            stroke="rgba(255, 255, 255, 0.12)"
-            strokeWidth={1}
-            strokeLinecap="butt"
-            vectorEffect="non-scaling-stroke"
-            style={{
-              scaleX: prefersLess ? 1 : baselineScaleX,
-              transformOrigin: '512px 208px',
-            }}
-          />
-
           {/* ── Main architectural wordmark group with structural settle ─────── */}
           <motion.g
             ref={wordmarkGroupRef}
@@ -475,16 +456,8 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
         </svg>
       </div>
 
-      {/* ── Bottom: rule + copyright / explore (progress-driven) ─────────── */}
+      {/* ── Bottom: copyright / explore (progress-driven) ─────────────────── */}
       <div className="gmf-bottom">
-        <motion.div
-          className="gmf-rule"
-          aria-hidden="true"
-          style={{
-            scaleX: prefersLess ? 1 : bottomRuleScaleX,
-            transformOrigin: '50% 50%',
-          }}
-        />
         <motion.div
           className="gmf-meta-row gmf-meta-bottom-row"
           style={{
