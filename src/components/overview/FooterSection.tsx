@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useState } from 'react';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { motion, useInView, useReducedMotion } from 'framer-motion';
 
 /* ==========================================================================
@@ -107,43 +107,231 @@ interface SlotDef {
   char: string;
   x0: number;
   n: number;
-  dur: number;
   fn: (i: number, N: number) => Seg[];
 }
 
 const SLOTS: SlotDef[] = [
-  { char: 'G', x0: 100, n: 26, dur: 0.60, fn: segG },
-  { char: 'R', x0: 268, n: 26, dur: 0.62, fn: segR },
-  { char: 'A', x0: 436, n: 28, dur: 0.64, fn: segA },
-  { char: 'P', x0: 620, n: 25, dur: 0.58, fn: segP },
-  { char: 'H', x0: 788, n: 26, dur: 0.60, fn: segH },
+  { char: 'G', x0: 100, n: 26, fn: segG },
+  { char: 'R', x0: 268, n: 26, fn: segR },
+  { char: 'A', x0: 436, n: 28, fn: segA },
+  { char: 'P', x0: 620, n: 25, fn: segP },
+  { char: 'H', x0: 788, n: 26, fn: segH },
 ];
 
-const COMPUTED = SLOTS.map(slot => ({
-  slot,
-  strokes: Array.from({ length: slot.n }, (_, i) => ({
-    x: slot.x0 + i * PITCH,
-    segs: slot.fn(i, slot.n),
-  })).filter(s => s.segs.length > 0),
-}));
-
 /* ──────────────────────────────────────────────────────────────────────── */
+/* Precomputed Stroke Items with Architectural Wave Delays & Physical Overshoot */
+/* ──────────────────────────────────────────────────────────────────────── */
+
+export interface StrokeItem {
+  key: string;
+  char: string;
+  letterIdx: number;
+  colIdx: number;
+  segIdx: number;
+  x: number;
+  y1: number;
+  y2: number;
+  targetHeight: number;
+  extra: number;
+  fullLen: number;
+  yTopGeom: number;
+  yBotGeom: number;
+  isBaseline: boolean;
+  delay: number;
+  dur: number;
+}
+
+const MIN_X = SLOTS[0].x0; // 100
+const MAX_X = SLOTS[4].x0 + (SLOTS[4].n - 1) * PITCH; // 933
+
+function getDeterministicJitter(x: number, colIdx: number, segIdx: number): number {
+  const val = Math.sin(x * 12.9898 + colIdx * 78.233 + segIdx * 37.719) * 43758.5453;
+  return (val - Math.floor(val)) - 0.5; // -0.5 to +0.5
+}
+
+const LETTER_STROKES: StrokeItem[][] = [[], [], [], [], []];
+const ALL_STROKES: StrokeItem[] = [];
+
+SLOTS.forEach((slot, letterIdx) => {
+  for (let colIdx = 0; colIdx < slot.n; colIdx++) {
+    const x = slot.x0 + colIdx * PITCH;
+    const segs = slot.fn(colIdx, slot.n);
+    segs.forEach(([y1, y2], segIdx) => {
+      const targetHeight = y2 - y1;
+      // 1.8% physical overshoot
+      const extra = Math.max(1.5, Math.round(targetHeight * 0.018 * 10) / 10);
+      const fullLen = targetHeight + extra;
+      const yTopGeom = y1 - extra;
+      const yBotGeom = y2;
+      const isBaseline = y2 === Y_BASE;
+
+      const normX = (x - MIN_X) / (MAX_X - MIN_X);
+      const normH = targetHeight / (Y_BASE - Y_TOP);
+      const jitter = getDeterministicJitter(x, colIdx, segIdx);
+
+      // Architectural construction wave moving Left -> Right across G -> R -> A -> P -> H
+      const waveTime = 0.35 + normX * 1.50; // 0.35s to 1.85s
+      const heightLag = (1 - normH) * 0.08; // taller strokes rise slightly earlier
+      const jitterDelay = jitter * 0.12;    // neighboring strokes vary deterministically
+      const upperSegDelay = isBaseline ? 0 : 0.09; // baseline anchors form first
+
+      const delay = Math.max(0.35, waveTime + heightLag + jitterDelay + upperSegDelay);
+      const dur = 0.50 + normH * 0.08 + jitter * 0.05; // 480ms–620ms per stroke
+
+      const item: StrokeItem = {
+        key: `${slot.char}-${colIdx}-${segIdx}`,
+        char: slot.char,
+        letterIdx,
+        colIdx,
+        segIdx,
+        x,
+        y1,
+        y2,
+        targetHeight,
+        extra,
+        fullLen,
+        yTopGeom,
+        yBotGeom,
+        isBaseline,
+        delay,
+        dur,
+      };
+
+      LETTER_STROKES[letterIdx].push(item);
+      ALL_STROKES.push(item);
+    });
+  }
+});
+
+// Construction completes around ~2.47s
+const SETTLE_DELAY_MS = 2480;
+const LIGHT_PASS_DELAY_MS = 2780;
+const METADATA_DELAY_S = 2.85;
+
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
-const BASE_DELAY = 0.15;
-const STAGGER    = 0.075;
 
 interface FooterSectionProps {
   onUploadMaterial?: () => void;
 }
 
 export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }) => {
-  const sectionRef  = useRef<HTMLElement>(null);
-  const isInView    = useInView(sectionRef, { amount: 0.04, once: true });
+  const sectionRef       = useRef<HTMLElement>(null);
+  const svgRef           = useRef<SVGSVGElement>(null);
+  const baselineRef      = useRef<SVGLineElement>(null);
+  const wordmarkGroupRef = useRef<SVGGElement>(null);
+  const lightPassRef     = useRef<SVGRectElement>(null);
+  const hasAnimatedRef   = useRef(false);
+
+  const isInView    = useInView(sectionRef, { amount: 0.05, once: true });
   const prefersLess = useReducedMotion();
 
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [hoveredIdx, setHoveredIdx]   = useState<number | null>(null);
+  const [isCompleted, setIsCompleted] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (prefersLess) {
+      setIsCompleted(true);
+      return;
+    }
+    if (!isInView || hasAnimatedRef.current) return;
+    hasAnimatedRef.current = true;
+
+    // 1. Baseline reveal: 0.0s to 0.40s
+    if (baselineRef.current) {
+      baselineRef.current.animate(
+        [
+          { strokeDashoffset: 884 },
+          { strokeDashoffset: 0 },
+        ],
+        {
+          duration: 400,
+          delay: 0,
+          easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+          fill: 'forwards',
+        }
+      );
+    }
+
+    // 2. Individual vertical stroke construction wave (left -> right)
+    const lineEls = svgRef.current?.querySelectorAll<SVGLineElement>('.gmf-stroke-line');
+    if (lineEls) {
+      lineEls.forEach((line) => {
+        const fullLen = parseFloat(line.dataset.fullLen || '0');
+        const extra = parseFloat(line.dataset.extra || '0');
+        const delayMs = parseFloat(line.dataset.delay || '0') * 1000;
+        const durMs = parseFloat(line.dataset.dur || '0') * 1000;
+        const isBase = line.dataset.isBase === 'true';
+
+        const initialOffset = isBase ? fullLen - 2 : fullLen;
+        const initialOpacity = isBase ? 0.06 : 0;
+
+        line.animate(
+          [
+            { strokeDashoffset: initialOffset, opacity: initialOpacity, offset: 0 },
+            { strokeDashoffset: fullLen * 0.55, opacity: 0.85, offset: 0.35 },
+            { strokeDashoffset: 0, opacity: 1.0, offset: 0.72 }, // peak overshoot (1.8%)
+            { strokeDashoffset: extra + 0.8, opacity: 1.0, offset: 0.88 }, // precision settle
+            { strokeDashoffset: extra, opacity: 1.0, offset: 1.0 }, // locked into position
+          ],
+          {
+            duration: durMs,
+            delay: delayMs,
+            easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+            fill: 'forwards',
+          }
+        );
+      });
+    }
+
+    // 3. Structural settle when H finishes: translateY 0 -> -1px -> 0
+    if (wordmarkGroupRef.current) {
+      wordmarkGroupRef.current.animate(
+        [
+          { transform: 'translateY(0px)' },
+          { transform: 'translateY(-1px)', offset: 0.35 },
+          { transform: 'translateY(0px)', offset: 1.0 },
+        ],
+        {
+          duration: 280,
+          delay: SETTLE_DELAY_MS,
+          easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+          fill: 'forwards',
+        }
+      );
+    }
+
+    // 4. Subtle inspection light pass: travels left to right across strokes
+    if (lightPassRef.current) {
+      lightPassRef.current.animate(
+        [
+          { transform: 'translateX(30px)', opacity: 0 },
+          { transform: 'translateX(80px)', opacity: 1, offset: 0.08 },
+          { transform: 'translateX(900px)', opacity: 1, offset: 0.92 },
+          { transform: 'translateX(960px)', opacity: 0, offset: 1.0 },
+        ],
+        {
+          duration: 820,
+          delay: LIGHT_PASS_DELAY_MS,
+          easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+          fill: 'forwards',
+        }
+      );
+    }
+
+    // Mark completed once all sequences finish (~3.6s)
+    const completeTimer = setTimeout(() => {
+      setIsCompleted(true);
+    }, LIGHT_PASS_DELAY_MS + 820);
+
+    return () => {
+      clearTimeout(completeTimer);
+    };
+  }, [isInView, prefersLess]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    // Only enable interactive hover after initial construction sequence has completed
+    if (!isCompleted && !prefersLess) return;
+
     const rect   = e.currentTarget.getBoundingClientRect();
     const svgX   = ((e.clientX - rect.left) / rect.width) * SVG_W;
     let minDist  = Infinity;
@@ -154,32 +342,28 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
       if (dist < minDist) { minDist = dist; closest = idx; }
     });
     setHoveredIdx(closest);
-  }, []);
+  }, [isCompleted, prefersLess]);
 
   const handleMouseLeave = useCallback(() => setHoveredIdx(null), []);
 
   return (
     <footer ref={sectionRef} className="gmf-section" aria-label="GRAPH wordmark footer">
 
-      {/* ── Top metadata row ──────────────────────────────────────────────── */}
+      {/* ── Top metadata row (quiet, minimal, visible before GRAPH begins) ── */}
       <div className="gmf-top">
-        <motion.div
-          className="gmf-meta-row"
-          initial={{ opacity: 0, y: 4 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: prefersLess ? 0 : 0.42, delay: prefersLess ? 0 : 0.08, ease: EASE }}
-        >
+        <div className="gmf-meta-row">
           <span className="gmf-meta-label">
             <span className="gmf-accent-dot" aria-hidden="true" />
             GRAPH / KNOWLEDGE MAPPING
           </span>
           <span className="gmf-meta-label">2026</span>
-        </motion.div>
+        </div>
       </div>
 
       {/* ── Giant procedural-line GRAPH wordmark ──────────────────────────── */}
       <div className="gmf-wordmark-wrap" aria-label="GRAPH" role="img">
         <svg
+          ref={svgRef}
           className="gmf-svg"
           viewBox={`0 0 ${SVG_W} ${SVG_H}`}
           preserveAspectRatio="xMidYMid meet"
@@ -214,61 +398,114 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
               <stop offset="100%" stopColor="#0A0A0A" stopOpacity="0.00" />
             </linearGradient>
 
-            {/* Per-letter upward-construction clip rect */}
-            {COMPUTED.map(({ slot }, i) => {
-              const delay = prefersLess ? 0 : BASE_DELAY + i * STAGGER;
-              const dur   = prefersLess ? 0 : slot.dur;
-              return (
-                <clipPath key={`clip-${slot.char}`} id={`gmf-clip-${i}`}>
-                  <motion.rect
-                    x={slot.x0 - 4}
-                    width={slot.n * PITCH + 8}
-                    initial={{ y: Y_BASE, height: 0 }}
-                    animate={
-                      isInView
-                        ? { y: Y_TOP - 6, height: (Y_BASE - Y_TOP) + 12 }
-                        : { y: Y_BASE,    height: 0 }
-                    }
-                    transition={{ duration: dur, delay, ease: EASE }}
-                  />
-                </clipPath>
-              );
-            })}
+            {/* Subtle inspection light pass gradient — purely monochromatic, no glow */}
+            <linearGradient
+              id="gmf-light-pass-gradient"
+              x1="0%" y1="0%" x2="100%" y2="0%"
+            >
+              <stop offset="0%"   stopColor="#FFFFFF" stopOpacity="0.00" />
+              <stop offset="25%"  stopColor="#FFFFFF" stopOpacity="0.05" />
+              <stop offset="50%"  stopColor="#FFFFFF" stopOpacity="0.14" />
+              <stop offset="75%"  stopColor="#FFFFFF" stopOpacity="0.05" />
+              <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.00" />
+            </linearGradient>
+
+            {/* Mask of all completed strokes — ensures inspection light pass only illuminates the lines */}
+            <mask id="gmf-all-strokes-mask">
+              <rect x="0" y="0" width={SVG_W} height={SVG_H} fill="#000000" />
+              {ALL_STROKES.map((s) => (
+                <line
+                  key={`mask-${s.key}`}
+                  x1={s.x}
+                  y1={s.yBotGeom}
+                  x2={s.x}
+                  y2={s.y1}
+                  stroke="#FFFFFF"
+                  strokeWidth={STROKE}
+                  strokeLinecap="butt"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+            </mask>
           </defs>
 
-          {/* Render each letter */}
-          {COMPUTED.map(({ slot, strokes }, i) => {
-            const delay   = prefersLess ? 0 : BASE_DELAY + i * STAGGER;
-            const dur     = prefersLess ? 0 : slot.dur;
-            const isHov   = hoveredIdx === i;
-            const gradUrl = isHov ? 'url(#arena-hover-gradient)' : 'url(#arena-line-gradient)';
+          {/* ── Subtle origin baseline beneath GRAPH (scaleX 0 -> 1) ────────── */}
+          <line
+            ref={baselineRef}
+            x1="70"
+            y1={Y_BASE}
+            x2="954"
+            y2={Y_BASE}
+            stroke="rgba(255, 255, 255, 0.12)"
+            strokeWidth={1}
+            strokeLinecap="butt"
+            vectorEffect="non-scaling-stroke"
+            strokeDasharray="884 884"
+            style={{
+              strokeDashoffset: prefersLess ? 0 : 884,
+            }}
+          />
 
-            return (
-              <g key={slot.char} clipPath={`url(#gmf-clip-${i})`}>
-                <motion.g
-                  initial={{ opacity: 0 }}
-                  animate={isInView ? { opacity: 1 } : {}}
-                  transition={{ duration: dur * 0.55, delay, ease: 'easeOut' }}
-                >
-                  {strokes.map(({ x, segs }, colIdx) =>
-                    segs.map(([y1, y2], segIdx) => (
+          {/* ── Main architectural wordmark group with structural settle ─────── */}
+          <g ref={wordmarkGroupRef} id="gmf-wordmark-group">
+            {SLOTS.map((slot, letterIdx) => {
+              const isHov = hoveredIdx === letterIdx;
+              const gradUrl = isHov ? 'url(#arena-hover-gradient)' : 'url(#arena-line-gradient)';
+              const strokes = LETTER_STROKES[letterIdx];
+
+              return (
+                <g key={slot.char} stroke={gradUrl}>
+                  {strokes.map((s) => {
+                    const isDone = isCompleted || prefersLess;
+                    const initOffset = s.isBaseline ? s.fullLen - 2 : s.fullLen;
+                    const initOpacity = s.isBaseline ? 0.06 : 0;
+
+                    return (
                       <line
-                        key={`${colIdx}-${segIdx}`}
-                        x1={x}
-                        y1={y1}
-                        x2={x}
-                        y2={y2}
-                        stroke={gradUrl}
+                        key={s.key}
+                        className="gmf-stroke-line"
+                        data-full-len={s.fullLen}
+                        data-extra={s.extra}
+                        data-delay={s.delay}
+                        data-dur={s.dur}
+                        data-is-base={s.isBaseline}
+                        x1={s.x}
+                        y1={s.yBotGeom}
+                        x2={s.x}
+                        y2={s.yTopGeom}
                         strokeWidth={STROKE}
                         strokeLinecap="butt"
                         vectorEffect="non-scaling-stroke"
+                        strokeDasharray={`${s.fullLen + 20} ${s.fullLen + 20}`}
+                        style={{
+                          strokeDashoffset: isDone ? s.extra : initOffset,
+                          opacity: isDone ? 1 : initOpacity,
+                        }}
                       />
-                    ))
-                  )}
-                </motion.g>
-              </g>
-            );
-          })}
+                    );
+                  })}
+                </g>
+              );
+            })}
+          </g>
+
+          {/* ── Final inspection light pass (travels across GRAPH) ─────────── */}
+          {!prefersLess && (
+            <g mask="url(#gmf-all-strokes-mask)" style={{ pointerEvents: 'none' }}>
+              <rect
+                ref={lightPassRef}
+                x={0}
+                y={Y_TOP - 6}
+                width={84}
+                height={(Y_BASE - Y_TOP) + 12}
+                fill="url(#gmf-light-pass-gradient)"
+                style={{
+                  opacity: 0,
+                  transform: 'translateX(30px)',
+                }}
+              />
+            </g>
+          )}
         </svg>
       </div>
 
@@ -279,20 +516,20 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ onUploadMaterial }
           aria-hidden="true"
           initial={{ scaleX: 0 }}
           animate={isInView ? { scaleX: 1 } : {}}
-          style={{ transformOrigin: '100% 50%' }}
+          style={{ transformOrigin: '0% 50%' }}
           transition={{
-            duration: prefersLess ? 0 : 0.70,
-            delay:    prefersLess ? 0 : BASE_DELAY + SLOTS.length * STAGGER,
+            duration: prefersLess ? 0 : 0.50,
+            delay:    prefersLess ? 0 : METADATA_DELAY_S - 0.05,
             ease:     EASE,
           }}
         />
         <motion.div
           className="gmf-meta-row gmf-meta-bottom-row"
-          initial={{ opacity: 0 }}
-          animate={isInView ? { opacity: 1 } : {}}
+          initial={{ opacity: 0, y: 6 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{
-            duration: prefersLess ? 0 : 0.40,
-            delay:    prefersLess ? 0 : BASE_DELAY + SLOTS.length * STAGGER + 0.10,
+            duration: prefersLess ? 0 : 0.45,
+            delay:    prefersLess ? 0 : METADATA_DELAY_S,
             ease:     EASE,
           }}
         >
