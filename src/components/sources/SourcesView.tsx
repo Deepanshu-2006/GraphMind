@@ -617,82 +617,41 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
           })}
         </div>
       ) : (
-        /* Minimal Editorial Empty State: Connected directly below Source Index */
+        /* Minimal Editorial Empty State */
         <div className="sources-empty-state">
-          <div className="sources-empty-left">
-            <motion.span
-              className="sources-empty-label"
-              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.50, delay: 0.00, ease: REVEAL_EASE }}
-            >
-              NO MATERIAL YET
-            </motion.span>
-
-            <motion.p
-              className="sources-empty-desc"
-              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.52, delay: 0.06, ease: REVEAL_EASE }}
-            >
-              Your knowledge graph begins with study material.
-            </motion.p>
-
-            <motion.div
-              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.54, delay: 0.12, ease: REVEAL_EASE }}
-            >
-              <button
-                type="button"
-                className="sources-empty-action"
-                onClick={onAddSource}
-                aria-label="Upload material"
-              >
-                <span>Upload material</span>
-                <span className="sources-empty-action-arrow" aria-hidden="true">↗</span>
-              </button>
-            </motion.div>
-          </div>
-
           <motion.div
-            className="sources-empty-right"
+            className="sources-empty-label-wrap"
             initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.56, delay: 0.10, ease: REVEAL_EASE }}
-            aria-hidden="true"
+            transition={{ duration: 0.48, delay: 0.00, ease: REVEAL_EASE }}
           >
-            <svg 
-              className="sources-empty-visual-svg" 
-              width="180" 
-              height="110" 
-              viewBox="0 0 180 110" 
-              fill="none" 
-              xmlns="http://www.w3.org/2000/svg"
+            <span className="sources-empty-marker" aria-hidden="true" />
+            <span className="sources-empty-label">NO MATERIAL YET</span>
+          </motion.div>
+
+          <motion.p
+            className="sources-empty-desc"
+            initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.50, delay: 0.06, ease: REVEAL_EASE }}
+          >
+            Your knowledge graph begins with study material.
+          </motion.p>
+
+          <motion.div
+            initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.52, delay: 0.12, ease: REVEAL_EASE }}
+          >
+            <button
+              type="button"
+              className="sources-empty-action"
+              onClick={onAddSource}
+              aria-label="Upload material"
             >
-              {/* Vertical indexing line */}
-              <line x1="28" y1="10" x2="28" y2="100" stroke="#222222" strokeWidth="1" />
-
-              {/* Slot 01: Tiny green dot + quiet horizontal lines */}
-              <line x1="12" y1="26" x2="168" y2="26" stroke="#262626" strokeWidth="1" />
-              <circle cx="28" cy="26" r="2" fill="#22C55E" opacity="0.8" />
-              <line x1="38" y1="26" x2="96" y2="26" stroke="#333333" strokeWidth="1" />
-              <line x1="136" y1="26" x2="162" y2="26" stroke="#262626" strokeWidth="1" strokeDasharray="3 3" />
-              <text x="13" y="28" fill="#383838" fontSize="7.5" fontFamily="monospace">01</text>
-
-              {/* Slot 02 */}
-              <line x1="12" y1="56" x2="168" y2="56" stroke="#1E1E1E" strokeWidth="1" />
-              <circle cx="28" cy="56" r="1.5" fill="#303030" />
-              <line x1="38" y1="56" x2="76" y2="56" stroke="#262626" strokeWidth="1" strokeDasharray="2 3" />
-              <line x1="142" y1="56" x2="162" y2="56" stroke="#1E1E1E" strokeWidth="1" strokeDasharray="3 3" />
-              <text x="13" y="58" fill="#2A2A2A" fontSize="7.5" fontFamily="monospace">02</text>
-
-              {/* Slot 03 */}
-              <line x1="12" y1="86" x2="168" y2="86" stroke="#181818" strokeWidth="1" />
-              <circle cx="28" cy="86" r="1.5" fill="#262626" />
-              <line x1="38" y1="86" x2="64" y2="86" stroke="#222222" strokeWidth="1" strokeDasharray="2 3" />
-              <text x="13" y="88" fill="#222222" fontSize="7.5" fontFamily="monospace">03</text>
-            </svg>
+              <span>UPLOAD MATERIAL</span>
+              <span className="sources-empty-action-arrow" aria-hidden="true">↗</span>
+            </button>
           </motion.div>
         </div>
       )}
