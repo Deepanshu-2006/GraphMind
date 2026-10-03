@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowUpRight, Trash2 } from 'lucide-react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
+import { ArrowUpRight } from 'lucide-react';
 import type { RecentMaterial } from '../../types';
 
 interface SourcesViewProps {
@@ -18,6 +18,58 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
   onRemoveSource
 }) => {
   const shouldReduceMotion = useReducedMotion();
+
+  // State for inline deletion confirmation & deletion exit choreography
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showRemovedNotice, setShowRemovedNotice] = useState(false);
+  const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keyboard shortcut: Escape cancels active confirmation
+  useEffect(() => {
+    if (!confirmingId) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setConfirmingId(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [confirmingId]);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    };
+  }, []);
+
+  const handleStartRemove = (sourceId: string) => {
+    setConfirmingId(sourceId);
+  };
+
+  const handleCancelRemove = () => {
+    setConfirmingId(null);
+  };
+
+  const handleConfirmRemove = (sourceId: string) => {
+    setDeletingId(sourceId);
+    setConfirmingId(null);
+
+    // 500ms smooth contraction animation before removing from parent state
+    setTimeout(() => {
+      onRemoveSource?.(sourceId);
+      setDeletingId(null);
+      setShowRemovedNotice(true);
+
+      if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+      noticeTimerRef.current = setTimeout(() => {
+        setShowRemovedNotice(false);
+      }, 2600);
+    }, 500);
+  };
 
   // Aggregate real stats
   const totalConcepts = useMemo(() => {
@@ -172,14 +224,33 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
 
         {/* 2. Source Index Metadata Label & Hairline Divider */}
         <div className="sources-index-meta">
-          <motion.span
-            className="sources-index-label"
-            initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.45, delay: 0.28, ease: REVEAL_EASE }}
-          >
-            Source Index
-          </motion.span>
+          <div className="sources-index-meta-left">
+            <motion.span
+              className="sources-index-label"
+              initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.45, delay: 0.28, ease: REVEAL_EASE }}
+            >
+              Source Index
+            </motion.span>
+
+            <AnimatePresence>
+              {showRemovedNotice && (
+                <motion.span
+                  className="sources-removed-pill"
+                  initial={{ opacity: 0, x: -6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -6 }}
+                  transition={{ duration: 0.24, ease: REVEAL_EASE }}
+                  aria-live="polite"
+                >
+                  <span className="source-state-point indexed" aria-hidden="true" />
+                  <span>SOURCE REMOVED</span>
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </div>
+
           <motion.span
             className="sources-index-count"
             initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
@@ -207,15 +278,41 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
             const rowNumber = String(idx + 1).padStart(2, '0');
             const metaParts = formatMetadata(source);
             const rowBaseDelay = 0.38 + idx * 0.07;
+            const isConfirming = confirmingId === source.id;
+            const isDeleting = deletingId === source.id;
 
             return (
               <motion.article
                 key={source.id}
-                className={['source-row', isFirst ? 'is-first' : ''].join(' ')}
+                className={[
+                  'source-row',
+                  isFirst ? 'is-first' : '',
+                  isConfirming ? 'is-confirming' : '',
+                  isDeleting ? 'is-deleting' : ''
+                ].filter(Boolean).join(' ')}
                 role="listitem"
                 aria-label={`Source ${rowNumber}: ${source.title}`}
                 initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+                animate={
+                  isDeleting
+                    ? {
+                        height: 0,
+                        minHeight: 0,
+                        paddingTop: 0,
+                        paddingBottom: 0,
+                        opacity: 0,
+                        overflow: 'hidden',
+                        transition: {
+                          duration: 0.50,
+                          ease: REVEAL_EASE,
+                          height: { delay: 0.12, duration: 0.38, ease: REVEAL_EASE },
+                          paddingTop: { delay: 0.12, duration: 0.38, ease: REVEAL_EASE },
+                          paddingBottom: { delay: 0.12, duration: 0.38, ease: REVEAL_EASE },
+                          minHeight: { delay: 0.12, duration: 0.38, ease: REVEAL_EASE },
+                        }
+                      }
+                    : { opacity: 1, y: 0 }
+                }
                 transition={{ duration: 0.55, delay: rowBaseDelay, ease: REVEAL_EASE }}
               >
                 {/* Zone 1: Technical Number + Hover Green Indicator Line */}
@@ -223,103 +320,169 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
                   <motion.span
                     className="source-number"
                     initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.40, delay: rowBaseDelay, ease: REVEAL_EASE }}
+                    animate={isDeleting ? { opacity: 0, x: -6 } : { opacity: 1, x: 0 }}
+                    transition={{ duration: 0.35, ease: REVEAL_EASE }}
                   >
                     {rowNumber}
                   </motion.span>
                   <span className="source-indicator-line" aria-hidden="true" />
                 </div>
 
-                {/* Zone 2: Dominant Filename + Quiet File Metadata */}
-                <div className="source-content-col">
-                  <span className="source-filename-clip">
-                    <motion.h2
-                      className="source-filename"
-                      title={source.title}
-                      initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: '105%' }}
-                      animate={{ opacity: 1, y: '0%' }}
-                      transition={{ duration: 0.60, delay: rowBaseDelay + 0.04, ease: REVEAL_EASE }}
+                {/* Main Body: Switches smoothly between Normal and Inline Confirmation */}
+                <AnimatePresence mode="wait" initial={false}>
+                  {!isConfirming ? (
+                    <motion.div
+                      key="normal"
+                      className="source-row-body"
+                      initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, x: -8 }}
+                      animate={
+                        isDeleting
+                          ? { opacity: 0, x: -14, transition: { duration: 0.35, ease: REVEAL_EASE } }
+                          : { opacity: 1, x: 0 }
+                      }
+                      exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -8 }}
+                      transition={{ duration: 0.28, ease: REVEAL_EASE }}
                     >
-                      {source.title}
-                    </motion.h2>
-                  </span>
+                      {/* Zone 2: Dominant Filename + Quiet File Metadata */}
+                      <div className="source-content-col">
+                        <span className="source-filename-clip">
+                          <motion.h2
+                            className="source-filename"
+                            title={source.title}
+                            initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: '105%' }}
+                            animate={{ opacity: 1, y: '0%' }}
+                            transition={{ duration: 0.60, delay: rowBaseDelay + 0.04, ease: REVEAL_EASE }}
+                          >
+                            {source.title}
+                          </motion.h2>
+                        </span>
 
-                  <motion.div
-                    className="source-meta-row"
-                    initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.45, delay: rowBaseDelay + 0.08, ease: REVEAL_EASE }}
-                  >
-                    {metaParts.map((item, mIdx) => (
-                      <React.Fragment key={mIdx}>
-                        {mIdx > 0 && <span className="source-meta-dot" aria-hidden="true">·</span>}
-                        <span>{item}</span>
-                      </React.Fragment>
-                    ))}
-                  </motion.div>
-                </div>
+                        <motion.div
+                          className="source-meta-row"
+                          initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ duration: 0.45, delay: rowBaseDelay + 0.08, ease: REVEAL_EASE }}
+                        >
+                          {metaParts.map((item, mIdx) => (
+                            <React.Fragment key={mIdx}>
+                              {mIdx > 0 && <span className="source-meta-dot" aria-hidden="true">·</span>}
+                              <span>{item}</span>
+                            </React.Fragment>
+                          ))}
+                        </motion.div>
+                      </div>
 
-                {/* Zone 3: Concept Count */}
-                <motion.div
-                  className="source-concepts-col"
-                  initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.45, delay: rowBaseDelay + 0.10, ease: REVEAL_EASE }}
-                >
-                  {source.conceptsExtracted !== undefined ? (
-                    <span>{source.conceptsExtracted} CONCEPTS</span>
+                      {/* Zone 3: Concept Count */}
+                      <motion.div
+                        className="source-concepts-col"
+                        initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.45, delay: rowBaseDelay + 0.10, ease: REVEAL_EASE }}
+                      >
+                        {source.conceptsExtracted !== undefined ? (
+                          <span>{source.conceptsExtracted} CONCEPTS</span>
+                        ) : (
+                          <span className="source-concepts-pending">—</span>
+                        )}
+                      </motion.div>
+
+                      {/* Zone 4: Source State (• INDEXED) */}
+                      <motion.div
+                        className="source-state-cell"
+                        initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.45, delay: rowBaseDelay + 0.12, ease: REVEAL_EASE }}
+                      >
+                        {renderState(source.status)}
+                      </motion.div>
+
+                      {/* Zone 5: Fixed Width Action Zone: REMOVE ↗ */}
+                      <motion.div
+                        className="source-action-zone"
+                        initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.45, delay: rowBaseDelay + 0.14, ease: REVEAL_EASE }}
+                      >
+                        {onRemoveSource && (
+                          <button
+                            type="button"
+                            className="source-remove-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStartRemove(source.id);
+                            }}
+                            aria-label={`Remove ${source.title}`}
+                          >
+                            REMOVE
+                          </button>
+                        )}
+
+                        <ArrowUpRight
+                          size={13}
+                          strokeWidth={1.8}
+                          className="source-link-arrow"
+                          aria-hidden="true"
+                        />
+                      </motion.div>
+                    </motion.div>
                   ) : (
-                    <span className="source-concepts-pending">—</span>
-                  )}
-                </motion.div>
-
-                {/* Zone 4: Source State (• INDEXED) */}
-                <motion.div
-                  className="source-state-cell"
-                  initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.45, delay: rowBaseDelay + 0.12, ease: REVEAL_EASE }}
-                >
-                  {renderState(source.status)}
-                </motion.div>
-
-                {/* Zone 5: Subtle Arrow (↗) and Discreet Delete on Hover */}
-                <motion.div
-                  className="source-action-col"
-                  initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.45, delay: rowBaseDelay + 0.14, ease: REVEAL_EASE }}
-                >
-                  <ArrowUpRight
-                    size={13}
-                    strokeWidth={1.8}
-                    className="source-link-arrow"
-                    aria-hidden="true"
-                  />
-
-                  {onRemoveSource && (
-                    <button
-                      type="button"
-                      className="source-delete-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onRemoveSource(source.id);
-                      }}
-                      aria-label={`Delete source ${source.title}`}
-                      title="Remove source"
+                    /* Inline Confirmation State: occupying the same row */
+                    <motion.div
+                      key="confirm"
+                      className="source-row-confirm-body"
+                      initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, x: 8 }}
+                      animate={
+                        isDeleting
+                          ? { opacity: 0, x: -14, transition: { duration: 0.35, ease: REVEAL_EASE } }
+                          : { opacity: 1, x: 0 }
+                      }
+                      exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: 8 }}
+                      transition={{ duration: 0.28, ease: REVEAL_EASE }}
                     >
-                      <Trash2 size={13} strokeWidth={1.6} />
-                    </button>
+                      <div className="source-confirm-content">
+                        <span className="source-confirm-title">Remove this source?</span>
+                        <span className="source-confirm-filename">{source.title}</span>
+                      </div>
+
+                      <div className="source-confirm-actions">
+                        <button
+                          type="button"
+                          className="source-confirm-btn cancel"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCancelRemove();
+                          }}
+                          aria-label={`Cancel removal of ${source.title}`}
+                        >
+                          CANCEL
+                        </button>
+                        <button
+                          type="button"
+                          className="source-confirm-btn remove"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleConfirmRemove(source.id);
+                          }}
+                          aria-label={`Confirm remove ${source.title}`}
+                          autoFocus
+                        >
+                          REMOVE
+                        </button>
+                      </div>
+                    </motion.div>
                   )}
-                </motion.div>
+                </AnimatePresence>
 
                 {/* Bottom Hairline Rule between rows */}
                 <motion.div
                   className="source-row-divider"
                   aria-hidden="true"
                   initial={shouldReduceMotion ? { opacity: 1, scaleX: 1 } : { opacity: 0, scaleX: 0 }}
-                  animate={{ opacity: 1, scaleX: 1 }}
+                  animate={
+                    isDeleting
+                      ? { scaleX: 0, opacity: 0, transition: { duration: 0.35, ease: REVEAL_EASE } }
+                      : { opacity: 1, scaleX: 1 }
+                  }
                   transition={{ duration: 0.65, delay: rowBaseDelay + 0.04, ease: REVEAL_EASE }}
                   style={{ transformOrigin: '0% 50%' }}
                 />
