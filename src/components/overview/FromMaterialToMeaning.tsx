@@ -168,6 +168,9 @@ export const EDITORIAL_STAGES = [
 // Refined easing curve: calm, editorial deceleration without overshoot or bounce
 const EDITORIAL_EASE = cubicBezier(0.25, 0.1, 0.25, 1);
 
+// Gold-standard fluid deceleration curve: crisp initial momentum, buttery dead-stop
+const REVEAL_EASE = [0.16, 1, 0.3, 1] as const;
+
 interface StageTransitionRange {
   enter: [number, number] | null;
   exit: [number, number] | null;
@@ -365,18 +368,18 @@ const ContextualStageCard: React.FC<ContextualStageCardProps> = ({
         <>
           <div className="transformation-context-clip">
             <motion.div
-              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
               animate={
                 hasEntered
                   ? { opacity: 1, y: 0 }
                   : shouldReduceMotion
                   ? { opacity: 1, y: 0 }
-                  : { opacity: 0, y: 12 }
+                  : { opacity: 0, y: 8 }
               }
               transition={{
-                duration: shouldReduceMotion ? 0.01 : 0.44,
-                delay: shouldReduceMotion ? 0 : 0.76,
-                ease: [0.22, 1, 0.36, 1]
+                duration: shouldReduceMotion ? 0.01 : 0.82,
+                delay: shouldReduceMotion ? 0 : 1.02,
+                ease: REVEAL_EASE
               }}
             >
               <motion.div
@@ -393,18 +396,18 @@ const ContextualStageCard: React.FC<ContextualStageCardProps> = ({
 
           <div className="transformation-context-clip">
             <motion.div
-              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
               animate={
                 hasEntered
                   ? { opacity: 1, y: 0 }
                   : shouldReduceMotion
                   ? { opacity: 1, y: 0 }
-                  : { opacity: 0, y: 16 }
+                  : { opacity: 0, y: 10 }
               }
               transition={{
-                duration: shouldReduceMotion ? 0.01 : 0.48,
-                delay: shouldReduceMotion ? 0 : 0.81,
-                ease: [0.22, 1, 0.36, 1]
+                duration: shouldReduceMotion ? 0.01 : 0.90,
+                delay: shouldReduceMotion ? 0 : 1.16,
+                ease: REVEAL_EASE
               }}
             >
               <motion.h3
@@ -418,18 +421,18 @@ const ContextualStageCard: React.FC<ContextualStageCardProps> = ({
 
           <div className="transformation-context-clip">
             <motion.div
-              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
+              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
               animate={
                 hasEntered
                   ? { opacity: 1, y: 0 }
                   : shouldReduceMotion
                   ? { opacity: 1, y: 0 }
-                  : { opacity: 0, y: 14 }
+                  : { opacity: 0, y: 8 }
               }
               transition={{
-                duration: shouldReduceMotion ? 0.01 : 0.50,
-                delay: shouldReduceMotion ? 0 : 0.87,
-                ease: [0.22, 1, 0.36, 1]
+                duration: shouldReduceMotion ? 0.01 : 0.95,
+                delay: shouldReduceMotion ? 0 : 1.30,
+                ease: REVEAL_EASE
               }}
             >
               <motion.p
@@ -524,14 +527,14 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
         const sEl = sectionRef.current;
         if (!sEl) return;
 
-        // Entrance trigger: Fires once when ~20-30% of the section becomes visible
+        // Entrance trigger: Fires once section is scrolled well into visible viewport (deliberate, later start)
         if (!hasTriggeredRef.current) {
           const sRect = sEl.getBoundingClientRect();
           const cHeight =
             scrollContainer instanceof Window
               ? window.innerHeight
               : scrollContainer.clientHeight;
-          if (sRect.top <= cHeight * 0.78 && sRect.bottom >= 0) {
+          if (sRect.top <= cHeight * 0.52 && sRect.bottom >= 0) {
             hasTriggeredRef.current = true;
             setHasEntered(true);
           }
@@ -578,7 +581,7 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
         },
         {
           root: scrollContainer instanceof HTMLElement ? scrollContainer : null,
-          threshold: [0.15, 0.25]
+          threshold: [0.30, 0.40]
         }
       );
       observer.observe(stickyEl);
@@ -674,73 +677,41 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
           aria-hidden="true"
           initial={{ opacity: 0 }}
           animate={hasEntered ? { opacity: 0.14 } : { opacity: 0 }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
+          transition={{ duration: 1.6, ease: 'easeOut' }}
         />
 
         {/* Underlying architectural calibration layout grid */}
         <div className="transformation-grid-scaffold" aria-hidden="true">
           <motion.div
             className="transformation-grid-line horizontal-header"
-            initial={shouldReduceMotion ? { opacity: 0.08, scaleX: 1 } : { opacity: 0, scaleX: 0 }}
+            initial={shouldReduceMotion ? { opacity: 0.07, scaleX: 1 } : { opacity: 0, scaleX: 0 }}
             animate={
               hasEntered
-                ? { opacity: 0.08, scaleX: 1 }
+                ? { opacity: 0.07, scaleX: 1 }
                 : shouldReduceMotion
-                ? { opacity: 0.08, scaleX: 1 }
+                ? { opacity: 0.07, scaleX: 1 }
                 : { opacity: 0, scaleX: 0 }
             }
             transition={{
-              duration: shouldReduceMotion ? 0.01 : 0.65,
-              delay: 0.0,
-              ease: [0.22, 1, 0.36, 1]
-            }}
-          />
-          <motion.div
-            className="transformation-grid-line vertical-left"
-            initial={shouldReduceMotion ? { opacity: 0.06, scaleY: 1 } : { opacity: 0, scaleY: 0 }}
-            animate={
-              hasEntered
-                ? { opacity: 0.06, scaleY: 1 }
-                : shouldReduceMotion
-                ? { opacity: 0.06, scaleY: 1 }
-                : { opacity: 0, scaleY: 0 }
-            }
-            transition={{
-              duration: shouldReduceMotion ? 0.01 : 0.65,
-              delay: 0.04,
-              ease: [0.22, 1, 0.36, 1]
-            }}
-          />
-          <motion.div
-            className="transformation-grid-line vertical-right"
-            initial={shouldReduceMotion ? { opacity: 0.06, scaleY: 1 } : { opacity: 0, scaleY: 0 }}
-            animate={
-              hasEntered
-                ? { opacity: 0.06, scaleY: 1 }
-                : shouldReduceMotion
-                ? { opacity: 0.06, scaleY: 1 }
-                : { opacity: 0, scaleY: 0 }
-            }
-            transition={{
-              duration: shouldReduceMotion ? 0.01 : 0.65,
-              delay: 0.06,
-              ease: [0.22, 1, 0.36, 1]
+              duration: shouldReduceMotion ? 0.01 : 1.35,
+              delay: 0.16,
+              ease: REVEAL_EASE
             }}
           />
           <motion.div
             className="transformation-grid-line horizontal-bottom"
-            initial={shouldReduceMotion ? { opacity: 0.08, scaleX: 1 } : { opacity: 0, scaleX: 0 }}
+            initial={shouldReduceMotion ? { opacity: 0.06, scaleX: 1 } : { opacity: 0, scaleX: 0 }}
             animate={
               hasEntered
-                ? { opacity: 0.08, scaleX: 1 }
+                ? { opacity: 0.06, scaleX: 1 }
                 : shouldReduceMotion
-                ? { opacity: 0.08, scaleX: 1 }
+                ? { opacity: 0.06, scaleX: 1 }
                 : { opacity: 0, scaleX: 0 }
             }
             transition={{
-              duration: shouldReduceMotion ? 0.01 : 0.60,
-              delay: 0.08,
-              ease: [0.22, 1, 0.36, 1]
+              duration: shouldReduceMotion ? 0.01 : 1.35,
+              delay: 0.28,
+              ease: REVEAL_EASE
             }}
           />
         </div>
@@ -760,9 +731,9 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
                   : { opacity: 0, scale: 0 }
               }
               transition={{
-                duration: shouldReduceMotion ? 0.01 : 0.28,
-                delay: shouldReduceMotion ? 0 : 0.08,
-                ease: [0.22, 1, 0.36, 1]
+                duration: shouldReduceMotion ? 0.01 : 0.65,
+                delay: shouldReduceMotion ? 0 : 0.28,
+                ease: REVEAL_EASE
               }}
             />
             <motion.span
@@ -770,19 +741,19 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
               initial={
                 shouldReduceMotion
                   ? { opacity: 1, y: 0, letterSpacing: '0.22em' }
-                  : { opacity: 0.15, y: -8, letterSpacing: '0.36em' }
+                  : { opacity: 0, y: -6, letterSpacing: '0.28em' }
               }
               animate={
                 hasEntered
                   ? { opacity: 1, y: 0, letterSpacing: '0.22em' }
                   : shouldReduceMotion
                   ? { opacity: 1, y: 0, letterSpacing: '0.22em' }
-                  : { opacity: 0.15, y: -8, letterSpacing: '0.36em' }
+                  : { opacity: 0, y: -6, letterSpacing: '0.28em' }
               }
               transition={{
-                duration: shouldReduceMotion ? 0.01 : 0.48,
-                delay: shouldReduceMotion ? 0 : 0.14,
-                ease: [0.22, 1, 0.36, 1]
+                duration: shouldReduceMotion ? 0.01 : 0.90,
+                delay: shouldReduceMotion ? 0 : 0.36,
+                ease: REVEAL_EASE
               }}
             >
               From Material to Meaning
@@ -795,10 +766,10 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
             {/* Desktop & Tablet: Deliberate 3-line composition */}
             <span className="transformation-title-desktop" aria-hidden="true">
               {DESKTOP_TITLE_LINES.map((line, idx) => {
-                const horizontalOffsets = [-18, 10, -8];
+                const horizontalOffsets = [-8, 6, -4];
                 const xOffset = horizontalOffsets[idx] ?? 0;
-                const delays = [0.20, 0.29, 0.38];
-                const delay = delays[idx] ?? 0.20;
+                const delays = [0.48, 0.70, 0.92];
+                const delay = delays[idx] ?? 0.48;
 
                 return (
                   <span
@@ -812,26 +783,19 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
                       initial={
                         shouldReduceMotion
                           ? { opacity: 1, y: 0, x: 0 }
-                          : { opacity: 0, y: '110%', x: xOffset }
+                          : { opacity: 0, y: 36, x: xOffset }
                       }
                       animate={
                         hasEntered
-                          ? idx === 2
-                            ? {
-                                opacity: 1,
-                                y: [40, -1.5, 0],
-                                x: [xOffset, 0, 0]
-                              }
-                            : { opacity: 1, y: 0, x: 0 }
+                          ? { opacity: 1, y: 0, x: 0 }
                           : shouldReduceMotion
                           ? { opacity: 1, y: 0, x: 0 }
-                          : { opacity: 0, y: '110%', x: xOffset }
+                          : { opacity: 0, y: 36, x: xOffset }
                       }
                       transition={{
-                        duration: shouldReduceMotion ? 0.01 : idx === 2 ? 0.78 : 0.72,
+                        duration: shouldReduceMotion ? 0.01 : idx === 2 ? 1.35 : 1.20,
                         delay: shouldReduceMotion ? 0 : delay,
-                        times: idx === 2 ? [0, 0.82, 1] : undefined,
-                        ease: [0.22, 1, 0.36, 1]
+                        ease: REVEAL_EASE
                       }}
                     >
                       {line}
@@ -844,10 +808,10 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
             {/* Mobile: Intentional 3-line composition */}
             <span className="transformation-title-mobile" aria-hidden="true">
               {MOBILE_TITLE_LINES.map((line, idx) => {
-                const horizontalOffsets = [-14, 8, -6];
+                const horizontalOffsets = [-6, 5, -3];
                 const xOffset = horizontalOffsets[idx] ?? 0;
-                const delays = [0.20, 0.29, 0.38];
-                const delay = delays[idx] ?? 0.20;
+                const delays = [0.48, 0.70, 0.92];
+                const delay = delays[idx] ?? 0.48;
 
                 return (
                   <span
@@ -861,26 +825,19 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
                       initial={
                         shouldReduceMotion
                           ? { opacity: 1, y: 0, x: 0 }
-                          : { opacity: 0, y: '110%', x: xOffset }
+                          : { opacity: 0, y: 30, x: xOffset }
                       }
                       animate={
                         hasEntered
-                          ? idx === 2
-                            ? {
-                                opacity: 1,
-                                y: [34, -1.5, 0],
-                                x: [xOffset, 0, 0]
-                              }
-                            : { opacity: 1, y: 0, x: 0 }
+                          ? { opacity: 1, y: 0, x: 0 }
                           : shouldReduceMotion
                           ? { opacity: 1, y: 0, x: 0 }
-                          : { opacity: 0, y: '110%', x: xOffset }
+                          : { opacity: 0, y: 30, x: xOffset }
                       }
                       transition={{
-                        duration: shouldReduceMotion ? 0.01 : idx === 2 ? 0.76 : 0.70,
+                        duration: shouldReduceMotion ? 0.01 : 1.20,
                         delay: shouldReduceMotion ? 0 : delay,
-                        times: idx === 2 ? [0, 0.82, 1] : undefined,
-                        ease: [0.22, 1, 0.36, 1]
+                        ease: REVEAL_EASE
                       }}
                     >
                       {line}
@@ -905,18 +862,18 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
                     activeStageIndex === i ? 'active' : '',
                     activeStageIndex > i ? 'passed' : ''
                   ].join(' ')}
-                  initial={shouldReduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -10 }}
+                  initial={shouldReduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -12 }}
                   animate={
                     hasEntered
                       ? { opacity: 1, x: 0 }
                       : shouldReduceMotion
                       ? { opacity: 1, x: 0 }
-                      : { opacity: 0, x: -10 }
+                      : { opacity: 0, x: -12 }
                   }
                   transition={{
-                    duration: shouldReduceMotion ? 0.01 : 0.46,
-                    delay: shouldReduceMotion ? 0 : 0.45 + i * 0.06,
-                    ease: [0.22, 1, 0.36, 1]
+                    duration: shouldReduceMotion ? 0.01 : 0.88,
+                    delay: shouldReduceMotion ? 0 : 0.88 + i * 0.12,
+                    ease: REVEAL_EASE
                   }}
                   onClick={() => scrollToStage(i)}
                   role="button"
@@ -936,19 +893,19 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
                         initial={
                           shouldReduceMotion
                             ? { opacity: 1, scaleY: 1 }
-                            : { opacity: 0, scaleY: 0.2, scaleX: 0.6 }
+                            : { opacity: 0, scaleY: 0.25, scaleX: 0.6 }
                         }
                         animate={
                           hasEntered
                             ? { opacity: 1, scaleY: 1, scaleX: 1 }
                             : shouldReduceMotion
                             ? { opacity: 1, scaleY: 1 }
-                            : { opacity: 0, scaleY: 0.2, scaleX: 0.6 }
+                            : { opacity: 0, scaleY: 0.25, scaleX: 0.6 }
                         }
                         transition={{
-                          duration: shouldReduceMotion ? 0.01 : 0.35,
-                          delay: shouldReduceMotion ? 0 : 0.42,
-                          ease: [0.22, 1, 0.36, 1]
+                          duration: shouldReduceMotion ? 0.01 : 0.70,
+                          delay: shouldReduceMotion ? 0 : 0.88,
+                          ease: REVEAL_EASE
                         }}
                       />
                     ) : (
@@ -963,8 +920,8 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
                             : { opacity: 0, scale: 0.4 }
                         }
                         transition={{
-                          duration: shouldReduceMotion ? 0.01 : 0.30,
-                          delay: shouldReduceMotion ? 0 : 0.44 + i * 0.06,
+                          duration: shouldReduceMotion ? 0.01 : 0.55,
+                          delay: shouldReduceMotion ? 0 : 0.88 + i * 0.12,
                           ease: 'easeOut'
                         }}
                       />
@@ -982,38 +939,20 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
             className="transformation-center-stage"
             initial={
               shouldReduceMotion
-                ? { opacity: 1 }
-                : {
-                    opacity: 0.15,
-                    scaleY: 0.94,
-                    scaleX: 0.985,
-                    y: 24,
-                    clipPath: 'inset(0% 0% 100% 0%)'
-                  }
+                ? { opacity: 1, y: 0, scale: 1 }
+                : { opacity: 0, y: 28, scale: 0.98 }
             }
             animate={
               hasEntered
-                ? {
-                    opacity: 1,
-                    scaleY: 1,
-                    scaleX: 1,
-                    y: 0,
-                    clipPath: 'inset(0% 0% 0% 0%)'
-                  }
+                ? { opacity: 1, y: 0, scale: 1 }
                 : shouldReduceMotion
-                ? { opacity: 1 }
-                : {
-                    opacity: 0.15,
-                    scaleY: 0.94,
-                    scaleX: 0.985,
-                    y: 24,
-                    clipPath: 'inset(0% 0% 100% 0%)'
-                  }
+                ? { opacity: 1, y: 0, scale: 1 }
+                : { opacity: 0, y: 28, scale: 0.98 }
             }
             transition={{
-              duration: shouldReduceMotion ? 0.01 : 0.72,
-              delay: shouldReduceMotion ? 0 : 0.55,
-              ease: [0.22, 1, 0.36, 1]
+              duration: shouldReduceMotion ? 0.01 : 1.40,
+              delay: shouldReduceMotion ? 0 : 0.82,
+              ease: REVEAL_EASE
             }}
             style={{ transformStyle: 'preserve-3d' }}
           >
@@ -1035,20 +974,20 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
             aria-live="polite"
             initial={
               shouldReduceMotion
-                ? { opacity: 1, x: 0, scaleY: 1 }
-                : { opacity: 0, x: 24, scaleY: 0.98 }
+                ? { opacity: 1, x: 0 }
+                : { opacity: 0, x: 16 }
             }
             animate={
               hasEntered
-                ? { opacity: 1, x: 0, scaleY: 1 }
+                ? { opacity: 1, x: 0 }
                 : shouldReduceMotion
-                ? { opacity: 1, x: 0, scaleY: 1 }
-                : { opacity: 0, x: 24, scaleY: 0.98 }
+                ? { opacity: 1, x: 0 }
+                : { opacity: 0, x: 16 }
             }
             transition={{
-              duration: shouldReduceMotion ? 0.01 : 0.58,
-              delay: shouldReduceMotion ? 0 : 0.75,
-              ease: [0.22, 1, 0.36, 1]
+              duration: shouldReduceMotion ? 0.01 : 1.00,
+              delay: shouldReduceMotion ? 0 : 0.98,
+              ease: REVEAL_EASE
             }}
           >
             <div className="transformation-context-stack">
@@ -1085,25 +1024,25 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
               : { opacity: 0, scaleX: 0, transformOrigin: '0% 50%' }
           }
           transition={{
-            duration: shouldReduceMotion ? 0.01 : 0.62,
-            delay: shouldReduceMotion ? 0 : 0.90,
-            ease: [0.22, 1, 0.36, 1]
+            duration: shouldReduceMotion ? 0.01 : 1.15,
+            delay: shouldReduceMotion ? 0 : 1.12,
+            ease: REVEAL_EASE
           }}
         >
           <motion.span
             className="transformation-pipeline-tag"
-            initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, x: -8 }}
+            initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, x: -6 }}
             animate={
               hasEntered
                 ? { opacity: 1, x: 0 }
                 : shouldReduceMotion
                 ? { opacity: 1 }
-                : { opacity: 0, x: -8 }
+                : { opacity: 0, x: -6 }
             }
             transition={{
-              duration: shouldReduceMotion ? 0.01 : 0.40,
-              delay: shouldReduceMotion ? 0 : 0.94,
-              ease: [0.22, 1, 0.36, 1]
+              duration: shouldReduceMotion ? 0.01 : 0.75,
+              delay: shouldReduceMotion ? 0 : 1.24,
+              ease: REVEAL_EASE
             }}
           >
             GraphMind Pipeline
@@ -1116,9 +1055,9 @@ export const FromMaterialToMeaning: React.FC<FromMaterialToMeaningProps> = ({
               hasEntered ? { opacity: 1 } : shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }
             }
             transition={{
-              duration: shouldReduceMotion ? 0.01 : 0.35,
-              delay: shouldReduceMotion ? 0 : 1.10,
-              ease: 'easeOut'
+              duration: shouldReduceMotion ? 0.01 : 0.70,
+              delay: shouldReduceMotion ? 0 : 1.36,
+              ease: REVEAL_EASE
             }}
           >
             {currentStage.step}
@@ -1300,13 +1239,13 @@ const KnowledgeTransformationVisual: React.FC<KnowledgeTransformationVisualProps
             initial={{ top: '0%', opacity: 0 }}
             animate={
               hasEntered && !shouldReduceMotion
-                ? { top: ['0%', '100%'], opacity: [0, 0.22, 0.16, 0] }
+                ? { top: ['0%', '100%'], opacity: [0, 0.24, 0.16, 0] }
                 : { top: '0%', opacity: 0 }
             }
             transition={{
-              duration: 0.65,
-              delay: 0.72,
-              ease: [0.25, 0.1, 0.25, 1]
+              duration: 1.35,
+              delay: 1.35,
+              ease: REVEAL_EASE
             }}
             aria-hidden="true"
           />
