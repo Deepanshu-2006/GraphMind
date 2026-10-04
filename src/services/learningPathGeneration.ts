@@ -344,25 +344,28 @@ export function generateLearningPaths(
     return a.name.localeCompare(b.name);
   });
 
-  // 5. Depth-First Search for coherent concept sequences
+  // 5. Depth-First Search for coherent concept sequences with balanced start allocation
   const rawPaths: { nodes: KnowledgeNode[]; edgeWeights: number[] }[] = [];
   const MAX_PATH_LENGTH = 6;
   const MIN_PATH_LENGTH = 2;
-  const MAX_CANDIDATE_PATHS = 120;
+  const MAX_PATHS_PER_START = 8;
+  const MAX_TOTAL_CANDIDATES = 120;
 
   function dfs(
     currentId: string,
     currentPath: KnowledgeNode[],
     currentWeights: number[],
-    visited: Set<string>
+    visited: Set<string>,
+    startPathCount: { count: number }
   ) {
-    if (rawPaths.length >= MAX_CANDIDATE_PATHS) return;
+    if (rawPaths.length >= MAX_TOTAL_CANDIDATES || startPathCount.count >= MAX_PATHS_PER_START) return;
 
     if (currentPath.length >= MIN_PATH_LENGTH) {
       rawPaths.push({
         nodes: [...currentPath],
         edgeWeights: [...currentWeights]
       });
+      startPathCount.count++;
     }
 
     if (currentPath.length >= MAX_PATH_LENGTH) return;
@@ -377,7 +380,7 @@ export function generateLearningPaths(
         currentPath.push(nextNode);
         currentWeights.push(edge.weight);
 
-        dfs(edge.toId, currentPath, currentWeights, visited);
+        dfs(edge.toId, currentPath, currentWeights, visited, startPathCount);
 
         currentPath.pop();
         currentWeights.pop();
@@ -389,7 +392,8 @@ export function generateLearningPaths(
   for (const startNode of candidateStarts) {
     if ((outDegree.get(startNode.id) || 0) > 0) {
       const visited = new Set<string>([startNode.id]);
-      dfs(startNode.id, [startNode], [], visited);
+      const startPathCount = { count: 0 };
+      dfs(startNode.id, [startNode], [], visited, startPathCount);
     }
   }
 
@@ -408,6 +412,8 @@ export function generateLearningPaths(
     score: number;
     title: string;
     key: string;
+    originId: string;
+    destId: string;
   }
 
   const scoredPaths: ScoredPath[] = rawPaths.map(candidate => {
@@ -459,7 +465,9 @@ export function generateLearningPaths(
       nodes: cNodes,
       score: totalScore,
       title,
-      key
+      key,
+      originId: cNodes[0].id,
+      destId: cNodes[cNodes.length - 1].id
     };
   });
 
@@ -470,47 +478,90 @@ export function generateLearningPaths(
     return a.title.localeCompare(b.title);
   });
 
-  // 7. Deduplication & Curation (Requirements 14 & 16)
+  // 7. Deduplication & Curriculum Topic Diversity (Requirements 14, 15, 16)
   const selectedPaths: ScoredPath[] = [];
   const seenSequences = new Set<string>();
   const seenTerminalPairs = new Set<string>();
+  const seenTitles = new Set<string>();
+  const originCounts = new Map<string, number>();
 
-  for (const candidate of scoredPaths) {
-    if (seenSequences.has(candidate.key)) continue;
+  const targetMaxPaths = Math.min(8, Math.max(3, Math.ceil(totalConcepts / 2.5)));
 
-    // Check if strict subpath of an already selected path with same endpoints
-    const origin = candidate.nodes[0].id;
-    const dest = candidate.nodes[candidate.nodes.length - 1].id;
-    const terminalKey = `${origin}->${dest}`;
+  // Helper: check concept overlap percentage with already selected paths
+  const calculateMaxOverlap = (nodes: KnowledgeNode[], existingPaths: ScoredPath[]): number => {
+    if (existingPaths.length === 0) return 0;
+    const nodeIds = new Set(nodes.map(n => n.id));
+    let maxOverlapRatio = 0;
 
-    const isSubsumed = selectedPaths.some(existing => {
-      const existingKey = existing.key;
-      return existingKey.includes(candidate.key) && existingKey !== candidate.key;
-    });
-
-    if (isSubsumed && seenTerminalPairs.has(terminalKey)) {
-      continue;
+    for (const ep of existingPaths) {
+      let sharedCount = 0;
+      for (const n of ep.nodes) {
+        if (nodeIds.has(n.id)) sharedCount++;
+      }
+      const ratio = sharedCount / Math.min(nodes.length, ep.nodes.length);
+      if (ratio > maxOverlapRatio) maxOverlapRatio = ratio;
     }
+    return maxOverlapRatio;
+  };
+
+  // PASS 1: Select diverse paths with unique endpoints, diverse origins, and low overlap (< 50%)
+  for (const candidate of scoredPaths) {
+    if (selectedPaths.length >= targetMaxPaths) break;
+
+    const terminalKey = `${candidate.originId}->${candidate.destId}`;
+    if (seenSequences.has(candidate.key)) continue;
+    if (seenTerminalPairs.has(terminalKey)) continue; // Never duplicate origin -> destination pair!
+    if ((originCounts.get(candidate.originId) || 0) >= 1) continue; // Max 1 path per origin concept in Pass 1
+
+    // Check overlap with already selected paths
+    if (calculateMaxOverlap(candidate.nodes, selectedPaths) > 0.50) continue;
 
     selectedPaths.push(candidate);
     seenSequences.add(candidate.key);
     seenTerminalPairs.add(terminalKey);
+    seenTitles.add(candidate.title);
+    originCounts.set(candidate.originId, (originCounts.get(candidate.originId) || 0) + 1);
+  }
 
-    // Limit to curated target of 3-8 paths depending on graph size (Requirement 16)
-    const targetMaxPaths = Math.min(8, Math.max(3, Math.ceil(totalConcepts / 2.5)));
-    if (selectedPaths.length >= targetMaxPaths) {
-      break;
+  // PASS 2: If we have room, relax origin limit to 2 per origin, but still enforce unique terminal pairs & < 65% overlap
+  if (selectedPaths.length < targetMaxPaths) {
+    for (const candidate of scoredPaths) {
+      if (selectedPaths.length >= targetMaxPaths) break;
+
+      const terminalKey = `${candidate.originId}->${candidate.destId}`;
+      if (seenSequences.has(candidate.key)) continue;
+      if (seenTerminalPairs.has(terminalKey)) continue; // Still enforce unique endpoints!
+      if ((originCounts.get(candidate.originId) || 0) >= 2) continue;
+
+      if (calculateMaxOverlap(candidate.nodes, selectedPaths) > 0.65) continue;
+
+      selectedPaths.push(candidate);
+      seenSequences.add(candidate.key);
+      seenTerminalPairs.add(terminalKey);
+      seenTitles.add(candidate.title);
+      originCounts.set(candidate.originId, (originCounts.get(candidate.originId) || 0) + 1);
     }
   }
 
-  // If fewer than 3 paths but valid candidate paths exist, backfill remaining non-duplicate paths
+  // PASS 3: Fallback for small or tightly coupled graphs to reach at least 3 paths if candidates exist
   if (selectedPaths.length < 3) {
     for (const candidate of scoredPaths) {
-      if (!seenSequences.has(candidate.key)) {
-        selectedPaths.push(candidate);
-        seenSequences.add(candidate.key);
-        if (selectedPaths.length >= 3) break;
+      if (seenSequences.has(candidate.key)) continue;
+
+      // Disambiguate title if endpoint pair already exists
+      let finalTitle = candidate.title;
+      if (seenTitles.has(finalTitle) && candidate.nodes.length > 2) {
+        const midConcept = candidate.nodes[Math.floor(candidate.nodes.length / 2)].name;
+        finalTitle = `${candidate.nodes[0].name} → ${midConcept} → ${candidate.nodes[candidate.nodes.length - 1].name}`;
       }
+
+      selectedPaths.push({
+        ...candidate,
+        title: finalTitle
+      });
+      seenSequences.add(candidate.key);
+      seenTitles.add(finalTitle);
+      if (selectedPaths.length >= 3) break;
     }
   }
 
