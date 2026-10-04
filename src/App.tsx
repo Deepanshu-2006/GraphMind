@@ -9,6 +9,7 @@ import { DeleteGraphModal } from './components/modals/DeleteGraphModal';
 import { CommandPalette } from './components/modals/CommandPalette';
 import { SourcesView } from './components/sources/SourcesView';
 import { LearningPathsView } from './components/paths/LearningPathsView';
+import { SettingsView } from './components/settings/SettingsView';
 import { normalizeCategory, demoKnowledgeGraph } from './data/graphData';
 import type { KnowledgeSource, KnowledgeGraph } from './types/knowledgeGraph';
 import { sourceToRecentMaterial } from './services/sourceIngestion';
@@ -471,78 +472,7 @@ export function AppContent() {
 
         {/* Settings View (Accessible via ⌘,) */}
         {currentSection === 'settings' && (
-          <div className="page-container">
-            <header className="page-header">
-              <div className="page-header-left">
-                <span className="page-kicker">Preferences</span>
-                <h1 className="page-title">Settings</h1>
-                <p className="page-subtitle">
-                  Knowledge graph preferences and workspace management.
-                </p>
-              </div>
-            </header>
-
-            <div style={{ display: 'flex', flexDirection: 'column', marginTop: '16px' }}>
-              <div style={{ padding: '20px 0', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: '14.5px', fontWeight: 500, color: 'var(--text-primary)' }}>Concept extraction sensitivity</div>
-                  <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>Threshold for connecting concepts</div>
-                </div>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-secondary)' }}>0.85</span>
-              </div>
-
-              <div style={{ padding: '20px 0', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: '14.5px', fontWeight: 500, color: 'var(--text-primary)' }}>Default graph layout</div>
-                  <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>Hierarchical layout for structured understanding</div>
-                </div>
-                <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>Hierarchical</span>
-              </div>
-
-              <div style={{ padding: '20px 0', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: '14.5px', fontWeight: 500, color: 'var(--text-primary)' }}>Keyboard shortcuts</div>
-                  <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>Global hotkeys for navigation</div>
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <kbd style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-primary)', background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)', padding: '2px 6px', borderRadius: '4px' }}>⌘K Search</kbd>
-                  <kbd style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-primary)', background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)', padding: '2px 6px', borderRadius: '4px' }}>⌘, Settings</kbd>
-                </div>
-              </div>
-
-              {/* Graph Management Section (Requirement 17) */}
-              {activeGraphMeta && (
-                <div style={{ padding: '20px 0', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ fontSize: '14.5px', fontWeight: 500, color: 'var(--text-primary)' }}>
-                      Manage graph: {activeGraphMeta.name}
-                    </div>
-                    <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
-                      Permanently remove this graph and all of its associated sources and progress.
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setDeleteModalOpen(true)}
-                    style={{
-                      background: 'rgba(239, 68, 68, 0.10)',
-                      border: '1px solid rgba(239, 68, 68, 0.28)',
-                      color: '#f87171',
-                      padding: '6px 12px',
-                      fontSize: '12.5px',
-                      borderRadius: '5px',
-                      cursor: 'pointer',
-                      fontWeight: 500,
-                      transition: 'background-color 140ms ease'
-                    }}
-                    id="btn-settings-delete-graph"
-                  >
-                    Delete graph…
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+          <SettingsView onOpenDeleteModal={() => setDeleteModalOpen(true)} />
         )}
       </AppShell>
 

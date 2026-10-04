@@ -240,6 +240,39 @@ export function createGraph(name: string, description?: string): KnowledgeGraphM
 }
 
 /**
+ * Rename an existing knowledge graph
+ */
+export function renameGraph(graphId: string, newName: string): KnowledgeGraphMeta | null {
+  const trimmed = (newName || '').trim();
+  if (!trimmed) {
+    throw new Error('Graph name cannot be empty.');
+  }
+  if (trimmed.length > 100) {
+    throw new Error('Graph name must be 100 characters or less.');
+  }
+
+  const currentGraphs = loadGraphs();
+  let updatedMeta: KnowledgeGraphMeta | null = null;
+  const nextGraphs = currentGraphs.map(g => {
+    if (g.id === graphId) {
+      updatedMeta = { ...g, name: trimmed, updatedAt: new Date().toISOString() };
+      return updatedMeta;
+    }
+    return g;
+  });
+
+  if (updatedMeta) {
+    saveGraphs(nextGraphs);
+    const existingData = loadGraphData(graphId);
+    if (existingData) {
+      saveGraphData(graphId, { ...existingData, name: trimmed });
+    }
+  }
+
+  return updatedMeta;
+}
+
+/**
  * Delete a knowledge graph and all of its associated sources, concepts, relationships, and progress.
  * Does not affect other graphs.
  */

@@ -1,0 +1,338 @@
+/* ==========================================================================
+   GraphMind Settings View — Editorial & Swiss Minimal
+   ========================================================================== */
+
+.settings-container {
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 40px 32px 80px 32px;
+}
+
+.settings-header {
+  margin-bottom: 36px;
+}
+
+.settings-kicker {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted, #858585);
+  margin-bottom: 8px;
+}
+
+.settings-title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--text-primary, #F5F5F5);
+  letter-spacing: -0.018em;
+  line-height: 1.25;
+  margin: 0 0 8px 0;
+}
+
+.settings-subtitle {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--text-secondary, #A1A1A1);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Section divider */
+.settings-section {
+  border-top: 1px solid var(--border-default, #242424);
+  padding: 28px 0;
+}
+
+.settings-section-kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted, #858585);
+  margin-bottom: 20px;
+}
+
+.settings-section-kicker.danger {
+  color: #858585;
+}
+
+/* Individual setting row */
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 0;
+  gap: 24px;
+}
+
+.settings-row:first-of-type {
+  padding-top: 0;
+}
+
+.settings-row:last-of-type {
+  padding-bottom: 0;
+}
+
+.settings-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.settings-row-title {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary, #F5F5F5);
+  line-height: 1.35;
+}
+
+.settings-row-desc {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  color: var(--text-muted, #858585);
+  line-height: 1.45;
+}
+
+/* Option cycle trigger with subtle arrow */
+.settings-value-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-primary, #F5F5F5);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: var(--radius-btn, 6px);
+  cursor: pointer;
+  transition: all 150ms ease;
+  user-select: none;
+}
+
+.settings-value-trigger:hover {
+  background: var(--bg-surface-elevated, #141414);
+  border-color: var(--border-default, #242424);
+}
+
+.settings-value-trigger .trigger-arrow {
+  color: var(--text-muted, #858585);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  transition: transform 150ms ease, color 150ms ease;
+}
+
+.settings-value-trigger:hover .trigger-arrow {
+  transform: translateX(3px);
+  color: var(--text-primary, #F5F5F5);
+}
+
+.settings-value-trigger:focus-visible {
+  outline: 2px solid var(--accent, #A3FF12);
+  outline-offset: 2px;
+}
+
+/* Keyboard Shortcuts layout */
+.settings-shortcuts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 140px;
+}
+
+.settings-shortcut-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.settings-shortcut-label {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-secondary, #A1A1A1);
+}
+
+.settings-shortcut-keys {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.settings-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-primary, #F5F5F5);
+  background: var(--bg-surface-elevated, #141414);
+  border: 1px solid var(--border-default, #242424);
+  border-radius: 4px;
+  padding: 2px 7px;
+  min-width: 22px;
+  line-height: 1.5;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* Current Graph Block */
+.settings-graph-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.settings-graph-name {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #F5F5F5);
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.settings-graph-date {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  color: var(--text-muted, #858585);
+}
+
+.settings-rename-btn {
+  background: transparent;
+  border: 1px solid var(--border-default, #242424);
+  color: var(--text-secondary, #A1A1A1);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: var(--radius-btn, 6px);
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.settings-rename-btn:hover {
+  color: var(--text-primary, #F5F5F5);
+  border-color: var(--text-muted, #858585);
+  background: var(--bg-surface-hover, #1A1A1A);
+}
+
+.settings-rename-btn:focus-visible {
+  outline: 2px solid var(--accent, #A3FF12);
+  outline-offset: 2px;
+}
+
+/* Rename Inline Form */
+.settings-rename-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.settings-rename-input {
+  background: var(--bg-surface-elevated, #141414);
+  border: 1px solid var(--border-default, #242424);
+  border-radius: var(--radius-input, 6px);
+  color: var(--text-primary, #F5F5F5);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  padding: 6px 10px;
+  outline: none;
+  transition: border-color 140ms ease;
+}
+
+.settings-rename-input:focus {
+  border-color: var(--accent, #A3FF12);
+}
+
+.settings-rename-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-btn-save {
+  background: var(--text-primary, #F5F5F5);
+  color: #0A0A0A;
+  border: none;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-btn, 6px);
+  cursor: pointer;
+  transition: opacity 140ms ease;
+}
+
+.settings-btn-save:hover {
+  opacity: 0.9;
+}
+
+.settings-btn-cancel {
+  background: transparent;
+  color: var(--text-muted, #858585);
+  border: 1px solid var(--border-default, #242424);
+  font-family: var(--font-body);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius-btn, 6px);
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.settings-btn-cancel:hover {
+  color: var(--text-primary, #F5F5F5);
+  background: var(--bg-surface-elevated, #141414);
+}
+
+/* Danger Zone */
+.settings-danger-btn {
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: var(--radius-btn, 6px);
+  cursor: pointer;
+  transition: all 150ms ease;
+  white-space: nowrap;
+}
+
+.settings-danger-btn:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.6);
+  color: #f87171;
+}
+
+.settings-danger-btn:focus-visible {
+  outline: 2px solid #ef4444;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .settings-container {
+    padding: 24px 20px 60px 20px;
+  }
+  .settings-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .settings-graph-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .settings-shortcuts-list {
+    width: 100%;
+  }
+}

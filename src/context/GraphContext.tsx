@@ -11,6 +11,7 @@ import {
   loadUserSources,
   saveUserSources,
   loadCompletedConceptIds,
+  renameGraph as renameGraphStorage,
   toggleCompletedConceptId as toggleCompletedConceptIdStorage
 } from '../services/storage';
 
@@ -22,6 +23,7 @@ export interface GraphContextValue {
   activeSources: KnowledgeSource[];
   activeCompletedConceptIds: string[];
   createGraph: (name: string, description?: string) => KnowledgeGraphMeta;
+  renameGraph: (graphId: string, newName: string) => KnowledgeGraphMeta | null;
   switchGraph: (graphId: string) => void;
   deleteGraph: (graphId: string) => void;
   updateActiveGraph: (graph: KnowledgeGraph | null) => void;
@@ -96,6 +98,17 @@ export const GraphProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return newMeta;
   }, []);
 
+  const renameGraph = useCallback((graphId: string, newName: string) => {
+    const updated = renameGraphStorage(graphId, newName);
+    if (updated) {
+      setGraphs(prev => prev.map(g => g.id === graphId ? updated! : g));
+      if (graphId === activeGraphId) {
+        setActiveGraph(prev => prev ? { ...prev, name: updated!.name } : null);
+      }
+    }
+    return updated;
+  }, [activeGraphId]);
+
   const deleteGraph = useCallback((graphId: string) => {
     const { remainingGraphs, nextActiveId } = deleteGraphStorage(graphId);
     setGraphs(remainingGraphs);
@@ -153,6 +166,7 @@ export const GraphProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     activeSources,
     activeCompletedConceptIds,
     createGraph,
+    renameGraph,
     switchGraph,
     deleteGraph,
     updateActiveGraph,
@@ -167,6 +181,7 @@ export const GraphProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     activeSources,
     activeCompletedConceptIds,
     createGraph,
+    renameGraph,
     switchGraph,
     deleteGraph,
     updateActiveGraph,
