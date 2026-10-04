@@ -4,31 +4,21 @@ import { OverviewView } from './components/overview/OverviewView';
 import { KnowledgeGraphWorkspace } from './components/graph/KnowledgeGraphWorkspace';
 import type { WorkspaceMode } from './components/graph/KnowledgeGraphWorkspace';
 import { CreateGraphModal } from './components/modals/CreateGraphModal';
+import { NewGraphModal } from './components/modals/NewGraphModal';
+import { DeleteGraphModal } from './components/modals/DeleteGraphModal';
 import { CommandPalette } from './components/modals/CommandPalette';
 import { SourcesView } from './components/sources/SourcesView';
 import { LearningPathsView } from './components/paths/LearningPathsView';
-import { 
-  mockProjectWorkspace 
-} from './data/mockData';
-import { demoKnowledgeGraph, normalizeCategory } from './data/graphData';
+import { normalizeCategory, demoKnowledgeGraph } from './data/graphData';
 import type { KnowledgeSource, KnowledgeGraph } from './types/knowledgeGraph';
 import { sourceToRecentMaterial } from './services/sourceIngestion';
 import { pipelineOrchestrator, type PipelineStage, type PipelineProgressEvent } from './services/pipelineOrchestrator';
-import { 
-  loadUserSources, 
-  saveUserSources, 
-  loadUserGraph, 
-  saveUserGraph, 
-  loadGraphSourceType, 
-  saveGraphSourceType,
-  loadCompletedConceptIds,
-  saveCompletedConceptIds,
-  toggleCompletedConceptId
-} from './services/storage';
+import { DEFAULT_MIGRATION_GRAPH_ID } from './services/storage';
 import { generateLearningPaths } from './services/learningPathGeneration';
-import type { NavSection, RecentMaterial } from './types';
+import { GraphProvider, useGraph } from './context/GraphContext';
+import type { NavSection, RecentMaterial, ProjectWorkspace } from './types';
 
-export function App() {
+export function AppContent() {
   const getInitialSection = (): NavSection => {
     const path = window.location.pathname.replace(/^\//, '').toLowerCase();
     if (path === 'graph') return 'graph';
@@ -40,8 +30,11 @@ export function App() {
 
   const [currentSection, setCurrentSection] = useState<NavSection>(getInitialSection);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [newGraphModalOpen, setNewGraphModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [searchPaletteOpen, setSearchPaletteOpen] = useState(false);
-  const [hasGraphContent, setHasGraphContent] = useState(true);
+  const [focusedConceptId, setFocusedConceptId] = useState<string | null>(null);
+
   const getInitialMode = (): WorkspaceMode => {
     const modeParam = new URLSearchParams(window.location.search).get('mode');
     if (modeParam === 'loading' || modeParam === 'crafting' || modeParam === 'empty') {
@@ -50,28 +43,70 @@ export function App() {
     return 'interactive';
   };
 
-  // Demo vs User-generated graph separation
-  const [demoGraph] = useState<KnowledgeGraph>(demoKnowledgeGraph);
-  const [userGraph, setUserGraph] = useState<KnowledgeGraph | null>(() => loadUserGraph());
-  const [userSources, setUserSources] = useState<KnowledgeSource[]>(() => loadUserSources());
-  const [graphSourceType, setGraphSourceType] = useState<'demo' | 'user'>(() => loadGraphSourceType());
+  const [graphMode, setGraphMode] = useState<WorkspaceMode>(getInitialMode);
+
+  // Consume central graph context (Prompt Requirements 1–25)
+  const {
+    graphs,
+    activeGraphId,
+    activeGraphMeta,
+    activeGraph: contextActiveGraph,
+    activeSources,
+    activeCompletedConceptIds,
+    createGraph,
+    switchGraph,
+    deleteGraph,
+    updateActiveGraph,
+    updateActiveSources,
+    toggleCompleteConcept
+  } = useGraph();
+
+  // Pipeline processing state (scoped to active graph operations)
   const [pipelineStage, setPipelineStage] = useState<PipelineStage>('complete');
   const [pipelineStatusMessage, setPipelineStatusMessage] = useState<string>('');
   const [pipelineError, setPipelineError] = useState<string | undefined>(undefined);
   const [livePipelineEvent, setLivePipelineEvent] = useState<PipelineProgressEvent | null>(null);
-  const [focusedConceptId, setFocusedConceptId] = useState<string | null>(null);
-  const [completedConceptIds, setCompletedConceptIds] = useState<string[]>(() => loadCompletedConceptIds());
 
-  // Real Learning Paths derivation (Requirements 2, 3, 22, 23, 25):
-  // Derived strictly from the user's actual knowledge graph (userGraph)
-  // Memoized to avoid recomputing expensive graph analysis on every render
+  // Separate demo mode state (only used if user specifically explores demo)
+  const [isExploringDemo, setIsExploringDemo] = useState(false);
+
+  // Active graph: strictly contextActiveGraph if in user mode, demoGraph only if exploring demo
+  const effectiveGraph = useMemo<KnowledgeGraph>(() => {
+    if (isExploringDemo) return demoKnowledgeGraph;
+    if (contextActiveGraph) return contextActiveGraph;
+    return { nodes: [], relationships: [], sources: [] };
+  }, [isExploringDemo, contextActiveGraph]);
+
+  // Project workspace metadata derived strictly from the active graph
+  const projectWorkspace = useMemo<ProjectWorkspace>(() => {
+    const nodeCount = effectiveGraph.nodes?.length || 0;
+    const relCount = effectiveGraph.relationships?.length || 0;
+    const density = nodeCount > 0
+      ? `${(relCount / nodeCount).toFixed(2)} links / concept`
+      : '0 links / concept';
+
+    return {
+      id: activeGraphMeta?.id || 'default_graph',
+      name: activeGraphMeta?.name || 'Knowledge Graph',
+      code: activeGraphMeta?.name ? activeGraphMeta.name.substring(0, 3).toUpperCase() : 'GM',
+      domain: activeGraphMeta?.description || 'Knowledge Graph',
+      activeNodes: nodeCount,
+      density,
+      lastUpdated: activeGraphMeta?.updatedAt ? 'Recently' : 'Just now',
+      description: activeGraphMeta?.description,
+      createdAt: activeGraphMeta?.createdAt,
+      updatedAt: activeGraphMeta?.updatedAt
+    };
+  }, [activeGraphMeta, effectiveGraph]);
+
+  // Real Learning Paths derivation (Requirements 2, 3, 14, 25):
+  // Derived strictly from the active knowledge graph without cross-graph pollution
   const learningPathResult = useMemo(() => {
-    return generateLearningPaths(userGraph, completedConceptIds);
-  }, [userGraph, completedConceptIds]);
+    return generateLearningPaths(contextActiveGraph, activeCompletedConceptIds);
+  }, [contextActiveGraph, activeCompletedConceptIds]);
 
   const handleToggleCompleteConcept = (conceptId: string) => {
-    const updated = toggleCompletedConceptId(conceptId);
-    setCompletedConceptIds(updated);
+    toggleCompleteConcept(conceptId);
   };
 
   const handleExploreConceptInGraph = (conceptId: string) => {
@@ -79,13 +114,10 @@ export function App() {
     navigateToSection('graph');
   };
 
-  // Active graph: strictly userGraph when in 'user' mode and userGraph exists, demoGraph when in 'demo' mode
-  const activeGraph = graphSourceType === 'user' && userGraph ? userGraph : demoGraph;
-
-  // Searchable concepts dynamically derived from the active knowledge graph (Prompt 25)
+  // Searchable concepts dynamically derived strictly from the active graph (Prompt 25)
   const searchableConcepts = useMemo(() => {
-    if (activeGraph && activeGraph.nodes && activeGraph.nodes.length > 0) {
-      return activeGraph.nodes.map((node) => ({
+    if (effectiveGraph && effectiveGraph.nodes && effectiveGraph.nodes.length > 0) {
+      return effectiveGraph.nodes.map((node) => ({
         id: node.id,
         name: node.name,
         category: node.type ? normalizeCategory(node.type) : 'Concept',
@@ -93,13 +125,11 @@ export function App() {
       }));
     }
     return [];
-  }, [activeGraph]);
+  }, [effectiveGraph]);
 
-  const [canonicalSources, setCanonicalSources] = useState<KnowledgeSource[]>(() => loadUserSources());
-  const [sources, setSources] = useState<RecentMaterial[]>(() => {
-    return loadUserSources().map(sourceToRecentMaterial);
-  });
-  const [graphMode, setGraphMode] = useState<WorkspaceMode>(getInitialMode);
+  const recentMaterials = useMemo<RecentMaterial[]>(() => {
+    return activeSources.map(sourceToRecentMaterial);
+  }, [activeSources]);
 
   const navigateToSection = (section: NavSection) => {
     setCurrentSection(section);
@@ -134,13 +164,26 @@ export function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Ingestion handler: accepts newly created real KnowledgeSources
+  // Graph Switching Handler (Requirement 7)
+  const handleSelectGraph = (graphId: string) => {
+    setIsExploringDemo(false);
+    switchGraph(graphId);
+  };
+
+  // Graph Creation Handler (Requirement 8 & 9)
+  const handleCreateNewGraph = (name: string, description?: string) => {
+    setIsExploringDemo(false);
+    createGraph(name, description);
+    setGraphMode('empty');
+  };
+
+  // Ingestion handler: accepts newly uploaded material and tags with activeGraphId
   const handleCreateSuccess = async (
     newSources: KnowledgeSource[],
     onModalProgress?: (event: PipelineProgressEvent) => void
   ): Promise<boolean> => {
     setCreateModalOpen(false);
-    setHasGraphContent(true);
+    setIsExploringDemo(false);
     setPipelineError(undefined);
     setPipelineStage('reading');
     setPipelineStatusMessage('Reading your material…');
@@ -150,27 +193,26 @@ export function App() {
       timestamp: Date.now()
     });
     setGraphMode('crafting');
-    setGraphSourceType('user');
-    saveGraphSourceType('user');
     navigateToSection('graph');
 
-    // Mark newly uploaded sources as pending/reading
+    const targetGraphId = activeGraphId || DEFAULT_MIGRATION_GRAPH_ID;
+
+    // Tag newly uploaded sources with activeGraphId (Requirement 10)
     const initialNewSources: KnowledgeSource[] = newSources.map(s => ({
       ...s,
+      graphId: targetGraphId,
       status: 'processing' as const,
       processingStage: 'reading' as const
     }));
 
-    // Combine ONLY with previously uploaded user sources (never with demo sources!)
-    const targetUserSources = [...initialNewSources, ...userSources];
-    setUserSources(targetUserSources);
-    setCanonicalSources(targetUserSources);
-    setSources(targetUserSources.map(sourceToRecentMaterial));
-    saveUserSources(targetUserSources);
+    // Combine ONLY with current active graph sources
+    const targetUserSources = [...initialNewSources, ...activeSources];
+    updateActiveSources(targetUserSources);
 
-    // Execute complete end-to-end pipeline via orchestrator:
+    // Execute complete end-to-end pipeline scoped to activeGraphId:
     try {
       const result = await pipelineOrchestrator.execute(targetUserSources, {
+        graphId: targetGraphId,
         onProgress: (evt) => {
           setPipelineStage(evt.stage);
           setPipelineStatusMessage(evt.message);
@@ -178,39 +220,28 @@ export function App() {
           onModalProgress?.(evt);
 
           // Update active processing stage on the newly added sources
-          setUserSources(prev => {
-            const updated = prev.map(s => {
-              if (newSources.some(ns => ns.id === s.id)) {
-                return {
-                  ...s,
-                  status: (evt.stage === 'error' ? 'failed' : evt.stage === 'complete' ? 'ready' : 'processing') as KnowledgeSource['status'],
-                  processingStage: evt.stage
-                };
-              }
-              return s;
-            });
-            saveUserSources(updated);
-            return updated;
-          });
-          setSources(prev => prev.map(s => {
+          const updated = targetUserSources.map(s => {
             if (newSources.some(ns => ns.id === s.id)) {
               return {
                 ...s,
-                status: (evt.stage === 'error' ? 'failed' : evt.stage === 'complete' ? 'ready' : 'processing') as RecentMaterial['status']
+                status: (evt.stage === 'error' ? 'failed' : evt.stage === 'complete' ? 'ready' : 'processing') as KnowledgeSource['status'],
+                processingStage: evt.stage
               };
             }
             return s;
-          }));
+          });
+          updateActiveSources(updated);
         }
       });
 
       if (result.success && result.graph && result.graph.nodes.length > 0) {
-        // Compute provenance for each source from the actual resulting graph
+        // Tag finalized provenance on sources for this graph
         const finalizedSources: KnowledgeSource[] = targetUserSources.map(s => {
           const matchingNodes = result.graph!.nodes.filter(n => n.sourceIds && n.sourceIds.includes(s.id));
           const conceptIds = matchingNodes.map(n => n.id);
           return {
             ...s,
+            graphId: targetGraphId,
             status: 'ready' as const,
             processingStage: 'complete' as const,
             conceptIds,
@@ -218,15 +249,16 @@ export function App() {
           };
         });
 
-        setUserSources(finalizedSources);
-        setCanonicalSources(finalizedSources);
-        setSources(finalizedSources.map(sourceToRecentMaterial));
-        saveUserSources(finalizedSources);
+        const scopedGraph: KnowledgeGraph = {
+          ...result.graph,
+          id: targetGraphId,
+          nodes: result.graph.nodes.map(n => ({ ...n, graphId: targetGraphId })),
+          relationships: result.graph.relationships.map(r => ({ ...r, graphId: targetGraphId })),
+          sources: finalizedSources
+        };
 
-        setUserGraph(result.graph);
-        saveUserGraph(result.graph);
-        setGraphSourceType('user');
-        saveGraphSourceType('user');
+        updateActiveSources(finalizedSources);
+        updateActiveGraph(scopedGraph);
 
         setPipelineStage('complete');
         setPipelineStatusMessage('Your knowledge graph is ready.');
@@ -234,7 +266,7 @@ export function App() {
           stage: 'complete',
           message: 'Your knowledge graph is ready.',
           timestamp: Date.now(),
-          partialGraph: result.graph
+          partialGraph: scopedGraph
         });
         setGraphMode('interactive');
         return true;
@@ -251,10 +283,7 @@ export function App() {
           }
           return s;
         });
-        setUserSources(failedSources);
-        setCanonicalSources(failedSources);
-        setSources(failedSources.map(sourceToRecentMaterial));
-        saveUserSources(failedSources);
+        updateActiveSources(failedSources);
 
         setPipelineStage('error');
         setPipelineError(errorMsg);
@@ -279,10 +308,7 @@ export function App() {
         }
         return s;
       });
-      setUserSources(failedSources);
-      setCanonicalSources(failedSources);
-      setSources(failedSources.map(sourceToRecentMaterial));
-      saveUserSources(failedSources);
+      updateActiveSources(failedSources);
 
       setPipelineStage('error');
       setPipelineError(errorMsg);
@@ -297,16 +323,13 @@ export function App() {
   };
 
   const handleRemoveSource = (sourceId: string) => {
-    const nextSources = userSources.filter(s => s.id !== sourceId);
-    setCanonicalSources(nextSources);
-    setUserSources(nextSources);
-    setSources(nextSources.map(sourceToRecentMaterial));
-    saveUserSources(nextSources);
+    const nextSources = activeSources.filter(s => s.id !== sourceId);
+    updateActiveSources(nextSources);
 
-    if (userGraph) {
+    if (contextActiveGraph) {
       // Clean up graph provenance:
       // Keep nodes that either don't have this sourceId, or are shared across multiple sources
-      const updatedNodes = userGraph.nodes
+      const updatedNodes = contextActiveGraph.nodes
         .filter(n => {
           if (!n.sourceIds || !n.sourceIds.includes(sourceId)) return true;
           return n.sourceIds.length > 1; // Preserve shared concepts
@@ -322,7 +345,7 @@ export function App() {
         });
 
       const validNodeIds = new Set(updatedNodes.map(n => n.id));
-      const updatedRelationships = userGraph.relationships
+      const updatedRelationships = contextActiveGraph.relationships
         .filter(r => validNodeIds.has(r.source) && validNodeIds.has(r.target))
         .map(r => {
           if (r.sourceIds && r.sourceIds.includes(sourceId)) {
@@ -334,30 +357,25 @@ export function App() {
           return r;
         });
 
-      // Prune any completed concept IDs whose concepts no longer exist
-      const nextCompleted = completedConceptIds.filter(id => validNodeIds.has(id));
-      if (nextCompleted.length !== completedConceptIds.length) {
-        setCompletedConceptIds(nextCompleted);
-        saveCompletedConceptIds(nextCompleted);
-      }
-
-      const updatedGraphSources = userGraph.sources.filter(s => s.id !== sourceId);
+      const updatedGraphSources = contextActiveGraph.sources.filter(s => s.id !== sourceId);
 
       if (updatedNodes.length === 0 || nextSources.length === 0) {
-        setUserGraph(null);
-        saveUserGraph(null);
-        setGraphSourceType('demo');
-        saveGraphSourceType('demo');
+        updateActiveGraph(null);
       } else {
         const nextGraph: KnowledgeGraph = {
+          id: activeGraphId || undefined,
           nodes: updatedNodes,
           relationships: updatedRelationships,
           sources: updatedGraphSources
         };
-        setUserGraph(nextGraph);
-        saveUserGraph(nextGraph);
+        updateActiveGraph(nextGraph);
       }
     }
+  };
+
+  const handleConfirmDeleteActiveGraph = () => {
+    if (!activeGraphId) return;
+    deleteGraph(activeGraphId);
   };
 
   return (
@@ -365,8 +383,13 @@ export function App() {
       <AppShell
         currentSection={currentSection}
         onSelectSection={navigateToSection}
-        project={mockProjectWorkspace}
-        recentMaterials={sources}
+        project={projectWorkspace}
+        recentMaterials={recentMaterials}
+        graphs={graphs}
+        activeGraphId={activeGraphId}
+        activeGraphMeta={activeGraphMeta}
+        onSelectGraph={handleSelectGraph}
+        onOpenNewGraphModal={() => setNewGraphModalOpen(true)}
         onOpenSearch={() => setSearchPaletteOpen(true)}
         onOpenCreateModal={() => setCreateModalOpen(true)}
       >
@@ -375,11 +398,14 @@ export function App() {
           <OverviewView
             onCreateGraph={() => setCreateModalOpen(true)}
             onExploreDemo={() => {
-              setGraphSourceType('demo');
-              setHasGraphContent(true);
+              setIsExploringDemo(true);
               navigateToSection('graph');
             }}
-            hasContent={hasGraphContent}
+            hasContent={(contextActiveGraph?.nodes?.length || 0) > 0}
+            graphMeta={activeGraphMeta}
+            sourceCount={activeSources.length}
+            conceptCount={contextActiveGraph?.nodes?.length || 0}
+            relationshipCount={contextActiveGraph?.relationships?.length || 0}
           />
         )}
 
@@ -388,10 +414,10 @@ export function App() {
           <KnowledgeGraphWorkspace 
             onOpenUpload={() => setCreateModalOpen(true)} 
             initialMode={graphMode}
-            graph={activeGraph}
-            graphSourceType={graphSourceType}
-            onSwitchGraphSource={(type) => setGraphSourceType(type)}
-            hasUserGraph={userGraph !== null && userGraph.nodes.length > 0}
+            graph={effectiveGraph}
+            graphSourceType={isExploringDemo ? 'demo' : 'user'}
+            onSwitchGraphSource={(type) => setIsExploringDemo(type === 'demo')}
+            hasUserGraph={contextActiveGraph !== null && contextActiveGraph.nodes.length > 0}
             pipelineStage={pipelineStage}
             pipelineStatusMessage={pipelineStatusMessage}
             pipelineError={pipelineError}
@@ -411,9 +437,9 @@ export function App() {
         {currentSection === 'paths' && (
           <LearningPathsView 
             paths={learningPathResult.paths}
-            totalConceptsInGraph={userGraph?.nodes?.length || 0}
-            totalRelationshipsInGraph={userGraph?.relationships?.length || 0}
-            isLoading={pipelineStage !== 'complete' && pipelineStage !== 'error' && userSources.some(s => s.status === 'processing')}
+            totalConceptsInGraph={contextActiveGraph?.nodes?.length || 0}
+            totalRelationshipsInGraph={contextActiveGraph?.relationships?.length || 0}
+            isLoading={pipelineStage !== 'complete' && pipelineStage !== 'error' && activeSources.some(s => s.status === 'processing')}
             loadingMessage={pipelineStatusMessage}
             onSelectPath={(pathId) => {
               if (!pathId) {
@@ -423,15 +449,15 @@ export function App() {
             onOpenUpload={() => setCreateModalOpen(true)}
             onToggleCompleteConcept={handleToggleCompleteConcept}
             onExploreConceptInGraph={handleExploreConceptInGraph}
-            sources={userSources}
+            sources={activeSources}
           />
         )}
 
         {/* Sources View */}
         {currentSection === 'sources' && (
           <SourcesView
-            sources={userSources}
-            activeGraph={userGraph}
+            sources={activeSources}
+            activeGraph={contextActiveGraph}
             onAddSource={() => setCreateModalOpen(true)}
             onRemoveSource={handleRemoveSource}
           />
@@ -445,7 +471,7 @@ export function App() {
                 <span className="page-kicker">Preferences</span>
                 <h1 className="page-title">Settings</h1>
                 <p className="page-subtitle">
-                  Knowledge graph preferences and keyboard shortcuts.
+                  Knowledge graph preferences and workspace management.
                 </p>
               </div>
             </header>
@@ -477,6 +503,38 @@ export function App() {
                   <kbd style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-primary)', background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)', padding: '2px 6px', borderRadius: '4px' }}>⌘, Settings</kbd>
                 </div>
               </div>
+
+              {/* Graph Management Section (Requirement 17) */}
+              {activeGraphMeta && (
+                <div style={{ padding: '20px 0', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: '14.5px', fontWeight: 500, color: 'var(--text-primary)' }}>
+                      Manage graph: {activeGraphMeta.name}
+                    </div>
+                    <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
+                      Permanently remove this graph and all of its associated sources and progress.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteModalOpen(true)}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.10)',
+                      border: '1px solid rgba(239, 68, 68, 0.28)',
+                      color: '#f87171',
+                      padding: '6px 12px',
+                      fontSize: '12.5px',
+                      borderRadius: '5px',
+                      cursor: 'pointer',
+                      fontWeight: 500,
+                      transition: 'background-color 140ms ease'
+                    }}
+                    id="btn-settings-delete-graph"
+                  >
+                    Delete graph…
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -487,7 +545,23 @@ export function App() {
         isOpen={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         onSuccess={handleCreateSuccess}
-        existingSources={canonicalSources}
+        existingSources={activeSources}
+      />
+
+      {/* New Graph Creation Modal */}
+      <NewGraphModal
+        isOpen={newGraphModalOpen}
+        onClose={() => setNewGraphModalOpen(false)}
+        onCreate={handleCreateNewGraph}
+        existingNames={graphs.map(g => g.name)}
+      />
+
+      {/* Secondary Graph Deletion Confirmation Dialog */}
+      <DeleteGraphModal
+        isOpen={deleteModalOpen}
+        graphName={activeGraphMeta?.name || 'this graph'}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={handleConfirmDeleteActiveGraph}
       />
 
       {/* Global Command Palette (Cmd + K) */}
@@ -501,6 +575,14 @@ export function App() {
         }}
       />
     </>
+  );
+}
+
+export function App() {
+  return (
+    <GraphProvider>
+      <AppContent />
+    </GraphProvider>
   );
 }
 
