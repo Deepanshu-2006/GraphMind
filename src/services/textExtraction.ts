@@ -3,6 +3,57 @@ import type {
   TextChunk, 
   ExtractionResult 
 } from '../types/knowledgeGraph';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+
+// Configure worker in browser environment
+if (typeof window !== 'undefined') {
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
+      import.meta.url
+    ).toString();
+  } catch {
+    // If worker configuration fails, pdfjs automatically runs in-process with fallback
+  }
+}
+
+/**
+ * PDF Extraction Development Verification Logger (Requirement 9)
+ * Disabled after verification to prevent console clutter.
+ */
+const DEBUG_VERBOSE_PDF_LOGS = false;
+
+function logPdfDevVerification(filename: string, pageCount: number, charCount: number, previewText: string) {
+  if (DEBUG_VERBOSE_PDF_LOGS) {
+    console.log(
+      `[PDF Extraction Verification]\n` +
+      `  filename: ${filename}\n` +
+      `  page count: ${pageCount}\n` +
+      `  extracted character count: ${charCount}\n` +
+      `  first ~200 characters: "${previewText.slice(0, 200).replace(/\n/g, ' ')}"`
+    );
+  }
+}
+
+/**
+ * PDF Extraction Error Logger (Requirement 4)
+ */
+function logPdfExtractionError(
+  filename: string,
+  fileType: string,
+  parserStage: string,
+  err: unknown
+) {
+  const message = err instanceof Error ? err.message : String(err);
+  const stack = err instanceof Error ? err.stack : undefined;
+  console.error(`[PDF Extraction Error]`, {
+    filename,
+    fileType,
+    parserStage,
+    error: message,
+    stack
+  });
+}
 
 /**
  * ==================================================
@@ -80,338 +131,178 @@ export function cleanMarkdown(markdownText: string): string {
 }
 
 /**
- * Flate Decompression with trailing garbage tolerance.
- * Uses native streaming pipeThrough to guarantee non-blocking decompression
- * without deadlocking on large streams.
+ * 3. Robust Multi-Page PDF Text Extractor
+ * Uses pdfjs-dist to parse native PDF structures, font encodings (Type1/TrueType/CID/CMap),
+ * multi-column layouts, and stream compressions.
  */
-async function decompressFlateStream(payload: Uint8Array): Promise<string> {
-  // 1. Try standard zlib deflate via non-blocking Blob stream pipe
-  try {
-    const stream = new Blob([payload as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate'));
-    return await new Response(stream).text();
-  } catch {
-    // continue to fallbacks
+export async function extractTextFromPdfBytes(
+  pdfBytes: Uint8Array,
+  fileName: string = 'document.pdf'
+): Promise<string> {
+  let stage = 'input-validation';
+
+  if (!pdfBytes || pdfBytes.length === 0) {
+    const errorMsg = "Couldn't read the file. The PDF is empty.";
+    logPdfExtractionError(fileName, 'pdf', stage, new Error(errorMsg));
+    throw new Error(errorMsg);
   }
 
-  // 2. Try raw deflate without zlib headers
-  try {
-    const stream = new Blob([payload as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
-    return await new Response(stream).text();
-  } catch {
-    // continue to fallbacks
-  }
+  // Check PDF signature (%PDF-)
+  const decoder = new TextDecoder('latin1');
+  const header = decoder.decode(pdfBytes.subarray(0, 10)).trimStart();
 
-  // 3. Fallback: Trim trailing framing bytes if any junk remained before endstream
-  for (let trim = 1; trim <= 8; trim++) {
-    try {
-      const slice = payload.subarray(0, payload.length - trim);
-      const stream = new Blob([slice as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate'));
-      return await new Response(stream).text();
-    } catch {
-      // try next trim
+  if (!header.startsWith('%PDF-')) {
+    stage = 'mock-or-plaintext-check';
+    // Fallback check for plain-text / mock demo files uploaded as .pdf (e.g. Stanford CS229 sample)
+    const utf8Text = new TextDecoder('utf-8').decode(pdfBytes).trim();
+    // eslint-disable-next-line no-control-regex
+    const controlChars = utf8Text.match(/[\x00-\x08\x0E-\x1F]/g);
+    if (utf8Text.length > 0 && (!controlChars || controlChars.length / utf8Text.length < 0.05)) {
+      logPdfDevVerification(fileName, 1, utf8Text.length, utf8Text);
+      return utf8Text;
     }
+
+    const errorMsg = "Couldn't read the file. Could not parse the PDF structure.";
+    logPdfExtractionError(fileName, 'pdf', stage, new Error(errorMsg));
+    throw new Error(errorMsg);
   }
 
-  for (let trim = 1; trim <= 8; trim++) {
-    try {
-      const slice = payload.subarray(0, payload.length - trim);
-      const stream = new Blob([slice as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
-      return await new Response(stream).text();
-    } catch {
-      // try next trim
-    }
+  stage = 'loading-pdf-document';
+  let pdfDoc: pdfjsLib.PDFDocumentProxy;
+  try {
+    const loadingTask = pdfjsLib.getDocument({
+      data: pdfBytes,
+      useSystemFonts: true
+    });
+    pdfDoc = await loadingTask.promise;
+  } catch (err: unknown) {
+    logPdfExtractionError(fileName, 'pdf', stage, err);
+    throw new Error("Couldn't read the file. Could not parse the PDF structure.");
   }
 
-  return '';
-}
+  stage = 'extracting-pages';
+  const pageTexts: string[] = [];
+  const numPages = pdfDoc.numPages;
 
-interface PdfTextItem {
-  text: string;
-  x: number;
-  y: number;
-}
+  if (numPages === 0) {
+    const errorMsg = "Couldn't read the file. The PDF is empty.";
+    logPdfExtractionError(fileName, 'pdf', stage, new Error(errorMsg));
+    throw new Error(errorMsg);
+  }
 
-/**
- * Parses operators in a PDF stream and reconstructs reading order
- * by sorting top-to-bottom and left-to-right using text matrix (Tm / Td) coordinates.
- */
-function parseStreamTextWithCoords(streamText: string): string {
-  const items: PdfTextItem[] = [];
-  const btEtRegex = /BT[\s\S]*?ET/g;
-  let btMatch: RegExpExecArray | null;
+  interface ExtractedItem {
+    str: string;
+    x: number;
+    y: number;
+    width: number;
+    hasEOL: boolean;
+  }
 
-  while ((btMatch = btEtRegex.exec(streamText)) !== null) {
-    const block = btMatch[0];
-    let curX = 0;
-    let curY = 0;
-
-    // Matches Tm, Td, TD, Tj, TJ, ', "
-    const opRegex = /(?:([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+Tm)|(?:\((?:\\.|[^()\\])*\)|<[0-9A-Fa-f\s]+>|\[(?:\\.|[^\]])*\])\s*(?:Tj|TJ|'|")|T\*|(?:([-\d.]+)\s+([-\d.]+)\s+(?:Td|TD))/g;
-    let opMatch: RegExpExecArray | null;
-
-    while ((opMatch = opRegex.exec(block)) !== null) {
-      const full = opMatch[0].trim();
-      if (full.endsWith('Tm')) {
-        curX = parseFloat(opMatch[5]);
-        curY = parseFloat(opMatch[6]);
-      } else if (full.endsWith('Td') || full.endsWith('TD')) {
-        const dx = parseFloat(opMatch[7]);
-        const dy = parseFloat(opMatch[8]);
-        if (!isNaN(dx)) curX += dx;
-        if (!isNaN(dy)) curY += dy;
-      } else if (full.endsWith('Tj') || full.endsWith('TJ') || full.endsWith("'") || full.endsWith('"')) {
-        let extracted = '';
-        if (full.endsWith('TJ')) {
-          const raw = full.substring(0, full.length - 2).trim();
-          extracted = decodePdfArray(raw);
-        } else {
-          const raw = full.substring(0, full.length - (full.endsWith('Tj') ? 2 : 1)).trim();
-          extracted = decodePdfString(raw);
-        }
-        if (extracted) {
-          items.push({ text: extracted, x: curX, y: curY });
+  try {
+    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+      const page = await pdfDoc.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      
+      const items: ExtractedItem[] = [];
+      for (const rawItem of textContent.items) {
+        if ('str' in rawItem && typeof rawItem.str === 'string') {
+          const item = rawItem as { str: string; transform: number[]; width?: number; hasEOL?: boolean };
+          items.push({
+            str: item.str,
+            x: item.transform[4],
+            y: item.transform[5],
+            width: item.width || (item.str.length * 5),
+            hasEOL: Boolean(item.hasEOL)
+          });
         }
       }
-    }
-  }
 
-  if (items.length === 0) return '';
+      // Sort reading order: Top to Bottom (descending Y), then Left to Right (ascending X)
+      items.sort((a, b) => {
+        const yDiff = b.y - a.y;
+        if (Math.abs(yDiff) > 3.5) {
+          return yDiff;
+        }
+        return a.x - b.x;
+      });
 
-  // Sort reading order: Top to Bottom (descending Y), then Left to Right (ascending X)
-  items.sort((a, b) => {
-    if (Math.abs(a.y - b.y) > 3.5) {
-      return b.y - a.y;
-    }
-    return a.x - b.x;
-  });
+      const lines: string[] = [];
+      let curLine = '';
+      let lastY: number | null = null;
+      let lastXEnd = 0;
 
-  const lines: string[] = [];
-  let curLine = '';
-  let lastY: number | null = null;
-  let lastX = 0;
+      for (const item of items) {
+        const str = item.str;
+        if (!str && !item.hasEOL) continue;
 
-  for (const item of items) {
-    if (lastY === null) {
-      curLine = item.text;
-      lastY = item.y;
-      lastX = item.x + item.text.length * 5;
-      continue;
-    }
+        const x = item.x;
+        const y = item.y;
+        const width = item.width;
 
-    const yDiff = Math.abs(item.y - lastY);
-    if (yDiff <= 3.5) {
-      // Same line: insert space if there is a gap and not already spaced
-      const gap = item.x - lastX;
-      if (gap > 3 && !curLine.endsWith(' ') && !item.text.startsWith(' ')) {
-        curLine += ' ';
-      }
-      curLine += item.text;
-      lastX = item.x + item.text.length * 5;
-    } else {
-      // New line
-      if (curLine.trim()) lines.push(curLine.trim());
-      // Paragraph break if vertical gap is significant (> 18pt)
-      if (lastY - item.y > 18) {
-        lines.push('');
-      }
-      curLine = item.text;
-      lastY = item.y;
-      lastX = item.x + item.text.length * 5;
-    }
-  }
-
-  if (curLine.trim()) lines.push(curLine.trim());
-  return lines.join('\n');
-}
-
-/**
- * 3. Pure-TypeScript PDF Stream & Text Operator Extractor
- * Extracts text from standard PDF streams (FlateDecode compressed or uncompressed)
- * without external binary or native dependencies.
- */
-export async function extractTextFromPdfBytes(pdfBytes: Uint8Array): Promise<string> {
-  const textBlocks: string[] = [];
-
-  try {
-    // 1. Scan for stream objects in the PDF binary
-    const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
-
-    // Convert bytes to binary string for pattern scanning
-    const decoder = new TextDecoder('latin1');
-    const pdfString = decoder.decode(pdfBytes);
-
-    // If not a standard PDF binary (does not start with %PDF-), check if it is plain text (e.g. mock demo files)
-    if (!pdfString.trimStart().startsWith('%PDF-')) {
-      const utf8Text = new TextDecoder('utf-8').decode(pdfBytes).trim();
-      // eslint-disable-next-line no-control-regex
-      const controlChars = utf8Text.match(/[\x00-\x08\x0E-\x1F]/g);
-      if (!controlChars || controlChars.length / utf8Text.length < 0.05) {
-        return utf8Text;
-      }
-      return '';
-    }
-
-    let match: RegExpExecArray | null;
-
-    while ((match = streamRegex.exec(pdfString)) !== null) {
-      // Check preceding dictionary for /Length, /FlateDecode, /Subtype, etc.
-      const precedingDict = pdfString.substring(Math.max(0, match.index - 500), match.index);
-
-      // Skip binary non-content streams (embedded TrueType/Type1 fonts, raster images)
-      if (
-        /\/Subtype\s*\/Image/i.test(precedingDict) ||
-        /\/Length1\s+\d+/i.test(precedingDict) ||
-        /\/Type\s*\/Font/i.test(precedingDict)
-      ) {
-        continue;
-      }
-
-      const streamContentStartIndex = match.index + match[0].indexOf('stream') + 6;
-      // Skip newline after 'stream'
-      const actualStart = pdfString[streamContentStartIndex] === '\r' && pdfString[streamContentStartIndex + 1] === '\n'
-        ? streamContentStartIndex + 2
-        : (pdfString[streamContentStartIndex] === '\n' ? streamContentStartIndex + 1 : streamContentStartIndex);
-
-      const isFlate = /FlateDecode/i.test(precedingDict);
-
-      // Check direct /Length <number>
-      const directLenMatch = /\/Length\s+(\d+)(?!\s+\d+\s+R)/.exec(precedingDict);
-      // Check indirect /Length <objId> <gen> R
-      const indirectLenMatch = /\/Length\s+(\d+)\s+(\d+)\s+R/.exec(precedingDict);
-
-      let actualEnd: number;
-
-      if (directLenMatch && directLenMatch[1]) {
-        const declaredLen = parseInt(directLenMatch[1], 10);
-        actualEnd = Math.min(actualStart + declaredLen, pdfBytes.length);
-      } else if (indirectLenMatch && indirectLenMatch[1] && indirectLenMatch[2]) {
-        const objId = indirectLenMatch[1];
-        const gen = indirectLenMatch[2];
-        const objRegex = new RegExp(`\\b${objId}\\s+${gen}\\s+obj[\\s\\r\\n]+(\\d+)[\\s\\r\\n]+endobj`);
-        const resolved = objRegex.exec(pdfString);
-        if (resolved && resolved[1]) {
-          const declaredLen = parseInt(resolved[1], 10);
-          actualEnd = Math.min(actualStart + declaredLen, pdfBytes.length);
-        } else {
-          actualEnd = match.index + match[0].lastIndexOf('endstream');
-          while (actualEnd > actualStart && (pdfBytes[actualEnd - 1] === 10 || pdfBytes[actualEnd - 1] === 13)) {
-            actualEnd--;
+        if (lastY === null) {
+          curLine = str;
+          lastY = y;
+          lastXEnd = x + width;
+          if (item.hasEOL) {
+            lines.push(curLine.trim());
+            curLine = '';
+            lastY = null;
           }
+          continue;
         }
-      } else {
-        actualEnd = match.index + match[0].lastIndexOf('endstream');
-        // Trim trailing newlines (\r and \n) before endstream
-        while (actualEnd > actualStart && (pdfBytes[actualEnd - 1] === 10 || pdfBytes[actualEnd - 1] === 13)) {
-          actualEnd--;
+
+        const yDiff = Math.abs(y - lastY);
+        if (yDiff <= 3.5) {
+          // Same line: insert space if there is a gap between previous and current text
+          const gap = x - lastXEnd;
+          if (gap > 2 && curLine.length > 0 && !curLine.endsWith(' ') && !str.startsWith(' ')) {
+            curLine += ' ';
+          }
+          curLine += str;
+          lastXEnd = Math.max(lastXEnd, x + width);
+        } else {
+          // New line
+          if (curLine.trim()) lines.push(curLine.trim());
+          // Significant vertical gap -> paragraph break
+          if (lastY - y > 18) {
+            lines.push('');
+          }
+          curLine = str;
+          lastY = y;
+          lastXEnd = x + width;
+        }
+
+        if (item.hasEOL) {
+          if (curLine.trim()) lines.push(curLine.trim());
+          curLine = '';
+          lastY = null;
         }
       }
+      if (curLine.trim()) lines.push(curLine.trim());
 
-      const streamDataBytes = pdfBytes.subarray(actualStart, actualEnd);
-      let decompressedText = '';
-
-      if (isFlate) {
-        decompressedText = await decompressFlateStream(new Uint8Array(streamDataBytes));
-        if (!decompressedText) continue;
-      } else {
-        // Plain uncompressed stream
-        decompressedText = new TextDecoder('latin1').decode(streamDataBytes);
-      }
-
-      // Parse PDF Text Operators within BT ... ET blocks with coordinate ordering
-      const pageText = parseStreamTextWithCoords(decompressedText);
-      if (pageText.trim()) {
-        textBlocks.push(pageText.trim());
+      const pageStr = lines.join('\n').trim();
+      if (pageStr) {
+        pageTexts.push(pageStr);
       }
     }
-
-    // If stream extraction extracted text, combine and return
-    if (textBlocks.length > 0) {
-      return textBlocks.join('\n\n');
-    }
-
-    // 3. Fallback: Scan for plain text literal strings in uncompressed PDFs
-    const literalStrings = scanLiteralStrings(pdfString);
-    if (literalStrings.length > 0) {
-      return literalStrings.join('\n\n');
-    }
-
-    return '';
-  } catch {
-    return '';
-  }
-}
-
-/**
- * Decode PDF literal string ( ... ) or hex string < ... >
- */
-function decodePdfString(raw: string): string {
-  if (raw.startsWith('(') && raw.endsWith(')')) {
-    const inner = raw.slice(1, -1);
-    return inner
-      .replace(/\\([0-7]{1,3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8)))
-      .replace(/\\n/g, '\n')
-      .replace(/\\r/g, '\r')
-      .replace(/\\t/g, '\t')
-      .replace(/\\b/g, '\b')
-      .replace(/\\f/g, '\f')
-      .replace(/\\\(/g, '(')
-      .replace(/\\\)/g, ')')
-      .replace(/\\\\/g, '\\');
+  } catch (err: unknown) {
+    logPdfExtractionError(fileName, 'pdf', stage, err);
+    throw new Error("Couldn't read the file. Could not parse the PDF structure.");
   }
 
-  if (raw.startsWith('<') && raw.endsWith('>')) {
-    const hex = raw.slice(1, -1).replace(/\s+/g, '');
-    let res = '';
-    for (let i = 0; i < hex.length; i += 2) {
-      const code = parseInt(hex.substring(i, i + 2), 16);
-      if (!isNaN(code)) res += String.fromCharCode(code);
-    }
-    return res;
+  const combinedText = pageTexts.join('\n\n').trim();
+
+  stage = 'verifying-extracted-text';
+  // If no text or only trivial whitespace/punctuation extracted (scanned or image-only PDF)
+  if (!combinedText || combinedText.replace(/\s+/g, '').length < 5) {
+    const errorMsg = "Couldn't read the file. No extractable text was found (it may be scanned or image-only).";
+    logPdfExtractionError(fileName, 'pdf', stage, new Error(errorMsg));
+    throw new Error(errorMsg);
   }
 
-  return '';
-}
+  logPdfDevVerification(fileName, numPages, combinedText.length, combinedText);
 
-/**
- * Decode PDF array from [...] TJ
- * Elements with large negative numeric kerning gaps represent word spaces
- */
-function decodePdfArray(raw: string): string {
-  const content = raw.slice(1, -1);
-  const elementRegex = /\((?:\\.|[^()\\])*\)|<[0-9A-Fa-f\s]+>|[-+]?\d*\.?\d+/g;
-  let out = '';
-  let match: RegExpExecArray | null;
-
-  while ((match = elementRegex.exec(content)) !== null) {
-    const el = match[0];
-    if (el.startsWith('(') || el.startsWith('<')) {
-      out += decodePdfString(el);
-    } else {
-      const num = parseFloat(el);
-      // Large negative numbers indicate word space in PDF fonts (typically <= -100 units)
-      if (!isNaN(num) && num <= -100) {
-        if (out.length > 0 && !out.endsWith(' ')) out += ' ';
-      }
-    }
-  }
-
-  return out;
-}
-
-/**
- * Fallback scanner for uncompressed PDF text
- */
-function scanLiteralStrings(pdfString: string): string[] {
-  const regex = /\(((?:\\.|[^()\\]){4,})\)\s*Tj/g;
-  const list: string[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = regex.exec(pdfString)) !== null) {
-    const s = decodePdfString(`(${m[1]})`).trim();
-    if (s.length > 3 && !/^[0-9\s.]+$/.test(s)) {
-      list.push(s);
-    }
-  }
-  return list;
+  return combinedText;
 }
 
 /**
@@ -548,9 +439,11 @@ export async function extractText(
     return {
       success: false,
       sourceId: 'unknown',
-      error: "Couldn't read this file."
+      error: "Couldn't read the file."
     };
   }
+
+  const fileName = source.fileName || source.name || 'document';
 
   try {
     let rawText = '';
@@ -567,7 +460,7 @@ export async function extractText(
     else if (rawContent instanceof Blob) {
       if (source.type === 'pdf') {
         const buffer = await rawContent.arrayBuffer();
-        rawText = await extractTextFromPdfBytes(new Uint8Array(buffer));
+        rawText = await extractTextFromPdfBytes(new Uint8Array(buffer), fileName);
       } else {
         rawText = await rawContent.text();
       }
@@ -575,7 +468,7 @@ export async function extractText(
     // 4. Uint8Array provided
     else if (rawContent instanceof Uint8Array) {
       if (source.type === 'pdf') {
-        rawText = await extractTextFromPdfBytes(rawContent);
+        rawText = await extractTextFromPdfBytes(rawContent, fileName);
       } else {
         rawText = new TextDecoder('utf-8').decode(rawContent);
       }
@@ -587,7 +480,7 @@ export async function extractText(
       for (let i = 0; i < rawText.length; i++) {
         bytes[i] = rawText.charCodeAt(i) & 0xff;
       }
-      rawText = await extractTextFromPdfBytes(bytes);
+      rawText = await extractTextFromPdfBytes(bytes, fileName);
     }
 
     // If source type is markdown, apply markdown structure cleaning
@@ -600,10 +493,12 @@ export async function extractText(
 
     // If extraction resulted in no readable text
     if (!cleanText || cleanText.length === 0) {
+      const errorMsg = "Couldn't read the file. No readable text could be extracted.";
+      logPdfExtractionError(fileName, source.type, 'cleanText-validation', new Error(errorMsg));
       return {
         success: false,
         sourceId: source.id,
-        error: "Couldn't read this file."
+        error: errorMsg
       };
     }
 
@@ -617,12 +512,13 @@ export async function extractText(
       cleanText,
       chunks
     };
-  } catch {
-    // Return structured application-level error without leaking internal exceptions
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Couldn't read the file.";
+    logPdfExtractionError(fileName, source.type, 'extractText-pipeline', err);
     return {
       success: false,
       sourceId: source.id,
-      error: "Couldn't read this file."
+      error: errorMsg
     };
   }
 }

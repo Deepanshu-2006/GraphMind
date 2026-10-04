@@ -35,7 +35,7 @@ import type {
 import type { PipelineStage, PipelineProgressEvent } from '../../services/pipelineOrchestrator';
 import { exportKnowledgeGraphJson, exportKnowledgeGraphPng } from '../../services/graphExport';
 import { calculateVisibleGraph } from '../../services/graphViewport';
-import { useGraph } from '../../context/GraphContext';
+import { useOptionalGraph } from '../../context/GraphContext';
 
 const nodeTypes = {
   conceptNode: ConceptNode
@@ -133,13 +133,8 @@ function FlowCanvas({
   const reactFlowInstance = useReactFlow();
 
   // Safely resolve active graph name from props or context
-  let contextGraphName: string | undefined;
-  try {
-    const graphCtx = useGraph();
-    contextGraphName = graphCtx.activeGraphMeta?.name;
-  } catch {
-    // If rendered outside GraphProvider in standalone unit tests, ignore
-  }
+  const graphCtx = useOptionalGraph();
+  const contextGraphName = graphCtx?.activeGraphMeta?.name;
   const displayGraphName = graphName || contextGraphName || graph?.name || 'Your graph';
 
   const { effectiveNodes, effectiveEdges, effectiveConceptDetails } = useMemo(() => {

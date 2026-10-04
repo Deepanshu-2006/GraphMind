@@ -197,6 +197,10 @@ export const GraphProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 };
 
+export function useOptionalGraph(): GraphContextValue | null {
+  return useContext(GraphContext);
+}
+
 export function useGraph(): GraphContextValue {
   const context = useContext(GraphContext);
   if (!context) {
