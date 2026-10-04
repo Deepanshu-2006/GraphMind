@@ -10,13 +10,13 @@ import {
   MarkerType
 } from '@xyflow/react';
 import type { Node, Edge, NodeMouseHandler, EdgeMouseHandler } from '@xyflow/react';
-import { ArrowUpRight } from 'lucide-react';
 import { ThinkingOrb } from 'thinking-orbs';
 
 import { ConceptNode } from './ConceptNode';
 import { CustomEdge } from './CustomEdge';
 import { GraphToolbar } from './GraphToolbar';
 import { NodeContextPanel } from './NodeContextPanel';
+import { CanvasEmptyState } from './CanvasEmptyState';
 
 import { 
   initialNodes, 
@@ -35,7 +35,6 @@ import type {
 import type { PipelineStage, PipelineProgressEvent } from '../../services/pipelineOrchestrator';
 import { exportKnowledgeGraphJson, exportKnowledgeGraphPng } from '../../services/graphExport';
 import { calculateVisibleGraph } from '../../services/graphViewport';
-import { useOptionalGraph } from '../../context/GraphContext';
 
 const nodeTypes = {
   conceptNode: ConceptNode
@@ -119,7 +118,7 @@ function FlowCanvas({
   onOpenUpload,
   initialMode = 'interactive',
   graph,
-  graphName,
+  graphName: _graphName,
   pipelineStage,
   pipelineStatusMessage,
   pipelineError,
@@ -132,10 +131,6 @@ function FlowCanvas({
 }: KnowledgeGraphWorkspaceProps) {
   const reactFlowInstance = useReactFlow();
 
-  // Safely resolve active graph name from props or context
-  const graphCtx = useOptionalGraph();
-  const contextGraphName = graphCtx?.activeGraphMeta?.name;
-  const displayGraphName = graphName || contextGraphName || graph?.name || 'Your graph';
 
   const { effectiveNodes, effectiveEdges, effectiveConceptDetails } = useMemo(() => {
     if (graph) {
@@ -939,51 +934,14 @@ function FlowCanvas({
 
       {/* 2. CANVAS-NATIVE EMPTY STATE (Quiet, Editorial, Spatial) */}
       {mode === 'empty' && (
-        <div 
-          className={`graph-canvas-overlay empty-overlay ${isDragOver ? 'is-drag-over' : ''}`} 
-          id="graph-empty-overlay"
+        <CanvasEmptyState
+          onOpenUpload={onOpenUpload}
+          isDragOver={isDragOver}
           onDragEnter={handleDragEnter}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-        >
-          <div className="canvas-empty-composition">
-            {/* Subtle Canvas Origin Coordinate Anchor with 5.5px GraphMind Green Point */}
-            <div className={`canvas-origin-anchor ${isDragOver ? 'is-drag-over' : ''}`} aria-hidden="true">
-              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                <line x1="24" y1="4" x2="24" y2="44" />
-                <line x1="4" y1="24" x2="44" y2="24" />
-                <circle cx="24" cy="24" r="2.75" className="origin-dot" />
-              </svg>
-            </div>
-
-            {/* Quiet Editorial Heading */}
-            <h2 className="canvas-empty-heading">
-              {isDragOver 
-                ? 'Drop material to start the graph.' 
-                : `${displayGraphName} is ready for its first material.`}
-            </h2>
-
-            {/* Supporting Instructional Copy */}
-            <p className="canvas-empty-desc">
-              {isDragOver
-                ? 'GraphMind will extract concepts and map their relationships.'
-                : 'Upload study material and GraphMind will map the concepts and relationships inside it.'}
-            </p>
-
-            {/* Editorial Action */}
-            <button 
-              type="button"
-              className={`canvas-editorial-cta ${isDragOver ? 'is-hidden' : ''}`}
-              onClick={onOpenUpload}
-              id="btn-empty-upload-material"
-              aria-label={`Upload study material for ${displayGraphName}`}
-            >
-              <span>Upload material</span>
-              <ArrowUpRight size={13} className="editorial-arrow" aria-hidden="true" />
-            </button>
-          </div>
-        </div>
+        />
       )}
 
       {/* 3. LOADING STATE OVERLAY (Sleek horizontal glass pill HUD with unobstructed crafting constellation weaving behind) */}

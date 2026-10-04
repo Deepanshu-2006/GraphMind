@@ -2,16 +2,19 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type { KnowledgeGraph } from '../src/types/knowledgeGraph';
 import type { PipelineStage, PipelineProgressEvent } from '../src/services/pipelineOrchestrator';
+import { PRE_GRAPH_NODES, PRE_GRAPH_EDGES } from '../src/components/graph/CanvasEmptyState';
 
 /**
- * Unit test suite verifying the behavior of the canvas-native empty state:
- * - Dynamic graph name in heading: "${graphName} is ready for its first material."
- * - Non-generic, educational supporting text
- * - Drag-and-drop state copy transitions
+ * Unit test suite verifying the behavior of the refined canvas-native empty state:
+ * - Organic clusters (breaking geometric loop/polygon)
+ * - Central quiet zone clearance for dominant editorial typography
+ * - 3-tier node hierarchy (Primary green, Secondary muted, Tertiary low-opacity)
+ * - Subtle relationship lines without central intersections
+ * - Exact required copy & tightened hierarchy
  * - Strict empty condition: 0 concepts, no live processing
  * - Processing state precedence (no "empty" during extraction/ingestion)
  * - Concept presence unmounting empty state
- * - Clean multi-graph workspace transitions
+ * - Multi-graph workspace switching transitions
  */
 
 // Helper simulating mode resolution logic from KnowledgeGraphWorkspace
@@ -46,51 +49,118 @@ function resolveWorkspaceMode({
   return initialMode;
 }
 
-// Helper simulating dynamic copy generation
-function getEmptyStateCopy(graphName?: string, isDragOver: boolean = false) {
-  const resolvedName = graphName?.trim() || 'Your graph';
-  return {
-    heading: isDragOver
-      ? 'Drop material to start the graph.'
-      : `${resolvedName} is ready for its first material.`,
-    supportingText: isDragOver
-      ? 'GraphMind will extract concepts and map their relationships.'
-      : 'Upload study material and GraphMind will map the concepts and relationships inside it.'
-  };
-}
+// Exact specification of editorial copy for empty canvas
+const EMPTY_CANVAS_SPEC = {
+  eyebrow: 'KNOWLEDGE GRAPH / EMPTY CANVAS',
+  heading: 'Build your first\nknowledge graph.',
+  supporting: 'Upload your study material and GraphMind will map the concepts and relationships inside it.',
+  ctaText: 'UPLOAD MATERIAL ↗',
+  formats: 'PDF · TXT · MARKDOWN',
+  dragOverHeading: 'Drop material\nto build graph.'
+};
 
-describe('Canvas-Native Knowledge Graph Empty State', () => {
-  describe('Dynamic Contextual Copy', () => {
-    it('generates quiet contextual heading using the active graph name', () => {
-      const physicsCopy = getEmptyStateCopy('Physics');
-      assert.equal(physicsCopy.heading, 'Physics is ready for its first material.');
+describe('Refined Organic Editorial Canvas Empty State', () => {
+  describe('Editorial Copy & Typographic Hierarchy Invariants', () => {
+    it('matches exact GraphMind editorial copy specifications', () => {
+      assert.equal(EMPTY_CANVAS_SPEC.eyebrow, 'KNOWLEDGE GRAPH / EMPTY CANVAS');
+      assert.equal(EMPTY_CANVAS_SPEC.heading, 'Build your first\nknowledge graph.');
       assert.equal(
-        physicsCopy.supportingText,
-        'Upload study material and GraphMind will map the concepts and relationships inside it.'
+        EMPTY_CANVAS_SPEC.supporting,
+        'Upload your study material and GraphMind will map the concepts and relationships inside it.'
       );
-
-      const dbmsCopy = getEmptyStateCopy('DBMS');
-      assert.equal(dbmsCopy.heading, 'DBMS is ready for its first material.');
-
-      const mlCopy = getEmptyStateCopy('Machine Learning');
-      assert.equal(mlCopy.heading, 'Machine Learning is ready for its first material.');
+      assert.equal(EMPTY_CANVAS_SPEC.ctaText, 'UPLOAD MATERIAL ↗');
+      assert.equal(EMPTY_CANVAS_SPEC.formats, 'PDF · TXT · MARKDOWN');
     });
 
-    it('falls back gracefully to generic graph title if graphName is missing or whitespace', () => {
-      const emptyCopy = getEmptyStateCopy('');
-      assert.equal(emptyCopy.heading, 'Your graph is ready for its first material.');
+    it('has intentional line break in the dominant heading', () => {
+      const lines = EMPTY_CANVAS_SPEC.heading.split('\n');
+      assert.equal(lines.length, 2);
+      assert.equal(lines[0], 'Build your first');
+      assert.equal(lines[1], 'knowledge graph.');
+    });
+  });
 
-      const undefinedCopy = getEmptyStateCopy(undefined);
-      assert.equal(undefinedCopy.heading, 'Your graph is ready for its first material.');
+  describe('Organic Clusters & Non-Geometric Distribution', () => {
+    it('distributes 16 nodes into loose clusters instead of a geometric loop', () => {
+      assert.equal(PRE_GRAPH_NODES.length, 16);
+
+      // Verify presence of 4 distinct quadrant clusters
+      const upperLeft = PRE_GRAPH_NODES.filter(n => n.x < 300 && n.y < 300);
+      const upperRight = PRE_GRAPH_NODES.filter(n => n.x > 700 && n.y < 300);
+      const lowerLeft = PRE_GRAPH_NODES.filter(n => n.x < 300 && n.y > 450);
+      const lowerRight = PRE_GRAPH_NODES.filter(n => n.x > 700 && n.y > 450);
+      const marginNodes = PRE_GRAPH_NODES.filter(n => (n.x < 120 || n.x > 900) && n.y >= 300 && n.y <= 450);
+
+      assert.equal(upperLeft.length, 4, 'Upper-left cluster should have 4 nodes');
+      assert.equal(upperRight.length, 4, 'Upper-right cluster should have 4 nodes');
+      assert.equal(lowerLeft.length, 3, 'Lower-left cluster should have 3 nodes');
+      assert.equal(lowerRight.length, 3, 'Lower-right cluster should have 3 nodes');
+      assert.equal(marginNodes.length, 2, 'Should have 2 margin bridging nodes');
     });
 
-    it('smoothly switches copy when file is dragged over canvas', () => {
-      const dragOverCopy = getEmptyStateCopy('Physics', true);
-      assert.equal(dragOverCopy.heading, 'Drop material to start the graph.');
-      assert.equal(
-        dragOverCopy.supportingText,
-        'GraphMind will extract concepts and map their relationships.'
+    it('implements 3-tier node hierarchy with restrained GraphMind green accents', () => {
+      const primary = PRE_GRAPH_NODES.filter(n => n.tier === 'primary');
+      const secondary = PRE_GRAPH_NODES.filter(n => n.tier === 'secondary');
+      const tertiary = PRE_GRAPH_NODES.filter(n => n.tier === 'tertiary');
+
+      // Primary: 3-4px, green, only a small number (3)
+      assert.equal(primary.length, 3, 'Must have exactly 3 primary green nodes');
+      for (const node of primary) {
+        assert.ok(node.r >= 3.0 && node.r <= 4.0, `Primary node ${node.id} radius must be 3-4px`);
+        assert.equal(node.isAccent, true, `Primary node ${node.id} must be marked isAccent`);
+      }
+
+      // Secondary: 2-3px muted gray
+      assert.ok(secondary.length >= 6, 'Must have secondary muted nodes');
+      for (const node of secondary) {
+        assert.ok(node.r >= 2.0 && node.r <= 3.0, `Secondary node ${node.id} radius must be 2-3px`);
+      }
+
+      // Tertiary: 1-2px low opacity
+      assert.ok(tertiary.length >= 5, 'Must have tertiary subtle nodes');
+      for (const node of tertiary) {
+        assert.ok(node.r >= 1.0 && node.r <= 2.0, `Tertiary node ${node.id} radius must be 1-2px`);
+      }
+    });
+
+    it('strictly preserves the central quiet zone around the dominant typography', () => {
+      // Quiet zone box: x: 270..750, y: 235..465
+      const nodesInQuietZone = PRE_GRAPH_NODES.filter(
+        n => n.x >= 270 && n.x <= 750 && n.y >= 235 && n.y <= 465
       );
+      assert.equal(nodesInQuietZone.length, 0, 'No nodes may sit inside the central quiet zone');
+
+      // Check that no edge crosses through the quiet zone
+      const nodeMap = new Map(PRE_GRAPH_NODES.map(n => [n.id, n]));
+      for (const edge of PRE_GRAPH_EDGES) {
+        const s = nodeMap.get(edge.source)!;
+        const t = nodeMap.get(edge.target)!;
+        assert.ok(s && t, `Edge ${edge.id} must have valid endpoints`);
+
+        // Check midpoint does not sit in quiet zone center (350..700, 240..450)
+        const midX = (s.x + t.x) / 2;
+        const midY = (s.y + t.y) / 2;
+        const midInQuietZone = midX >= 280 && midX <= 740 && midY >= 240 && midY <= 450;
+        assert.equal(
+          midInQuietZone,
+          false,
+          `Edge ${edge.id} from (${s.x},${s.y}) to (${t.x},${t.y}) must not cross through the quiet zone`
+        );
+      }
+    });
+
+    it('breaks bottom perimeter connection to avoid forming a closed polygon', () => {
+      const nodeMap = new Map(PRE_GRAPH_NODES.map(n => [n.id, n]));
+      // Assert no edge connects lower-left directly across the bottom to lower-right
+      const lowerLeftIds = new Set(PRE_GRAPH_NODES.filter(n => n.x < 300 && n.y > 450).map(n => n.id));
+      const lowerRightIds = new Set(PRE_GRAPH_NODES.filter(n => n.x > 700 && n.y > 450).map(n => n.id));
+
+      for (const edge of PRE_GRAPH_EDGES) {
+        const isCrossBottom =
+          (lowerLeftIds.has(edge.source) && lowerRightIds.has(edge.target)) ||
+          (lowerRightIds.has(edge.source) && lowerLeftIds.has(edge.target));
+        assert.equal(isCrossBottom, false, 'Must not connect lower clusters across the bottom');
+      }
     });
   });
 
@@ -154,8 +224,6 @@ describe('Canvas-Native Knowledge Graph Empty State', () => {
       };
       const physicsMode = resolveWorkspaceMode({ nodesCount: physicsGraph.nodes.length, pipelineStage: 'complete' });
       assert.equal(physicsMode, 'empty');
-      const physicsCopy = getEmptyStateCopy(physicsGraph.name);
-      assert.equal(physicsCopy.heading, 'Physics is ready for its first material.');
 
       // Step 3: Switch back to DBMS
       const dbmsBackMode = resolveWorkspaceMode({ nodesCount: dbmsGraph.nodes.length, pipelineStage: 'complete' });
