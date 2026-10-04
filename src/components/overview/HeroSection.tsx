@@ -2,10 +2,15 @@ import React, { useRef, useEffect, useState } from 'react';
 import { motion, useMotionValue, useSpring } from 'framer-motion';
 import { ArrowUp, ArrowRight } from 'lucide-react';
 import { KnowledgeOrb3D } from './KnowledgeOrb3D';
+import type { KnowledgeGraphMeta } from '../../types/knowledgeGraph';
 
 interface HeroSectionProps {
   onCreateGraph: () => void;
   onExploreDemo: () => void;
+  graphMeta?: KnowledgeGraphMeta | null;
+  sourceCount?: number;
+  conceptCount?: number;
+  relationshipCount?: number;
 }
 
 const LINE1_TEXT = 'Make your material';
@@ -13,7 +18,11 @@ const LINE2_TEXT = 'make sense';
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
   onCreateGraph,
-  onExploreDemo
+  onExploreDemo,
+  graphMeta = null,
+  sourceCount = 0,
+  conceptCount = 0,
+  relationshipCount = 0
 }) => {
   const heroRef = useRef<HTMLElement>(null);
 
@@ -155,7 +164,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           }}
         >
           <span className="hero-eyebrow-dot" aria-hidden="true" />
-          <span>Knowledge Mapping</span>
+          <span>Knowledge Mapping{graphMeta?.name ? ` · ${graphMeta.name}` : ''}</span>
         </motion.div>
 
         {/* Display Headline with Character-by-Character Entrance & Scroll Exit */}
@@ -252,7 +261,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             ease: [0.22, 1, 0.36, 1] 
           }}
         >
-          GraphMind finds the ideas inside your study material and maps how they connect.
+          {graphMeta?.description 
+            ? graphMeta.description 
+            : graphMeta 
+            ? `GraphMind finds the concepts inside ${graphMeta.name} and maps how they connect.`
+            : 'GraphMind finds the ideas inside your study material and maps how they connect.'}
         </motion.p>
 
         {/* Action Controls: Editorial Action Row (28–36px gap) */}
@@ -325,6 +338,32 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             </span>
           </motion.button>
         </motion.div>
+
+        {/* Active Graph Metrics Line */}
+        {graphMeta && (
+          <motion.div
+            className="hero-graph-metrics"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: Math.min(actionsOpacity, 0.75) }}
+            transition={{ duration: 0.5, delay: 0.52 }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginTop: '16px',
+              fontSize: '12px',
+              fontFamily: 'var(--font-mono)',
+              color: 'var(--text-muted)',
+              letterSpacing: '0.02em'
+            }}
+          >
+            <span>{sourceCount} {sourceCount === 1 ? 'source' : 'sources'}</span>
+            <span aria-hidden="true">·</span>
+            <span>{conceptCount} {conceptCount === 1 ? 'concept' : 'concepts'}</span>
+            <span aria-hidden="true">·</span>
+            <span>{relationshipCount} {relationshipCount === 1 ? 'relationship' : 'relationships'}</span>
+          </motion.div>
+        )}
       </motion.div>
 
       {/* Understated Editorial Bottom Scroll Cue */}

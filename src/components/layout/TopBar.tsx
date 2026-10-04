@@ -1,9 +1,16 @@
 import React from 'react';
 import { Search, Menu, UploadCloud } from 'lucide-react';
 import type { ProjectWorkspace } from '../../types';
+import type { KnowledgeGraphMeta } from '../../types/knowledgeGraph';
+import { GraphSwitcher } from './GraphSwitcher';
 
 interface TopBarProps {
   project: ProjectWorkspace;
+  graphs?: KnowledgeGraphMeta[];
+  activeGraphId?: string | null;
+  activeGraphMeta?: KnowledgeGraphMeta | null;
+  onSelectGraph?: (graphId: string) => void;
+  onOpenNewGraphModal?: () => void;
   onOpenSearch: () => void;
   onToggleMobileMenu: () => void;
   onOpenCreateModal: () => void;
@@ -12,6 +19,11 @@ interface TopBarProps {
 
 export const TopBar: React.FC<TopBarProps> = ({
   project,
+  graphs = [],
+  activeGraphId = null,
+  activeGraphMeta = null,
+  onSelectGraph = () => {},
+  onOpenNewGraphModal = () => {},
   onOpenSearch,
   onToggleMobileMenu,
   onOpenCreateModal,
@@ -19,7 +31,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 }) => {
   return (
     <header className="app-topbar" role="banner">
-      {/* Left: Mobile Drawer Trigger + Project Context (No redundant GraphMind /) */}
+      {/* Left: Mobile Drawer Trigger + Native Quiet Graph Switcher */}
       <div className="topbar-left">
         <button 
           type="button"
@@ -31,9 +43,19 @@ export const TopBar: React.FC<TopBarProps> = ({
           <Menu size={16} strokeWidth={1.5} aria-hidden="true" />
         </button>
 
-        <div className="topbar-context" title={project.name}>
-          {project.name}
-        </div>
+        {graphs.length > 0 ? (
+          <GraphSwitcher
+            graphs={graphs}
+            activeGraphId={activeGraphId}
+            activeGraphMeta={activeGraphMeta}
+            onSelectGraph={onSelectGraph}
+            onOpenNewGraph={onOpenNewGraphModal}
+          />
+        ) : (
+          <div className="topbar-context" title={project.name}>
+            {project.name}
+          </div>
+        )}
       </div>
 
       {/* Right: Search, Upload Material shortcut, User Avatar */}

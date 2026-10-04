@@ -19,6 +19,7 @@ import { computeGraphLayout } from './graphLayout';
  */
 
 export interface GraphBuilderOptions {
+  graphId?: string;
   removeDanglingEdges?: boolean; // Defaults to true
   allowSelfLoops?: boolean; // Defaults to false
   strictValidation?: boolean; // Defaults to true
@@ -282,7 +283,18 @@ export function buildKnowledgeGraph(
     }
   }
 
+  const resolvedGraphId = options.graphId || sources.find(s => s.graphId)?.graphId;
+  if (resolvedGraphId) {
+    for (const n of nodes) {
+      if (!n.graphId) n.graphId = resolvedGraphId;
+    }
+    for (const r of cleanRelationships) {
+      if (!r.graphId) r.graphId = resolvedGraphId;
+    }
+  }
+
   return {
+    id: resolvedGraphId,
     nodes,
     relationships: cleanRelationships,
     sources: Array.from(sourceMap.values())

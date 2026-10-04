@@ -628,7 +628,7 @@ function FlowCanvas({
         handleStartFullSequence();
       } else if (initialMode === 'crafting') {
         runCraftingAnimation(true);
-      } else if (initialMode === 'empty') {
+      } else if (initialMode === 'empty' || effectiveNodes.length === 0) {
         setNodes([]);
         setEdges([]);
         setIsLoadingOrbVisible(false);
@@ -901,9 +901,9 @@ function FlowCanvas({
           </svg>
 
           <div className="graph-empty-box">
-            <h2 className="graph-empty-title">Your knowledge graph will appear here.</h2>
+            <h2 className="graph-empty-title">Your graph is empty</h2>
             <p className="graph-empty-desc">
-              Upload a paper, lecture, note, or transcript to begin.
+              Upload material to begin mapping your concepts.
             </p>
             <button 
               type="button"

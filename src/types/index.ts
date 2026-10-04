@@ -42,17 +42,21 @@ export interface MetricItem {
 export interface ProjectWorkspace {
   id: string;
   name: string;
-  code: string;
-  domain: string;
+  code?: string;
+  domain?: string;
+  description?: string;
   activeNodes: number;
   density: string;
   lastUpdated: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type SourceStatus = 'Ready' | 'Processing' | 'Failed' | 'Indexed' | 'synced' | 'indexing';
 
 export interface RecentMaterial {
   id: string;
+  graphId?: string;
   title: string;
   name?: string;
   fileName?: string;
@@ -70,6 +74,7 @@ export interface RecentMaterial {
 
 export interface LearningPath {
   id: string;
+  graphId?: string;
   title: string;
   conceptIds: string[];
   concepts: KnowledgeNode[];

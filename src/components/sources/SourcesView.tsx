@@ -635,7 +635,7 @@ export const SourcesView: React.FC<SourcesViewProps> = ({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.50, delay: 0.06, ease: REVEAL_EASE }}
           >
-            Your knowledge graph begins with study material.
+            Add study material to start building your knowledge graph.
           </motion.p>
 
           <motion.div

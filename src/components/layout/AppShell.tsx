@@ -2,12 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import type { NavSection, ProjectWorkspace, RecentMaterial } from '../../types';
+import type { KnowledgeGraphMeta } from '../../types/knowledgeGraph';
 
 interface AppShellProps {
   currentSection: NavSection;
   onSelectSection: (section: NavSection) => void;
   project: ProjectWorkspace;
   recentMaterials: RecentMaterial[];
+  graphs?: KnowledgeGraphMeta[];
+  activeGraphId?: string | null;
+  activeGraphMeta?: KnowledgeGraphMeta | null;
+  onSelectGraph?: (graphId: string) => void;
+  onOpenNewGraphModal?: () => void;
   onOpenSearch: () => void;
   onOpenCreateModal: () => void;
   children: React.ReactNode;
@@ -17,6 +23,11 @@ export const AppShell: React.FC<AppShellProps> = ({
   currentSection,
   onSelectSection,
   project,
+  graphs = [],
+  activeGraphId = null,
+  activeGraphMeta = null,
+  onSelectGraph = () => {},
+  onOpenNewGraphModal = () => {},
   onOpenSearch,
   onOpenCreateModal,
   children
@@ -59,6 +70,11 @@ export const AppShell: React.FC<AppShellProps> = ({
       <div className="app-main">
         <TopBar 
           project={project}
+          graphs={graphs}
+          activeGraphId={activeGraphId}
+          activeGraphMeta={activeGraphMeta}
+          onSelectGraph={onSelectGraph}
+          onOpenNewGraphModal={onOpenNewGraphModal}
           onOpenSearch={onOpenSearch}
           onToggleMobileMenu={() => setMobileMenuOpen(prev => !prev)}
           onOpenCreateModal={onOpenCreateModal}

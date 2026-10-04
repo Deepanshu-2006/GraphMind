@@ -118,6 +118,7 @@ export interface PipelineResult {
 }
 
 export interface PipelineOrchestratorOptions {
+  graphId?: string;
   onProgress?: (event: PipelineProgressEvent) => void;
   conceptExtraction?: ConceptExtractionOptions;
   conceptQuality?: Partial<ConceptQualityConfig>;
@@ -458,7 +459,7 @@ export class PipelineOrchestrator {
         canonicalConcepts,
         relationships,
         successfullyExtractedSources,
-        options.graphBuilder
+        { ...options.graphBuilder, graphId: options.graphId || options.graphBuilder?.graphId }
       );
 
       notify('building-graph', PIPELINE_STAGE_LABELS['building-graph'], {

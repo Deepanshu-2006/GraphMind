@@ -18,12 +18,21 @@ export interface NodePosition {
   y: number;
 }
 
+export interface KnowledgeGraphMeta {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /**
  * Concept Node Model
  * Represents an extracted or synthesized semantic concept.
  */
 export interface KnowledgeNode {
   id: string;
+  graphId?: string;
   name: string;
   type: ConceptNodeType;
   description: string;
@@ -61,6 +70,7 @@ export type SemanticRelationType =
  */
 export interface KnowledgeRelationship {
   id: string;
+  graphId?: string;
   source: string; // source concept/node id
   target: string; // target concept/node id
   type: SemanticRelationType;
@@ -89,6 +99,7 @@ export type SourceLifecycleState = 'pending' | 'processing' | 'ready' | 'failed'
 
 export interface KnowledgeSource {
   id: string;
+  graphId?: string;
   name: string;
   type: SourceType;
   fileName?: string;
@@ -96,6 +107,7 @@ export interface KnowledgeSource {
   createdAt: string | number;
   status: SourceLifecycleState | 'Ready' | 'Processing' | 'Failed' | 'Indexed' | string;
   errorMessage?: string;
+  processingStage?: string;
   
   // Optional metadata needed by UI and provenance tracking
   size?: string;
@@ -108,6 +120,11 @@ export interface KnowledgeSource {
 }
 
 export interface KnowledgeGraph {
+  id?: string;
+  name?: string;
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
   nodes: KnowledgeNode[];
   relationships: KnowledgeRelationship[];
   sources: KnowledgeSource[];

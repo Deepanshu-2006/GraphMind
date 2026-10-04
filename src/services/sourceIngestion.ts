@@ -334,6 +334,7 @@ export function sourceToRecentMaterial(source: KnowledgeSource): RecentMaterial 
 
   return {
     id: source.id,
+    graphId: source.graphId,
     title: source.fileName || source.name,
     fileName: source.fileName || source.name,
     name: source.name,

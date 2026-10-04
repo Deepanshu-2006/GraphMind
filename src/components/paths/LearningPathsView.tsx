@@ -541,8 +541,8 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
         <div className="paths-empty-state">
           <span className="paths-empty-label">NO LEARNING PATHS YET</span>
           <p className="paths-empty-desc">
-            Add study material and GraphMind will build learning paths from the
-            relationships in your knowledge graph.
+            Learning paths will appear once GraphMind discovers meaningful
+            relationships between your concepts.
           </p>
           <button
             type="button"
