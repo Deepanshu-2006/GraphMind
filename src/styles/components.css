@@ -647,3 +647,305 @@
   }
 }
 
+/* New Graph Dialog — Minimal Swiss Product Design */
+.new-graph-dialog {
+  background-color: #141414;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.85);
+  width: 100%;
+  max-width: 440px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.new-graph-header {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.new-graph-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.new-graph-close-btn {
+  color: var(--text-muted);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+
+.new-graph-close-btn:hover {
+  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.new-graph-form {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.new-graph-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.new-graph-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.new-graph-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.new-graph-optional {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.new-graph-input {
+  background: #0D0D0D;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  color: var(--text-primary);
+  outline: none;
+  font-family: var(--font-body);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.new-graph-input:focus {
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
+}
+
+.new-graph-input.has-error {
+  border-color: #ef4444;
+}
+
+.new-graph-textarea {
+  background: #0D0D0D;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  outline: none;
+  font-family: var(--font-body);
+  resize: none;
+  line-height: 1.4;
+  transition: border-color 140ms ease;
+}
+
+.new-graph-textarea:focus {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.new-graph-error {
+  font-size: 12px;
+  color: #f87171;
+  margin-top: 2px;
+}
+
+.new-graph-actions {
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border-top: 1px solid var(--border-default);
+}
+
+.new-graph-btn-cancel {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  padding: 7px 14px;
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: color 140ms ease;
+}
+
+.new-graph-btn-cancel:hover {
+  color: var(--text-primary);
+}
+
+.new-graph-btn-submit {
+  background: #EDEDED;
+  border: 1px solid #EDEDED;
+  color: #0A0A0A;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: opacity 140ms ease, background-color 140ms ease;
+}
+
+.new-graph-btn-submit:hover {
+  background: #FFFFFF;
+}
+
+/* Delete Graph Confirmation Dialog */
+.delete-graph-dialog {
+  background-color: #141414;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.85);
+  width: 100%;
+  max-width: 440px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.delete-graph-header {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.delete-graph-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.delete-graph-warning-icon {
+  color: #f59e0b;
+}
+
+.delete-graph-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.delete-graph-close-btn {
+  color: var(--text-muted);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 140ms ease;
+}
+
+.delete-graph-close-btn:hover {
+  color: var(--text-primary);
+}
+
+.delete-graph-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.delete-graph-message {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.delete-graph-target-badge {
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.delete-graph-target-label {
+  color: var(--text-muted);
+}
+
+.delete-graph-target-name {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.delete-graph-actions {
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border-top: 1px solid var(--border-default);
+}
+
+.delete-graph-btn-cancel {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  padding: 7px 14px;
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: color 140ms ease;
+}
+
+.delete-graph-btn-cancel:hover {
+  color: var(--text-primary);
+}
+
+.delete-graph-btn-confirm {
+  background: #dc2626;
+  border: 1px solid #dc2626;
+  color: #FFFFFF;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: background-color 140ms ease;
+}
+
+.delete-graph-btn-confirm:hover {
+  background: #b91c1c;
+}
+
+
