@@ -712,3 +712,265 @@
     justify-content: flex-start;
   }
 }
+
+/* --------------------------------------------------------------------------
+   11. Curriculum Sequence Interactive View
+   -------------------------------------------------------------------------- */
+.paths-curriculum-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.paths-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-bottom: 28px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8A8A8A;
+  cursor: pointer;
+  transition: color 180ms ease-out, transform 180ms ease-out;
+}
+
+.paths-back-btn:hover {
+  color: #FFFFFF;
+  transform: translateX(-3px);
+}
+
+.paths-curriculum-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 40px;
+}
+
+.paths-curriculum-kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.paths-curriculum-title {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 3.2vw, 38px);
+  font-weight: 560;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: #F5F5F5;
+  margin: 0;
+}
+
+.paths-curriculum-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: #8A8A8A;
+  margin-top: 6px;
+}
+
+.paths-curriculum-stepper {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  max-width: 860px;
+}
+
+.paths-step-card {
+  display: flex;
+  gap: 24px;
+  position: relative;
+  padding-bottom: 36px;
+}
+
+.paths-step-card:last-child {
+  padding-bottom: 12px;
+}
+
+.paths-step-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 32px;
+}
+
+.paths-step-marker {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #161616;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: #A0A0A0;
+  z-index: 2;
+  transition: all 200ms ease-out;
+}
+
+.paths-step-card.is-completed .paths-step-marker {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  color: #0A0A0A;
+}
+
+.paths-step-line {
+  flex: 1;
+  width: 1px;
+  min-height: 30px;
+  background-color: rgba(255, 255, 255, 0.08);
+  margin-top: 6px;
+}
+
+.paths-step-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.018);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 22px 24px;
+  transition: border-color 200ms ease-out, background 200ms ease-out;
+}
+
+.paths-step-body:hover {
+  background: rgba(255, 255, 255, 0.032);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.paths-step-card.is-completed .paths-step-body {
+  border-color: rgba(163, 255, 18, 0.22);
+}
+
+.paths-step-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.paths-step-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 550;
+  color: #F0F0F0;
+  margin: 0;
+}
+
+.paths-step-badge {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #A0A0A0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.paths-step-desc {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #ABABAB;
+  margin: 0;
+}
+
+.paths-step-provenance {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #707070;
+  margin-top: 4px;
+}
+
+.paths-step-provenance span {
+  color: #9A9A9A;
+}
+
+.paths-step-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.paths-step-btn-graph {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: #8A8A8A;
+  cursor: pointer;
+  transition: color 180ms ease-out;
+}
+
+.paths-step-btn-graph:hover {
+  color: #FFFFFF;
+}
+
+.paths-step-btn-complete {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #B5B5B5;
+  cursor: pointer;
+  transition: all 180ms ease-out;
+}
+
+.paths-step-btn-complete:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #FFFFFF;
+  border-color: rgba(255, 255, 255, 0.20);
+}
+
+.paths-step-btn-complete.is-active {
+  background: rgba(163, 255, 18, 0.12);
+  border-color: rgba(163, 255, 18, 0.35);
+  color: var(--accent);
+}
