@@ -8,8 +8,7 @@ import { CommandPalette } from './components/modals/CommandPalette';
 import { SourcesView } from './components/sources/SourcesView';
 import { LearningPathsView } from './components/paths/LearningPathsView';
 import { 
-  mockProjectWorkspace, 
-  mockLearningPaths 
+  mockProjectWorkspace 
 } from './data/mockData';
 import { demoKnowledgeGraph, normalizeCategory } from './data/graphData';
 import type { KnowledgeSource, KnowledgeGraph } from './types/knowledgeGraph';
@@ -21,8 +20,12 @@ import {
   loadUserGraph, 
   saveUserGraph, 
   loadGraphSourceType, 
-  saveGraphSourceType 
+  saveGraphSourceType,
+  loadCompletedConceptIds,
+  saveCompletedConceptIds,
+  toggleCompletedConceptId
 } from './services/storage';
+import { generateLearningPaths } from './services/learningPathGeneration';
 import type { NavSection, RecentMaterial } from './types';
 
 export function App() {
@@ -57,6 +60,24 @@ export function App() {
   const [pipelineError, setPipelineError] = useState<string | undefined>(undefined);
   const [livePipelineEvent, setLivePipelineEvent] = useState<PipelineProgressEvent | null>(null);
   const [focusedConceptId, setFocusedConceptId] = useState<string | null>(null);
+  const [completedConceptIds, setCompletedConceptIds] = useState<string[]>(() => loadCompletedConceptIds());
+
+  // Real Learning Paths derivation (Requirements 2, 3, 22, 23, 25):
+  // Derived strictly from the user's actual knowledge graph (userGraph)
+  // Memoized to avoid recomputing expensive graph analysis on every render
+  const learningPathResult = useMemo(() => {
+    return generateLearningPaths(userGraph, completedConceptIds);
+  }, [userGraph, completedConceptIds]);
+
+  const handleToggleCompleteConcept = (conceptId: string) => {
+    const updated = toggleCompletedConceptId(conceptId);
+    setCompletedConceptIds(updated);
+  };
+
+  const handleExploreConceptInGraph = (conceptId: string) => {
+    setFocusedConceptId(conceptId);
+    navigateToSection('graph');
+  };
 
   // Active graph: strictly userGraph when in 'user' mode and userGraph exists, demoGraph when in 'demo' mode
   const activeGraph = graphSourceType === 'user' && userGraph ? userGraph : demoGraph;
@@ -313,6 +334,13 @@ export function App() {
           return r;
         });
 
+      // Prune any completed concept IDs whose concepts no longer exist
+      const nextCompleted = completedConceptIds.filter(id => validNodeIds.has(id));
+      if (nextCompleted.length !== completedConceptIds.length) {
+        setCompletedConceptIds(nextCompleted);
+        saveCompletedConceptIds(nextCompleted);
+      }
+
       const updatedGraphSources = userGraph.sources.filter(s => s.id !== sourceId);
 
       if (updatedNodes.length === 0 || nextSources.length === 0) {
@@ -382,8 +410,20 @@ export function App() {
         {/* Learning Paths View */}
         {currentSection === 'paths' && (
           <LearningPathsView 
-            paths={mockLearningPaths}
-            onSelectPath={() => navigateToSection('graph')}
+            paths={learningPathResult.paths}
+            totalConceptsInGraph={userGraph?.nodes?.length || 0}
+            totalRelationshipsInGraph={userGraph?.relationships?.length || 0}
+            isLoading={pipelineStage !== 'complete' && pipelineStage !== 'error' && userSources.some(s => s.status === 'processing')}
+            loadingMessage={pipelineStatusMessage}
+            onSelectPath={(pathId) => {
+              if (!pathId) {
+                navigateToSection('graph');
+              }
+            }}
+            onOpenUpload={() => setCreateModalOpen(true)}
+            onToggleCompleteConcept={handleToggleCompleteConcept}
+            onExploreConceptInGraph={handleExploreConceptInGraph}
+            sources={userSources}
           />
         )}
 

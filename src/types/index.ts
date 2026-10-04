@@ -1,3 +1,4 @@
+import type { KnowledgeNode } from './knowledgeGraph';
 export * from './graph';
 
 export type NavSection = 'overview' | 'graph' | 'paths' | 'sources' | 'settings';
@@ -70,9 +71,13 @@ export interface RecentMaterial {
 export interface LearningPath {
   id: string;
   title: string;
-  progress: number;
+  conceptIds: string[];
+  concepts: KnowledgeNode[];
   nodeCount: number;
+  estimatedMinutes: number;
   estimatedHours: string;
-  status: string;
+  completedConceptIds: string[];
+  progress: number;
+  status: 'NOT STARTED' | 'IN PROGRESS' | 'COMPLETE' | string;
 }
 

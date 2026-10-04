@@ -1,11 +1,20 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, ArrowLeft, CheckCircle2, Circle } from 'lucide-react';
 import type { LearningPath } from '../../types';
+import type { KnowledgeSource } from '../../types/knowledgeGraph';
 
 interface LearningPathsViewProps {
   paths: LearningPath[];
   onSelectPath: (pathId: string) => void;
+  onOpenUpload?: () => void;
+  isLoading?: boolean;
+  loadingMessage?: string;
+  totalConceptsInGraph?: number;
+  totalRelationshipsInGraph?: number;
+  onToggleCompleteConcept?: (conceptId: string) => void;
+  onExploreConceptInGraph?: (conceptId: string) => void;
+  sources?: KnowledgeSource[];
 }
 
 // Gold-standard editorial deceleration curve: crisp release, velvety asymptotic stop
@@ -13,17 +22,30 @@ const REVEAL_EASE = [0.16, 1, 0.3, 1] as const;
 
 export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
   paths,
-  onSelectPath
+  onSelectPath,
+  onOpenUpload,
+  isLoading = false,
+  loadingMessage,
+  totalConceptsInGraph = 0,
+  onToggleCompleteConcept,
+  onExploreConceptInGraph,
+  sources = []
 }) => {
   const shouldReduceMotion = useReducedMotion();
+  const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
 
-  // Find the primary active path (meaningful progress > 0 and < 100, or first path)
+  // Active path for hero visual level
   const activePathId = useMemo(() => {
     const inProgress = paths.find((p) => p.progress > 0 && p.progress < 100);
     if (inProgress) return inProgress.id;
     const anyProgress = paths.find((p) => p.progress > 0);
     return anyProgress?.id || paths[0]?.id || null;
   }, [paths]);
+
+  const currentSelectedPath = useMemo(() => {
+    if (!selectedPathId) return null;
+    return paths.find((p) => p.id === selectedPathId) || null;
+  }, [selectedPathId, paths]);
 
   // Formatted count: "03 PATHS"
   const formattedCount = String(paths.length).padStart(2, '0');
@@ -41,6 +63,179 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
     return { origin: rawTitle, destination: null };
   };
 
+  // Helper to find source provenance display name
+  const getProvenanceSourceName = (sourceIds?: string[]): string | null => {
+    if (!sourceIds || sourceIds.length === 0) return null;
+    const firstSourceId = sourceIds[0];
+    const match = sources.find((s) => s.id === firstSourceId);
+    if (match) {
+      return match.name || match.fileName || firstSourceId;
+    }
+    return firstSourceId.replace(/^src-/, '');
+  };
+
+  // -------------------------------------------------------------------------
+  // RENDER: Learning Experience / Path Curriculum Sequence View
+  // -------------------------------------------------------------------------
+  if (currentSelectedPath) {
+    const { origin, destination } = parseTitleConcepts(currentSelectedPath.title);
+    const completedSet = new Set(currentSelectedPath.completedConceptIds || []);
+    const isCompleted = currentSelectedPath.progress === 100;
+    const isPlanned = currentSelectedPath.progress === 0;
+
+    return (
+      <div className="paths-page-container">
+        <div className="paths-curriculum-container">
+          {/* Back button */}
+          <button
+            type="button"
+            className="paths-back-btn"
+            onClick={() => setSelectedPathId(null)}
+            aria-label="Back to all learning paths"
+          >
+            <ArrowLeft size={13} aria-hidden="true" />
+            <span>All Learning Paths</span>
+          </button>
+
+          {/* Curriculum Header */}
+          <header className="paths-curriculum-header">
+            <span className="paths-curriculum-kicker">Curriculum Route</span>
+            <h1 className="paths-curriculum-title">
+              <span>{origin}</span>
+              {destination && (
+                <>
+                  <span className="paths-title-arrow" aria-hidden="true">→</span>
+                  <span>{destination}</span>
+                </>
+              )}
+            </h1>
+
+            <div className="paths-curriculum-meta-row">
+              <span>{currentSelectedPath.nodeCount} concepts</span>
+              <span className="paths-meta-dot" aria-hidden="true">·</span>
+              <span>{currentSelectedPath.estimatedHours}</span>
+              <span className="paths-meta-dot" aria-hidden="true">·</span>
+              {isCompleted ? (
+                <span className="paths-meta-status is-complete">COMPLETE</span>
+              ) : isPlanned ? (
+                <span className="paths-meta-status is-planned">NOT STARTED</span>
+              ) : (
+                <span>{currentSelectedPath.progress}% complete</span>
+              )}
+            </div>
+
+            {/* Progress track */}
+            <div className="paths-progress-track" style={{ maxWidth: '400px', marginTop: '10px' }}>
+              <div
+                className="paths-progress-fill"
+                style={{
+                  width: `${Math.min(100, Math.max(0, currentSelectedPath.progress))}%`
+                }}
+              />
+            </div>
+          </header>
+
+          {/* Ordered Concept Stepper */}
+          <div className="paths-curriculum-stepper" role="list">
+            {currentSelectedPath.concepts.map((concept, idx) => {
+              const isConceptCompleted = completedSet.has(concept.id);
+              const stepNumber = String(idx + 1).padStart(2, '0');
+              const sourceName = getProvenanceSourceName(concept.sourceIds);
+
+              return (
+                <article
+                  key={concept.id}
+                  className={['paths-step-card', isConceptCompleted ? 'is-completed' : ''].join(' ')}
+                  role="listitem"
+                >
+                  {/* Step rail */}
+                  <div className="paths-step-rail">
+                    <div className="paths-step-marker">
+                      {isConceptCompleted ? (
+                        <CheckCircle2 size={14} strokeWidth={2.2} />
+                      ) : (
+                        <span>{stepNumber}</span>
+                      )}
+                    </div>
+                    {idx < currentSelectedPath.concepts.length - 1 && (
+                      <div className="paths-step-line" />
+                    )}
+                  </div>
+
+                  {/* Step body */}
+                  <div className="paths-step-body">
+                    <div className="paths-step-header">
+                      <h2 className="paths-step-title">{concept.name}</h2>
+                      {concept.type && (
+                        <span className="paths-step-badge">
+                          {concept.type}
+                        </span>
+                      )}
+                    </div>
+
+                    {concept.description && (
+                      <p className="paths-step-desc">{concept.description}</p>
+                    )}
+
+                    {sourceName && (
+                      <div className="paths-step-provenance">
+                        <span>Introduced in:</span>
+                        <span>{sourceName}</span>
+                      </div>
+                    )}
+
+                    <div className="paths-step-actions">
+                      {onExploreConceptInGraph ? (
+                        <button
+                          type="button"
+                          className="paths-step-btn-graph"
+                          onClick={() => onExploreConceptInGraph(concept.id)}
+                          aria-label={`View ${concept.name} in knowledge graph`}
+                        >
+                          <span>Open in graph</span>
+                          <ArrowUpRight size={12} strokeWidth={1.8} aria-hidden="true" />
+                        </button>
+                      ) : (
+                        <div />
+                      )}
+
+                      {onToggleCompleteConcept && (
+                        <button
+                          type="button"
+                          className={[
+                            'paths-step-btn-complete',
+                            isConceptCompleted ? 'is-active' : ''
+                          ].join(' ')}
+                          onClick={() => onToggleCompleteConcept(concept.id)}
+                          aria-label={isConceptCompleted ? `Mark ${concept.name} as uncompleted` : `Mark ${concept.name} as completed`}
+                        >
+                          {isConceptCompleted ? (
+                            <>
+                              <CheckCircle2 size={13} strokeWidth={2} />
+                              <span>Completed</span>
+                            </>
+                          ) : (
+                            <>
+                              <Circle size={13} strokeWidth={1.8} />
+                              <span>Mark complete</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // RENDER: Main Curriculum Routes List
+  // -------------------------------------------------------------------------
   return (
     <div className="paths-page-container">
       {/* 1. Architectural Editorial Page Header */}
@@ -113,8 +308,30 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
         />
       </header>
 
-      {/* 2. Curriculum Routes List (Differentiated Hierarchy) */}
-      {paths.length > 0 ? (
+      {/* 2. Loading State */}
+      {isLoading ? (
+        <div className="paths-empty-state">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+            <span
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: 'var(--accent)',
+                display: 'inline-block'
+              }}
+            />
+            <span className="paths-empty-label" style={{ margin: 0 }}>PROCESSING</span>
+          </div>
+          <p className="paths-empty-desc" style={{ color: '#F0F0F0', fontSize: '16px', fontWeight: 500 }}>
+            Building learning paths…
+          </p>
+          <p className="paths-empty-desc" style={{ marginTop: '-12px', fontSize: '13.5px' }}>
+            {loadingMessage || 'Analyzing relationships and structuring your curriculum.'}
+          </p>
+        </div>
+      ) : paths.length > 0 ? (
+        /* 3. Curriculum Routes List (Differentiated Hierarchy) */
         <div className="paths-list" role="list">
           {paths.map((path, idx) => {
             const isHero = idx === 0 || path.id === activePathId;
@@ -129,6 +346,11 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
             // Staggered base delays for typesetting assembly
             const baseDelay = isHero ? 0.38 : isSecondary ? 0.68 : 0.84;
 
+            const handleRowClick = () => {
+              setSelectedPathId(path.id);
+              onSelectPath(path.id);
+            };
+
             return (
               <motion.article
                 key={path.id}
@@ -136,11 +358,11 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
                 role="button"
                 tabIndex={0}
                 aria-label={`${path.progress > 0 ? 'Continue' : 'Start'} learning path ${rowNumber}: ${path.title}`}
-                onClick={() => onSelectPath(path.id)}
+                onClick={handleRowClick}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    onSelectPath(path.id);
+                    handleRowClick();
                   }
                 }}
                 initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
@@ -294,21 +516,41 @@ export const LearningPathsView: React.FC<LearningPathsViewProps> = ({
             );
           })}
         </div>
-      ) : (
-        /* Minimal Editorial Empty State */
+      ) : totalConceptsInGraph > 0 ? (
+        /* 4. Insufficient Relationships State (Requirement 13) */
         <div className="paths-empty-state">
-          <span className="paths-empty-label">NO LEARNING PATHS</span>
+          <span className="paths-empty-label">INSUFFICIENT RELATIONSHIPS</span>
           <p className="paths-empty-desc">
-            Your knowledge graph does not contain enough connected concepts
-            to generate a curriculum yet.
+            Learning paths will appear as your graph grows.
+            <br />
+            Your graph currently contains {totalConceptsInGraph} concepts, but there are not
+            enough connected relationships to form a useful learning sequence yet.
           </p>
           <button
             type="button"
             className="paths-empty-action"
-            onClick={() => onSelectPath('')}
-            aria-label="Explore knowledge graph"
+            onClick={onOpenUpload || (() => onSelectPath(''))}
+            aria-label="Upload material"
           >
-            <span>Explore knowledge graph</span>
+            <span>Upload material</span>
+            <ArrowUpRight size={12} strokeWidth={1.8} aria-hidden="true" />
+          </button>
+        </div>
+      ) : (
+        /* 5. Minimal Editorial Empty State (Requirement 12) */
+        <div className="paths-empty-state">
+          <span className="paths-empty-label">NO LEARNING PATHS YET</span>
+          <p className="paths-empty-desc">
+            Add study material and GraphMind will build learning paths from the
+            relationships in your knowledge graph.
+          </p>
+          <button
+            type="button"
+            className="paths-empty-action"
+            onClick={onOpenUpload || (() => onSelectPath(''))}
+            aria-label="Upload material"
+          >
+            <span>Upload material</span>
             <ArrowUpRight size={12} strokeWidth={1.8} aria-hidden="true" />
           </button>
         </div>

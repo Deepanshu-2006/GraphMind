@@ -4,6 +4,7 @@ const STORAGE_KEYS = {
   USER_SOURCES: 'graphmind_user_sources_v1',
   USER_GRAPH: 'graphmind_user_graph_v1',
   GRAPH_SOURCE_TYPE: 'graphmind_graph_source_type_v1',
+  USER_COMPLETED_CONCEPTS: 'graphmind_user_completed_concepts_v1',
 } as const;
 
 // Known mock/demo fixture IDs to never treat as user sources
@@ -136,6 +137,56 @@ export function saveGraphSourceType(type: 'user' | 'demo'): void {
 }
 
 /**
+ * Load user's completed concept IDs from persistence
+ */
+export function loadCompletedConceptIds(): string[] {
+  if (typeof localStorage === 'undefined') return [];
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.USER_COMPLETED_CONCEPTS);
+    if (!raw) return [];
+
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter((id): id is string => typeof id === 'string');
+  } catch (err) {
+    console.warn('[Storage] Failed to read completed concepts from localStorage:', err);
+    return [];
+  }
+}
+
+/**
+ * Save user's completed concept IDs to persistence
+ */
+export function saveCompletedConceptIds(conceptIds: string[]): void {
+  if (typeof localStorage === 'undefined') return;
+
+  try {
+    const uniqueIds = Array.from(new Set(conceptIds.filter(id => typeof id === 'string')));
+    localStorage.setItem(STORAGE_KEYS.USER_COMPLETED_CONCEPTS, JSON.stringify(uniqueIds));
+  } catch (err) {
+    console.warn('[Storage] Failed to persist completed concepts to localStorage:', err);
+  }
+}
+
+/**
+ * Toggle a single concept's completed status and return updated array
+ */
+export function toggleCompletedConceptId(conceptId: string): string[] {
+  const current = loadCompletedConceptIds();
+  const set = new Set(current);
+  if (set.has(conceptId)) {
+    set.delete(conceptId);
+  } else {
+    set.add(conceptId);
+  }
+  const updated = Array.from(set);
+  saveCompletedConceptIds(updated);
+  return updated;
+}
+
+/**
  * Clear all user data (for testing or reset)
  */
 export function clearAllUserData(): void {
@@ -145,6 +196,7 @@ export function clearAllUserData(): void {
     localStorage.removeItem(STORAGE_KEYS.USER_SOURCES);
     localStorage.removeItem(STORAGE_KEYS.USER_GRAPH);
     localStorage.removeItem(STORAGE_KEYS.GRAPH_SOURCE_TYPE);
+    localStorage.removeItem(STORAGE_KEYS.USER_COMPLETED_CONCEPTS);
   } catch (err) {
     console.warn('[Storage] Failed to clear user data:', err);
   }

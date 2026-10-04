@@ -199,30 +199,3 @@ export const mockRecentMaterials: RecentMaterial[] = [
     status: 'Processing'
   }
 ];
-
-export const mockLearningPaths = [
-  {
-    id: 'lp-1',
-    title: 'Attention Mechanisms to Foundation Models',
-    progress: 68,
-    nodeCount: 18,
-    estimatedHours: '4.5 hrs',
-    status: 'In progress'
-  },
-  {
-    id: 'lp-2',
-    title: 'Visual Representation: ConvNets to ViT',
-    progress: 35,
-    nodeCount: 14,
-    estimatedHours: '3.0 hrs',
-    status: 'In progress'
-  },
-  {
-    id: 'lp-3',
-    title: 'Loss Landscapes & Optimization Dynamics',
-    progress: 0,
-    nodeCount: 12,
-    estimatedHours: '2.5 hrs',
-    status: 'Planned'
-  }
-];
