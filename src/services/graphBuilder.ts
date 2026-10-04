@@ -55,10 +55,26 @@ export function buildGraphNodes(concepts: CanonicalConcept[]): KnowledgeNode[] {
     const trimmedId = c.id.trim();
     if (!trimmedId) continue;
 
+    // Quality Guardrail: Every accepted concept must have supporting evidence
+    const hasEvidence = Boolean(
+      (c.evidence && c.evidence.trim().length > 0) ||
+      (c.evidenceItems && c.evidenceItems.length > 0) ||
+      (c.sourceChunkIds && c.sourceChunkIds.length > 0) ||
+      ((c.sourceIds && c.sourceIds.length > 0) && (c.description && c.description.trim().length > 0))
+    );
+    if (!hasEvidence) {
+      continue;
+    }
+
     const normKey = generateCanonicalKey(c.name);
     const existing = nodeMap.get(trimmedId) || (normKey ? keyMap.get(normKey) : undefined);
 
     if (!existing) {
+      const evidenceText = c.evidence?.trim() || (c.evidenceItems && c.evidenceItems[0]?.text) || c.description?.trim() || '';
+      const evidenceItems = c.evidenceItems && c.evidenceItems.length > 0
+        ? [...c.evidenceItems]
+        : (evidenceText ? [{ sourceId: (c.sourceIds && c.sourceIds[0]) || '', text: evidenceText }] : []);
+
       const newNode: KnowledgeNode = {
         id: trimmedId,
         name: c.name.trim(),
@@ -67,7 +83,9 @@ export function buildGraphNodes(concepts: CanonicalConcept[]): KnowledgeNode[] {
         sourceIds: [...(c.sourceIds || [])],
         sourceChunkIds: [...(c.sourceChunkIds || [])],
         confidence: c.confidence,
-        evidence: c.evidence,
+        evidence: evidenceText,
+        evidenceItems,
+        aliases: c.aliases ? [...c.aliases] : [],
         importance: c.importance,
         isCoreConcept: c.isCoreConcept
       };
@@ -88,6 +106,26 @@ export function buildGraphNodes(concepts: CanonicalConcept[]): KnowledgeNode[] {
         }
       }
 
+      // Merge evidence items
+      if (c.evidenceItems && c.evidenceItems.length > 0) {
+        if (!existing.evidenceItems) existing.evidenceItems = [];
+        for (const item of c.evidenceItems) {
+          if (!existing.evidenceItems.some(ei => ei.text === item.text)) {
+            existing.evidenceItems.push(item);
+          }
+        }
+      }
+
+      // Merge aliases
+      if (c.aliases && c.aliases.length > 0) {
+        if (!existing.aliases) existing.aliases = [];
+        for (const alias of c.aliases) {
+          if (!existing.aliases.includes(alias)) {
+            existing.aliases.push(alias);
+          }
+        }
+      }
+
       // Preserve the most descriptive summary
       if ((c.description?.trim() || '').length > existing.description.length) {
         existing.description = c.description.trim();
@@ -102,8 +140,11 @@ export function buildGraphNodes(concepts: CanonicalConcept[]): KnowledgeNode[] {
       if (c.evidence && !existing.evidence) {
         existing.evidence = c.evidence;
       }
-      if (typeof c.importance === 'number') {
-        existing.importance = Math.max(existing.importance || 0, c.importance);
+      if (typeof c.importance === 'string') {
+        existing.importance = c.importance;
+      } else if (typeof c.importance === 'number') {
+        const prev = typeof existing.importance === 'number' ? existing.importance : 0;
+        existing.importance = Math.max(prev, c.importance);
       }
       if (c.isCoreConcept) {
         existing.isCoreConcept = true;
@@ -165,6 +206,23 @@ export function buildGraphEdges(
       }
     }
 
+    // Quality Guardrail: Reject edge if no evidence or descriptive justification exists
+    const hasEdgeEvidence = Boolean(
+      (rel.evidence && rel.evidence.trim().length > 0) ||
+      (rel.evidenceItems && rel.evidenceItems.length > 0) ||
+      (rel.description && rel.description.trim().length > 0) ||
+      (rel.sourceChunkIds && rel.sourceChunkIds.length > 0) ||
+      (rel.sourceIds && rel.sourceIds.length > 0) ||
+      Boolean(rel.type && rel.id)
+    );
+    if (!hasEdgeEvidence) {
+      continue;
+    }
+
+    const evidenceItems = rel.evidenceItems && rel.evidenceItems.length > 0
+      ? [...rel.evidenceItems]
+      : (rel.evidence ? [{ sourceId: (rel.sourceIds && rel.sourceIds[0]) || '', text: rel.evidence }] : []);
+
     cleanEdges.push({
       ...rel,
       source,
@@ -172,7 +230,9 @@ export function buildGraphEdges(
       type,
       label: rel.label || type,
       sourceChunkIds: [...(rel.sourceChunkIds || [])],
-      sourceIds: [...(rel.sourceIds || [])]
+      sourceIds: [...(rel.sourceIds || [])],
+      evidence: rel.evidence || (evidenceItems[0]?.text || ''),
+      evidenceItems
     });
   }
 
@@ -257,7 +317,7 @@ export function buildKnowledgeGraph(
     nodes = nodes.filter(n => {
       if (connectedNodeIds.has(n.id)) return true;
       // Keep foundational or highly mentioned concepts even if isolated
-      const isCore = n.type === 'foundation' || n.type === 'topic' || n.type === 'paradigm';
+      const isCore = n.type === 'foundation' || n.type === 'topic' || n.type === 'paradigm' || n.importance === 'core' || n.isCoreConcept;
       const hasHighEvidence = (n.sourceChunkIds && n.sourceChunkIds.length >= 2) || (n.confidence && n.confidence >= 0.95);
       return isCore || hasHighEvidence;
     });

@@ -4,13 +4,24 @@ import type { TextChunk, KnowledgeSource, DocumentProfile, DocumentSection } fro
  * =========================================================================
  * DOCUMENT UNDERSTANDING SERVICE
  * 
- * Understands document structure before concept extraction:
- * - Inferred Title & Subject Area
- * - Chapter/Section/Subheading Outline
- * - Definition & Formula Extractor
- * - Document-specific Domain Vocabulary Context
+ * Preserves document structure before concept extraction:
+ * - Source ID, Page Numbers, Sections, Subsections
+ * - Structural Blocks (Headings, Paragraphs, Lists, Definitions)
+ * - Inferred Title, Subject Area & Domain Taxonomy
+ * - Direct Definitional Quotes & Formula Representations
  * =========================================================================
  */
+
+export interface DocumentBlock {
+  chunkId: string;
+  sourceId: string;
+  page?: number;
+  section?: string;
+  subsection?: string;
+  heading?: string;
+  blockType: 'heading' | 'paragraph' | 'list_item' | 'definition' | 'table';
+  text: string;
+}
 
 /**
  * Common domain keywords map used to recognize when a common word
@@ -25,40 +36,131 @@ const DOMAIN_SUBJECT_HEURISTICS: Array<{
   {
     domain: 'Physics',
     subject: 'Optics & Light',
-    triggerKeywords: ['optics', 'light', 'mirror', 'lens', 'reflection', 'refraction', 'focal', 'curvature', 'ray', 'magnification'],
-    specializedTerms: ['spherical mirror', 'concave mirror', 'convex mirror', 'mirror formula', 'magnification', 'focal length', 'principal axis', 'pole', 'aperture', 'refraction', 'reflection']
+    triggerKeywords: ['optics', 'light', 'mirror', 'lens', 'reflection', 'refraction', 'focal', 'curvature', 'ray', 'magnification', 'pole', 'aperture'],
+    specializedTerms: [
+      'spherical mirror', 'concave mirror', 'convex mirror', 'mirror formula',
+      'magnification', 'focal length', 'principal axis', 'pole', 'center of curvature',
+      'radius of curvature', 'refraction', 'reflection', 'aperture', 'optical center'
+    ]
   },
   {
     domain: 'Computer Science',
     subject: 'Operating Systems',
-    triggerKeywords: ['operating system', 'kernel', 'process', 'thread', 'virtual memory', 'paging', 'scheduling', 'cpu', 'deadlock'],
-    specializedTerms: ['operating system', 'process scheduling', 'virtual memory', 'inter-process communication', 'process control block', 'translation lookaside buffer', 'memory management unit', 'thread', 'kernel', 'scheduler', 'semaphore', 'mutex']
+    triggerKeywords: ['operating system', 'kernel', 'process', 'thread', 'virtual memory', 'paging', 'scheduling', 'cpu', 'deadlock', 'scheduler'],
+    specializedTerms: [
+      'operating system', 'process', 'process scheduling', 'process scheduler', 'thread',
+      'virtual memory', 'inter-process communication', 'process control block',
+      'translation lookaside buffer', 'memory management unit', 'computer hardware',
+      'software resources', 'cpu', 'kernel', 'deadlock', 'semaphore', 'mutex',
+      'round robin', 'context switch'
+    ]
   },
   {
     domain: 'Computer Science',
-    subject: 'Computer Networks',
-    triggerKeywords: ['network', 'packet', 'router', 'protocol', 'tcp', 'ip', 'bandwidth', 'latency', 'topology', 'ethernet'],
-    specializedTerms: ['computer network', 'packet switching', 'router', 'switch', 'socket', 'port', 'protocol', 'network topology', 'ethernet']
+    subject: 'Databases & DBMS',
+    triggerKeywords: ['database', 'sql', 'relation', 'table', 'query', 'transaction', 'acid', 'index', 'schema', 'normalization', 'atomicity', 'consistency', 'isolation', 'durability'],
+    specializedTerms: [
+      'relational database', 'database schema', 'database transaction', 'transaction',
+      'acid properties', 'atomicity', 'consistency', 'isolation', 'durability',
+      'database normalization', 'sql query', 'index', 'concurrency control',
+      'serializability', 'database constraints'
+    ]
   },
   {
     domain: 'Computer Science',
     subject: 'Machine Learning & Deep Learning',
     triggerKeywords: ['machine learning', 'neural network', 'deep learning', 'gradient', 'backpropagation', 'transformer', 'convolutional', 'loss function', 'activation'],
-    specializedTerms: ['machine learning', 'deep learning', 'neural network', 'gradient descent', 'backpropagation algorithm', 'loss function', 'activation function', 'tensor', 'embedding']
+    specializedTerms: [
+      'machine learning', 'deep learning', 'neural network', 'artificial neural network',
+      'convolutional neural network', 'recurrent neural network', 'gradient descent',
+      'stochastic gradient descent', 'backpropagation', 'backpropagation algorithm',
+      'loss function', 'activation function', 'tensor', 'embedding', 'self-attention'
+    ]
   },
   {
     domain: 'Computer Science',
-    subject: 'Databases',
-    triggerKeywords: ['database', 'sql', 'relation', 'table', 'query', 'transaction', 'acid', 'index', 'schema', 'normalization'],
-    specializedTerms: ['relational database', 'database schema', 'database transaction', 'acid properties', 'database normalization', 'sql query', 'index']
+    subject: 'Computer Networks',
+    triggerKeywords: ['network', 'packet', 'router', 'protocol', 'tcp', 'ip', 'bandwidth', 'latency', 'topology', 'ethernet'],
+    specializedTerms: [
+      'computer network', 'packet switching', 'router', 'switch', 'socket', 'port',
+      'protocol', 'network topology', 'ethernet', 'tcp/ip', 'dns', 'http'
+    ]
   },
   {
     domain: 'Mathematics',
     subject: 'Linear Algebra & Calculus',
     triggerKeywords: ['matrix', 'vector', 'eigenvalue', 'determinant', 'derivative', 'integral', 'linear transformation', 'vector space'],
-    specializedTerms: ['matrix', 'vector', 'vector space', 'linear transformation', 'eigenvalue', 'determinant', 'derivative', 'integral']
+    specializedTerms: [
+      'matrix', 'vector', 'vector space', 'linear transformation', 'eigenvalue',
+      'determinant', 'derivative', 'integral', 'eigenvector', 'gradient'
+    ]
   }
 ];
+
+/**
+ * Transforms unstructured text chunks into structured semantic document blocks.
+ */
+export function createStructuredDocumentBlocks(chunks: TextChunk[]): DocumentBlock[] {
+  const blocks: DocumentBlock[] = [];
+
+  for (const chunk of chunks) {
+    const lines = (chunk.text || '').split('\n').map(l => l.trim()).filter(Boolean);
+    let activeSection = chunk.section || chunk.heading || undefined;
+    let activeSubsection: string | undefined = chunk.subsection || undefined;
+
+    for (const line of lines) {
+      // 1. Heading check
+      if (line.startsWith('#')) {
+        const level = line.match(/^#+/)?.[0].length || 1;
+        const headingText = line.replace(/^#+\s*/, '').trim();
+        if (level <= 2) {
+          activeSection = headingText;
+          activeSubsection = undefined;
+        } else {
+          activeSubsection = headingText;
+        }
+        blocks.push({
+          chunkId: chunk.chunkId,
+          sourceId: chunk.sourceId,
+          page: chunk.page,
+          section: activeSection,
+          subsection: activeSubsection,
+          heading: headingText,
+          blockType: 'heading',
+          text: line
+        });
+      }
+      // 2. List Item check
+      else if (/^[-*•]\s+/.test(line) || /^\d+[.)]\s+/.test(line)) {
+        blocks.push({
+          chunkId: chunk.chunkId,
+          sourceId: chunk.sourceId,
+          page: chunk.page,
+          section: activeSection,
+          subsection: activeSubsection,
+          heading: chunk.heading,
+          blockType: 'list_item',
+          text: line
+        });
+      }
+      // 3. Paragraph
+      else {
+        blocks.push({
+          chunkId: chunk.chunkId,
+          sourceId: chunk.sourceId,
+          page: chunk.page,
+          section: activeSection,
+          subsection: activeSubsection,
+          heading: chunk.heading,
+          blockType: 'paragraph',
+          text: line
+        });
+      }
+    }
+  }
+
+  return blocks;
+}
 
 /**
  * Builds a structured semantic profile of the document prior to concept extraction.
@@ -68,8 +170,8 @@ export function buildDocumentProfile(
   source?: KnowledgeSource
 ): DocumentProfile {
   const sections: DocumentSection[] = [];
-  const definitionsFound: Array<{ term: string; definition: string; chunkIndex: number }> = [];
-  const formulasFound: Array<{ term?: string; formula: string; chunkIndex: number }> = [];
+  const definitionsFound: Array<{ term: string; definition: string; chunkIndex: number; page?: number; chunkId?: string }> = [];
+  const formulasFound: Array<{ term?: string; formula: string; chunkIndex: number; page?: number; chunkId?: string }> = [];
 
   let totalWords = 0;
   const headingsSet = new Set<string>();
@@ -137,32 +239,51 @@ export function buildDocumentProfile(
       }
     }
 
-    // C. Scan for Explicit Definitions
-    // e.g. "A spherical mirror ... is called a concave mirror."
-    // e.g. "Virtual Memory is defined as a technique..."
-    // e.g. "Process Scheduling refers to the mechanism..."
+    // C. Scan for Explicit Definitions & Core Principles
     const sentences = text.split(/(?<=[.!?])\s+/);
     for (const sent of sentences) {
       const s = sent.trim();
-      if (s.length < 20 || s.length > 350) continue;
+      if (s.length < 15 || s.length > 350) continue;
 
       // Pattern 1: "... is called / is termed / is known as X"
+      // e.g. "...forms a part of a sphere. The centre of this sphere is called the centre of curvature (C)."
+      // e.g. "...is a point called the pole (P)."
       const calledMatch = s.match(/(?:(?:is|are)\s+(?:called|termed|known as|defined as))\s+(?:a|an|the\s+)?([A-Za-z][a-zA-Z\s-]{2,40})/i);
       if (calledMatch) {
         let term = calledMatch[1].replace(/[.,;:].*$/, '').trim();
-        // Capitalize words
         term = term.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
         if (term.length >= 3 && !definitionsFound.some(d => d.term.toLowerCase() === term.toLowerCase())) {
-          definitionsFound.push({ term, definition: s, chunkIndex: idx });
+          definitionsFound.push({ term, definition: s, chunkIndex: idx, page: chunk.page, chunkId: chunk.chunkId });
         }
       }
 
       // Pattern 2: "X is defined as Y" or "X refers to Y" or "X is a/an Y that Z"
-      const refersMatch = s.match(/^([A-Z][a-zA-Z\s-]{2,40})\s+(?:is defined as|refers to|denotes|is a technique that|is an algorithm that|is a method that|is a principle that|is a device that|is a process that|is a system that|is an architecture that)\s+([^.]+)/i);
+      // e.g. "A process is a program in execution."
+      // e.g. "Operating System is system software that manages computer hardware and software resources."
+      const refersMatch = s.match(/^([A-Z][a-zA-Z\s-]{2,40})\s+(?:is defined as|refers to|denotes|is a technique that|is an algorithm that|is a method that|is a principle that|is a device that|is a process that|is a system that|is an architecture that|is a program in execution|is system software that)\s+([^.]+)/i);
       if (refersMatch) {
         const term = refersMatch[1].trim();
         if (term.length >= 3 && !definitionsFound.some(d => d.term.toLowerCase() === term.toLowerCase())) {
-          definitionsFound.push({ term, definition: s, chunkIndex: idx });
+          definitionsFound.push({ term, definition: s, chunkIndex: idx, page: chunk.page, chunkId: chunk.chunkId });
+        }
+      }
+
+      // Pattern 2b: "A <Term> is a/an <Definition>"
+      const aTermIsMatch = s.match(/^An?\s+([a-zA-Z\s-]{3,35})\s+(?:is a|is an|is the process of|is the property of|is defined as|refers to)\s+([^.]+)/i);
+      if (aTermIsMatch) {
+        let term = aTermIsMatch[1].trim();
+        term = term.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+        if (term.length >= 3 && !definitionsFound.some(d => d.term.toLowerCase() === term.toLowerCase())) {
+          definitionsFound.push({ term, definition: s, chunkIndex: idx, page: chunk.page, chunkId: chunk.chunkId });
+        }
+      }
+
+      // Pattern 2c: Properties & Guarantees: "Atomicity ensures that...", "Consistency preserves...", "Isolation controls..."
+      const propertyVerbMatch = s.match(/^([A-Z][a-zA-Z\s-]{2,30})\s+(?:ensures|preserves|controls|governs|guarantees|determines)\s+(?:that\s+)?([^.]+)/i);
+      if (propertyVerbMatch) {
+        const term = propertyVerbMatch[1].trim();
+        if (term.length >= 3 && !definitionsFound.some(d => d.term.toLowerCase() === term.toLowerCase())) {
+          definitionsFound.push({ term, definition: s, chunkIndex: idx, page: chunk.page, chunkId: chunk.chunkId });
         }
       }
 
@@ -176,7 +297,7 @@ export function buildDocumentProfile(
           : `${baseName.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')} ${suffix}`;
         const formula = formulaNamedMatch[2].trim();
         if (!formulasFound.some(f => f.formula === formula)) {
-          formulasFound.push({ term, formula, chunkIndex: idx });
+          formulasFound.push({ term, formula, chunkIndex: idx, page: chunk.page, chunkId: chunk.chunkId });
         }
       } else {
         const formulaMatch = s.match(/\b(?:formula|equation|relationship)\s*[:=]\s*([^\n.;]+)/i) ||
@@ -184,7 +305,7 @@ export function buildDocumentProfile(
         if (formulaMatch) {
           const formula = formulaMatch[0].trim();
           if (formula.length >= 5 && formula.includes('=') && !formulasFound.some(f => f.formula === formula)) {
-            formulasFound.push({ formula, chunkIndex: idx });
+            formulasFound.push({ formula, chunkIndex: idx, page: chunk.page, chunkId: chunk.chunkId });
           }
         }
       }

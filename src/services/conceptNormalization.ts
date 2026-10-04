@@ -373,8 +373,11 @@ export function normalizeConcepts(rawConcepts: ConceptCandidate[]): CanonicalCon
       if (raw.evidence && !existing.evidence) {
         existing.evidence = raw.evidence;
       }
-      if (typeof raw.importance === 'number') {
-        existing.importance = Math.max(existing.importance || 0, raw.importance);
+      if (typeof raw.importance === 'string') {
+        existing.importance = raw.importance;
+      } else if (typeof raw.importance === 'number') {
+        const prev = typeof existing.importance === 'number' ? existing.importance : 0;
+        existing.importance = Math.max(prev, raw.importance);
       }
       if (raw.isCoreConcept) {
         existing.isCoreConcept = true;

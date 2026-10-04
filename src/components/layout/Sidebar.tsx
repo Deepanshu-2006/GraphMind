@@ -6,6 +6,7 @@ import {
   Files,
   Settings
 } from 'lucide-react';
+import { GraphMindLogo } from '../common/GraphMindLogo';
 import type { NavSection, ProjectWorkspace } from '../../types';
 import type { KnowledgeGraphMeta } from '../../types/knowledgeGraph';
 
@@ -37,11 +38,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside className={`app-sidebar ${isOpen ? 'open' : ''}`} aria-label="Application sidebar">
-      {/* Brand: Pure typographic wordmark without icon containers */}
+      {/* Brand: Compact horizontal brand lockup with canonical logo mark and wordmark */}
       <div className="sidebar-header">
         <button
           type="button"
-          className="brand-wordmark"
+          className="brand-lockup"
           onClick={() => {
             onSelectSection('overview');
             onCloseMobile();
@@ -49,7 +50,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           title="GraphMind Overview"
           aria-label="GraphMind Overview"
         >
-          GraphMind
+          <GraphMindLogo className="brand-logo" size={20} />
+          <span className="brand-wordmark">GraphMind</span>
         </button>
       </div>
 

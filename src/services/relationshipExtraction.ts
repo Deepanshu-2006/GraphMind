@@ -169,7 +169,15 @@ export function findSemanticRelation(
     description: cleanDescription,
     sourceChunkIds: [chunkId],
     sourceIds: sourceId ? [sourceId] : [],
-    confidence
+    confidence,
+    evidence: sentence.trim(),
+    evidenceItems: [
+      {
+        sourceId: sourceId || '',
+        chunkId,
+        text: sentence.trim()
+      }
+    ]
   });
 
   const aPat = buildConceptRegexPattern(conceptA);
@@ -228,6 +236,16 @@ export function findSemanticRelation(
     return buildRel(conceptA, conceptB, 'instance-of', 0.92);
   }
 
+  // 7b. INSTANCE-OF / SUBTYPE: A <GeneralConcept> ... is called a <SpecificConcept>
+  // e.g. "A spherical mirror whose reflecting surface is curved inwards... is called a concave mirror."
+  // e.g. "A spherical mirror whose reflecting surface is curved outwards is called a convex mirror."
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,120}\\b(?:(?:is|are) (?:called|termed|known as))\\s+(?:an?|the)?\\s*${bPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptB, conceptA, 'instance-of', 0.95);
+  }
+  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,120}\\b(?:(?:is|are) (?:called|termed|known as))\\s+(?:an?|the)?\\s*${aPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptA, conceptB, 'instance-of', 0.95);
+  }
+
   // 8. PART-OF (Constituent attribute or structural component)
   // Requires explicit partitive phrases: "consists of", "is composed of", "component of", "constituent of", "part of"
   if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,30}\\b(?:consist[s]? of|(?:is|are) composed of|comprise[s]?|(?:is|are) made up of)\\b[\\s\\w,]{0,30}\\b${aPat}\\b`, 'i').test(sNorm)) {
@@ -242,12 +260,34 @@ export function findSemanticRelation(
     return buildRel(conceptA, conceptB, 'part-of', 0.92);
   }
 
+  // 8b. PART-OF (ACID constituents / named principle composition)
+  // e.g. "ACID properties ensure reliable transaction processing" and Atomicity/Consistency/Isolation/Durability
+  const isAcidA = /\bacid\b/i.test(conceptA.name);
+  const isAcidB = /\bacid\b/i.test(conceptB.name);
+  const acidParts = new Set(['atomicity', 'consistency', 'isolation', 'durability']);
+  if (isAcidA && acidParts.has(conceptB.name.toLowerCase())) {
+    return buildRel(conceptB, conceptA, 'part-of', 0.96);
+  }
+  if (isAcidB && acidParts.has(conceptA.name.toLowerCase())) {
+    return buildRel(conceptA, conceptB, 'part-of', 0.96);
+  }
+
   // 9. DEPENDS-ON / FORMULA GOVERNANCE
   if (new RegExp(`\\b(?:relationship between|relates|relate|equation for|formula for)\\b[\\s\\w,]{0,40}\\b${aPat}\\b[\\s\\w,]{0,40}\\b(?:and|to|with)?\\s*${bPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'depends-on', 0.90);
   }
   if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,35}\\b(?:governs|describes|computes|determines|expresses|relates)\\b[\\s\\w,]{0,35}\\b${aPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'depends-on', 0.90);
+  }
+
+  // 9b. GOVERNANCE / GUARANTEES: A ensures/governs/controls B
+  // e.g. "ACID properties ensure reliable transaction processing"
+  // e.g. "Atomicity ensures that a transaction is treated as a single unit"
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,45}\\b(?:ensure[s]?|preserves?|controls?|governs?|guarantee[s]?)\\b[\\s\\w,]{0,45}\\b${bPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptA, conceptB, 'enables', 0.92);
+  }
+  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,45}\\b(?:ensure[s]?|preserves?|controls?|governs?|guarantee[s]?)\\b[\\s\\w,]{0,45}\\b${aPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptB, conceptA, 'enables', 0.92);
   }
 
   // 10. RELATED-TO (Conservative clause-level association)
@@ -289,7 +329,9 @@ export function deduplicateRelationships(relationships: KnowledgeRelationship[])
         description: rel.description?.trim() || '',
         sourceChunkIds: [...(rel.sourceChunkIds || [])],
         sourceIds: [...(rel.sourceIds || [])],
-        confidence: rel.confidence || 0.90
+        confidence: rel.confidence || 0.90,
+        evidence: rel.evidence,
+        evidenceItems: rel.evidenceItems ? [...rel.evidenceItems] : []
       });
     } else {
       // Merge sourceChunkIds
@@ -305,6 +347,19 @@ export function deduplicateRelationships(relationships: KnowledgeRelationship[])
         if (!existing.sourceIds.includes(sId)) {
           existing.sourceIds.push(sId);
         }
+      }
+
+      // Merge evidence items
+      if (rel.evidenceItems) {
+        if (!existing.evidenceItems) existing.evidenceItems = [];
+        for (const item of rel.evidenceItems) {
+          if (!existing.evidenceItems.some(e => e.chunkId === item.chunkId && e.text === item.text)) {
+            existing.evidenceItems.push(item);
+          }
+        }
+      }
+      if (!existing.evidence && rel.evidence) {
+        existing.evidence = rel.evidence;
       }
 
       const existingRank = RELATION_SPECIFICITY_RANK[existing.type] || 2;

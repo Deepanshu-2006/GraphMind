@@ -26,6 +26,15 @@ export interface KnowledgeGraphMeta {
   updatedAt: string;
 }
 
+export interface ConceptEvidenceItem {
+  sourceId: string;
+  page?: number;
+  chunkId?: string;
+  text: string;
+}
+
+export type ConceptImportance = 'core' | 'supporting';
+
 /**
  * Concept Node Model
  * Represents an extracted or synthesized semantic concept.
@@ -45,8 +54,10 @@ export interface KnowledgeNode {
   confidence?: number;
   prerequisites?: string[];
   evidence?: string;
-  importance?: number;
+  evidenceItems?: ConceptEvidenceItem[];
+  importance?: number | ConceptImportance;
   isCoreConcept?: boolean;
+  aliases?: string[];
 }
 
 /**
@@ -62,6 +73,12 @@ export type SemanticRelationType =
   | 'uses'
   | 'applied-to'
   | 'instance-of'
+  | 'is-a'
+  | 'enables'
+  | 'causes'
+  | 'optimizes'
+  | 'produces'
+  | 'derived-from'
   | string;
 
 /**
@@ -79,6 +96,8 @@ export interface KnowledgeRelationship {
   sourceIds?: string[]; // origin document IDs
   confidence?: number; // internal confidence score
   label?: string; // Optional human-readable display label
+  evidence?: string;
+  evidenceItems?: ConceptEvidenceItem[];
 }
 
 export interface RelationshipExtractionResult {
@@ -136,8 +155,11 @@ export interface KnowledgeGraph {
 export interface TextChunk {
   chunkId: string;
   sourceId: string;
-  text: string;
+  page?: number;
+  section?: string;
+  subsection?: string;
   heading?: string;
+  text: string;
   index: number;
   wordCount: number;
   characterCount: number;
@@ -187,9 +209,11 @@ export interface ConceptCandidate {
   description: string;
   sourceId: string;
   sourceChunkId: string;
+  page?: number;
   
   // Deduplication & Normalization metadata for Day 2 Step 5 (Prompt 17)
   sourceChunkIds?: string[];
+  sourceIds?: string[];
   occurrences?: number;
   confidence?: number;
 
@@ -202,12 +226,14 @@ export interface ConceptCandidate {
   isTechnicalOrTopic?: boolean;
 
   // Semantic AI Evaluation metadata
-  importance?: number; // 0.0 - 1.0 (semantic educational importance)
+  importance?: number | ConceptImportance;
   isCoreConcept?: boolean;
   evidence?: string; // Textual excerpt/definition proving why this is a concept
+  evidenceItems?: ConceptEvidenceItem[];
   teachesOrExplains?: boolean;
   canonicalName?: string;
   rejectionReason?: string;
+  aliases?: string[];
 }
 
 export interface DocumentSection {
@@ -224,8 +250,8 @@ export interface DocumentProfile {
   majorTopics: string[];
   sections: DocumentSection[];
   totalWordCount: number;
-  definitionsFound: Array<{ term: string; definition: string; chunkIndex: number }>;
-  formulasFound: Array<{ term?: string; formula: string; chunkIndex: number }>;
+  definitionsFound: Array<{ term: string; definition: string; chunkIndex: number; page?: number; chunkId?: string }>;
+  formulasFound: Array<{ term?: string; formula: string; chunkIndex: number; page?: number; chunkId?: string }>;
   domainKeywords: string[];
 }
 
@@ -297,7 +323,8 @@ export interface CanonicalConcept {
   confidence: number;
   aliases?: string[];
   evidence?: string;
-  importance?: number;
+  evidenceItems?: ConceptEvidenceItem[];
+  importance?: number | ConceptImportance;
   isCoreConcept?: boolean;
 }
 

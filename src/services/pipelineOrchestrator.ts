@@ -9,7 +9,7 @@ import type {
 } from '../types/knowledgeGraph';
 import { createSourcesFromFiles } from './sourceIngestion';
 import { extractText } from './textExtraction';
-import { extractConceptsFromChunks, type ConceptExtractionOptions } from './conceptExtraction';
+import { CandidateGenerator, type ConceptExtractionOptions } from './conceptExtraction';
 import { normalizeConcepts } from './conceptNormalization';
 import { extractRelationshipsFromChunks, type RelationshipExtractionOptions } from './relationshipExtraction';
 import { buildKnowledgeGraph, type GraphBuilderOptions } from './graphBuilder';
@@ -49,6 +49,7 @@ import { buildDocumentProfile } from './documentUnderstanding';
 export type PipelineStage = 
   | 'reading'
   | 'extracting-concepts'
+  | 'validating-concepts'
   | 'normalizing'
   | 'mapping-relationships'
   | 'building-graph'
@@ -58,10 +59,11 @@ export type PipelineStage =
 export const PIPELINE_STAGE_LABELS: Record<PipelineStage, string> = {
   'reading': 'Reading your material…',
   'extracting-concepts': 'Finding concepts…',
+  'validating-concepts': 'Checking what matters…',
   'normalizing': 'Connecting ideas…',
   'mapping-relationships': 'Connecting ideas…',
-  'building-graph': 'Building your knowledge graph…',
-  'complete': 'Your knowledge graph is ready.',
+  'building-graph': 'Crafting your knowledge graph…',
+  'complete': 'Graph ready.',
   'error': 'Failed to process learning material.'
 };
 
@@ -271,18 +273,14 @@ export class PipelineOrchestrator {
         sourceCount: successfullyExtractedSources.length
       });
 
-      const extractionOptions: ConceptExtractionOptions = {
-        ...options.conceptExtraction,
-        documentProfile
-      };
-
+      const generator = new CandidateGenerator();
       let rawCandidates: ConceptCandidate[] = [];
       try {
         const seenKeys = new Set<string>();
         // Process chunks with incremental live candidate emission
         for (let i = 0; i < allChunks.length; i++) {
           const chunk = allChunks[i];
-          const chunkCandidates = await extractConceptsFromChunks([chunk], extractionOptions);
+          const chunkCandidates = generator.generateCandidates(chunk, documentProfile);
           const newlyAdded: ConceptCandidate[] = [];
 
           for (const cand of chunkCandidates) {
@@ -290,7 +288,7 @@ export class PipelineOrchestrator {
             if (!seenKeys.has(key)) {
               seenKeys.add(key);
               rawCandidates.push(cand);
-              if (!isGenericConceptPhrase(cand.name, documentProfile).isGeneric) {
+              if (!cand.isGeneric && !isGenericConceptPhrase(cand.name, documentProfile).isGeneric) {
                 newlyAdded.push(cand);
               }
             }
@@ -306,7 +304,7 @@ export class PipelineOrchestrator {
                 0,
                 rawCandidates.indexOf(sliceLast) + 1
               );
-              const intermediateCanonical = normalizeConcepts(runningCandidates);
+              const intermediateCanonical = normalizeConcepts(runningCandidates.filter(c => !c.isGeneric));
 
               notify('extracting-concepts', PIPELINE_STAGE_LABELS['extracting-concepts'], {
                 conceptsExtracted: intermediateCanonical.length,
@@ -324,19 +322,13 @@ export class PipelineOrchestrator {
         rawCandidates = [];
       }
 
-      if (rawCandidates.length === 0) {
-        const error: PipelineError = {
-          stage: 'extracting-concepts',
-          code: 'NO_CONCEPTS_FOUND',
-          message: 'No meaningful technical concepts could be identified from your learning material.'
-        };
-        notify('error', error.message);
-        return { success: false, stage: 'error', error };
-      }
+      // -----------------------------------------------------------------------
+      // STAGE 3.5: CONCEPT RELEVANCE SCORING & QUALITY FILTERING ('validating-concepts')
+      // -----------------------------------------------------------------------
+      notify('validating-concepts', PIPELINE_STAGE_LABELS['validating-concepts'], {
+        conceptsExtracted: rawCandidates.filter(c => !c.isGeneric).length
+      });
 
-      // -----------------------------------------------------------------------
-      // STAGE 3.5: CONCEPT RELEVANCE SCORING & QUALITY FILTERING
-      // -----------------------------------------------------------------------
       const qualityConfig: ConceptQualityConfig = {
         ...DEFAULT_CONCEPT_QUALITY_CONFIG,
         ...(options.conceptQuality || options.conceptExtraction?.qualityConfig || {})
@@ -368,16 +360,35 @@ export class PipelineOrchestrator {
       );
 
       if (acceptedCandidates.length === 0) {
-        const error: PipelineError = {
-          stage: 'extracting-concepts',
-          code: 'NO_CONCEPTS_FOUND',
-          message: 'No meaningful technical concepts could be identified from your learning material.'
-        };
-        notify('error', error.message);
+        const emptyMsg = "GraphMind couldn't find enough well-supported concepts in this material.";
+        notify('complete', emptyMsg, {
+          partialGraph: {
+            id: options.graphId,
+            nodes: [],
+            relationships: [],
+            sources: successfullyExtractedSources
+          }
+        });
         return { 
-          success: false, 
-          stage: 'error', 
-          error, 
+          success: true, 
+          stage: 'complete',
+          graph: {
+            id: options.graphId,
+            nodes: [],
+            relationships: [],
+            sources: successfullyExtractedSources
+          },
+          sources: successfullyExtractedSources,
+          metrics: {
+            durationMs: Date.now() - startTime,
+            sourcesProcessed: successfullyExtractedSources.length,
+            chunksCount: allChunks.length,
+            rawConceptsCount: rawCandidates.length,
+            filteredCandidatesCount: relevanceReport?.rejectedCount || 0,
+            canonicalConceptsCount: 0,
+            relationshipsCount: 0,
+            nodesCount: 0
+          },
           relevanceReport 
         };
       }

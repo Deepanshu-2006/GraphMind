@@ -60,17 +60,24 @@ export function isGenericConceptPhrase(name: string, documentProfile?: DocumentP
   // If the document explicitly identifies this term as a domain keyword, definition, or major topic,
   // do NOT classify it as generic unless it is a classic generic standalone lacking an explicit definition.
   const ALWAYS_GENERIC_STANDALONES = new Set([
-    'system', 'data', 'method', 'important', 'example', 'process', 'use', 'information', 'object', 'property'
+    'system', 'data', 'information', 'method', 'result', 'example', 'problem',
+    'approach', 'section', 'chapter', 'student', 'user', 'software', 'resource',
+    'resources', 'program', 'execution', 'next', 'use', 'using', 'detail', 'object',
+    'property', 'case', 'content', 'procedure', 'value', 'parameter', 'pattern',
+    'metric', 'input', 'output', 'error', 'solution', 'answer', 'table', 'figure',
+    'page', 'algorithm', 'process',
+    ...GENERIC_BROAD_ROOTS
   ]);
 
-  if (documentProfile) {
-    if (words.length === 1 && ALWAYS_GENERIC_STANDALONES.has(words[0])) {
-      const isExplicitlyDefined = documentProfile.definitionsFound.some(df => df.term.toLowerCase() === lower);
-      if (!isExplicitlyDefined) {
-        return { isGeneric: true, reason: `Generic standalone word ("${trimmed}") without explicit document definition` };
-      }
-      return { isGeneric: false };
+  if (words.length === 1 && ALWAYS_GENERIC_STANDALONES.has(words[0])) {
+    const isExplicitlyDefined = documentProfile?.definitionsFound?.some(df => df.term.toLowerCase() === lower);
+    if (!isExplicitlyDefined) {
+      return { isGeneric: true, reason: `Generic standalone noun without explicit document definition ("${trimmed}")` };
     }
+    return { isGeneric: false };
+  }
+
+  if (documentProfile) {
 
     const isAllGenericOrMeta = words.every(w =>
       GENERIC_BROAD_ROOTS.has(w) ||
@@ -348,8 +355,8 @@ export function scoreCandidate(
   const isAcronym = TECHNICAL_DOMAIN_ACRONYMS.has(candidate.name.toLowerCase()) || 
     (candidate.name === candidate.name.toUpperCase() && candidate.name.length >= 2 && candidate.name.length <= 6);
 
-  // If candidate has explicit evidence or definition attached
-  if (candidate.evidence) {
+  // If candidate has explicit definitional evidence attached
+  if (candidate.evidence && new RegExp(`\\b${candidate.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b[\\s\\w,()]{0,15}\\b(?:is an?|are|refers to|is defined as|is called|known as)\\b`, 'i').test(candidate.evidence)) {
     occ.hasDefinitionEvidence = true;
   }
 
@@ -389,10 +396,12 @@ export function scoreCandidate(
 
   // 5. Relationship or Definition Score
   let relationshipScore = 0.0;
-  if (occ.hasDefinitionEvidence || candidate.evidence) {
+  if (occ.hasDefinitionEvidence) {
     relationshipScore = 1.0;
   } else if (occ.hasRelationshipEvidence) {
     relationshipScore = 0.70;
+  } else if (candidate.evidence && candidate.evidence.length >= 40) {
+    relationshipScore = 0.30;
   }
 
   // 6. Context Quality Score (substantiveness of contextual sentences)
@@ -410,12 +419,12 @@ export function scoreCandidate(
     penaltyScore += config.penalties.genericStandalonePenalty;
   }
 
-  if (occ.onlySentenceInitial && !isAcronym && wordCount === 1 && !occ.hasDefinitionEvidence && !candidate.evidence && (candidate.type === 'concept' || candidate.type === 'Concept')) {
+  if (occ.onlySentenceInitial && !isAcronym && wordCount === 1 && !occ.hasDefinitionEvidence && (candidate.type === 'concept' || candidate.type === 'Concept')) {
     penaltyScore += config.penalties.sentenceInitialOnlyPenalty;
   }
 
   // Never penalize single mention if explicitly defined or provided with evidence
-  if (occ.frequency === 1 && occ.headings.length === 0 && !occ.hasDefinitionEvidence && !occ.hasRelationshipEvidence && !candidate.evidence && !candidate.isCoreConcept) {
+  if (occ.frequency === 1 && occ.headings.length === 0 && !occ.hasDefinitionEvidence && !occ.hasRelationshipEvidence && !candidate.isCoreConcept) {
     if (isGeneric || (wordCount === 1 && (candidate.type === 'concept' || candidate.type === 'Concept') && contextQualityScore < 0.7)) {
       penaltyScore += config.penalties.singleMentionNoContextPenalty;
     }
@@ -452,18 +461,18 @@ export function scoreCandidate(
 
   if (isGeneric) {
     // A generic term can ONLY be accepted if the document clearly establishes it as a defined concept
-    if ((!occ.hasDefinitionEvidence && !candidate.evidence) || relevanceScore < 0.70) {
+    if (!occ.hasDefinitionEvidence || relevanceScore < 0.75) {
       isAccepted = false;
       rejectionReason = genericReason || `Generic concept without substantive definition ("${candidate.name}")`;
     }
   }
 
-  if (isAccepted && relevanceScore < config.minRelevanceScore && !occ.hasDefinitionEvidence && !candidate.evidence && !candidate.isCoreConcept) {
+  if (isAccepted && relevanceScore < config.minRelevanceScore && !candidate.isCoreConcept && !occ.hasDefinitionEvidence) {
     isAccepted = false;
     rejectionReason = `Relevance score (${relevanceScore.toFixed(2)}) below quality threshold (${config.minRelevanceScore})`;
   }
 
-  if (isAccepted && occ.frequency === 1 && occ.headings.length === 0 && !occ.hasDefinitionEvidence && !occ.hasRelationshipEvidence && !candidate.evidence && !candidate.isCoreConcept) {
+  if (isAccepted && occ.frequency === 1 && occ.headings.length === 0 && !occ.hasDefinitionEvidence && !occ.hasRelationshipEvidence && !candidate.isCoreConcept) {
     isAccepted = false;
     rejectionReason = 'Single mention without meaningful heading or definition context';
   }

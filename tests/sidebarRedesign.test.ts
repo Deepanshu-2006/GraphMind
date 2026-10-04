@@ -24,15 +24,21 @@ describe('Redesigned GraphMind Sidebar Architecture', () => {
   const shellCssPath = path.resolve(__dirname, '../src/styles/shell.css');
   const shellCss = fs.readFileSync(shellCssPath, 'utf8');
 
-  it('contains the pure typographic GraphMind wordmark without AI icons or badges', () => {
-    assert.match(sidebarSrc, /className="brand-wordmark"/);
-    assert.match(sidebarSrc, />\s*GraphMind\s*<\/button>/);
-    // Ensure no neural/brain icon inside the wordmark header
-    const headerStart = sidebarSrc.indexOf('<div className="sidebar-header">');
-    const headerEnd = sidebarSrc.indexOf('</div>', headerStart);
-    const headerBlock = sidebarSrc.slice(headerStart, headerEnd);
-    assert.doesNotMatch(headerBlock, /<svg/i);
-    assert.doesNotMatch(headerBlock, /Icon/i);
+  it('contains the compact horizontal brand lockup with GraphMindLogo and wordmark', () => {
+    assert.match(sidebarSrc, /className="brand-lockup"/);
+    assert.match(sidebarSrc, /<GraphMindLogo\s+className="brand-logo"\s+size=\{20\}\s*\/>/);
+    assert.match(sidebarSrc, /<span className="brand-wordmark">GraphMind<\/span>/);
+
+    // Verify GraphMindLogo SVG matches the canonical favicon mark in GraphMind green
+    const faviconPath = path.resolve(__dirname, '../public/favicon.svg');
+    const faviconSrc = fs.readFileSync(faviconPath, 'utf8');
+    assert.match(faviconSrc, /<circle cx="12" cy="12" r="3"/);
+    assert.match(faviconSrc, /stroke="#A3FF12"/);
+
+    // Verify CSS lockup properties and GraphMind accent green logo color
+    assert.match(shellCss, /\.brand-lockup\s*\{[\s\S]*?gap:\s*8px;/);
+    assert.match(shellCss, /\.brand-logo\s*\{[\s\S]*?width:\s*20px;[\s\S]*?height:\s*20px;[\s\S]*?color:\s*var\(--accent,\s*#A3FF12\);/);
+    assert.match(shellCss, /\.brand-wordmark\s*\{[\s\S]*?font-size:\s*16px;[\s\S]*?color:\s*#F2F2F2;/);
   });
 
   it('renders primary navigation with exactly 4 items in exact order', () => {

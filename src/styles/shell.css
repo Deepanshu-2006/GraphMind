@@ -29,34 +29,48 @@
   transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Brand: Pure typographic wordmark (24px left, 26-28px top) */
+/* Brand: Compact horizontal brand lockup (24px left, 28px top) */
 .sidebar-header {
   padding: 28px 18px 0 24px;
   display: flex;
   align-items: center;
 }
 
-.brand-wordmark {
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   background: none;
   border: none;
   padding: 0;
   cursor: pointer;
   text-align: left;
   user-select: none;
+  transition: opacity 140ms ease;
+}
+
+.brand-lockup:hover {
+  opacity: 0.85;
+}
+
+.brand-logo {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: block;
+  color: var(--accent, #A3FF12);
+}
+
+.brand-wordmark {
   font-family: var(--font-display, var(--font-body));
   font-size: 16px;
   font-weight: 550;
   letter-spacing: -0.02em;
   color: #F2F2F2;
   line-height: 1;
-  transition: opacity 140ms ease;
 }
 
-.brand-wordmark:hover {
-  opacity: 0.82;
-}
-
-/* Sidebar Nav Body: 56px deliberate gap before navigation */
+/* Sidebar Nav Body: 52px deliberate gap before navigation */
 .sidebar-content {
   flex: 1;
   padding: 0 18px 0 24px;
@@ -66,7 +80,7 @@
 }
 
 .sidebar-nav-list {
-  margin-top: 56px;
+  margin-top: 52px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -79,7 +93,7 @@
   gap: 10px;
   width: 100%;
   height: 38px;
-  padding: 0 8px 0 12px;
+  padding: 0 8px 0 0;
   border-radius: 0;
   color: #777777;
   font-family: var(--font-body);
@@ -114,7 +128,7 @@
 
 .nav-active-dot {
   position: absolute;
-  left: 0;
+  left: -11px;
   top: 50%;
   width: 4px;
   height: 4px;
@@ -152,6 +166,7 @@
 
 /* Accessible keyboard focus */
 .sidebar-nav-item:focus-visible,
+.brand-lockup:focus-visible,
 .brand-wordmark:focus-visible {
   outline: 1px solid var(--accent, #A3FF12);
   outline-offset: 2px;
@@ -169,7 +184,7 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
-  padding: 0 8px 0 12px;
+  padding: 0 8px 0 0;
   user-select: none;
 }
 
