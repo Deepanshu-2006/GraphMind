@@ -1,10 +1,20 @@
-import type { KnowledgeSource, KnowledgeGraph } from '../types/knowledgeGraph';
+import type { KnowledgeSource, KnowledgeGraph, KnowledgeGraphMeta } from '../types/knowledgeGraph';
+
+export const DEFAULT_MIGRATION_GRAPH_ID = 'graph-neural-cognitive-default';
+export const DEFAULT_MIGRATION_GRAPH_NAME = 'Neural & Cognitive Architectures';
 
 const STORAGE_KEYS = {
+  GRAPHS: 'graphmind_graphs_v1',
+  ACTIVE_GRAPH_ID: 'graphmind_active_graph_id_v1',
+  GRAPH_DATA_PREFIX: 'graphmind_graph_data_v1_',
+  COMPLETED_CONCEPTS_PREFIX: 'graphmind_completed_concepts_v1_',
+  GRAPH_SOURCE_TYPE_PREFIX: 'graphmind_graph_source_type_v1_',
+  // Canonical user sources collection (contains sources for all graphs, keyed by graphId)
   USER_SOURCES: 'graphmind_user_sources_v1',
-  USER_GRAPH: 'graphmind_user_graph_v1',
-  GRAPH_SOURCE_TYPE: 'graphmind_graph_source_type_v1',
-  USER_COMPLETED_CONCEPTS: 'graphmind_user_completed_concepts_v1',
+  // Legacy keys for backward compatibility and migration
+  LEGACY_USER_GRAPH: 'graphmind_user_graph_v1',
+  LEGACY_GRAPH_SOURCE_TYPE: 'graphmind_graph_source_type_v1',
+  LEGACY_USER_COMPLETED_CONCEPTS: 'graphmind_user_completed_concepts_v1',
 } as const;
 
 // Known mock/demo fixture IDs to never treat as user sources
@@ -23,9 +33,331 @@ const DEMO_FIXTURE_IDS = new Set([
 ]);
 
 /**
- * Load user-uploaded sources from persistence
+ * Ensures legacy data is migrated into the initial default graph.
+ * Preserves user's current work without duplication.
  */
-export function loadUserSources(): KnowledgeSource[] {
+export function migrateExistingDataIfNeeded(): KnowledgeGraphMeta[] {
+  if (typeof localStorage === 'undefined') return [];
+
+  try {
+    const rawGraphs = localStorage.getItem(STORAGE_KEYS.GRAPHS);
+    // If graphs key already exists (even if empty array), do not re-migrate
+    if (rawGraphs !== null) {
+      const parsed = JSON.parse(rawGraphs);
+      if (Array.isArray(parsed)) return parsed as KnowledgeGraphMeta[];
+    }
+
+    // First time or legacy data present: construct default migration graph
+    const defaultGraph: KnowledgeGraphMeta = {
+      id: DEFAULT_MIGRATION_GRAPH_ID,
+      name: DEFAULT_MIGRATION_GRAPH_NAME,
+      description: 'Neural & Cognitive Architectures knowledge graph',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    // Migrate legacy sources if present without graphId
+    const rawSources = localStorage.getItem(STORAGE_KEYS.USER_SOURCES);
+    if (rawSources) {
+      try {
+        const parsedSources = JSON.parse(rawSources);
+        if (Array.isArray(parsedSources)) {
+          const migratedSources = parsedSources.map((s: KnowledgeSource) => ({
+            ...s,
+            graphId: s.graphId || DEFAULT_MIGRATION_GRAPH_ID
+          }));
+          localStorage.setItem(STORAGE_KEYS.USER_SOURCES, JSON.stringify(migratedSources));
+        }
+      } catch (e) {
+        console.warn('[Storage] Error migrating legacy sources:', e);
+      }
+    }
+
+    // Migrate legacy graph if present
+    const rawLegacyGraph = localStorage.getItem(STORAGE_KEYS.LEGACY_USER_GRAPH);
+    if (rawLegacyGraph) {
+      try {
+        const parsedGraph = JSON.parse(rawLegacyGraph) as KnowledgeGraph;
+        if (parsedGraph && Array.isArray(parsedGraph.nodes)) {
+          const migratedGraph: KnowledgeGraph = {
+            ...parsedGraph,
+            id: DEFAULT_MIGRATION_GRAPH_ID,
+            name: DEFAULT_MIGRATION_GRAPH_NAME,
+            nodes: (parsedGraph.nodes || []).map(n => ({ ...n, graphId: n.graphId || DEFAULT_MIGRATION_GRAPH_ID })),
+            relationships: (parsedGraph.relationships || []).map(r => ({ ...r, graphId: r.graphId || DEFAULT_MIGRATION_GRAPH_ID })),
+            sources: (parsedGraph.sources || []).map(s => ({ ...s, graphId: s.graphId || DEFAULT_MIGRATION_GRAPH_ID }))
+          };
+          localStorage.setItem(STORAGE_KEYS.GRAPH_DATA_PREFIX + DEFAULT_MIGRATION_GRAPH_ID, JSON.stringify(migratedGraph));
+        }
+      } catch (e) {
+        console.warn('[Storage] Error migrating legacy graph:', e);
+      }
+    }
+
+    // Migrate legacy completed concepts
+    const rawCompleted = localStorage.getItem(STORAGE_KEYS.LEGACY_USER_COMPLETED_CONCEPTS);
+    if (rawCompleted) {
+      localStorage.setItem(STORAGE_KEYS.COMPLETED_CONCEPTS_PREFIX + DEFAULT_MIGRATION_GRAPH_ID, rawCompleted);
+    }
+
+    // Persist default graph list and active graph
+    const initialGraphs = [defaultGraph];
+    localStorage.setItem(STORAGE_KEYS.GRAPHS, JSON.stringify(initialGraphs));
+    if (!localStorage.getItem(STORAGE_KEYS.ACTIVE_GRAPH_ID)) {
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_GRAPH_ID, DEFAULT_MIGRATION_GRAPH_ID);
+    }
+
+    return initialGraphs;
+  } catch (err) {
+    console.warn('[Storage] Migration failed:', err);
+    return [];
+  }
+}
+
+/**
+ * Load all knowledge graphs/workspaces from persistence
+ */
+export function loadGraphs(): KnowledgeGraphMeta[] {
+  if (typeof localStorage === 'undefined') return [];
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.GRAPHS);
+    if (raw === null) {
+      return migrateExistingDataIfNeeded();
+    }
+
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed as KnowledgeGraphMeta[];
+    }
+    return [];
+  } catch (err) {
+    console.warn('[Storage] Failed to read graphs:', err);
+    return [];
+  }
+}
+
+/**
+ * Save knowledge graphs list to persistence
+ */
+export function saveGraphs(graphs: KnowledgeGraphMeta[]): void {
+  if (typeof localStorage === 'undefined') return;
+
+  try {
+    localStorage.setItem(STORAGE_KEYS.GRAPHS, JSON.stringify(graphs));
+  } catch (err) {
+    console.warn('[Storage] Failed to persist graphs:', err);
+  }
+}
+
+/**
+ * Load active graph ID from persistence
+ */
+export function loadActiveGraphId(): string | null {
+  if (typeof localStorage === 'undefined') return null;
+
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.ACTIVE_GRAPH_ID);
+    const graphs = loadGraphs();
+    if (graphs.length === 0) return null;
+
+    if (stored && graphs.some(g => g.id === stored)) {
+      return stored;
+    }
+
+    // Fall back to first available graph
+    const fallbackId = graphs[0].id;
+    saveActiveGraphId(fallbackId);
+    return fallbackId;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save active graph ID to persistence
+ */
+export function saveActiveGraphId(graphId: string | null): void {
+  if (typeof localStorage === 'undefined') return;
+
+  try {
+    if (graphId) {
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_GRAPH_ID, graphId);
+      // Sync legacy graph for backwards-compatible readers
+      const graph = loadGraphData(graphId);
+      if (graph) {
+        localStorage.setItem(STORAGE_KEYS.LEGACY_USER_GRAPH, JSON.stringify(graph));
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.LEGACY_USER_GRAPH);
+      }
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.ACTIVE_GRAPH_ID);
+      localStorage.removeItem(STORAGE_KEYS.LEGACY_USER_GRAPH);
+    }
+  } catch (err) {
+    console.warn('[Storage] Failed to save active graph ID:', err);
+  }
+}
+
+/**
+ * Create a new knowledge graph and make it active
+ */
+export function createGraph(name: string, description?: string): KnowledgeGraphMeta {
+  const trimmedName = (name || '').trim();
+  if (!trimmedName) {
+    throw new Error('Graph name is required.');
+  }
+  if (trimmedName.length > 100) {
+    throw new Error('Graph name must be 100 characters or less.');
+  }
+
+  const slug = trimmedName
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '') || 'graph';
+
+  const id = `graph-${slug}-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+  const now = new Date().toISOString();
+
+  const newGraph: KnowledgeGraphMeta = {
+    id,
+    name: trimmedName,
+    description: description?.trim() || undefined,
+    createdAt: now,
+    updatedAt: now
+  };
+
+  const currentGraphs = loadGraphs();
+  const updatedGraphs = [...currentGraphs, newGraph];
+  saveGraphs(updatedGraphs);
+  saveActiveGraphId(newGraph.id);
+
+  // Initialize empty graph data for this new graph
+  saveGraphData(newGraph.id, null);
+
+  return newGraph;
+}
+
+/**
+ * Delete a knowledge graph and all of its associated sources, concepts, relationships, and progress.
+ * Does not affect other graphs.
+ */
+export function deleteGraph(graphId: string): { remainingGraphs: KnowledgeGraphMeta[]; nextActiveId: string | null } {
+  if (typeof localStorage === 'undefined') {
+    return { remainingGraphs: [], nextActiveId: null };
+  }
+
+  const currentGraphs = loadGraphs();
+  const nextGraphs = currentGraphs.filter(g => g.id !== graphId);
+  saveGraphs(nextGraphs);
+
+  // Delete all sources belonging to this graph
+  try {
+    const rawSources = localStorage.getItem(STORAGE_KEYS.USER_SOURCES);
+    if (rawSources) {
+      const parsed = JSON.parse(rawSources);
+      if (Array.isArray(parsed)) {
+        const remainingSources = parsed.filter((s: KnowledgeSource) => s.graphId !== graphId);
+        localStorage.setItem(STORAGE_KEYS.USER_SOURCES, JSON.stringify(remainingSources));
+      }
+    }
+  } catch (err) {
+    console.warn('[Storage] Error cleaning sources for deleted graph:', err);
+  }
+
+  // Remove graph data and progress
+  try {
+    localStorage.removeItem(STORAGE_KEYS.GRAPH_DATA_PREFIX + graphId);
+    localStorage.removeItem(STORAGE_KEYS.COMPLETED_CONCEPTS_PREFIX + graphId);
+    localStorage.removeItem(STORAGE_KEYS.GRAPH_SOURCE_TYPE_PREFIX + graphId);
+  } catch (err) {
+    console.warn('[Storage] Error removing graph records for deleted graph:', err);
+  }
+
+  // If this was the active graph, fall back safely
+  const currentActive = localStorage.getItem(STORAGE_KEYS.ACTIVE_GRAPH_ID);
+  let nextActiveId: string | null = currentActive;
+
+  if (currentActive === graphId) {
+    nextActiveId = nextGraphs.length > 0 ? nextGraphs[0].id : null;
+    saveActiveGraphId(nextActiveId);
+  }
+
+  return { remainingGraphs: nextGraphs, nextActiveId };
+}
+
+/**
+ * Load user-constructed KnowledgeGraph for a specific graph from persistence
+ */
+export function loadGraphData(graphId: string): KnowledgeGraph | null {
+  if (typeof localStorage === 'undefined' || !graphId) return null;
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.GRAPH_DATA_PREFIX + graphId);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.nodes) && Array.isArray(parsed.relationships)) {
+        return parsed as KnowledgeGraph;
+      }
+    }
+
+    // Fallback for default migrated graph
+    if (graphId === DEFAULT_MIGRATION_GRAPH_ID) {
+      const legacyRaw = localStorage.getItem(STORAGE_KEYS.LEGACY_USER_GRAPH);
+      if (legacyRaw) {
+        const parsed = JSON.parse(legacyRaw);
+        if (parsed && Array.isArray(parsed.nodes) && Array.isArray(parsed.relationships)) {
+          return parsed as KnowledgeGraph;
+        }
+      }
+    }
+
+    return null;
+  } catch (err) {
+    console.warn('[Storage] Failed to read graph data:', err);
+    return null;
+  }
+}
+
+/**
+ * Save user-constructed KnowledgeGraph for a specific graph to persistence
+ */
+export function saveGraphData(graphId: string, graph: KnowledgeGraph | null): void {
+  if (typeof localStorage === 'undefined' || !graphId) return;
+
+  try {
+    if (graph) {
+      const scopedGraph: KnowledgeGraph = {
+        ...graph,
+        id: graphId,
+        nodes: (graph.nodes || []).map(n => ({ ...n, graphId })),
+        relationships: (graph.relationships || []).map(r => ({ ...r, graphId })),
+        sources: (graph.sources || []).map(s => ({ ...s, graphId }))
+      };
+      localStorage.setItem(STORAGE_KEYS.GRAPH_DATA_PREFIX + graphId, JSON.stringify(scopedGraph));
+
+      // Keep legacy key in sync if this is the active graph
+      const activeId = localStorage.getItem(STORAGE_KEYS.ACTIVE_GRAPH_ID);
+      if (activeId === graphId) {
+        localStorage.setItem(STORAGE_KEYS.LEGACY_USER_GRAPH, JSON.stringify(scopedGraph));
+      }
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.GRAPH_DATA_PREFIX + graphId);
+      const activeId = localStorage.getItem(STORAGE_KEYS.ACTIVE_GRAPH_ID);
+      if (activeId === graphId) {
+        localStorage.removeItem(STORAGE_KEYS.LEGACY_USER_GRAPH);
+      }
+    }
+  } catch (err) {
+    console.warn('[Storage] Failed to persist graph data:', err);
+  }
+}
+
+/**
+ * Load user-uploaded sources from persistence, optionally scoped to a graphId.
+ */
+export function loadUserSources(graphId?: string): KnowledgeSource[] {
   if (typeof localStorage === 'undefined') return [];
 
   try {
@@ -36,7 +368,7 @@ export function loadUserSources(): KnowledgeSource[] {
     if (!Array.isArray(parsed)) return [];
 
     // Filter out any mock fixtures and validate structure
-    return parsed.filter((s): s is KnowledgeSource => {
+    const validSources = parsed.filter((s): s is KnowledgeSource => {
       return (
         s &&
         typeof s === 'object' &&
@@ -45,78 +377,81 @@ export function loadUserSources(): KnowledgeSource[] {
         (typeof s.fileName === 'string' || typeof s.name === 'string')
       );
     });
+
+    if (graphId) {
+      return validSources.filter(s => {
+        if (s.graphId) return s.graphId === graphId;
+        // Unscoped sources belong to default migration graph
+        return graphId === DEFAULT_MIGRATION_GRAPH_ID;
+      });
+    }
+
+    return validSources;
   } catch (err) {
-    console.warn('[Storage] Failed to read user sources from localStorage:', err);
+    console.warn('[Storage] Failed to read user sources:', err);
     return [];
   }
 }
 
 /**
- * Save user-uploaded sources to persistence
+ * Save user-uploaded sources to persistence, scoped to a graphId when provided.
  */
-export function saveUserSources(sources: KnowledgeSource[]): void {
+export function saveUserSources(sources: KnowledgeSource[], graphId?: string): void {
   if (typeof localStorage === 'undefined') return;
 
   try {
-    // Only persist non-demo sources
     const cleanSources = sources.filter(s => !DEMO_FIXTURE_IDS.has(s.id));
-    localStorage.setItem(STORAGE_KEYS.USER_SOURCES, JSON.stringify(cleanSources));
-  } catch (err) {
-    console.warn('[Storage] Failed to persist user sources to localStorage:', err);
-  }
-}
 
-/**
- * Load user-constructed KnowledgeGraph from persistence
- */
-export function loadUserGraph(): KnowledgeGraph | null {
-  if (typeof localStorage === 'undefined') return null;
+    if (graphId) {
+      // Scoped save: preserve other graphs' sources
+      const raw = localStorage.getItem(STORAGE_KEYS.USER_SOURCES);
+      const allExisting: KnowledgeSource[] = raw ? JSON.parse(raw) : [];
+      const otherSources = allExisting.filter(s => {
+        if (s.graphId) return s.graphId !== graphId;
+        return graphId !== DEFAULT_MIGRATION_GRAPH_ID;
+      });
 
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.USER_GRAPH);
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw);
-    if (parsed && Array.isArray(parsed.nodes) && Array.isArray(parsed.relationships)) {
-      return parsed as KnowledgeGraph;
-    }
-    return null;
-  } catch (err) {
-    console.warn('[Storage] Failed to read user graph from localStorage:', err);
-    return null;
-  }
-}
-
-/**
- * Save user-constructed KnowledgeGraph to persistence
- */
-export function saveUserGraph(graph: KnowledgeGraph | null): void {
-  if (typeof localStorage === 'undefined') return;
-
-  try {
-    if (graph) {
-      localStorage.setItem(STORAGE_KEYS.USER_GRAPH, JSON.stringify(graph));
+      const taggedSources = cleanSources.map(s => ({ ...s, graphId }));
+      const merged = [...taggedSources, ...otherSources].filter(s => !DEMO_FIXTURE_IDS.has(s.id));
+      localStorage.setItem(STORAGE_KEYS.USER_SOURCES, JSON.stringify(merged));
     } else {
-      localStorage.removeItem(STORAGE_KEYS.USER_GRAPH);
+      localStorage.setItem(STORAGE_KEYS.USER_SOURCES, JSON.stringify(cleanSources));
     }
   } catch (err) {
-    console.warn('[Storage] Failed to persist user graph to localStorage:', err);
+    console.warn('[Storage] Failed to persist user sources:', err);
   }
+}
+
+/**
+ * Load user-constructed KnowledgeGraph (defaults to active graph)
+ */
+export function loadUserGraph(graphId?: string): KnowledgeGraph | null {
+  const targetId = graphId || loadActiveGraphId() || DEFAULT_MIGRATION_GRAPH_ID;
+  return loadGraphData(targetId);
+}
+
+/**
+ * Save user-constructed KnowledgeGraph (defaults to active graph)
+ */
+export function saveUserGraph(graph: KnowledgeGraph | null, graphId?: string): void {
+  const targetId = graphId || loadActiveGraphId() || DEFAULT_MIGRATION_GRAPH_ID;
+  saveGraphData(targetId, graph);
 }
 
 /**
  * Load active graph source type ('user' | 'demo')
  */
-export function loadGraphSourceType(): 'user' | 'demo' {
+export function loadGraphSourceType(graphId?: string): 'user' | 'demo' {
   if (typeof localStorage === 'undefined') return 'demo';
 
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.GRAPH_SOURCE_TYPE);
+    const targetId = graphId || loadActiveGraphId() || DEFAULT_MIGRATION_GRAPH_ID;
+    const scopedKey = STORAGE_KEYS.GRAPH_SOURCE_TYPE_PREFIX + targetId;
+    const raw = localStorage.getItem(scopedKey) || localStorage.getItem(STORAGE_KEYS.LEGACY_GRAPH_SOURCE_TYPE);
     if (raw === 'user' || raw === 'demo') {
       return raw;
     }
-    // If user has uploaded sources, default to user mode
-    const sources = loadUserSources();
+    const sources = loadUserSources(targetId);
     return sources.length > 0 ? 'user' : 'demo';
   } catch {
     return 'demo';
@@ -126,24 +461,29 @@ export function loadGraphSourceType(): 'user' | 'demo' {
 /**
  * Save active graph source type
  */
-export function saveGraphSourceType(type: 'user' | 'demo'): void {
+export function saveGraphSourceType(type: 'user' | 'demo', graphId?: string): void {
   if (typeof localStorage === 'undefined') return;
 
   try {
-    localStorage.setItem(STORAGE_KEYS.GRAPH_SOURCE_TYPE, type);
+    const targetId = graphId || loadActiveGraphId() || DEFAULT_MIGRATION_GRAPH_ID;
+    localStorage.setItem(STORAGE_KEYS.GRAPH_SOURCE_TYPE_PREFIX + targetId, type);
+    localStorage.setItem(STORAGE_KEYS.LEGACY_GRAPH_SOURCE_TYPE, type);
   } catch (err) {
     console.warn('[Storage] Failed to save graph source type:', err);
   }
 }
 
 /**
- * Load user's completed concept IDs from persistence
+ * Load user's completed concept IDs from persistence for a specific graph
  */
-export function loadCompletedConceptIds(): string[] {
+export function loadCompletedConceptIds(graphId?: string): string[] {
   if (typeof localStorage === 'undefined') return [];
 
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.USER_COMPLETED_CONCEPTS);
+    const targetId = graphId || loadActiveGraphId() || DEFAULT_MIGRATION_GRAPH_ID;
+    const raw = localStorage.getItem(STORAGE_KEYS.COMPLETED_CONCEPTS_PREFIX + targetId) 
+      || (targetId === DEFAULT_MIGRATION_GRAPH_ID ? localStorage.getItem(STORAGE_KEYS.LEGACY_USER_COMPLETED_CONCEPTS) : null);
+    
     if (!raw) return [];
 
     const parsed: unknown = JSON.parse(raw);
@@ -151,30 +491,34 @@ export function loadCompletedConceptIds(): string[] {
 
     return parsed.filter((id): id is string => typeof id === 'string');
   } catch (err) {
-    console.warn('[Storage] Failed to read completed concepts from localStorage:', err);
+    console.warn('[Storage] Failed to read completed concepts:', err);
     return [];
   }
 }
 
 /**
- * Save user's completed concept IDs to persistence
+ * Save user's completed concept IDs to persistence for a specific graph
  */
-export function saveCompletedConceptIds(conceptIds: string[]): void {
+export function saveCompletedConceptIds(conceptIds: string[], graphId?: string): void {
   if (typeof localStorage === 'undefined') return;
 
   try {
+    const targetId = graphId || loadActiveGraphId() || DEFAULT_MIGRATION_GRAPH_ID;
     const uniqueIds = Array.from(new Set(conceptIds.filter(id => typeof id === 'string')));
-    localStorage.setItem(STORAGE_KEYS.USER_COMPLETED_CONCEPTS, JSON.stringify(uniqueIds));
+    localStorage.setItem(STORAGE_KEYS.COMPLETED_CONCEPTS_PREFIX + targetId, JSON.stringify(uniqueIds));
+    if (targetId === DEFAULT_MIGRATION_GRAPH_ID) {
+      localStorage.setItem(STORAGE_KEYS.LEGACY_USER_COMPLETED_CONCEPTS, JSON.stringify(uniqueIds));
+    }
   } catch (err) {
-    console.warn('[Storage] Failed to persist completed concepts to localStorage:', err);
+    console.warn('[Storage] Failed to persist completed concepts:', err);
   }
 }
 
 /**
  * Toggle a single concept's completed status and return updated array
  */
-export function toggleCompletedConceptId(conceptId: string): string[] {
-  const current = loadCompletedConceptIds();
+export function toggleCompletedConceptId(conceptId: string, graphId?: string): string[] {
+  const current = loadCompletedConceptIds(graphId);
   const set = new Set(current);
   if (set.has(conceptId)) {
     set.delete(conceptId);
@@ -182,7 +526,7 @@ export function toggleCompletedConceptId(conceptId: string): string[] {
     set.add(conceptId);
   }
   const updated = Array.from(set);
-  saveCompletedConceptIds(updated);
+  saveCompletedConceptIds(updated, graphId);
   return updated;
 }
 
@@ -193,10 +537,19 @@ export function clearAllUserData(): void {
   if (typeof localStorage === 'undefined') return;
 
   try {
+    // Clear graphs and active graph
+    const graphs = loadGraphs();
+    for (const g of graphs) {
+      localStorage.removeItem(STORAGE_KEYS.GRAPH_DATA_PREFIX + g.id);
+      localStorage.removeItem(STORAGE_KEYS.COMPLETED_CONCEPTS_PREFIX + g.id);
+      localStorage.removeItem(STORAGE_KEYS.GRAPH_SOURCE_TYPE_PREFIX + g.id);
+    }
+    localStorage.removeItem(STORAGE_KEYS.GRAPHS);
+    localStorage.removeItem(STORAGE_KEYS.ACTIVE_GRAPH_ID);
     localStorage.removeItem(STORAGE_KEYS.USER_SOURCES);
-    localStorage.removeItem(STORAGE_KEYS.USER_GRAPH);
-    localStorage.removeItem(STORAGE_KEYS.GRAPH_SOURCE_TYPE);
-    localStorage.removeItem(STORAGE_KEYS.USER_COMPLETED_CONCEPTS);
+    localStorage.removeItem(STORAGE_KEYS.LEGACY_USER_GRAPH);
+    localStorage.removeItem(STORAGE_KEYS.LEGACY_GRAPH_SOURCE_TYPE);
+    localStorage.removeItem(STORAGE_KEYS.LEGACY_USER_COMPLETED_CONCEPTS);
   } catch (err) {
     console.warn('[Storage] Failed to clear user data:', err);
   }
