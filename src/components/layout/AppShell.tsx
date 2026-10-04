@@ -64,6 +64,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         isOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
         project={project}
+        activeGraphMeta={activeGraphMeta}
       />
 
       {/* Main Content Area */}

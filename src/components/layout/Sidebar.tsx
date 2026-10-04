@@ -7,6 +7,7 @@ import {
   Settings
 } from 'lucide-react';
 import type { NavSection, ProjectWorkspace } from '../../types';
+import type { KnowledgeGraphMeta } from '../../types/knowledgeGraph';
 
 interface SidebarProps {
   currentSection: NavSection;
@@ -14,6 +15,7 @@ interface SidebarProps {
   isOpen: boolean;
   onCloseMobile: () => void;
   project?: ProjectWorkspace;
+  activeGraphMeta?: KnowledgeGraphMeta | null;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -21,7 +23,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectSection,
   isOpen,
   onCloseMobile,
-  project
+  project,
+  activeGraphMeta
 }) => {
   const mainNavItems = [
     { id: 'overview' as NavSection, label: 'Overview', icon: Compass },
@@ -29,6 +32,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'paths' as NavSection, label: 'Learning Paths', icon: GitFork },
     { id: 'sources' as NavSection, label: 'Sources', icon: Files }
   ];
+
+  const currentGraphName = activeGraphMeta?.name || project?.name || 'Knowledge Graph';
 
   return (
     <aside className={`app-sidebar ${isOpen ? 'open' : ''}`} aria-label="Application sidebar">
@@ -48,7 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
       </div>
 
-      {/* Primary Navigation Body: 52px breathing room below brand */}
+      {/* Primary Navigation Body: 56px breathing room below brand */}
       <div className="sidebar-content">
         <nav className="sidebar-nav-list" aria-label="Main Navigation">
           {mainNavItems.map((item) => {
@@ -57,6 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             return (
               <button
                 key={item.id}
+                type="button"
                 className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
                 onClick={() => {
                   onSelectSection(item.id);
@@ -64,7 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }}
                 aria-current={isActive ? 'page' : undefined}
               >
-                <span className="nav-indicator-line" aria-hidden="true" />
+                <span className="nav-active-dot" aria-hidden="true" />
                 <Icon className="nav-icon" size={15} strokeWidth={1.5} />
                 <span className="nav-label">{item.label}</span>
               </button>
@@ -72,13 +78,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
         </nav>
 
-        {/* Lower Sidebar: Contextual Current Graph + Settings */}
+        {/* Lower Sidebar: Contextual Current Graph + Secondary Settings */}
         <div className="sidebar-lower">
-          {project && (
+          {currentGraphName && (
             <div className="sidebar-context-section">
-              <span className="sidebar-context-kicker">Current Graph</span>
-              <span className="sidebar-context-title" title={project.name}>
-                {project.name}
+              <span className="sidebar-context-kicker">CURRENT GRAPH</span>
+              <span className="sidebar-context-title" title={currentGraphName}>
+                {currentGraphName}
               </span>
             </div>
           )}
@@ -93,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }}
               aria-current={currentSection === 'settings' ? 'page' : undefined}
             >
-              <span className="nav-indicator-line" aria-hidden="true" />
+              <span className="nav-active-dot" aria-hidden="true" />
               <Settings className="nav-icon" size={15} strokeWidth={1.5} />
               <span className="nav-label">Settings</span>
             </button>

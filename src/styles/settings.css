@@ -42,35 +42,36 @@
   flex-direction: column;
 }
 
-/* Kicker: SETTINGS */
+/* Level 4 Eyebrow: SETTINGS */
 .settings-anchor-kicker {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 500;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: #666666;
+  color: #5F5F5F;
   margin-bottom: 14px;
+  display: block;
 }
 
-/* Level 1 Title: Settings */
+/* Level 1 Title: Settings (Strongest typographic element on the page) */
 .settings-anchor-title {
   font-family: var(--font-display, var(--font-body));
-  font-size: 58px;
-  font-weight: 550;
-  line-height: 0.94;
-  letter-spacing: -0.03em;
+  font-size: 60px;
+  font-weight: 600;
+  line-height: 0.92;
+  letter-spacing: -0.045em;
   color: #F5F5F5;
-  margin: 0 0 16px 0;
+  margin: 0 0 14px 0;
 }
 
-/* Anchor Subtitle */
+/* Level 5 Subtitle: Quieter editorial description */
 .settings-anchor-desc {
   font-family: var(--font-body);
   font-size: 14px;
   line-height: 1.5;
-  color: #888888;
-  max-width: 280px;
+  color: #858585;
+  max-width: 300px;
   margin: 0;
 }
 
@@ -94,34 +95,35 @@
   width: 100%;
 }
 
+.settings-chapter.chapter-danger {
+  margin-top: 12px; /* 64px + 12px = 76px vertical rhythm to Danger */
+}
+
 .settings-chapter-divider {
   width: 100%;
   height: 1px;
-  background-color: #242424;
+  background-color: #202020;
   margin: 64px 0;
-}
-
-.settings-chapter.chapter-danger .settings-chapter-divider {
-  background-color: rgba(201, 81, 81, 0.2);
 }
 
 .settings-chapter-header {
   margin-bottom: 28px;
 }
 
-/* Level 3: Section Labels (10px uppercase monospace) */
+/* Level 4: Section Labels (9px uppercase monospace, 0.22em tracking) */
 .settings-chapter-kicker {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 500;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: #666666;
+  color: #626262;
   display: inline-block;
 }
 
+/* Muted editorial red for DANGER label (NOT bright red!) */
 .settings-chapter-kicker.danger {
-  color: #C95151;
+  color: #8F4545;
 }
 
 /* Chapter Body */
@@ -131,7 +133,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   5. Setting Entries (Rhythm separation ~32px, NO horizontal rules)
+   5. Setting Entries (Rhythm separation ~28px, NO horizontal rules)
    -------------------------------------------------------------------------- */
 .settings-entry {
   display: grid;
@@ -139,7 +141,7 @@
   gap: 40px;
   align-items: start;
   padding: 0;
-  margin-bottom: 32px;
+  margin-bottom: 28px;
 }
 
 .settings-entry:last-child {
@@ -149,25 +151,26 @@
 .settings-entry-meta {
   display: flex;
   flex-direction: column;
-  gap: 5px;
 }
 
-/* Level 4: Setting Title (15–16px) */
+/* Level 3: Setting Title (16px, 500, -0.015em, dominates description) */
 .settings-entry-title {
   font-family: var(--font-body);
-  font-size: 15.5px;
+  font-size: 16px;
   font-weight: 500;
-  color: #F5F5F5;
-  line-height: 1.35;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  color: #E8E8E8;
 }
 
-/* Level 5: Description (12–13px, #888) */
+/* Level 5: Description (12.5px, #777777, margin-top: 6px) */
 .settings-entry-desc {
   font-family: var(--font-body);
   font-size: 12.5px;
-  color: #888888;
   line-height: 1.45;
-  margin: 0;
+  color: #777777;
+  margin-top: 6px;
+  margin-bottom: 0;
   max-width: 440px;
 }
 
@@ -179,15 +182,15 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  min-width: 130px;
+  min-width: 140px;
   padding-top: 1px;
 }
 
-/* Interactive Value Trigger (Balanced → / Hierarchical →) */
+/* Interactive Value Trigger (Balanced  → / Hierarchical  →) */
 .settings-action-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 8px; /* Balanced  → */
   background: transparent;
   border: none;
   padding: 2px 0;
@@ -200,16 +203,17 @@
 .settings-action-trigger .trigger-val {
   font-family: var(--font-body);
   font-size: 13px;
-  font-weight: 450;
+  font-weight: 480;
   color: #D0D0D0;
+  letter-spacing: -0.01em;
   transition: color 160ms ease-out;
 }
 
 .settings-action-trigger .trigger-arr {
-  color: #666666;
-  font-size: 13px;
+  color: #666666; /* Muted default, NOT green */
+  font-size: 12px;
   line-height: 1;
-  transition: transform 160ms ease-out, color 160ms ease-out;
+  transition: transform 150ms ease-out, color 150ms ease-out;
 }
 
 .settings-action-trigger:hover .trigger-val {
@@ -314,13 +318,14 @@
 }
 
 /* --------------------------------------------------------------------------
-   8. Workspace Keyboard Shortcuts (Compact, Aligned Stack)
+   8. Workspace Keyboard Shortcuts (Compact, Aligned Stack, Understated Keys)
    -------------------------------------------------------------------------- */
 .settings-shortcuts-stack {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-width: 130px;
+  min-width: 140px;
+  padding-top: 1px;
 }
 
 .settings-shortcut-item {
@@ -342,19 +347,22 @@
   gap: 4px;
 }
 
+/* Keycaps: 22x22px, border #262626, background #121212, color #8A8A8A */
 .settings-key {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 22px;
+  height: 22px;
+  box-sizing: border-box;
   font-family: var(--font-mono);
   font-size: 10px;
-  color: #D0D0D0;
-  background: #141414;
-  border: 1px solid #282828;
+  color: #8A8A8A;
+  background: #121212;
+  border: 1px solid #262626;
   border-radius: 4px;
-  padding: 2px 5px;
-  min-width: 18px;
-  line-height: 1.4;
+  padding: 0;
+  line-height: 1;
 }
 
 /* --------------------------------------------------------------------------
@@ -376,37 +384,38 @@
 .settings-graph-name-wrap {
   display: flex;
   flex-direction: column;
-  gap: 6px;
 }
 
-/* Level 2: Current Graph Display Name (20–24px, medium weight, near-white) */
+/* Level 2: Current Graph Display Name (23px, 500, line-height 1.1, -0.025em, #F0F0F0) */
 .settings-graph-display-name {
   font-family: var(--font-display, var(--font-body));
-  font-size: 22px;
+  font-size: 23px;
   font-weight: 500;
-  line-height: 1.25;
-  letter-spacing: -0.015em;
-  color: #F5F5F5;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  color: #F0F0F0;
   margin: 0;
   word-break: break-word;
 }
 
-/* Level 5/6: Created Date Metadata */
+/* Level 5/6: Created Date Metadata (11px, #666666, margin-top: 7px) */
 .settings-graph-meta-date {
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: 11px;
   color: #666666;
+  margin-top: 7px;
+  display: block;
 }
 
 .settings-graph-action-wrap {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  min-width: 130px;
+  min-width: 140px;
   padding-top: 3px;
 }
 
-/* Text-Action: Rename → */
+/* Text-Action: Rename → (12px, #A0A0A0, arrow #666 -> green on hover) */
 .settings-text-action {
   display: inline-flex;
   align-items: center;
@@ -415,18 +424,18 @@
   border: none;
   padding: 2px 0;
   cursor: pointer;
-  color: #D0D0D0;
+  color: #A0A0A0;
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 450;
-  transition: color 160ms ease-out;
+  transition: color 150ms ease-out;
   text-decoration: none;
 }
 
 .settings-text-action .action-arrow {
   color: #666666;
-  font-size: 13px;
-  transition: transform 160ms ease-out, color 160ms ease-out;
+  font-size: 12px;
+  transition: transform 150ms ease-out, color 150ms ease-out;
 }
 
 .settings-text-action:hover {
@@ -515,7 +524,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   10. Danger Section & Delete Action
+   10. Danger Section & Delete Action (Muted Red #8F4545, Restrained)
    -------------------------------------------------------------------------- */
 .settings-danger-link {
   display: inline-flex;
@@ -525,31 +534,31 @@
   border: none;
   padding: 2px 0;
   cursor: pointer;
-  color: #C95151;
+  color: #8F4545;
   font-family: var(--font-body);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 450;
-  transition: color 160ms ease-out;
+  transition: color 150ms ease-out;
   text-decoration: none;
 }
 
 .settings-danger-link .danger-arrow {
-  color: #8F3838;
-  font-size: 12.5px;
-  transition: transform 160ms ease-out, color 160ms ease-out;
+  color: #8F4545;
+  font-size: 12px;
+  transition: transform 150ms ease-out, color 150ms ease-out;
 }
 
 .settings-danger-link:hover {
-  color: #F87171;
+  color: #B85C5C;
 }
 
 .settings-danger-link:hover .danger-arrow {
-  color: #F87171;
+  color: #B85C5C;
   transform: translateX(3px);
 }
 
 .settings-danger-link:focus-visible {
-  outline: 2px solid #ef4444;
+  outline: 2px solid #8F4545;
   outline-offset: 4px;
   border-radius: 2px;
 }
@@ -560,7 +569,7 @@
 @keyframes settingsAnchorFade {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -607,7 +616,7 @@
   }
 
   .settings-anchor-title {
-    font-size: 48px;
+    font-size: 50px;
   }
 }
 
@@ -641,7 +650,7 @@
   .settings-entry {
     grid-template-columns: 1fr;
     gap: 12px;
-    margin-bottom: 28px;
+    margin-bottom: 24px;
   }
 
   .settings-entry-control {
