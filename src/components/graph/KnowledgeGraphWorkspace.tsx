@@ -10,7 +10,7 @@ import {
   MarkerType
 } from '@xyflow/react';
 import type { Node, Edge, NodeMouseHandler, EdgeMouseHandler } from '@xyflow/react';
-import { Plus } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { ThinkingOrb } from 'thinking-orbs';
 
 import { ConceptNode } from './ConceptNode';
@@ -35,6 +35,7 @@ import type {
 import type { PipelineStage, PipelineProgressEvent } from '../../services/pipelineOrchestrator';
 import { exportKnowledgeGraphJson, exportKnowledgeGraphPng } from '../../services/graphExport';
 import { calculateVisibleGraph } from '../../services/graphViewport';
+import { useGraph } from '../../context/GraphContext';
 
 const nodeTypes = {
   conceptNode: ConceptNode
@@ -50,6 +51,7 @@ export interface KnowledgeGraphWorkspaceProps {
   onOpenUpload?: () => void;
   initialMode?: WorkspaceMode;
   graph?: KnowledgeGraph;
+  graphName?: string;
   graphSourceType?: 'demo' | 'user';
   onSwitchGraphSource?: (type: 'demo' | 'user') => void;
   hasUserGraph?: boolean;
@@ -61,6 +63,7 @@ export interface KnowledgeGraphWorkspaceProps {
   focusedNodeId?: string | null;
   onClearFocusedNode?: () => void;
   onSelectSource?: (sourceNameOrId?: string) => void;
+  onFilesDropped?: (files: File[]) => void;
 }
 
 // Progressive Crafting Steps (Prompt 22: Contextual processing copy)
@@ -116,6 +119,7 @@ function FlowCanvas({
   onOpenUpload,
   initialMode = 'interactive',
   graph,
+  graphName,
   pipelineStage,
   pipelineStatusMessage,
   pipelineError,
@@ -123,9 +127,20 @@ function FlowCanvas({
   livePipelineEvent,
   focusedNodeId,
   onClearFocusedNode,
-  onSelectSource
+  onSelectSource,
+  onFilesDropped
 }: KnowledgeGraphWorkspaceProps) {
   const reactFlowInstance = useReactFlow();
+
+  // Safely resolve active graph name from props or context
+  let contextGraphName: string | undefined;
+  try {
+    const graphCtx = useGraph();
+    contextGraphName = graphCtx.activeGraphMeta?.name;
+  } catch {
+    // If rendered outside GraphProvider in standalone unit tests, ignore
+  }
+  const displayGraphName = graphName || contextGraphName || graph?.name || 'Your graph';
 
   const { effectiveNodes, effectiveEdges, effectiveConceptDetails } = useMemo(() => {
     if (graph) {
@@ -148,17 +163,64 @@ function FlowCanvas({
   const displayStatusMessage = livePipelineEvent?.message || statusMessage || pipelineStatusMessage || '';
 
   const isLiveProcessing = Boolean(
-    livePipelineEvent &&
-    livePipelineEvent.stage !== 'complete' &&
-    livePipelineEvent.stage !== 'error'
+    (livePipelineEvent &&
+      livePipelineEvent.stage !== 'complete' &&
+      livePipelineEvent.stage !== 'error') ||
+    (pipelineStage &&
+      pipelineStage !== 'complete' &&
+      pipelineStage !== 'error')
   );
-  const isLiveComplete = livePipelineEvent?.stage === 'complete';
+  const isLiveComplete = livePipelineEvent?.stage === 'complete' || pipelineStage === 'complete';
 
   const mode: WorkspaceMode = isLiveProcessing
     ? 'crafting'
     : isLiveComplete
-    ? 'interactive'
+    ? (effectiveNodes.length === 0 ? 'empty' : 'interactive')
     : internalMode;
+
+  // Drag and drop states on canvas
+  const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounterRef = useRef(0);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current += 1;
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragOver(true);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0;
+      setIsDragOver(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current = 0;
+    setIsDragOver(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      if (onFilesDropped) {
+        onFilesDropped(files);
+      } else if (onOpenUpload) {
+        onOpenUpload();
+      }
+    }
+  }, [onFilesDropped, onOpenUpload]);
 
   const [isLoadingOrbVisible, setIsLoadingOrbVisible] = useState<boolean>(false);
   const [isOverlayMounted, setIsOverlayMounted] = useState<boolean>(false);
@@ -619,9 +681,9 @@ function FlowCanvas({
     runCraftingAnimation(true);
   }, [runCraftingAnimation]);
 
-  // When initialMode changes
+  // When initialMode or effectiveNodes changes
   useEffect(() => {
-    if (livePipelineEvent) return;
+    if (livePipelineEvent || isLiveProcessing) return;
 
     const timer = setTimeout(() => {
       if (initialMode === 'loading') {
@@ -880,39 +942,50 @@ function FlowCanvas({
         </ReactFlow>
       </div>
 
-      {/* 2. EMPTY STATE OVERLAY (Prompt 8, Section 1) */}
+      {/* 2. CANVAS-NATIVE EMPTY STATE (Quiet, Editorial, Spatial) */}
       {mode === 'empty' && (
-        <div className="graph-canvas-overlay empty-overlay" id="graph-empty-overlay">
-          {/* Subtle ghost constellation wireframe */}
-          <svg className="empty-canvas-ghost-svg" aria-hidden="true" viewBox="0 0 700 450">
-            <g stroke="var(--border-default)" strokeWidth="1" strokeDasharray="3 3" opacity="0.25">
-              <line x1="140" y1="200" x2="280" y2="140" />
-              <line x1="280" y1="140" x2="420" y2="180" />
-              <line x1="280" y1="140" x2="340" y2="300" />
-              <line x1="420" y1="180" x2="540" y2="240" />
-            </g>
-            <g fill="#141414" stroke="var(--border-default)" strokeWidth="1" opacity="0.4">
-              <circle cx="140" cy="200" r="16" />
-              <circle cx="280" cy="140" r="20" />
-              <circle cx="420" cy="180" r="18" />
-              <circle cx="340" cy="300" r="15" />
-              <circle cx="540" cy="240" r="16" />
-            </g>
-          </svg>
+        <div 
+          className={`graph-canvas-overlay empty-overlay ${isDragOver ? 'is-drag-over' : ''}`} 
+          id="graph-empty-overlay"
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <div className="canvas-empty-composition">
+            {/* Subtle Canvas Origin Coordinate Anchor with 5.5px GraphMind Green Point */}
+            <div className={`canvas-origin-anchor ${isDragOver ? 'is-drag-over' : ''}`} aria-hidden="true">
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                <line x1="24" y1="4" x2="24" y2="44" />
+                <line x1="4" y1="24" x2="44" y2="24" />
+                <circle cx="24" cy="24" r="2.75" className="origin-dot" />
+              </svg>
+            </div>
 
-          <div className="graph-empty-box">
-            <h2 className="graph-empty-title">Your graph is empty</h2>
-            <p className="graph-empty-desc">
-              Upload material to begin mapping your concepts.
+            {/* Quiet Editorial Heading */}
+            <h2 className="canvas-empty-heading">
+              {isDragOver 
+                ? 'Drop material to start the graph.' 
+                : `${displayGraphName} is ready for its first material.`}
+            </h2>
+
+            {/* Supporting Instructional Copy */}
+            <p className="canvas-empty-desc">
+              {isDragOver
+                ? 'GraphMind will extract concepts and map their relationships.'
+                : 'Upload study material and GraphMind will map the concepts and relationships inside it.'}
             </p>
+
+            {/* Editorial Action */}
             <button 
               type="button"
-              className="btn-primary"
+              className={`canvas-editorial-cta ${isDragOver ? 'is-hidden' : ''}`}
               onClick={onOpenUpload}
-              id="btn-empty-add-sources"
+              id="btn-empty-upload-material"
+              aria-label={`Upload study material for ${displayGraphName}`}
             >
-              <Plus size={14} />
               <span>Upload material</span>
+              <ArrowUpRight size={13} className="editorial-arrow" aria-hidden="true" />
             </button>
           </div>
         </div>

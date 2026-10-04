@@ -18,13 +18,15 @@ interface CreateGraphModalProps {
     onProgress?: (event: PipelineProgressEvent) => void
   ) => Promise<boolean | void> | void;
   existingSources?: KnowledgeSource[];
+  initialFiles?: File[];
 }
 
 export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  existingSources = []
+  existingSources = [],
+  initialFiles = []
 }) => {
   const shouldReduceMotion = useReducedMotion();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -101,6 +103,12 @@ export const CreateGraphModal: React.FC<CreateGraphModalProps> = ({
     setSelectedFiles(prev => [...prev, ...incoming]);
     setErrorMessage('');
   };
+
+  useEffect(() => {
+    if (isOpen && initialFiles && initialFiles.length > 0) {
+      handleFilesAdded(initialFiles);
+    }
+  }, [isOpen, initialFiles]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;

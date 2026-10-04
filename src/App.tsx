@@ -30,6 +30,7 @@ export function AppContent() {
 
   const [currentSection, setCurrentSection] = useState<NavSection>(getInitialSection);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [canvasDroppedFiles, setCanvasDroppedFiles] = useState<File[]>([]);
   const [newGraphModalOpen, setNewGraphModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [searchPaletteOpen, setSearchPaletteOpen] = useState(false);
@@ -413,8 +414,13 @@ export function AppContent() {
         {currentSection === 'graph' && (
           <KnowledgeGraphWorkspace 
             onOpenUpload={() => setCreateModalOpen(true)} 
+            onFilesDropped={(files) => {
+              setCanvasDroppedFiles(files);
+              setCreateModalOpen(true);
+            }}
             initialMode={graphMode}
             graph={effectiveGraph}
+            graphName={activeGraphMeta?.name || 'Your graph'}
             graphSourceType={isExploringDemo ? 'demo' : 'user'}
             onSwitchGraphSource={(type) => setIsExploringDemo(type === 'demo')}
             hasUserGraph={contextActiveGraph !== null && contextActiveGraph.nodes.length > 0}
@@ -543,7 +549,11 @@ export function AppContent() {
       {/* Upload Material Modal */}
       <CreateGraphModal
         isOpen={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
+        initialFiles={canvasDroppedFiles}
+        onClose={() => {
+          setCreateModalOpen(false);
+          setCanvasDroppedFiles([]);
+        }}
         onSuccess={handleCreateSuccess}
         existingSources={activeSources}
       />

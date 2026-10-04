@@ -1115,11 +1115,6 @@
   overflow: hidden;
 }
 
-.graph-canvas-overlay.empty-overlay {
-  background-color: #0A0A0A;
-  pointer-events: auto;
-}
-
 .graph-canvas-overlay.loading-overlay {
   background: radial-gradient(circle at center, rgba(10, 10, 10, 0.42) 0%, rgba(10, 10, 10, 0.16) 60%, rgba(10, 10, 10, 0.04) 100%);
   pointer-events: none;
@@ -1154,44 +1149,176 @@
   background: rgba(18, 19, 18, 0.94);
 }
 
-.empty-canvas-ghost-svg {
+/* ==========================================================================
+   Canvas-Native Empty State (Refactored: Quiet, Editorial, Spatial)
+   ========================================================================== */
+
+.graph-canvas-overlay.empty-overlay {
+  background-color: var(--bg-app, #0A0A0A);
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 720px;
-  max-width: 90vw;
-  height: auto;
-  pointer-events: none;
-  user-select: none;
+  inset: 0;
+  z-index: 10;
+  transition: background-color 200ms ease;
 }
 
-.graph-empty-box {
-  position: relative;
-  z-index: 2;
-  max-width: 440px;
-  text-align: center;
+.graph-canvas-overlay.empty-overlay.is-drag-over {
+  background-color: #0C0D0C;
+}
+
+.canvas-empty-composition {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 40px 24px;
+  text-align: center;
+  max-width: 440px;
+  width: 100%;
+  padding: 32px 24px;
+  user-select: none;
+  pointer-events: auto;
 }
 
-.graph-empty-title {
+/* Subtle Coordinate Crosshair & 5.5px GraphMind Green Origin Point */
+.canvas-origin-anchor {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 22px;
+  color: var(--border-default, #242424);
+  animation: canvasEmptyFadeUp 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.canvas-origin-anchor svg {
+  overflow: visible;
+  transition: color 200ms ease;
+}
+
+.canvas-origin-anchor line {
+  stroke: currentColor;
+  stroke-width: 1px;
+}
+
+.canvas-origin-anchor .origin-dot {
+  fill: var(--accent, #A3FF12);
+  transition: fill 200ms ease;
+}
+
+.canvas-origin-anchor.is-drag-over {
+  color: #383838;
+}
+
+.canvas-origin-anchor.is-drag-over .origin-dot {
+  fill: var(--accent, #A3FF12);
+}
+
+/* Quiet Editorial Heading: 24px, 550 weight, near-white */
+.canvas-empty-heading {
   font-family: var(--font-display);
-  font-size: 22px;
-  font-weight: 600;
-  color: #F5F5F5;
-  letter-spacing: -0.015em;
-  line-height: 1.25;
+  font-size: 24px;
+  font-weight: 550;
+  color: var(--text-primary, #F5F5F5);
+  letter-spacing: -0.018em;
+  line-height: 1.32;
+  margin: 0 0 12px 0;
+  max-width: 420px;
+  text-align: center;
+  word-break: break-word;
+  animation: canvasEmptyFadeUp 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 60ms;
+  transition: opacity 180ms ease, transform 180ms ease;
 }
 
-.graph-empty-desc {
+/* Supporting Text: 13.5px, #858585, comfortable line-height */
+.canvas-empty-desc {
+  font-family: var(--font-body);
   font-size: 13.5px;
-  color: #888888;
-  line-height: 1.5;
-  margin-bottom: 6px;
+  color: #858585;
+  line-height: 1.55;
+  margin: 0 0 24px 0;
+  max-width: 390px;
+  text-align: center;
+  animation: canvasEmptyFadeUp 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 120ms;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+/* Editorial CTA: Text Action with thin underline & sliding arrow */
+.canvas-editorial-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(245, 245, 245, 0.22);
+  color: var(--text-primary, #F5F5F5);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 3px 0 4px 0;
+  cursor: pointer;
+  text-decoration: none;
+  animation: canvasEmptyFadeUp 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 180ms;
+  transition: color 180ms ease, border-color 180ms ease, opacity 180ms ease, transform 180ms ease;
+}
+
+.canvas-editorial-cta .editorial-arrow {
+  color: #858585;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms ease;
+}
+
+.canvas-editorial-cta:hover {
+  color: #FFFFFF;
+  border-bottom-color: var(--accent, #A3FF12);
+}
+
+.canvas-editorial-cta:hover .editorial-arrow {
+  transform: translate(3px, -1px);
+  color: #FFFFFF;
+}
+
+.canvas-editorial-cta:focus-visible {
+  outline: 2px solid var(--accent, #A3FF12);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+.canvas-editorial-cta.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+}
+
+@keyframes canvasEmptyFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-origin-anchor,
+  .canvas-empty-heading,
+  .canvas-empty-desc,
+  .canvas-editorial-cta {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .canvas-editorial-cta .editorial-arrow {
+    transition: none !important;
+  }
 }
 
 /* 2. Full Graph Canvas Loading HUD (Sleek Horizontal Glass Pill Capsule) */
