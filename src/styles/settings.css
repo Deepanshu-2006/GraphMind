@@ -1,33 +1,49 @@
 /* ==========================================================================
-   GraphMind Settings View — High-Precision Editorial & Swiss Minimal
+   GraphMind Settings View — Asymmetric Two-Column Editorial Composition
+   Quiet Product Design + Architectural Typographic Hierarchy + Spatial Precision
    ========================================================================== */
 
+/* --------------------------------------------------------------------------
+   1. Page Viewport & Canvas Layout (1120px max-width, left-anchored)
+   -------------------------------------------------------------------------- */
 .settings-page-wrapper {
   width: 100%;
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  padding: 48px 48px 96px 48px;
+  align-items: flex-start; /* Never horizontally centered */
+  padding: 56px 48px 120px 48px;
+  background-color: var(--bg-app, #0A0A0A);
+  color: var(--text-primary, #F5F5F5);
+  box-sizing: border-box;
 }
 
-.settings-container {
-  max-width: 1000px;
+.settings-editorial-canvas {
   width: 100%;
-  margin: 0;
+  max-width: 1120px;
+  display: grid;
+  grid-template-columns: 310px 1fr; /* Approx 30-32% left, 68-70% right */
+  gap: 72px;
+  align-items: start;
 }
 
 /* --------------------------------------------------------------------------
-   Header Hierarchy
+   2. Left Column: Editorial Visual Anchor (Stable, Never Centered)
    -------------------------------------------------------------------------- */
-
-.settings-header {
-  margin-bottom: 52px;
-  animation: settingsFadeUp 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+.settings-anchor-col {
+  width: 100%;
+  animation: settingsAnchorFade 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.settings-kicker {
-  display: block;
+.settings-anchor-sticky {
+  position: sticky;
+  top: 48px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Kicker: SETTINGS */
+.settings-anchor-kicker {
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 500;
@@ -37,192 +53,198 @@
   margin-bottom: 14px;
 }
 
-.settings-title {
-  font-family: var(--font-display);
-  font-size: 50px;
+/* Level 1 Title: Settings */
+.settings-anchor-title {
+  font-family: var(--font-display, var(--font-body));
+  font-size: 58px;
   font-weight: 550;
-  color: var(--text-primary, #F5F5F5);
-  letter-spacing: -0.025em;
-  line-height: 0.95;
-  margin: 0 0 14px 0;
+  line-height: 0.94;
+  letter-spacing: -0.03em;
+  color: #F5F5F5;
+  margin: 0 0 16px 0;
 }
 
-.settings-subtitle {
+/* Anchor Subtitle */
+.settings-anchor-desc {
   font-family: var(--font-body);
   font-size: 14px;
-  color: #929292;
   line-height: 1.5;
-  max-width: 480px;
+  color: #888888;
+  max-width: 280px;
   margin: 0;
 }
 
 /* --------------------------------------------------------------------------
-   Sections & Chapter Dividers
+   3. Right Column: Content Column & Spatial Rhythm
    -------------------------------------------------------------------------- */
-
-.settings-section {
-  border-top: 1px solid #242424;
-  padding-top: 28px;
-  margin-bottom: 56px;
-  animation: settingsFadeUp 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
+.settings-content-col {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  animation: settingsContentFade 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.settings-section.section-graph {
-  animation-delay: 50ms;
+/* --------------------------------------------------------------------------
+   4. Chapters & Restrained Dividers
+   Dividers ONLY between major sections, NEVER between every setting
+   -------------------------------------------------------------------------- */
+.settings-chapter {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }
 
-.settings-section.section-workspace {
-  animation-delay: 100ms;
+.settings-chapter-divider {
+  width: 100%;
+  height: 1px;
+  background-color: #242424;
+  margin: 64px 0;
 }
 
-.settings-section.section-current-graph {
-  animation-delay: 150ms;
+.settings-chapter.chapter-danger .settings-chapter-divider {
+  background-color: rgba(201, 81, 81, 0.2);
 }
 
-.settings-section.section-danger {
-  margin-top: 64px;
-  margin-bottom: 0;
-  animation-delay: 200ms;
+.settings-chapter-header {
+  margin-bottom: 28px;
 }
 
-.settings-section-kicker {
+/* Level 3: Section Labels (10px uppercase monospace) */
+.settings-chapter-kicker {
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: #666666;
-  margin-bottom: 24px;
+  display: inline-block;
 }
 
-.settings-section-kicker.danger {
-  color: #c95151;
+.settings-chapter-kicker.danger {
+  color: #C95151;
+}
+
+/* Chapter Body */
+.settings-chapter-body {
+  display: flex;
+  flex-direction: column;
 }
 
 /* --------------------------------------------------------------------------
-   Two-Column Grid Alignment System
-   Left: 1fr (approx 65%), Right: 240px fixed width (approx 35%)
+   5. Setting Entries (Rhythm separation ~32px, NO horizontal rules)
    -------------------------------------------------------------------------- */
-
-.settings-row {
+.settings-entry {
   display: grid;
-  grid-template-columns: 1fr 240px;
-  align-items: center;
-  padding: 24px 0;
-  gap: 32px;
+  grid-template-columns: 1fr auto;
+  gap: 40px;
+  align-items: start;
+  padding: 0;
+  margin-bottom: 32px;
 }
 
-.settings-row:first-of-type {
-  padding-top: 0;
+.settings-entry:last-child {
+  margin-bottom: 0;
 }
 
-.settings-row:last-of-type {
-  padding-bottom: 0;
-}
-
-.settings-row-divider {
-  height: 1px;
-  background-color: rgba(36, 36, 36, 0.6);
-  width: 100%;
-  margin: 0;
-}
-
-.settings-row-info {
+.settings-entry-meta {
   display: flex;
   flex-direction: column;
   gap: 5px;
 }
 
-.settings-row-title {
+/* Level 4: Setting Title (15–16px) */
+.settings-entry-title {
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 15.5px;
   font-weight: 500;
-  color: var(--text-primary, #F5F5F5);
+  color: #F5F5F5;
   line-height: 1.35;
 }
 
-.settings-row-desc {
+/* Level 5: Description (12–13px, #888) */
+.settings-entry-desc {
   font-family: var(--font-body);
   font-size: 12.5px;
-  color: #929292;
+  color: #888888;
   line-height: 1.45;
+  margin: 0;
+  max-width: 440px;
 }
 
 /* --------------------------------------------------------------------------
-   Control Column (Aligned horizontally)
+   6. Control Treatment: Intimate, Text-Based & Precise
    -------------------------------------------------------------------------- */
-
-.settings-control-cell {
+.settings-entry-control {
   position: relative;
   display: flex;
-  justify-content: flex-start;
   align-items: center;
-  width: 100%;
+  justify-content: flex-end;
+  min-width: 130px;
+  padding-top: 1px;
 }
 
-.settings-value-trigger {
+/* Interactive Value Trigger (Balanced → / Hierarchical →) */
+.settings-action-trigger {
   display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
+  gap: 8px;
   background: transparent;
   border: none;
-  color: var(--text-primary, #F5F5F5);
-  font-family: var(--font-body);
-  font-size: 13.5px;
-  font-weight: 500;
-  padding: 6px 0;
+  padding: 2px 0;
   cursor: pointer;
-  transition: color 180ms ease;
   user-select: none;
-  text-align: left;
+  transition: color 160ms ease-out;
+  text-decoration: none;
 }
 
-.settings-value-trigger .trigger-text {
-  color: #D6D6D6;
-  transition: color 180ms ease;
+.settings-action-trigger .trigger-val {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 450;
+  color: #D0D0D0;
+  transition: color 160ms ease-out;
 }
 
-.settings-value-trigger .trigger-arrow {
+.settings-action-trigger .trigger-arr {
   color: #666666;
   font-size: 13px;
-  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms ease;
+  line-height: 1;
+  transition: transform 160ms ease-out, color 160ms ease-out;
 }
 
-.settings-value-trigger:hover .trigger-text {
-  color: #FFFFFF;
+.settings-action-trigger:hover .trigger-val {
+  color: #F5F5F5;
 }
 
-.settings-value-trigger:hover .trigger-arrow {
+.settings-action-trigger:hover .trigger-arr {
+  color: var(--accent, #A3FF12);
   transform: translateX(3px);
-  color: #D6D6D6;
 }
 
-.settings-value-trigger:focus-visible {
+.settings-action-trigger:focus-visible {
   outline: 2px solid var(--accent, #A3FF12);
   outline-offset: 4px;
   border-radius: 2px;
 }
 
 /* --------------------------------------------------------------------------
-   Native-Looking Minimal Dropdown Popover
+   7. Contextual Popover Selector (Compact, Dark Surface, Zero Dropdown Chrome)
    -------------------------------------------------------------------------- */
-
 .settings-popover {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 8px);
   right: 0;
-  width: 280px;
-  background: #141414;
+  width: 270px;
+  background: #121212;
   border: 1px solid #242424;
   border-radius: 6px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65), 0 2px 6px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4);
   z-index: 50;
   padding: 4px;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  animation: settingsPopoverFade 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: settingsPopoverFade 140ms ease-out both;
 }
 
 @keyframes settingsPopoverFade {
@@ -239,23 +261,23 @@
 .settings-popover-item {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 9px;
   padding: 8px 10px;
   border-radius: 4px;
   border: none;
   background: transparent;
   cursor: pointer;
   text-align: left;
-  transition: background-color 140ms ease;
+  transition: background-color 120ms ease;
   width: 100%;
 }
 
 .settings-popover-item:hover {
-  background: #1C1D1C;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .settings-popover-dot-wrap {
-  width: 10px;
+  width: 8px;
   height: 16px;
   display: flex;
   align-items: center;
@@ -264,8 +286,8 @@
 }
 
 .settings-popover-dot {
-  width: 4.5px;
-  height: 4.5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: var(--accent, #A3FF12);
 }
@@ -292,123 +314,147 @@
 }
 
 /* --------------------------------------------------------------------------
-   Workspace Keyboard Shortcuts
+   8. Workspace Keyboard Shortcuts (Compact, Aligned Stack)
    -------------------------------------------------------------------------- */
-
-.settings-shortcuts-grid {
+.settings-shortcuts-stack {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  width: 100%;
+  gap: 8px;
+  min-width: 130px;
 }
 
-.settings-shortcut-row {
+.settings-shortcut-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
+  gap: 16px;
 }
 
-.settings-shortcut-label {
+.shortcut-name {
   font-family: var(--font-body);
-  font-size: 13px;
-  color: #858585;
+  font-size: 12.5px;
+  color: #888888;
 }
 
-.settings-shortcut-keys {
+.shortcut-caps {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.settings-kbd {
+.settings-key {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-mono);
-  font-size: 10.5px;
-  color: #E2E2E2;
-  background: #151515;
-  border: 1px solid #292929;
+  font-size: 10px;
+  color: #D0D0D0;
+  background: #141414;
+  border: 1px solid #282828;
   border-radius: 4px;
-  padding: 2px 6px;
-  min-width: 20px;
+  padding: 2px 5px;
+  min-width: 18px;
   line-height: 1.4;
 }
 
 /* --------------------------------------------------------------------------
-   Current Graph Section
+   9. Level 2: Current Graph Focal Identity Block
    -------------------------------------------------------------------------- */
-
-.settings-graph-identity {
+.settings-graph-focus-block {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  width: 100%;
 }
 
-.settings-graph-title {
-  font-family: var(--font-body);
-  font-size: 17.5px;
+.settings-graph-hero {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 40px;
+  align-items: start;
+}
+
+.settings-graph-name-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Level 2: Current Graph Display Name (20–24px, medium weight, near-white) */
+.settings-graph-display-name {
+  font-family: var(--font-display, var(--font-body));
+  font-size: 22px;
   font-weight: 500;
-  color: var(--text-primary, #F5F5F5);
-  line-height: 1.3;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  color: #F5F5F5;
+  margin: 0;
   word-break: break-word;
 }
 
-.settings-graph-created {
+/* Level 5/6: Created Date Metadata */
+.settings-graph-meta-date {
   font-family: var(--font-body);
-  font-size: 12.5px;
-  color: #929292;
-  line-height: 1.4;
+  font-size: 12px;
+  color: #666666;
 }
 
-.settings-action-link {
+.settings-graph-action-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 130px;
+  padding-top: 3px;
+}
+
+/* Text-Action: Rename → */
+.settings-text-action {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   background: transparent;
   border: none;
-  color: #D6D6D6;
+  padding: 2px 0;
+  cursor: pointer;
+  color: #D0D0D0;
   font-family: var(--font-body);
   font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 4px 0;
-  transition: color 180ms ease;
+  font-weight: 450;
+  transition: color 160ms ease-out;
   text-decoration: none;
 }
 
-.settings-action-link .action-arrow {
+.settings-text-action .action-arrow {
   color: #666666;
-  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms ease;
+  font-size: 13px;
+  transition: transform 160ms ease-out, color 160ms ease-out;
 }
 
-.settings-action-link:hover {
-  color: #FFFFFF;
+.settings-text-action:hover {
+  color: #F5F5F5;
 }
 
-.settings-action-link:hover .action-arrow {
+.settings-text-action:hover .action-arrow {
+  color: var(--accent, #A3FF12);
   transform: translateX(3px);
-  color: #FFFFFF;
 }
 
-.settings-action-link:focus-visible {
+.settings-text-action:focus-visible {
   outline: 2px solid var(--accent, #A3FF12);
   outline-offset: 4px;
   border-radius: 2px;
 }
 
-/* Inline Rename Input Form */
-.settings-rename-form {
+/* Inline Rename Box */
+.settings-rename-box {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: 100%;
+  max-width: 380px;
 }
 
-.settings-rename-input {
-  background: #141414;
-  border: 1px solid #292929;
+.settings-rename-field {
+  background: #121212;
+  border: 1px solid #282828;
   border-radius: 4px;
   color: #F5F5F5;
   font-family: var(--font-body);
@@ -419,23 +465,22 @@
   width: 100%;
 }
 
-.settings-rename-input:focus {
+.settings-rename-field:focus {
   border-color: var(--accent, #A3FF12);
 }
 
-.settings-rename-error {
+.settings-rename-msg {
   font-family: var(--font-body);
   font-size: 12px;
   color: #ef4444;
-  margin-top: -2px;
 }
 
-.settings-rename-actions {
+.settings-rename-btns {
   display: flex;
   gap: 8px;
 }
 
-.settings-btn-save {
+.settings-save-btn {
   background: #F5F5F5;
   color: #0A0A0A;
   border: none;
@@ -448,11 +493,11 @@
   transition: opacity 140ms ease;
 }
 
-.settings-btn-save:hover {
+.settings-save-btn:hover {
   opacity: 0.9;
 }
 
-.settings-btn-cancel {
+.settings-cancel-btn {
   background: transparent;
   color: #858585;
   border: 1px solid #242424;
@@ -464,56 +509,66 @@
   transition: all 140ms ease;
 }
 
-.settings-btn-cancel:hover {
+.settings-cancel-btn:hover {
   color: #F5F5F5;
   background: #141414;
 }
 
 /* --------------------------------------------------------------------------
-   Danger Zone Section & Restrained Delete Action
+   10. Danger Section & Delete Action
    -------------------------------------------------------------------------- */
-
-.settings-danger-action {
+.settings-danger-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   background: transparent;
   border: none;
-  color: #c95151;
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 500;
+  padding: 2px 0;
   cursor: pointer;
-  padding: 4px 0;
-  transition: color 180ms ease;
+  color: #C95151;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 450;
+  transition: color 160ms ease-out;
   text-decoration: none;
 }
 
-.settings-danger-action .danger-arrow {
-  color: #8f3838;
-  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms ease;
+.settings-danger-link .danger-arrow {
+  color: #8F3838;
+  font-size: 12.5px;
+  transition: transform 160ms ease-out, color 160ms ease-out;
 }
 
-.settings-danger-action:hover {
-  color: #f87171;
+.settings-danger-link:hover {
+  color: #F87171;
 }
 
-.settings-danger-action:hover .danger-arrow {
+.settings-danger-link:hover .danger-arrow {
+  color: #F87171;
   transform: translateX(3px);
-  color: #f87171;
 }
 
-.settings-danger-action:focus-visible {
+.settings-danger-link:focus-visible {
   outline: 2px solid #ef4444;
   outline-offset: 4px;
   border-radius: 2px;
 }
 
 /* --------------------------------------------------------------------------
-   Entrance Animation & Accessibility
+   11. Motion Choreography & Accessibility
    -------------------------------------------------------------------------- */
+@keyframes settingsAnchorFade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
-@keyframes settingsFadeUp {
+@keyframes settingsContentFade {
   from {
     opacity: 0;
     transform: translateY(8px);
@@ -525,46 +580,80 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .settings-header,
-  .settings-section,
+  .settings-anchor-col,
+  .settings-content-col,
   .settings-popover {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
     transition: none !important;
   }
-  .settings-value-trigger .trigger-arrow,
-  .settings-action-link .action-arrow,
-  .settings-danger-action .danger-arrow {
+  .settings-action-trigger .trigger-arr,
+  .settings-text-action .action-arrow,
+  .settings-danger-link .danger-arrow {
     transition: none !important;
   }
 }
 
 /* --------------------------------------------------------------------------
-   Responsive Design (Tablet & Mobile)
+   12. Responsive Adaptations
+   Tablet: 260px left anchor / 1fr right
+   Mobile: Stacked single column
    -------------------------------------------------------------------------- */
+@media (min-width: 821px) and (max-width: 1040px) {
+  .settings-editorial-canvas {
+    grid-template-columns: 260px 1fr;
+    gap: 48px;
+  }
+
+  .settings-anchor-title {
+    font-size: 48px;
+  }
+}
 
 @media (max-width: 820px) {
   .settings-page-wrapper {
-    padding: 32px 24px 72px 24px;
+    padding: 36px 24px 80px 24px;
   }
 
-  .settings-title {
-    font-size: 38px;
+  .settings-editorial-canvas {
+    grid-template-columns: 1fr;
+    gap: 48px;
   }
 
-  .settings-row {
+  .settings-anchor-sticky {
+    position: static;
+  }
+
+  .settings-anchor-title {
+    font-size: 42px;
+    margin-bottom: 12px;
+  }
+
+  .settings-anchor-desc {
+    max-width: 100%;
+  }
+
+  .settings-chapter-divider {
+    margin: 44px 0;
+  }
+
+  .settings-entry {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .settings-entry-control {
+    justify-content: flex-start;
+  }
+
+  .settings-graph-hero {
     grid-template-columns: 1fr;
     gap: 16px;
-    padding: 20px 0;
   }
 
-  .settings-control-cell {
-    width: auto;
-    max-width: 280px;
-  }
-
-  .settings-shortcuts-grid {
-    max-width: 280px;
+  .settings-graph-action-wrap {
+    justify-content: flex-start;
   }
 }

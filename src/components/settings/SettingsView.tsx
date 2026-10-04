@@ -46,18 +46,18 @@ const LAYOUT_OPTIONS: LayoutOption[] = [
   }
 ];
 
-function formatGraphDate(dateStr?: string): string {
-  if (!dateStr) return 'Oct 5, 2026';
+function formatGraphDate(dateStr?: string): string | null {
+  if (!dateStr) return null;
   try {
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return 'Oct 5, 2026';
+    if (isNaN(d.getTime())) return null;
     return d.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric'
     });
   } catch {
-    return 'Oct 5, 2026';
+    return null;
   }
 }
 
@@ -193,237 +193,265 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenDeleteModal })
     }
   }, [activeGraphMeta, renameInput, renameGraph]);
 
-  const graphName = activeGraphMeta?.name || 'Physics';
+  const graphName = activeGraphMeta?.name || 'Knowledge Graph';
   const createdDate = formatGraphDate(activeGraphMeta?.createdAt);
 
   return (
     <div className="settings-page-wrapper">
-      <div className="settings-container">
-        {/* Header */}
-        <header className="settings-header">
-          <span className="settings-kicker">SETTINGS</span>
-          <h1 className="settings-title">Settings</h1>
-          <p className="settings-subtitle">
-            Control how GraphMind builds and presents your knowledge.
-          </p>
-        </header>
-
-        {/* Section 1: GRAPH */}
-        <section className="settings-section section-graph" aria-labelledby="section-graph-heading">
-          <div className="settings-section-kicker" id="section-graph-heading">GRAPH</div>
-
-          {/* Row 1: Concept Extraction */}
-          <div className="settings-row">
-            <div className="settings-row-info">
-              <span className="settings-row-title">Concept extraction</span>
-              <span className="settings-row-desc">
-                How aggressively GraphMind identifies concepts
-              </span>
-            </div>
-            <div className="settings-control-cell" ref={extractionCellRef}>
-              <button
-                type="button"
-                className="settings-value-trigger"
-                onClick={() => setOpenPopover(prev => prev === 'extraction' ? null : 'extraction')}
-                id="setting-concept-extraction"
-                aria-haspopup="true"
-                aria-expanded={openPopover === 'extraction'}
-                title="Select concept extraction aggressiveness"
-              >
-                <span className="trigger-text">{conceptExtraction}</span>
-                <span className="trigger-arrow" aria-hidden="true">→</span>
-              </button>
-
-              {openPopover === 'extraction' && (
-                <div className="settings-popover" role="menu" aria-label="Concept extraction options">
-                  {EXTRACTION_OPTIONS.map(opt => {
-                    const isSelected = opt.value === conceptExtraction;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        className="settings-popover-item"
-                        onClick={() => handleSelectExtraction(opt.value)}
-                        role="menuitemradio"
-                        aria-checked={isSelected}
-                      >
-                        <div className="settings-popover-dot-wrap" aria-hidden="true">
-                          {isSelected && <span className="settings-popover-dot" />}
-                        </div>
-                        <div className="settings-popover-content">
-                          <span className="settings-popover-label">{opt.label}</span>
-                          <span className="settings-popover-desc">{opt.description}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+      <div className="settings-editorial-canvas">
+        {/* Left Column: Visual Anchor & Identity */}
+        <aside className="settings-anchor-col">
+          <div className="settings-anchor-sticky">
+            <span className="settings-anchor-kicker">SETTINGS</span>
+            <h1 className="settings-anchor-title">Settings</h1>
+            <p className="settings-anchor-desc">
+              Control how GraphMind builds and presents your knowledge.
+            </p>
           </div>
+        </aside>
 
-          <div className="settings-row-divider" aria-hidden="true" />
+        {/* Right Column: Settings Chapters */}
+        <main className="settings-content-col">
+          {/* Chapter 1: GRAPH */}
+          <section className="settings-chapter" aria-labelledby="chapter-graph">
+            <header className="settings-chapter-header">
+              <span className="settings-chapter-kicker" id="chapter-graph">GRAPH</span>
+            </header>
 
-          {/* Row 2: Graph Layout */}
-          <div className="settings-row">
-            <div className="settings-row-info">
-              <span className="settings-row-title">Graph layout</span>
-              <span className="settings-row-desc">
-                How concepts are arranged in the canvas
-              </span>
-            </div>
-            <div className="settings-control-cell" ref={layoutCellRef}>
-              <button
-                type="button"
-                className="settings-value-trigger"
-                onClick={() => setOpenPopover(prev => prev === 'layout' ? null : 'layout')}
-                id="setting-graph-layout"
-                aria-haspopup="true"
-                aria-expanded={openPopover === 'layout'}
-                title="Select graph layout"
-              >
-                <span className="trigger-text">{graphLayout}</span>
-                <span className="trigger-arrow" aria-hidden="true">→</span>
-              </button>
-
-              {openPopover === 'layout' && (
-                <div className="settings-popover" role="menu" aria-label="Graph layout options">
-                  {LAYOUT_OPTIONS.map(opt => {
-                    const isSelected = opt.value === graphLayout;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        className="settings-popover-item"
-                        onClick={() => handleSelectLayout(opt.value)}
-                        role="menuitemradio"
-                        aria-checked={isSelected}
-                      >
-                        <div className="settings-popover-dot-wrap" aria-hidden="true">
-                          {isSelected && <span className="settings-popover-dot" />}
-                        </div>
-                        <div className="settings-popover-content">
-                          <span className="settings-popover-label">{opt.label}</span>
-                          <span className="settings-popover-desc">{opt.description}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
+            <div className="settings-chapter-body">
+              {/* Setting 1: Concept extraction */}
+              <div className="settings-entry">
+                <div className="settings-entry-meta">
+                  <span className="settings-entry-title">Concept extraction</span>
+                  <p className="settings-entry-desc">
+                    How aggressively GraphMind identifies concepts.
+                  </p>
                 </div>
-              )}
-            </div>
-          </div>
-        </section>
+                <div className="settings-entry-control" ref={extractionCellRef}>
+                  <button
+                    type="button"
+                    className="settings-action-trigger"
+                    onClick={() => setOpenPopover(prev => prev === 'extraction' ? null : 'extraction')}
+                    id="setting-concept-extraction"
+                    aria-haspopup="true"
+                    aria-expanded={openPopover === 'extraction'}
+                    title="Select concept extraction aggressiveness"
+                  >
+                    <span className="trigger-val">{conceptExtraction}</span>
+                    <span className="trigger-arr" aria-hidden="true">→</span>
+                  </button>
 
-        {/* Section 2: WORKSPACE */}
-        <section className="settings-section section-workspace" aria-labelledby="section-workspace-heading">
-          <div className="settings-section-kicker" id="section-workspace-heading">WORKSPACE</div>
-
-          <div className="settings-row">
-            <div className="settings-row-info">
-              <span className="settings-row-title">Keyboard shortcuts</span>
-              <span className="settings-row-desc">
-                Global shortcuts for navigating GraphMind.
-              </span>
-            </div>
-            <div className="settings-control-cell">
-              <div className="settings-shortcuts-grid">
-                <div className="settings-shortcut-row">
-                  <span className="settings-shortcut-label">Search</span>
-                  <div className="settings-shortcut-keys">
-                    <kbd className="settings-kbd">⌘</kbd>
-                    <kbd className="settings-kbd">K</kbd>
-                  </div>
+                  {openPopover === 'extraction' && (
+                    <div className="settings-popover" role="menu" aria-label="Concept extraction options">
+                      {EXTRACTION_OPTIONS.map(opt => {
+                        const isSelected = opt.value === conceptExtraction;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            className="settings-popover-item"
+                            onClick={() => handleSelectExtraction(opt.value)}
+                            role="menuitemradio"
+                            aria-checked={isSelected}
+                          >
+                            <div className="settings-popover-dot-wrap" aria-hidden="true">
+                              {isSelected && <span className="settings-popover-dot" />}
+                            </div>
+                            <div className="settings-popover-content">
+                              <span className="settings-popover-label">{opt.label}</span>
+                              <span className="settings-popover-desc">{opt.description}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-                <div className="settings-shortcut-row">
-                  <span className="settings-shortcut-label">Settings</span>
-                  <div className="settings-shortcut-keys">
-                    <kbd className="settings-kbd">⌘</kbd>
-                    <kbd className="settings-kbd">,</kbd>
+              </div>
+
+              {/* Setting 2: Graph layout (Separated by vertical rhythm, NO horizontal rule) */}
+              <div className="settings-entry">
+                <div className="settings-entry-meta">
+                  <span className="settings-entry-title">Graph layout</span>
+                  <p className="settings-entry-desc">
+                    How concepts are arranged in the canvas.
+                  </p>
+                </div>
+                <div className="settings-entry-control" ref={layoutCellRef}>
+                  <button
+                    type="button"
+                    className="settings-action-trigger"
+                    onClick={() => setOpenPopover(prev => prev === 'layout' ? null : 'layout')}
+                    id="setting-graph-layout"
+                    aria-haspopup="true"
+                    aria-expanded={openPopover === 'layout'}
+                    title="Select graph layout"
+                  >
+                    <span className="trigger-val">{graphLayout}</span>
+                    <span className="trigger-arr" aria-hidden="true">→</span>
+                  </button>
+
+                  {openPopover === 'layout' && (
+                    <div className="settings-popover" role="menu" aria-label="Graph layout options">
+                      {LAYOUT_OPTIONS.map(opt => {
+                        const isSelected = opt.value === graphLayout;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            className="settings-popover-item"
+                            onClick={() => handleSelectLayout(opt.value)}
+                            role="menuitemradio"
+                            aria-checked={isSelected}
+                          >
+                            <div className="settings-popover-dot-wrap" aria-hidden="true">
+                              {isSelected && <span className="settings-popover-dot" />}
+                            </div>
+                            <div className="settings-popover-content">
+                              <span className="settings-popover-label">{opt.label}</span>
+                              <span className="settings-popover-desc">{opt.description}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Major Section Divider before WORKSPACE */}
+          <div className="settings-chapter-divider" aria-hidden="true" />
+
+          {/* Chapter 2: WORKSPACE */}
+          <section className="settings-chapter" aria-labelledby="chapter-workspace">
+            <header className="settings-chapter-header">
+              <span className="settings-chapter-kicker" id="chapter-workspace">WORKSPACE</span>
+            </header>
+
+            <div className="settings-chapter-body">
+              <div className="settings-entry">
+                <div className="settings-entry-meta">
+                  <span className="settings-entry-title">Keyboard shortcuts</span>
+                  <p className="settings-entry-desc">
+                    Global shortcuts for navigating GraphMind.
+                  </p>
+                </div>
+                <div className="settings-entry-control">
+                  <div className="settings-shortcuts-stack">
+                    <div className="settings-shortcut-item">
+                      <span className="shortcut-name">Search</span>
+                      <div className="shortcut-caps">
+                        <kbd className="settings-key">⌘</kbd>
+                        <kbd className="settings-key">K</kbd>
+                      </div>
+                    </div>
+                    <div className="settings-shortcut-item">
+                      <span className="shortcut-name">Settings</span>
+                      <div className="shortcut-caps">
+                        <kbd className="settings-key">⌘</kbd>
+                        <kbd className="settings-key">,</kbd>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* Section 3: CURRENT GRAPH */}
-        <section className="settings-section section-current-graph" aria-labelledby="section-current-graph-heading">
-          <div className="settings-section-kicker" id="section-current-graph-heading">CURRENT GRAPH</div>
+          {/* Major Section Divider before CURRENT GRAPH */}
+          <div className="settings-chapter-divider" aria-hidden="true" />
 
-          <div className="settings-row">
-            <div className="settings-row-info">
-              {isRenaming ? (
-                <form onSubmit={handleSaveRename} className="settings-rename-form">
-                  <input
-                    type="text"
-                    value={renameInput}
-                    onChange={(e) => setRenameInput(e.target.value)}
-                    className="settings-rename-input"
-                    placeholder="Graph name"
-                    autoFocus
-                  />
-                  {renameError && (
-                    <span className="settings-rename-error">{renameError}</span>
-                  )}
-                  <div className="settings-rename-actions">
-                    <button type="submit" className="settings-btn-save">
-                      Save
-                    </button>
-                    <button type="button" className="settings-btn-cancel" onClick={handleCancelRename}>
-                      Cancel
-                    </button>
+          {/* Chapter 3: CURRENT GRAPH — Level 2 Focal Hierarchy */}
+          <section className="settings-chapter chapter-current-graph" aria-labelledby="chapter-current-graph">
+            <header className="settings-chapter-header">
+              <span className="settings-chapter-kicker" id="chapter-current-graph">CURRENT GRAPH</span>
+            </header>
+
+            <div className="settings-chapter-body">
+              <div className="settings-graph-focus-block">
+                {isRenaming ? (
+                  <form onSubmit={handleSaveRename} className="settings-rename-box">
+                    <input
+                      type="text"
+                      value={renameInput}
+                      onChange={(e) => setRenameInput(e.target.value)}
+                      className="settings-rename-field"
+                      placeholder="Graph name"
+                      autoFocus
+                    />
+                    {renameError && (
+                      <span className="settings-rename-msg">{renameError}</span>
+                    )}
+                    <div className="settings-rename-btns">
+                      <button type="submit" className="settings-save-btn">
+                        Save
+                      </button>
+                      <button type="button" className="settings-cancel-btn" onClick={handleCancelRename}>
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="settings-graph-hero">
+                    <div className="settings-graph-name-wrap">
+                      <h2 className="settings-graph-display-name">{graphName}</h2>
+                      {createdDate && (
+                        <span className="settings-graph-meta-date">Created {createdDate}</span>
+                      )}
+                    </div>
+                    <div className="settings-graph-action-wrap">
+                      <button
+                        type="button"
+                        className="settings-text-action"
+                        onClick={handleStartRename}
+                        id="btn-settings-rename-graph"
+                        title={`Rename ${graphName}`}
+                      >
+                        <span className="action-label">Rename</span>
+                        <span className="action-arrow" aria-hidden="true">→</span>
+                      </button>
+                    </div>
                   </div>
-                </form>
-              ) : (
-                <div className="settings-graph-identity">
-                  <div className="settings-graph-title">{graphName}</div>
-                  <div className="settings-graph-created">Created {createdDate}</div>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {/* Major Section Divider before DANGER */}
+          <div className="settings-chapter-divider" aria-hidden="true" />
+
+          {/* Chapter 4: DANGER — Restrained */}
+          <section className="settings-chapter chapter-danger" aria-labelledby="chapter-danger">
+            <header className="settings-chapter-header">
+              <span className="settings-chapter-kicker danger" id="chapter-danger">DANGER</span>
+            </header>
+
+            <div className="settings-chapter-body">
+              <div className="settings-entry">
+                <div className="settings-entry-meta">
+                  <span className="settings-entry-title">Delete this graph</span>
+                  <p className="settings-entry-desc">
+                    Permanently remove {graphName} and its associated material.
+                  </p>
                 </div>
-              )}
+                <div className="settings-entry-control">
+                  <button
+                    type="button"
+                    className="settings-danger-link"
+                    onClick={onOpenDeleteModal}
+                    id="btn-settings-delete-graph"
+                    title={`Delete ${graphName}`}
+                  >
+                    <span className="danger-label">Delete graph</span>
+                    <span className="danger-arrow" aria-hidden="true">→</span>
+                  </button>
+                </div>
+              </div>
             </div>
-            <div className="settings-control-cell">
-              {!isRenaming && (
-                <button
-                  type="button"
-                  className="settings-action-link"
-                  onClick={handleStartRename}
-                  id="btn-settings-rename-graph"
-                  title={`Rename ${graphName}`}
-                >
-                  <span className="action-text">Rename</span>
-                  <span className="action-arrow" aria-hidden="true">→</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* Section 4: DANGER ZONE */}
-        <section className="settings-section section-danger" aria-labelledby="section-danger-zone-heading">
-          <div className="settings-section-kicker danger" id="section-danger-zone-heading">DANGER ZONE</div>
-
-          <div className="settings-row">
-            <div className="settings-row-info">
-              <span className="settings-row-title">Delete this graph</span>
-              <span className="settings-row-desc">
-                Permanently remove {graphName} and its material.
-              </span>
-            </div>
-            <div className="settings-control-cell">
-              <button
-                type="button"
-                className="settings-danger-action"
-                onClick={onOpenDeleteModal}
-                id="btn-settings-delete-graph"
-                title={`Delete ${graphName}`}
-              >
-                <span className="danger-text">Delete graph</span>
-                <span className="danger-arrow" aria-hidden="true">→</span>
-              </button>
-            </div>
-          </div>
-        </section>
+          </section>
+        </main>
       </div>
     </div>
   );
