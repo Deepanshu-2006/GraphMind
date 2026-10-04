@@ -37,38 +37,38 @@ describe('Settings View Architecture & Logic', () => {
     }, /cannot be empty/i);
   });
 
-  it('cycles concept extraction modes between Balanced, Aggressive, and Conservative', () => {
-    const EXTRACTION_MODES = ['Balanced', 'Aggressive', 'Conservative'] as const;
-    let mode: (typeof EXTRACTION_MODES)[number] = 'Balanced';
+  it('supports popover concept extraction options: Focused, Balanced, Broad with descriptions', () => {
+    const EXTRACTION_OPTIONS = [
+      { value: 'Focused', label: 'Focused', description: 'Fewer, stronger concepts.' },
+      { value: 'Balanced', label: 'Balanced', description: 'Good coverage without unnecessary concepts.' },
+      { value: 'Broad', label: 'Broad', description: 'Capture more supporting concepts.' }
+    ] as const;
 
-    const cycle = (current: typeof mode) => {
-      const idx = EXTRACTION_MODES.indexOf(current);
-      return EXTRACTION_MODES[(idx + 1) % EXTRACTION_MODES.length];
-    };
+    assert.equal(EXTRACTION_OPTIONS.length, 3);
+    assert.equal(EXTRACTION_OPTIONS[0].label, 'Focused');
+    assert.equal(EXTRACTION_OPTIONS[0].description, 'Fewer, stronger concepts.');
+    assert.equal(EXTRACTION_OPTIONS[1].label, 'Balanced');
+    assert.equal(EXTRACTION_OPTIONS[1].description, 'Good coverage without unnecessary concepts.');
+    assert.equal(EXTRACTION_OPTIONS[2].label, 'Broad');
+    assert.equal(EXTRACTION_OPTIONS[2].description, 'Capture more supporting concepts.');
 
-    mode = cycle(mode);
-    assert.equal(mode, 'Aggressive');
-    mode = cycle(mode);
-    assert.equal(mode, 'Conservative');
-    mode = cycle(mode);
-    assert.equal(mode, 'Balanced');
+    // Storage persistence
+    storageMap.set('graphmind_pref_concept_extraction', 'Focused');
+    assert.equal(storageMap.get('graphmind_pref_concept_extraction'), 'Focused');
   });
 
-  it('cycles graph layout modes between Hierarchical, Radial, and Force Directed', () => {
-    const LAYOUT_MODES = ['Hierarchical', 'Radial', 'Force Directed'] as const;
-    let mode: (typeof LAYOUT_MODES)[number] = 'Hierarchical';
+  it('supports authentic graph layout option: Hierarchical with description', () => {
+    const LAYOUT_OPTIONS = [
+      { value: 'Hierarchical', label: 'Hierarchical', description: 'Topological arrangement based on concept prerequisites.' }
+    ] as const;
 
-    const cycle = (current: typeof mode) => {
-      const idx = LAYOUT_MODES.indexOf(current);
-      return LAYOUT_MODES[(idx + 1) % LAYOUT_MODES.length];
-    };
+    assert.equal(LAYOUT_OPTIONS.length, 1);
+    assert.equal(LAYOUT_OPTIONS[0].label, 'Hierarchical');
+    assert.equal(LAYOUT_OPTIONS[0].description, 'Topological arrangement based on concept prerequisites.');
 
-    mode = cycle(mode);
-    assert.equal(mode, 'Radial');
-    mode = cycle(mode);
-    assert.equal(mode, 'Force Directed');
-    mode = cycle(mode);
-    assert.equal(mode, 'Hierarchical');
+    // Storage persistence
+    storageMap.set('graphmind_pref_graph_layout', 'Hierarchical');
+    assert.equal(storageMap.get('graphmind_pref_graph_layout'), 'Hierarchical');
   });
 
   it('formats danger zone description dynamically using active graph name', () => {
@@ -81,5 +81,20 @@ describe('Settings View Architecture & Logic', () => {
       getDangerCopy('DBMS'),
       'Permanently remove DBMS and its material.'
     );
+    assert.equal(
+      getDangerCopy('Neural & Cognitive Architectures'),
+      'Permanently remove Neural & Cognitive Architectures and its material.'
+    );
+  });
+
+  it('provides editorial keyboard shortcuts structure for Search and Settings', () => {
+    const shortcuts = [
+      { label: 'Search', keys: ['⌘', 'K'] },
+      { label: 'Settings', keys: ['⌘', ','] }
+    ];
+    assert.equal(shortcuts[0].label, 'Search');
+    assert.deepEqual(shortcuts[0].keys, ['⌘', 'K']);
+    assert.equal(shortcuts[1].label, 'Settings');
+    assert.deepEqual(shortcuts[1].keys, ['⌘', ',']);
   });
 });

@@ -1,74 +1,115 @@
 /* ==========================================================================
-   GraphMind Settings View — Editorial & Swiss Minimal
+   GraphMind Settings View — High-Precision Editorial & Swiss Minimal
    ========================================================================== */
 
-.settings-container {
-  max-width: 680px;
+.settings-page-wrapper {
   width: 100%;
-  margin: 0 auto;
-  padding: 40px 32px 80px 32px;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 48px 48px 96px 48px;
 }
 
+.settings-container {
+  max-width: 1000px;
+  width: 100%;
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Header Hierarchy
+   -------------------------------------------------------------------------- */
+
 .settings-header {
-  margin-bottom: 36px;
+  margin-bottom: 52px;
+  animation: settingsFadeUp 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .settings-kicker {
   display: block;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--text-muted, #858585);
-  margin-bottom: 8px;
+  color: #666666;
+  margin-bottom: 14px;
 }
 
 .settings-title {
   font-family: var(--font-display);
-  font-size: 26px;
-  font-weight: 600;
+  font-size: 50px;
+  font-weight: 550;
   color: var(--text-primary, #F5F5F5);
-  letter-spacing: -0.018em;
-  line-height: 1.25;
-  margin: 0 0 8px 0;
+  letter-spacing: -0.025em;
+  line-height: 0.95;
+  margin: 0 0 14px 0;
 }
 
 .settings-subtitle {
   font-family: var(--font-body);
-  font-size: 13.5px;
-  color: var(--text-secondary, #A1A1A1);
+  font-size: 14px;
+  color: #929292;
   line-height: 1.5;
+  max-width: 480px;
   margin: 0;
 }
 
-/* Section divider */
+/* --------------------------------------------------------------------------
+   Sections & Chapter Dividers
+   -------------------------------------------------------------------------- */
+
 .settings-section {
-  border-top: 1px solid var(--border-default, #242424);
-  padding: 28px 0;
+  border-top: 1px solid #242424;
+  padding-top: 28px;
+  margin-bottom: 56px;
+  animation: settingsFadeUp 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.settings-section.section-graph {
+  animation-delay: 50ms;
+}
+
+.settings-section.section-workspace {
+  animation-delay: 100ms;
+}
+
+.settings-section.section-current-graph {
+  animation-delay: 150ms;
+}
+
+.settings-section.section-danger {
+  margin-top: 64px;
+  margin-bottom: 0;
+  animation-delay: 200ms;
 }
 
 .settings-section-kicker {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--text-muted, #858585);
-  margin-bottom: 20px;
+  color: #666666;
+  margin-bottom: 24px;
 }
 
 .settings-section-kicker.danger {
-  color: #858585;
+  color: #c95151;
 }
 
-/* Individual setting row */
+/* --------------------------------------------------------------------------
+   Two-Column Grid Alignment System
+   Left: 1fr (approx 65%), Right: 240px fixed width (approx 35%)
+   -------------------------------------------------------------------------- */
+
 .settings-row {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr 240px;
   align-items: center;
-  padding: 14px 0;
-  gap: 24px;
+  padding: 24px 0;
+  gap: 32px;
 }
 
 .settings-row:first-of-type {
@@ -79,15 +120,22 @@
   padding-bottom: 0;
 }
 
+.settings-row-divider {
+  height: 1px;
+  background-color: rgba(36, 36, 36, 0.6);
+  width: 100%;
+  margin: 0;
+}
+
 .settings-row-info {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 5px;
 }
 
 .settings-row-title {
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--text-primary, #F5F5F5);
   line-height: 1.35;
@@ -96,75 +144,181 @@
 .settings-row-desc {
   font-family: var(--font-body);
   font-size: 12.5px;
-  color: var(--text-muted, #858585);
+  color: #929292;
   line-height: 1.45;
 }
 
-/* Option cycle trigger with subtle arrow */
+/* --------------------------------------------------------------------------
+   Control Column (Aligned horizontally)
+   -------------------------------------------------------------------------- */
+
+.settings-control-cell {
+  position: relative;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  width: 100%;
+}
+
 .settings-value-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  width: 100%;
   background: transparent;
-  border: 1px solid transparent;
+  border: none;
   color: var(--text-primary, #F5F5F5);
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 500;
-  padding: 6px 10px;
-  border-radius: var(--radius-btn, 6px);
+  padding: 6px 0;
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: color 180ms ease;
   user-select: none;
+  text-align: left;
 }
 
-.settings-value-trigger:hover {
-  background: var(--bg-surface-elevated, #141414);
-  border-color: var(--border-default, #242424);
+.settings-value-trigger .trigger-text {
+  color: #D6D6D6;
+  transition: color 180ms ease;
 }
 
 .settings-value-trigger .trigger-arrow {
-  color: var(--text-muted, #858585);
-  font-family: var(--font-mono);
-  font-size: 14px;
-  transition: transform 150ms ease, color 150ms ease;
+  color: #666666;
+  font-size: 13px;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms ease;
+}
+
+.settings-value-trigger:hover .trigger-text {
+  color: #FFFFFF;
 }
 
 .settings-value-trigger:hover .trigger-arrow {
   transform: translateX(3px);
-  color: var(--text-primary, #F5F5F5);
+  color: #D6D6D6;
 }
 
 .settings-value-trigger:focus-visible {
   outline: 2px solid var(--accent, #A3FF12);
-  outline-offset: 2px;
+  outline-offset: 4px;
+  border-radius: 2px;
 }
 
-/* Keyboard Shortcuts layout */
-.settings-shortcuts-list {
+/* --------------------------------------------------------------------------
+   Native-Looking Minimal Dropdown Popover
+   -------------------------------------------------------------------------- */
+
+.settings-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 280px;
+  background: #141414;
+  border: 1px solid #242424;
+  border-radius: 6px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65), 0 2px 6px rgba(0, 0, 0, 0.4);
+  z-index: 50;
+  padding: 4px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  min-width: 140px;
+  gap: 2px;
+  animation: settingsPopoverFade 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.settings-shortcut-item {
+@keyframes settingsPopoverFade {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.settings-popover-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 140ms ease;
+  width: 100%;
+}
+
+.settings-popover-item:hover {
+  background: #1C1D1C;
+}
+
+.settings-popover-dot-wrap {
+  width: 10px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.settings-popover-dot {
+  width: 4.5px;
+  height: 4.5px;
+  border-radius: 50%;
+  background: var(--accent, #A3FF12);
+}
+
+.settings-popover-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-popover-label {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: #F5F5F5;
+  line-height: 1.3;
+}
+
+.settings-popover-desc {
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  color: #858585;
+  line-height: 1.35;
+}
+
+/* --------------------------------------------------------------------------
+   Workspace Keyboard Shortcuts
+   -------------------------------------------------------------------------- */
+
+.settings-shortcuts-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.settings-shortcut-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  width: 100%;
 }
 
 .settings-shortcut-label {
   font-family: var(--font-body);
   font-size: 13px;
-  color: var(--text-secondary, #A1A1A1);
+  color: #858585;
 }
 
 .settings-shortcut-keys {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
 }
 
 .settings-kbd {
@@ -172,87 +326,108 @@
   align-items: center;
   justify-content: center;
   font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-primary, #F5F5F5);
-  background: var(--bg-surface-elevated, #141414);
-  border: 1px solid var(--border-default, #242424);
+  font-size: 10.5px;
+  color: #E2E2E2;
+  background: #151515;
+  border: 1px solid #292929;
   border-radius: 4px;
-  padding: 2px 7px;
-  min-width: 22px;
-  line-height: 1.5;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  padding: 2px 6px;
+  min-width: 20px;
+  line-height: 1.4;
 }
 
-/* Current Graph Block */
-.settings-graph-card {
+/* --------------------------------------------------------------------------
+   Current Graph Section
+   -------------------------------------------------------------------------- */
+
+.settings-graph-identity {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 24px;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.settings-graph-name {
-  font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 600;
+.settings-graph-title {
+  font-family: var(--font-body);
+  font-size: 17.5px;
+  font-weight: 500;
   color: var(--text-primary, #F5F5F5);
-  margin-bottom: 4px;
   line-height: 1.3;
+  word-break: break-word;
 }
 
-.settings-graph-date {
+.settings-graph-created {
   font-family: var(--font-body);
   font-size: 12.5px;
-  color: var(--text-muted, #858585);
+  color: #929292;
+  line-height: 1.4;
 }
 
-.settings-rename-btn {
+.settings-action-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: transparent;
-  border: 1px solid var(--border-default, #242424);
-  color: var(--text-secondary, #A1A1A1);
+  border: none;
+  color: #D6D6D6;
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
-  padding: 5px 12px;
-  border-radius: var(--radius-btn, 6px);
   cursor: pointer;
-  transition: all 140ms ease;
+  padding: 4px 0;
+  transition: color 180ms ease;
+  text-decoration: none;
 }
 
-.settings-rename-btn:hover {
-  color: var(--text-primary, #F5F5F5);
-  border-color: var(--text-muted, #858585);
-  background: var(--bg-surface-hover, #1A1A1A);
+.settings-action-link .action-arrow {
+  color: #666666;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms ease;
 }
 
-.settings-rename-btn:focus-visible {
+.settings-action-link:hover {
+  color: #FFFFFF;
+}
+
+.settings-action-link:hover .action-arrow {
+  transform: translateX(3px);
+  color: #FFFFFF;
+}
+
+.settings-action-link:focus-visible {
   outline: 2px solid var(--accent, #A3FF12);
-  outline-offset: 2px;
+  outline-offset: 4px;
+  border-radius: 2px;
 }
 
-/* Rename Inline Form */
+/* Inline Rename Input Form */
 .settings-rename-form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  max-width: 320px;
 }
 
 .settings-rename-input {
-  background: var(--bg-surface-elevated, #141414);
-  border: 1px solid var(--border-default, #242424);
-  border-radius: var(--radius-input, 6px);
-  color: var(--text-primary, #F5F5F5);
+  background: #141414;
+  border: 1px solid #292929;
+  border-radius: 4px;
+  color: #F5F5F5;
   font-family: var(--font-body);
-  font-size: 13.5px;
+  font-size: 14px;
   padding: 6px 10px;
   outline: none;
   transition: border-color 140ms ease;
+  width: 100%;
 }
 
 .settings-rename-input:focus {
   border-color: var(--accent, #A3FF12);
+}
+
+.settings-rename-error {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: #ef4444;
+  margin-top: -2px;
 }
 
 .settings-rename-actions {
@@ -261,14 +436,14 @@
 }
 
 .settings-btn-save {
-  background: var(--text-primary, #F5F5F5);
+  background: #F5F5F5;
   color: #0A0A0A;
   border: none;
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   padding: 4px 10px;
-  border-radius: var(--radius-btn, 6px);
+  border-radius: 4px;
   cursor: pointer;
   transition: opacity 140ms ease;
 }
@@ -279,60 +454,117 @@
 
 .settings-btn-cancel {
   background: transparent;
-  color: var(--text-muted, #858585);
-  border: 1px solid var(--border-default, #242424);
+  color: #858585;
+  border: 1px solid #242424;
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: 11.5px;
   padding: 4px 10px;
-  border-radius: var(--radius-btn, 6px);
+  border-radius: 4px;
   cursor: pointer;
   transition: all 140ms ease;
 }
 
 .settings-btn-cancel:hover {
-  color: var(--text-primary, #F5F5F5);
-  background: var(--bg-surface-elevated, #141414);
+  color: #F5F5F5;
+  background: #141414;
 }
 
-/* Danger Zone */
-.settings-danger-btn {
+/* --------------------------------------------------------------------------
+   Danger Zone Section & Restrained Delete Action
+   -------------------------------------------------------------------------- */
+
+.settings-danger-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: transparent;
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  color: #ef4444;
+  border: none;
+  color: #c95151;
   font-family: var(--font-body);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
-  padding: 6px 14px;
-  border-radius: var(--radius-btn, 6px);
   cursor: pointer;
-  transition: all 150ms ease;
-  white-space: nowrap;
+  padding: 4px 0;
+  transition: color 180ms ease;
+  text-decoration: none;
 }
 
-.settings-danger-btn:hover {
-  background: rgba(239, 68, 68, 0.12);
-  border-color: rgba(239, 68, 68, 0.6);
+.settings-danger-action .danger-arrow {
+  color: #8f3838;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms ease;
+}
+
+.settings-danger-action:hover {
   color: #f87171;
 }
 
-.settings-danger-btn:focus-visible {
-  outline: 2px solid #ef4444;
-  outline-offset: 2px;
+.settings-danger-action:hover .danger-arrow {
+  transform: translateX(3px);
+  color: #f87171;
 }
 
-@media (max-width: 640px) {
-  .settings-container {
-    padding: 24px 20px 60px 20px;
+.settings-danger-action:focus-visible {
+  outline: 2px solid #ef4444;
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   Entrance Animation & Accessibility
+   -------------------------------------------------------------------------- */
+
+@keyframes settingsFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
   }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-header,
+  .settings-section,
+  .settings-popover {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .settings-value-trigger .trigger-arrow,
+  .settings-action-link .action-arrow,
+  .settings-danger-action .danger-arrow {
+    transition: none !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Responsive Design (Tablet & Mobile)
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 820px) {
+  .settings-page-wrapper {
+    padding: 32px 24px 72px 24px;
+  }
+
+  .settings-title {
+    font-size: 38px;
+  }
+
   .settings-row {
-    flex-direction: column;
-    align-items: flex-start;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 20px 0;
   }
-  .settings-graph-card {
-    flex-direction: column;
-    align-items: flex-start;
+
+  .settings-control-cell {
+    width: auto;
+    max-width: 280px;
   }
-  .settings-shortcuts-list {
-    width: 100%;
+
+  .settings-shortcuts-grid {
+    max-width: 280px;
   }
 }
