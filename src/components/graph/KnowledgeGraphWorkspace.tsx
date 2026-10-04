@@ -133,6 +133,20 @@ function FlowCanvas({
 
 
   const { effectiveNodes, effectiveEdges, effectiveConceptDetails } = useMemo(() => {
+    const activeGraphSource = (graph && graph.nodes && graph.nodes.length > 0)
+      ? graph
+      : (livePipelineEvent?.partialGraph && livePipelineEvent.partialGraph.nodes && livePipelineEvent.partialGraph.nodes.length > 0)
+      ? livePipelineEvent.partialGraph
+      : null;
+
+    if (activeGraphSource) {
+      const rf = knowledgeGraphToReactFlow(activeGraphSource);
+      return {
+        effectiveNodes: rf.nodes,
+        effectiveEdges: rf.edges,
+        effectiveConceptDetails: rf.conceptDetails
+      };
+    }
     if (graph) {
       const rf = knowledgeGraphToReactFlow(graph);
       return {
@@ -146,27 +160,21 @@ function FlowCanvas({
       effectiveEdges: initialEdges,
       effectiveConceptDetails: initialConceptDetails
     };
-  }, [graph]);
+  }, [graph, livePipelineEvent?.partialGraph]);
 
   const [internalMode, setMode] = useState<WorkspaceMode>(initialMode);
   const [statusMessage, setStatusMessage] = useState<string>('');
   const displayStatusMessage = livePipelineEvent?.message || statusMessage || pipelineStatusMessage || '';
 
+  const isLiveError = livePipelineEvent?.stage === 'error' || pipelineStage === 'error' || Boolean(pipelineError);
   const isLiveProcessing = Boolean(
-    (livePipelineEvent &&
-      livePipelineEvent.stage !== 'complete' &&
-      livePipelineEvent.stage !== 'error') ||
+    !isLiveError &&
+    ((livePipelineEvent &&
+      livePipelineEvent.stage !== 'complete') ||
     (pipelineStage &&
-      pipelineStage !== 'complete' &&
-      pipelineStage !== 'error')
+      pipelineStage !== 'complete'))
   );
-  const isLiveComplete = livePipelineEvent?.stage === 'complete' || pipelineStage === 'complete';
-
-  const mode: WorkspaceMode = isLiveProcessing
-    ? 'crafting'
-    : isLiveComplete
-    ? (effectiveNodes.length === 0 ? 'empty' : 'interactive')
-    : internalMode;
+  const isLiveComplete = !isLiveError && (livePipelineEvent?.stage === 'complete' || pipelineStage === 'complete');
 
   // Drag and drop states on canvas
   const [isDragOver, setIsDragOver] = useState(false);
@@ -216,12 +224,28 @@ function FlowCanvas({
   const [isOverlayMounted, setIsOverlayMounted] = useState<boolean>(false);
   const [isCanvasDimmed, setIsCanvasDimmed] = useState<boolean>(false);
 
-  const effectiveOverlayMounted = isLiveProcessing ? true : isOverlayMounted;
-  const effectiveLoadingOrbVisible = isLiveProcessing ? true : isLoadingOrbVisible;
+  const effectiveOverlayMounted = (isLiveProcessing || isLiveError) ? true : isOverlayMounted;
+  const effectiveLoadingOrbVisible = (isLiveProcessing || isLiveError) ? true : isLoadingOrbVisible;
   const effectiveCanvasDimmed = isLiveProcessing ? true : isCanvasDimmed;
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<GraphConceptData>>(effectiveNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(effectiveEdges);
+
+  const hasAnyNodes = (effectiveNodes && effectiveNodes.length > 0) || (nodes && nodes.length > 0);
+
+  const mode: WorkspaceMode = isLiveProcessing
+    ? 'crafting'
+    : isLiveComplete
+    ? (hasAnyNodes ? 'interactive' : 'empty')
+    : isLiveError
+    ? (hasAnyNodes ? 'interactive' : 'empty')
+    : internalMode;
+
+  useEffect(() => {
+    if (initialMode && initialMode !== internalMode && !isLiveProcessing && !isLiveError) {
+      setMode(initialMode);
+    }
+  }, [initialMode, isLiveProcessing, isLiveError, internalMode]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(() => effectiveNodes[0]?.id || 'dl');
   const [selectedRelationship, setSelectedRelationship] = useState<SelectedRelationshipData | null>(null);
   const [isInspectorOpen, setIsInspectorOpen] = useState<boolean>(true);
@@ -645,10 +669,13 @@ function FlowCanvas({
         const rf = knowledgeGraphToReactFlow(targetGraph);
         setNodes(rf.nodes);
         setEdges(rf.edges);
+        setMode('interactive');
         setTimeout(() => {
           setSelectedNodeId(rf.nodes[0]?.id || null);
           setIsInspectorOpen(true);
         }, 50);
+      } else {
+        setMode('interactive');
       }
 
       setTimeout(() => {
@@ -673,14 +700,21 @@ function FlowCanvas({
 
   // When initialMode or effectiveNodes changes
   useEffect(() => {
-    if (livePipelineEvent || isLiveProcessing) return;
+    if (livePipelineEvent || isLiveProcessing || isLiveError) return;
 
     const timer = setTimeout(() => {
       if (initialMode === 'loading') {
         handleStartFullSequence();
       } else if (initialMode === 'crafting') {
         runCraftingAnimation(true);
-      } else if (initialMode === 'empty' || effectiveNodes.length === 0) {
+      } else if (effectiveNodes.length > 0) {
+        setNodes(effectiveNodes);
+        setEdges(effectiveEdges);
+        setIsLoadingOrbVisible(false);
+        setIsOverlayMounted(false);
+        setIsCanvasDimmed(false);
+        setMode('interactive');
+      } else if (initialMode === 'empty' || (!graph?.nodes?.length && nodes.length === 0)) {
         setNodes([]);
         setEdges([]);
         setIsLoadingOrbVisible(false);
@@ -697,7 +731,7 @@ function FlowCanvas({
       }
     }, 20);
     return () => clearTimeout(timer);
-  }, [initialMode, livePipelineEvent, handleStartFullSequence, runCraftingAnimation, setEdges, setNodes, effectiveNodes, effectiveEdges]);
+  }, [initialMode, livePipelineEvent, isLiveProcessing, isLiveError, handleStartFullSequence, runCraftingAnimation, setEdges, setNodes, effectiveNodes, effectiveEdges, graph?.nodes?.length, nodes.length]);
 
   // Smooth Camera & Node Focus with history tracking (Prompt 25 & Prompt 26, Requirements 2 & 6)
   // When a concept is selected or searched, it becomes Depth 0 (focused) and automatically reveals its
@@ -953,10 +987,11 @@ function FlowCanvas({
           <div className="graph-loading-hud-pill">
             <div className="graph-loading-orb-wrap">
               <ThinkingOrb 
-                state="connecting" 
+                state={isLiveError ? 'breathing' : 'connecting'} 
+                paused={isLiveError}
                 size={32} 
                 theme="dark" 
-                color="#A3FF12" 
+                color={isLiveError ? '#FF5555' : '#A3FF12'} 
                 speed={0.85} 
               />
               <div className="orb-ambient-glow" aria-hidden="true" />
@@ -967,7 +1002,7 @@ function FlowCanvas({
             <div className="graph-loading-text-group">
               <div className="hud-pill-title-row">
                 <span className="graph-loading-title">
-                  {pipelineStage === 'error' ? 'Processing error' : 'GraphMind is getting ready'}
+                  {isLiveError ? 'Processing error' : 'GraphMind is getting ready'}
                 </span>
                 {pipelineError && onClearError && (
                   <button
@@ -981,9 +1016,9 @@ function FlowCanvas({
                 )}
               </div>
               <div className="graph-loading-badge">
-                <span className={`badge-pulse-dot ${pipelineStage === 'error' ? 'error-dot' : ''}`} />
+                <span className={`badge-pulse-dot ${isLiveError ? 'error-dot' : ''}`} />
                 <span className="badge-text">
-                  {pipelineError || pipelineStatusMessage || statusMessage || 'Reading your material…'}
+                  {pipelineError || displayStatusMessage || 'Reading your material…'}
                 </span>
               </div>
             </div>

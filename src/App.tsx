@@ -75,9 +75,15 @@ export function AppContent() {
   // Active graph: strictly contextActiveGraph if in user mode, demoGraph only if exploring demo
   const effectiveGraph = useMemo<KnowledgeGraph>(() => {
     if (isExploringDemo) return demoKnowledgeGraph;
+    if (contextActiveGraph && contextActiveGraph.nodes && contextActiveGraph.nodes.length > 0) {
+      return contextActiveGraph;
+    }
+    if (livePipelineEvent?.partialGraph && livePipelineEvent.partialGraph.nodes && livePipelineEvent.partialGraph.nodes.length > 0) {
+      return livePipelineEvent.partialGraph;
+    }
     if (contextActiveGraph) return contextActiveGraph;
     return { nodes: [], relationships: [], sources: [] };
-  }, [isExploringDemo, contextActiveGraph]);
+  }, [isExploringDemo, contextActiveGraph, livePipelineEvent?.partialGraph]);
 
   // Project workspace metadata derived strictly from the active graph
   const projectWorkspace = useMemo<ProjectWorkspace>(() => {
@@ -273,7 +279,7 @@ export function AppContent() {
         setGraphMode('interactive');
         return true;
       } else {
-        const errorMsg = result.error?.message || 'Failed to construct knowledge graph from uploaded material.';
+        const errorMsg = result.error?.message || (result.graph && result.graph.nodes.length === 0 ? "GraphMind couldn't find enough well-supported concepts in this material." : 'Failed to construct knowledge graph from uploaded material.');
         const failedSources: KnowledgeSource[] = targetUserSources.map(s => {
           if (newSources.some(ns => ns.id === s.id)) {
             return {
@@ -424,7 +430,7 @@ export function AppContent() {
             graphName={activeGraphMeta?.name || 'Your graph'}
             graphSourceType={isExploringDemo ? 'demo' : 'user'}
             onSwitchGraphSource={(type) => setIsExploringDemo(type === 'demo')}
-            hasUserGraph={contextActiveGraph !== null && contextActiveGraph.nodes.length > 0}
+            hasUserGraph={(contextActiveGraph !== null && contextActiveGraph.nodes.length > 0) || (livePipelineEvent?.partialGraph !== undefined && (livePipelineEvent.partialGraph.nodes?.length || 0) > 0)}
             pipelineStage={pipelineStage}
             pipelineStatusMessage={pipelineStatusMessage}
             pipelineError={pipelineError}

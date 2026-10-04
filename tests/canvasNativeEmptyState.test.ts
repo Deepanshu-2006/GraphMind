@@ -20,30 +20,37 @@ import { PRE_GRAPH_NODES, PRE_GRAPH_EDGES } from '../src/components/graph/Canvas
 // Helper simulating mode resolution logic from KnowledgeGraphWorkspace
 function resolveWorkspaceMode({
   nodesCount,
+  partialGraphNodeCount = 0,
   pipelineStage,
   livePipelineEvent,
   initialMode = 'interactive'
 }: {
   nodesCount: number;
+  partialGraphNodeCount?: number;
   pipelineStage?: PipelineStage;
   livePipelineEvent?: PipelineProgressEvent | null;
   initialMode?: 'interactive' | 'empty' | 'loading' | 'crafting';
 }): 'interactive' | 'empty' | 'loading' | 'crafting' {
+  const isLiveError = livePipelineEvent?.stage === 'error' || pipelineStage === 'error';
   const isLiveProcessing = Boolean(
-    (livePipelineEvent &&
-      livePipelineEvent.stage !== 'complete' &&
-      livePipelineEvent.stage !== 'error') ||
+    !isLiveError &&
+    ((livePipelineEvent &&
+      livePipelineEvent.stage !== 'complete') ||
     (pipelineStage &&
-      pipelineStage !== 'complete' &&
-      pipelineStage !== 'error')
+      pipelineStage !== 'complete'))
   );
-  const isLiveComplete = livePipelineEvent?.stage === 'complete' || pipelineStage === 'complete';
+  const isLiveComplete = !isLiveError && (livePipelineEvent?.stage === 'complete' || pipelineStage === 'complete');
+  const effectiveCount = Math.max(
+    nodesCount, 
+    partialGraphNodeCount, 
+    livePipelineEvent?.partialGraph?.nodes?.length || 0
+  );
 
   if (isLiveProcessing) return 'crafting';
   if (isLiveComplete) {
-    return nodesCount === 0 ? 'empty' : 'interactive';
+    return effectiveCount === 0 ? 'empty' : 'interactive';
   }
-  if (initialMode === 'empty' || nodesCount === 0) {
+  if (initialMode === 'empty' || effectiveCount === 0) {
     return 'empty';
   }
   return initialMode;
@@ -198,6 +205,25 @@ describe('Refined Organic Editorial Canvas Empty State', () => {
         livePipelineEvent: { stage: 'complete', message: 'Complete', timestamp: Date.now() }
       });
       assert.equal(mode, 'interactive', 'Must be interactive when nodesCount > 0');
+    });
+
+    it('resolves to interactive when partialGraph has nodes even if context graph nodesCount is initially 0', () => {
+      const mode = resolveWorkspaceMode({
+        nodesCount: 0,
+        pipelineStage: 'complete',
+        livePipelineEvent: {
+          stage: 'complete',
+          message: 'Your knowledge graph is ready.',
+          timestamp: Date.now(),
+          partialGraph: {
+            id: 'test-graph',
+            nodes: [{ id: 'n1', name: 'Concept 1' }] as any,
+            relationships: [],
+            sources: []
+          }
+        }
+      });
+      assert.equal(mode, 'interactive', 'Must transition to interactive when partialGraph has nodes, preventing empty state');
     });
   });
 
