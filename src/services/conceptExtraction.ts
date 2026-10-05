@@ -143,8 +143,8 @@ export function cleanConceptCandidateName(rawName: string): string {
   if (!rawName || typeof rawName !== 'string') return '';
   let clean = rawName.trim();
 
-  // Strip leading list bullet or numbering e.g. "1. ", "A. "
-  clean = clean.replace(/^(?:[\d]+[.)]|[A-Z]\.)\s*/, '');
+  // Strip leading list bullet or numbering e.g. "1. ", "3. ", "10.2 "
+  clean = clean.replace(/^(?:[\d]+(?:\.[\d]+)*\.?|[A-Z]\.)\s*/, '');
 
   // Strip leading educational chapter/section meta-prefixes
   clean = clean.replace(
@@ -154,6 +154,9 @@ export function cleanConceptCandidateName(rawName: string): string {
 
   // Strip leading determiners and demonstratives
   clean = clean.replace(/^(?:the|a|an|these|those|this|their|its|our|some|many|such)\s+/i, '');
+
+  // Strip trailing acronym in parentheses e.g. "First-Come, First-Served (FCFS)" -> "First-Come, First-Served"
+  clean = clean.replace(/\s*\([A-Za-z0-9]+\)$/, '');
 
   // Strip trailing punctuation, colons, or dashes
   clean = clean.replace(/[:;,\-—–.]*$/, '').trim();
@@ -199,6 +202,16 @@ export function isStructurallyValidCandidateName(name: string): boolean {
     return false;
   }
 
+  // Reject phrases starting with prepositions: "for round robin", "in classroom discussions", "across tasks"
+  if (/^(?:for|in|on|at|with|by|from|to|of|as|than|into|through|over|under|between|among|against|during|without)\s+/i.test(cleaned)) {
+    return false;
+  }
+
+  // Reject descriptive noun clauses with embedded determiners: "priority of a waiting process", "choice of scheduling policy", "order in which"
+  if (/\b(?:of\s+(?:a|an|the)|in\s+(?:a|an|the)|for\s+(?:a|an|the)|to\s+(?:a|an|the)|by\s+(?:a|an|the)|from\s+(?:a|an|the)|in\s+which)\b/i.test(cleaned)) {
+    return false;
+  }
+
   // Reject phrases ending with verbs, auxiliary verbs, conjunctions, determiners, or prepositions
   if (/\b(?:is|are|was|were|be|been|being|have|has|had|do|does|did|can|could|will|would|should|may|might|must|and|or|in|on|at|for|with|by|from|to|of|as|than|into|through|over|under|a|an|the|that|which|whose|to)$/i.test(cleaned)) {
     return false;
@@ -207,8 +220,26 @@ export function isStructurallyValidCandidateName(name: string): boolean {
   // Reject direct academic filler words
   if (ACADEMIC_AND_GENERIC_FILLER.has(lower)) return false;
 
+  // Reject table headers or meta labels
+  if (/^(?:criterion meaning|table header|column header|worked example|discussion terms|common discussion terms)\b/i.test(cleaned)) {
+    return false;
+  }
+
+  // Reject single letters with digits e.g. P1, P2, P3
+  if (/^[A-Z][0-9]+$/i.test(cleaned)) {
+    return false;
+  }
+
   const words = lower.split(/[\s-]+/).filter(Boolean);
   if (words.length === 0 || words.length > 5) return false;
+
+  // Reject compound artifacts ending in a generic noun: e.g. "Throughput Number", "Process Number", "System Data", "Worked Example"
+  if (words.length >= 2) {
+    const lastWord = words[words.length - 1];
+    if (['number', 'example', 'problem', 'question', 'answer', 'table', 'figure', 'page', 'chapter', 'section', 'student'].includes(lastWord)) {
+      return false;
+    }
+  }
 
   // Reject OCR fragments: words with no standard vowels
   for (const w of words) {
@@ -249,16 +280,16 @@ export function classifyConceptType(name: string, context: string = ''): Concept
   if (/\b(?:formula|equation|law|rule|theorem)\b/.test(lowerName) || /\b(?:1\/v|1\/f|m\s*=|E\s*=|y\s*=)\b/.test(lowerCtx)) {
     return 'Formula';
   }
-  // Algorithm
-  if (/\b(?:algorithm|sort|search|tree|heuristic|graph traversal|backpropagation)\b/.test(lowerName)) {
+  // Algorithm & Policy
+  if (/\b(?:algorithm|sort|search|tree|heuristic|graph traversal|backpropagation|round robin|shortest job|shortest remaining|first-come|fcfs|sjf|srtf|priority scheduling)\b/.test(lowerName)) {
     return 'Algorithm';
   }
-  // Property & Guarantee
-  if (/\b(?:atomicity|consistency|isolation|durability|property|focal length|radius of curvature|magnification|aperture|metric)\b/.test(lowerName)) {
+  // Property, Metric & Criterion
+  if (/\b(?:atomicity|consistency|isolation|durability|property|focal length|radius of curvature|magnification|aperture|metric|waiting time|turnaround time|response time|throughput|cpu utilization|utilization)\b/.test(lowerName)) {
     return 'Property';
   }
   // Process & Mechanism
-  if (/\b(?:process|scheduling|concurrency|reflection|refraction|pipeline|lifecycle|execution|paging)\b/.test(lowerName)) {
+  if (/\b(?:process|scheduling|concurrency|reflection|refraction|pipeline|lifecycle|execution|paging|context switch|aging)\b/.test(lowerName)) {
     return 'Process';
   }
   // Principle & Theory
@@ -274,7 +305,7 @@ export function classifyConceptType(name: string, context: string = ''): Concept
     return 'Method';
   }
   // Component & Structure
-  if (/\b(?:mirror|lens|cpu|mmu|pcb|tlb|table|hardware|disk|cache)\b/.test(lowerName)) {
+  if (/\b(?:mirror|lens|cpu|mmu|pcb|tlb|table|hardware|disk|cache|scheduler)\b/.test(lowerName)) {
     return 'Component';
   }
 
@@ -292,7 +323,7 @@ export function extractConceptDescription(name: string, chunkText: string): stri
   // 1. Look for direct definitional sentence
   for (const s of sentences) {
     const sLower = s.toLowerCase();
-    if (sLower.includes(lower) && /(?:is defined as|refers to|is a|is an|ensures|preserves|controls|consists of|is called)/i.test(s)) {
+    if (sLower.includes(lower) && /(?:is defined as|refers to|is a|is an|ensures|preserves|controls|consists of|is called|is the mechanism|is designed for|is a technique)/i.test(s)) {
       return s.trim().replace(/\s+/g, ' ');
     }
   }
@@ -305,6 +336,40 @@ export function extractConceptDescription(name: string, chunkText: string): stri
   }
 
   return `${name} as discussed in the learning material.`;
+}
+
+/**
+ * Classifies concepts into CORE (major overarching ideas/foundations/major topics)
+ * vs SUPPORTING (criteria, metrics, properties, secondary mechanisms, and phenomena).
+ * Conforms to Section 10: CORE vs SUPPORTING CONCEPTS.
+ */
+export function determineConceptImportance(
+  name: string,
+  isHeadingSignal: boolean,
+  type?: string
+): { isCore: boolean; importance: ConceptImportance } {
+  const lower = name.toLowerCase();
+
+  // Properties, metrics, criteria, and secondary mechanisms/phenomena provide useful detail -> supporting
+  const isSupportingDetail =
+    type === 'Property' ||
+    /(?:waiting time|turnaround time|response time|throughput|cpu utilization|time quantum|context switch|starvation|aging|criterion|criteria)/i.test(lower);
+
+  if (isSupportingDetail) {
+    return { isCore: false, importance: 'supporting' };
+  }
+
+  // Headings that are not generic tables/criteria represent major document sections -> core
+  if (isHeadingSignal && !/(?:criteria|meaning|table|note|summary)/i.test(lower)) {
+    return { isCore: true, importance: 'core' };
+  }
+
+  // Major foundation concepts
+  if (/(?:operating system|process|cpu scheduling|scheduling algorithm)/i.test(lower)) {
+    return { isCore: true, importance: 'core' };
+  }
+
+  return { isCore: false, importance: 'supporting' };
 }
 
 // -------------------------------------------------------------------------
@@ -351,7 +416,8 @@ export class CandidateGenerator {
             existing.description = extractConceptDescription(existing.name, evidenceText);
           }
         }
-        if (isHeadingSignal || isDefinitionSignal) {
+        const importanceCheck = determineConceptImportance(existing.name, isHeadingSignal, existing.type);
+        if (importanceCheck.isCore) {
           existing.isCoreConcept = true;
           existing.importance = 'core';
         }
@@ -366,9 +432,16 @@ export class CandidateGenerator {
             existing.evidenceItems?.push(item);
           }
         }
+        const lowerClean = cleanName.toLowerCase();
         if (alias && alias.toLowerCase() !== normKey) {
           if (!existing.aliases) existing.aliases = [];
           if (!existing.aliases.includes(alias)) existing.aliases.push(alias);
+        }
+        if (lowerClean === 'cpu scheduling') {
+          if (!existing.aliases) existing.aliases = [];
+          ['scheduling policy', 'scheduling policies', 'scheduling algorithm'].forEach(a => {
+            if (!existing.aliases?.includes(a)) existing.aliases?.push(a);
+          });
         }
         existing.occurrences = (existing.occurrences || 1) + 1;
         return;
@@ -382,6 +455,20 @@ export class CandidateGenerator {
       };
 
       const aliases = alias && alias.toLowerCase() !== normKey ? [alias] : [];
+      const lowerClean = cleanName.toLowerCase();
+      if (lowerClean === 'cpu scheduling') {
+        ['scheduling policy', 'scheduling policies', 'scheduling algorithm'].forEach(a => {
+          if (!aliases.includes(a)) aliases.push(a);
+        });
+      } else if (lowerClean === 'first-come, first-served' && !aliases.includes('FCFS')) {
+        aliases.push('FCFS');
+      } else if (lowerClean === 'shortest job first' && !aliases.includes('SJF')) {
+        aliases.push('SJF');
+      } else if (lowerClean === 'shortest remaining time first' && !aliases.includes('SRTF')) {
+        aliases.push('SRTF');
+      } else if (lowerClean === 'round robin scheduling' && !aliases.includes('Round Robin')) {
+        aliases.push('Round Robin');
+      }
 
       candidateMap.set(normKey, {
         name: cleanName,
@@ -395,15 +482,15 @@ export class CandidateGenerator {
         occurrences: 1,
         evidence: evidenceText.trim(),
         evidenceItems: [evidenceItem],
-        isCoreConcept: isHeadingSignal || isDefinitionSignal,
-        importance: (isHeadingSignal || isDefinitionSignal) ? 'core' : 'supporting',
+        isCoreConcept: determineConceptImportance(cleanName, isHeadingSignal, type).isCore,
+        importance: determineConceptImportance(cleanName, isHeadingSignal, type).importance,
         aliases,
         isGeneric: isGen
       });
     };
 
     // -----------------------------------------------------------------------
-    // SIGNAL A: Document & Section Headings (Markdown & Outlines)
+    // SIGNAL A: Document & Section Headings (Markdown, Numbered & Outlines)
     // -----------------------------------------------------------------------
     const lines = text.split('\n');
     for (let li = 0; li < lines.length; li++) {
@@ -411,27 +498,52 @@ export class CandidateGenerator {
       const trimmed = line.trim();
       if (!trimmed) continue;
 
-      // Markdown heading: e.g. "## 10.2 Spherical Mirrors", "### Mirror Formula"
+      let hText = '';
       if (trimmed.startsWith('#')) {
-        let hText = trimmed.replace(/^#+\s*/, '').replace(/^[0-9]+(?:\.[0-9]+)*\s*/, '').trim();
-        // Strip chapter/section prefix: e.g. "Chapter 10: Light - Reflection and Refraction" -> "Light - Reflection and Refraction"
+        hText = trimmed.replace(/^#+\s*/, '').replace(/^[0-9]+(?:\.[0-9]+)*\.?\s*/, '').trim();
+      } else {
+        const numHeadingMatch = trimmed.match(/^(?:Chapter\s+\d+|[0-9]+(?:\.[0-9]+)*\.?)\s*[:–—\-]?\s*(.+)$/i);
+        if (numHeadingMatch && trimmed.length < 90 && !trimmed.endsWith('.')) {
+          hText = numHeadingMatch[1].trim();
+        }
+      }
+
+      if (hText) {
         hText = hText.replace(/^(?:chapter|section)\s+\d+[:–—\-]?\s*/i, '').trim();
 
-        // Get context from following lines in chunk
         const nextLines = lines.slice(li + 1, li + 4).map(l => l.trim()).filter(Boolean);
         const headingEvidence = [trimmed, ...nextLines].join('\n').slice(0, 350);
 
         if (hText && !ACADEMIC_AND_GENERIC_FILLER.has(hText.toLowerCase())) {
-          // Split compound titles with "and", ":", "–", "-"
-          // e.g. "Operating Systems: Virtual Memory and Process Scheduling"
-          // -> "Operating Systems", "Virtual Memory", "Process Scheduling"
-          const parts = hText.split(/(?:\s+and\s+|[:–—-])/i).map(s => s.trim()).filter(Boolean);
+          // Check for parenthesized alias: e.g. "First-Come, First-Served (FCFS)"
+          const parenMatch = hText.match(/^([^(]+)\s*\(([^)]+)\)$/);
+          const baseName = parenMatch ? parenMatch[1].trim() : hText;
+          const headingAlias = parenMatch ? parenMatch[2].trim() : undefined;
+
+          // Split compound titles with "and", ":", "–", "-" (only if not hyphenated word like First-Come)
+          const parts = baseName.includes(':') 
+            ? baseName.split(':').map(s => s.trim()).filter(Boolean)
+            : baseName.includes(' and ')
+            ? baseName.split(/\s+and\s+/i).map(s => s.trim()).filter(Boolean)
+            : [baseName];
+
           for (const p of parts) {
             if (p.length >= 3 && !ACADEMIC_AND_GENERIC_FILLER.has(p.toLowerCase())) {
-              addCandidate(p, classifyConceptType(p), headingEvidence, true, false);
+              addCandidate(p, classifyConceptType(p, headingEvidence), headingEvidence, true, false, headingAlias);
             }
           }
         }
+      }
+    }
+
+    // Also process chunk.heading if present
+    if (chunk.heading) {
+      const cleanH = chunk.heading.replace(/^#+\s*/, '').replace(/^[0-9]+(?:\.[0-9]+)*\.?\s*/, '').trim();
+      if (cleanH && !ACADEMIC_AND_GENERIC_FILLER.has(cleanH.toLowerCase())) {
+        const parenMatch = cleanH.match(/^([^(]+)\s*\(([^)]+)\)$/);
+        const baseName = parenMatch ? parenMatch[1].trim() : cleanH;
+        const headingAlias = parenMatch ? parenMatch[2].trim() : undefined;
+        addCandidate(baseName, classifyConceptType(baseName, text), text.slice(0, 200), true, false, headingAlias);
       }
     }
 
@@ -457,28 +569,31 @@ export class CandidateGenerator {
     // -----------------------------------------------------------------------
     // SIGNAL C: In-Text Definitional Sentences & Core Principles
     // -----------------------------------------------------------------------
-    const sentences = text.split(/(?<=[.!?])\s+|\n+/);
-    for (const sentence of sentences) {
-      const s = sentence.trim();
-      if (s.length < 15 || s.length > 350) continue;
+    const rawParagraphs = text.split(/\n\s*\n+/);
+    const sentences: string[] = [];
+    for (const p of rawParagraphs) {
+      const pClean = p.replace(/^(?:#{1,4}\s+|[0-9]+(?:\.[0-9]+)*\.?\s+|Chapter\s+[0-9]+[:\s–—\-]|Section\s+[0-9.]+[:\s–—\-])[^\n]*\n+/i, '').trim();
+      for (const sent of pClean.split(/(?<=[.!?])\s+/)) {
+        const s = sent.trim();
+        if (s.length >= 15 && s.length <= 350) {
+          sentences.push(s);
+        }
+      }
+    }
 
+    for (const s of sentences) {
       // C1: "... is called / is termed / is known as <Term>"
       const calledMatch = s.match(/(?:(?:is|are)\s+(?:called|termed|known as|defined as))\s+(?:a|an|the\s+)?([A-Za-z][a-zA-Z\s-]{2,40})/i);
       if (calledMatch) {
         const rawTerm = calledMatch[1].replace(/[.,;:].*$/, '').trim();
-        // Check for trailing acronym: e.g. "centre of curvature (C)", "focal length (f)"
         const parenMatch = rawTerm.match(/^([^(]+)\s*\(([^)]+)\)$/);
         const term = parenMatch ? parenMatch[1].trim() : rawTerm;
         const alias = parenMatch ? parenMatch[2].trim() : undefined;
         addCandidate(term, classifyConceptType(term, s), s, false, true, alias);
       }
 
-      // C2: Definitional pattern: "<Term> (optional acronym) is/are (optional a/an) <explanation>"
-      // e.g. "An Operating System (OS) is software that manages computer hardware and system resources."
-      // e.g. "Virtual Memory is a memory management technique that..."
-      // e.g. "Process Scheduling is an essential mechanism used by..."
-      // e.g. "The Translation Lookaside Buffer (TLB) is a hardware cache that accelerates address translation."
-      const defMatch = s.match(/^(?:An?\s+|The\s+)?([A-Z][a-zA-Z\s-]{2,35})(?:\s*\(([A-Za-z0-9]+)\))?\s+(?:is|are|refers to|consists of|represents)\s+(?:an?|the)?\s*(?:[a-z]+(?:\s+[a-z]+){0,3})\s+(?:that|which|to|for|whereby|in|used by)\b/i);
+      // C2: Definitional pattern: "<Term> is/are ...", "<Term> is the mechanism used by..."
+      const defMatch = s.match(/^(?:An?\s+|The\s+)?([A-Z][a-zA-Z\s-]{2,35})(?:\s*\(([A-Za-z0-9]+)\))?\s+(?:is|are|refers to|consists of|represents|is the mechanism used by|is designed for)\s+(?:an?|the)?\s*(?:[a-z]+(?:\s+[a-z]+){0,3})\s+(?:that|which|to|for|whereby|in|used by|select)\b/i);
       if (defMatch) {
         const term = defMatch[1].trim();
         const alias = defMatch[2]?.trim();
@@ -493,13 +608,6 @@ export class CandidateGenerator {
       }
 
       // C3: Guarantees & Properties: "<Term> ensures/preserves/controls/governs/determines/guarantees/divides/enables <Definition>"
-      // e.g. "Atomicity ensures that a transaction is treated as a single unit."
-      // e.g. "Consistency preserves database constraints."
-      // e.g. "Isolation controls the visibility of concurrent transactions."
-      // e.g. "Durability ensures committed changes survive failures."
-      // e.g. "The process scheduler determines which process runs next."
-      // e.g. "Paging divides memory into fixed-size pages and page frames."
-      // e.g. "Inter-Process Communication (IPC) enables cooperative processes..."
       const propMatch = s.match(/^(?:The\s+)?([A-Z][a-zA-Z\s-]{2,35})(?:\s*\(([A-Za-z0-9]+)\))?\s+(?:ensures|preserves|controls|governs|determines|guarantees|divides|enables)\s+(?:that\s+)?([^.]+)/i);
       if (propMatch) {
         const term = propMatch[1].trim();
@@ -507,14 +615,59 @@ export class CandidateGenerator {
         addCandidate(term, classifyConceptType(term, s), s, false, true, alias);
       }
 
-      // C4: Named Principle: "ACID properties ensure reliable transaction processing"
+      // C4: Technique to reduce problem: "<Term> is a technique used to reduce <Problem>"
+      // e.g. "Aging is a technique used to reduce starvation."
+      const techMatch = s.match(/([A-Z][a-zA-Z\s-]{2,30})\s+is a technique used to\s+(?:reduce|mitigate|prevent)\s+([a-zA-Z\s-]+)/i);
+      if (techMatch) {
+        const techTerm = techMatch[1].trim();
+        const problemTerm = techMatch[2].replace(/[.,;:].*$/, '').trim();
+        addCandidate(techTerm, 'Method', s, false, true);
+        if (problemTerm.length >= 3) {
+          addCandidate(problemTerm, 'Concept', s, false, true);
+        }
+      }
+
+      // C5: Common problem: "A common problem is <Problem>: <Explanation>"
+      // e.g. "A common problem is starvation: a low-priority process may wait indefinitely..."
+      const probMatch = s.match(/common problem is\s+([a-zA-Z\s-]{3,30})[:;–—\s]/i);
+      if (probMatch) {
+        const term = probMatch[1].trim();
+        addCandidate(term, 'Concept', s, false, true);
+      }
+
+      // C6: Preemptive form: "<Term> is the preemptive form of <Target>"
+      // e.g. "Shortest Remaining Time First is the preemptive form of Shortest Job First."
+      const preemptMatch = s.match(/^([A-Z][a-zA-Z\s-]{3,40})\s+is the preemptive form of\s+([A-Za-z\s-]+)/i);
+      if (preemptMatch) {
+        const termA = preemptMatch[1].trim();
+        const termB = preemptMatch[2].replace(/[.,;:].*$/, '').trim();
+        addCandidate(termA, 'Algorithm', s, true, true);
+        if (termB.length >= 3) {
+          addCandidate(termB, 'Algorithm', s, true, true);
+        }
+      }
+
+      // C7: Quantum / Fixed resource: "Each ready process receives a fixed <Term>."
+      const quantumMatch = s.match(/receives a fixed\s+([a-zA-Z\s-]{3,30})\./i);
+      if (quantumMatch) {
+        const term = quantumMatch[1].trim();
+        addCandidate(term, 'Concept', s, false, true);
+      }
+
+      // C8: Context Switch: "... cause frequent <Term>s."
+      const switchMatch = s.match(/cause frequent\s+([a-zA-Z\s-]+)s?\.?/i);
+      if (switchMatch) {
+        const term = switchMatch[1].trim();
+        addCandidate(term, 'Process', s, false, true);
+      }
+
+      // C9: Named Principle: "ACID properties ensure reliable transaction processing"
       const acidMatch = s.match(/\b(ACID\s+properties|ACID)\b/i);
       if (acidMatch) {
         addCandidate('ACID Properties', 'Principle', s, true, true);
       }
 
-      // C5: Exception or event: "... a/an <Term> exception occurs"
-      // e.g. "When a requested page is not in physical memory, a Page Fault exception occurs."
+      // C10: Exception or event: "... a/an <Term> exception occurs"
       const occurMatch = s.match(/\b(?:an?|the)?\s*([A-Z][a-zA-Z\s-]{2,30})\s+(?:exception occurs|occurs|takes place)\b/i);
       if (occurMatch) {
         const term = occurMatch[1].trim();
@@ -527,8 +680,13 @@ export class CandidateGenerator {
     // -----------------------------------------------------------------------
     if (profile?.domainKeywords) {
       for (const kw of profile.domainKeywords) {
-        if (text.toLowerCase().includes(kw.toLowerCase())) {
-          const evidenceSent = sentences.find(s => s.toLowerCase().includes(kw.toLowerCase())) || text.slice(0, 150);
+        const lowerKw = kw.toLowerCase().trim();
+        // Skip standalone generic words and ungrounded hardware acronyms like 'cpu'
+        if (GENERIC_STANDALONE_WORDS.has(lowerKw) || lowerKw === 'cpu') {
+          continue;
+        }
+        if (text.toLowerCase().includes(lowerKw)) {
+          const evidenceSent = sentences.find(s => s.toLowerCase().includes(lowerKw)) || text.slice(0, 150);
           addCandidate(kw, classifyConceptType(kw, evidenceSent), evidenceSent, false, false);
         }
       }
@@ -538,25 +696,43 @@ export class CandidateGenerator {
     // SIGNAL E: Capitalized Technical Compounds, Acronyms & Noise Diagnostics
     // -----------------------------------------------------------------------
     for (const s of sentences) {
-      // E1: Capitalized compound phrases (2-4 words): e.g. "Round Robin", "Shortest Job First", "Process Control Block"
-      const matches = s.matchAll(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\b/g);
+      // E1: Capitalized compound phrases (2-4 words) including hyphenated terms:
+      // e.g. "Round Robin", "Shortest Job First", "First-Come, First-Served"
+      const matches = s.matchAll(/\b([A-Z][a-z]+(?:(?:[-,\s]+)[A-Z][a-z]+){1,3})\b/g);
       for (const m of matches) {
         const phrase = m[1].trim();
+        const pWords = phrase.split(/[\s-]+/).filter(Boolean);
+        const lastW = pWords[pWords.length - 1].toLowerCase();
+        // If phrase ends in a generic artifact noun (e.g. Throughput Number -> reject)
+        if (['number', 'example', 'problem', 'result', 'table', 'figure', 'page', 'chapter', 'section', 'student'].includes(lastW)) {
+          // If the prefix before the generic noun is a substantive concept (e.g. "Throughput"), extract that
+          if (pWords.length === 2 && !GENERIC_BROAD_ROOTS.has(pWords[0].toLowerCase())) {
+            addCandidate(pWords[0], classifyConceptType(pWords[0], s), s, false, false);
+          }
+          continue;
+        }
         addCandidate(phrase, classifyConceptType(phrase, s), s, false, false);
       }
-      // E2: Acronyms: e.g. "CPU", "MMU", "TLB", "PCB", "IPC", "OS"
+
+      // E2: Acronyms: e.g. "FCFS", "SJF", "SRTF", "MMU", "TLB", "PCB", "IPC", "OS"
       const acrMatches = s.matchAll(/\b([A-Z]{2,6})\b/g);
       for (const m of acrMatches) {
         const acr = m[1].trim();
         if (acr.length >= 2 && !PRONOUNS_AND_DETERMINERS.has(acr.toLowerCase())) {
+          // Skip standalone CPU unless defined explicitly in text
+          if (acr === 'CPU' && !/(?:cpu\s+(?:is|refers to|defined as)|central processing unit)/i.test(text)) {
+            continue;
+          }
+          // Skip single-letter indexed identifiers like P1, P2, P3
+          if (/^[A-Z][0-9]+$/.test(acr)) {
+            continue;
+          }
           addCandidate(acr, classifyConceptType(acr, s), s, false, false);
         }
       }
     }
 
     // E3: Explicit noise candidate tracking for diagnostics (Section 42 & Section 8):
-    // Allows generic words occurring in the text to enter the candidate pool so the validator
-    // can evaluate and reject them with clear reasons ("Insufficient domain-specific evidence; generic term.")
     for (const gw of GENERIC_STANDALONE_WORDS) {
       if (new RegExp(`\\b${gw}\\b`, 'i').test(text)) {
         const evidenceSent = sentences.find(s => new RegExp(`\\b${gw}\\b`, 'i').test(s));
@@ -689,7 +865,7 @@ export class ConceptValidator {
       };
     }
 
-    const importance: ConceptImportance = (hasHeadingEvidence || hasDefinition) ? 'core' : 'supporting';
+    const importance: ConceptImportance = determineConceptImportance(candidate.name, hasHeadingEvidence, candidate.type).importance;
 
     return {
       accepted: true,
