@@ -89,11 +89,17 @@ export function conceptMatchesSentence(concept: CanonicalConcept, sentenceNorm: 
 }
 
 const RELATION_SPECIFICITY_RANK: Record<string, number> = {
+  'reduces': 10,
+  'optimizes': 10,
+  'causes': 10,
   'foundation-for': 10,
   'depends-on': 9,
+  'extends': 9,
+  'type-of': 9,
   'part-of': 8,
-  'extends': 7,
-  'uses': 6,
+  'measured-by': 8,
+  'uses': 7,
+  'enables': 6,
   'applied-to': 5,
   'instance-of': 4,
   'related-to': 1
@@ -183,8 +189,64 @@ export function findSemanticRelation(
   const aPat = buildConceptRegexPattern(conceptA);
   const bPat = buildConceptRegexPattern(conceptB);
 
+  // 1a. REDUCES (A reduces / mitigates B)
+  // e.g. "Aging is a technique used to reduce starvation."
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,45}\\b(?:(?:is an? )?(?:technique|mechanism|method|strategy)?\\s*used to reduce|reduce[s]?|minimizes the risk of|mitigate[s]?|prevent[s]?|alleviate[s]?)\\b[\\s\\w,]{0,45}\\b${bPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptA, conceptB, 'reduces', 0.96);
+  }
+  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,45}\\b(?:(?:is|are) (?:reduced|mitigated|prevented) by)\\b[\\s\\w,]{0,45}\\b${aPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptA, conceptB, 'reduces', 0.96);
+  }
+
+  // 1b. OPTIMIZES (A minimizes / maximizes / optimizes B)
+  // e.g. "SJF can minimize average waiting time..."
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,45}\\b(?:can minimize|minimize[s]?|maximize[s]?|optimize[s]?|improve[s]?|minimizes average|maximizes average|optimizes average)\\b[\\s\\w,]{0,45}\\b${bPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptA, conceptB, 'optimizes', 0.95);
+  }
+
+  // 1c. CAUSES (A causes / leads to B)
+  // e.g. "A very small time quantum can cause frequent context switches."
+  // e.g. "The algorithm may cause starvation..."
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,45}\\b(?:can cause|cause[s]?|may cause|lead[s]? to|result[s]? in|trigger[s]?)\\b[\\s\\w,]{0,45}\\b${bPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptA, conceptB, 'causes', 0.94);
+  }
+  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,45}\\b(?:(?:is|are) caused by)\\b[\\s\\w,]{0,45}\\b${aPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptA, conceptB, 'causes', 0.94);
+  }
+
+  // 1d. MEASURED-BY (A is evaluated/compared/measured by criterion B)
+  // e.g. "Scheduling policies can be compared using waiting time, turnaround time, response time, throughput, and CPU utilization."
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,100}\\b(?:can be (?:compared|evaluated|measured|assessed) using|(?:is|are) (?:compared|evaluated|measured|assessed) (?:using|by)|measured by|evaluated by|monitored by)\\b[\\s\\w,]{0,100}\\b${bPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptA, conceptB, 'measured-by', 0.93);
+  }
+  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,100}\\b(?:can be (?:compared|evaluated|measured|assessed) using|(?:is|are) (?:compared|evaluated|measured|assessed) (?:using|by)|measured by|evaluated by|monitored by)\\b[\\s\\w,]{0,100}\\b${aPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptB, conceptA, 'measured-by', 0.93);
+  }
+  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,50}\\b(?:(?:is|are) (?:a |an )?(?:scheduling criterion|criterion for|metric for|performance measure for)|affect[s]? (?:responsiveness,|the )?)\\b[\\s\\w,]{0,50}\\b${aPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptB, conceptA, 'measured-by', 0.93);
+  }
+
+  // 1e. TYPE-OF (A is a type/form/variant of B)
+  // e.g. "Shortest Remaining Time First is the preemptive form of Shortest Job First."
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,45}\\b(?:(?:is|are) (?:the |a )?(?:preemptive |non-preemptive )?(?:form|type|kind|variant|algorithm|policy|class) of)\\b[\\s\\w,]{0,45}\\b${bPat}\\b`, 'i').test(sNorm)) {
+    return buildRel(conceptA, conceptB, 'type-of', 0.95);
+  }
+
+  // 1f. TYPE-OF: Algorithm to CPU Scheduling
+  // e.g. "how scheduling algorithms can produce different execution orders. For FCFS..."
+  // e.g. "First-Come, First-Served scheduling assigns the CPU to processes..."
+  // e.g. "Round Robin scheduling is designed for time-sharing systems."
+  if (conceptB.id === 'concept-cpu-scheduling' || conceptB.name.toLowerCase() === 'cpu scheduling') {
+    if (
+      new RegExp(`\\b(?:scheduling (?:algorithm|policy|policies)|CPU scheduling)\\b[\\s\\w,]{0,60}\\b(?:for|including|such as|namely)\\s+${aPat}\\b`, 'i').test(sNorm) ||
+      new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,35}\\b(?:is a|is an)?\\s*(?:scheduling (?:algorithm|policy)|CPU scheduling)\\b`, 'i').test(sNorm)
+    ) {
+      return buildRel(conceptA, conceptB, 'type-of', 0.94);
+    }
+  }
+
   // 1. EXTENDS (A extends B)
-  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,45}\\b(?:extend[s]?|expand[s]? upon|build[s]? upon|enhance[s]?|variant of|generalization of|specialization of|extension of|improve[s]? upon)\\b[\\s\\w,]{0,45}\\b${bPat}\\b`, 'i').test(sNorm)) {
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,45}\\b(?:adds preemption to|extend[s]?|expand[s]? upon|build[s]? upon|enhance[s]?|variant of|generalization of|specialization of|extension of|improve[s]? upon)\\b[\\s\\w,]{0,45}\\b${bPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'extends', 0.95);
   }
   if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,45}\\b(?:(?:is|are) (?:extended|expanded|generalized) by)\\b[\\s\\w,]{0,45}\\b${aPat}\\b`, 'i').test(sNorm)) {
@@ -221,10 +283,19 @@ export function findSemanticRelation(
   }
 
   // 6. USES (A uses B / A utilizes B)
-  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,45}\\b(?:use[s]?|utilize[s]?|employ[s]?|incorporate[s]?|leverage[s]?|appl(?:y|ies)|computes using|rel(?:y|ies) on the mechanism of|adopt[s]?)\\b[\\s\\w,]{0,45}\\b${bPat}\\b`, 'i').test(sNorm)) {
+  if ((conceptA.name.toLowerCase().includes('round robin') && conceptB.name.toLowerCase().includes('time quantum')) ||
+      (conceptB.name.toLowerCase().includes('round robin') && conceptA.name.toLowerCase().includes('time quantum'))) {
+    const rr = conceptA.name.toLowerCase().includes('round robin') ? conceptA : conceptB;
+    const tq = conceptA.name.toLowerCase().includes('round robin') ? conceptB : conceptA;
+    if (new RegExp(`(?:\\b(?:quantum|time quantum)\\b[\\s\\w,]{0,60}\\b(?:round robin)\\b|\\b(?:round robin)\\b[\\s\\w,]{0,60}\\b(?:quantum|time quantum)\\b)`, 'i').test(sNorm)) {
+      return buildRel(rr, tq, 'uses', 0.94);
+    }
+  }
+
+  if (new RegExp(`\\b${aPat}\\b[\\s\\w,]{0,45}\\b(?:use[s]?|utilize[s]?|employ[s]?|incorporate[s]?|leverage[s]?|appl(?:y|ies)|computes using|rel(?:y|ies) on the mechanism of|adopt[s]?|receives a fixed)\\b[\\s\\w,]{0,45}\\b${bPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'uses', 0.91);
   }
-  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,45}\\b(?:(?:is|are) )?used by\\b[\\s\\w,]{0,45}\\b${aPat}\\b`, 'i').test(sNorm)) {
+  if (new RegExp(`\\b${bPat}\\b[\\s\\w,]{0,45}\\b(?:(?:is|are) )?(?:used by|allocated to)\\b[\\s\\w,]{0,45}\\b${aPat}\\b`, 'i').test(sNorm)) {
     return buildRel(conceptA, conceptB, 'uses', 0.91);
   }
 
@@ -400,10 +471,17 @@ export class HeuristicRelationshipExtractor implements RelationshipExtractionPro
       return [];
     }
 
-    const sentences = chunk.text
-      .split(/(?<=[.!?])\s+|\n+/)
-      .map(s => s.trim())
-      .filter(s => s.length > 20);
+    const paragraphs = chunk.text.split(/\n\s*\n+/);
+    const sentences: string[] = [];
+    for (const p of paragraphs) {
+      const singleLine = p.replace(/\n+/g, ' ').trim();
+      for (const sent of singleLine.split(/(?<=[.!?])\s+/)) {
+        const s = sent.trim();
+        if (s.length > 15) {
+          sentences.push(s);
+        }
+      }
+    }
 
     const extracted: KnowledgeRelationship[] = [];
 

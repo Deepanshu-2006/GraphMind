@@ -42,7 +42,11 @@ const TECHNICAL_ACRONYM_MAP = new Map<string, string>([
   ['lstm', 'long short term memory'],
   ['gru', 'gated recurrent unit'],
   ['bert', 'bert'],
-  ['gpt', 'gpt']
+  ['gpt', 'gpt'],
+  ['fcfs', 'first come first served'],
+  ['sjf', 'shortest job first'],
+  ['srtf', 'shortest remaining time first'],
+  ['os', 'operating system']
 ]);
 
 /**
@@ -54,6 +58,51 @@ const PRESERVE_S_WORDS = new Set<string>([
   'hypothesis', 'analysis', 'synthesis', 'metropolis', 'markov', 'corpus', 'status',
   'axis', 'focus', 'lens', 'radius', 'apparatus', 'stimulus', 'nucleus', 'calculus'
 ]);
+
+/**
+ * Known uppercase technical acronyms that must retain all-caps formatting in display names.
+ */
+const KNOWN_UPPERCASE_ACRONYMS = new Set<string>([
+  'cpu', 'os', 'fcfs', 'sjf', 'srtf', 'pcb', 'io', 'i/o', 'ram', 'rom', 'fifo', 'lru',
+  'cnn', 'rnn', 'gan', 'svm', 'mlp', 'sgd', 'gnn', 'vae', 'nlp', 'llm', 'ann', 'pca', 'rl', 'lstm', 'gru'
+]);
+
+const LOWERCASE_JOINERS = new Set<string>([
+  'of', 'and', 'or', 'in', 'on', 'at', 'to', 'for', 'by', 'with', 'the', 'a', 'an'
+]);
+
+/**
+ * Formats a concept phrase into clean Title Case while preserving domain acronyms.
+ */
+export function toTitleCase(phrase: string): string {
+  if (!phrase) return '';
+  const words = phrase.trim().split(/\s+/);
+  return words.map((w, idx) => {
+    // Preserve and handle hyphenated compounds like "First-Come, First-Served"
+    if (w.includes('-')) {
+      return w.split('-').map((sub, sIdx) => {
+        const subClean = sub.toLowerCase().replace(/[^\w/]/g, '');
+        if (KNOWN_UPPERCASE_ACRONYMS.has(subClean)) return sub.toUpperCase();
+        if (/^[A-Z]{2,6}$/.test(sub)) return sub;
+        if (sIdx > 0 && LOWERCASE_JOINERS.has(subClean)) return sub.toLowerCase();
+        return sub.charAt(0).toUpperCase() + sub.slice(1).toLowerCase();
+      }).join('-');
+    }
+
+    const cleanWord = w.toLowerCase().replace(/[^\w/]/g, '');
+    if (KNOWN_UPPERCASE_ACRONYMS.has(cleanWord)) {
+      const punct = w.replace(/^[\w/]+/i, '');
+      return cleanWord.toUpperCase() + punct;
+    }
+    if (/^[A-Z]{2,6}$/.test(w)) {
+      return w;
+    }
+    if (idx > 0 && LOWERCASE_JOINERS.has(cleanWord)) {
+      return w.toLowerCase();
+    }
+    return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+  }).join(' ');
+}
 
 /**
  * Safe singularization of technical noun suffixes.
@@ -69,7 +118,7 @@ export function safeSingularize(word: string): string {
     return `${lower.slice(0, -3)}y`;
   }
 
-  // -es after sibilants: e.g. "losses" -> "loss", "matrices" -> "matrix"
+  // -es after sibilants: e.g. "losses" -> "loss", "matrices" -> "matrix", "switches" -> "switch"
   if (lower === 'matrices') return 'matrix';
   if (lower.endsWith('es') && (lower.endsWith('ses') || lower.endsWith('xes') || lower.endsWith('ches') || lower.endsWith('shes'))) {
     return lower.slice(0, -2);
@@ -106,7 +155,9 @@ export function toCanonicalDisplayName(name: string): string {
     words[words.length - 1] = isUpper ? (last[0] + sing.slice(1)) : sing;
     clean = words.join(' ');
   }
-  return clean;
+
+  // Guarantee clean Title Case for canonical display (e.g. "round robin" -> "Round Robin", "context switch" -> "Context Switch")
+  return toTitleCase(clean);
 }
 
 /**
@@ -155,16 +206,20 @@ export function generateCanonicalKey(name: string): string {
 
 /**
  * Strips redundant generic classifying suffixes if the base technical root is substantive.
- * e.g. "transformer architecture" -> "transformer", "transformer model" -> "transformer"
+ * e.g. "transformer architecture" -> "transformer", "round robin scheduling" -> "round robin"
+ * Protects fundamental standalone concepts like "cpu", "process", "thread", "memory" from over-merging.
  */
 export function getClusterRootKey(key: string): string {
-  const stripped = key.replace(/\s+(?:architecture|model|algorithm|method|technique|mechanism)$/i, '').trim();
-  // Protect base words that need modifiers (e.g. "deep", "neural", "linear", "machine")
+  // Protect base concepts that should NOT merge with their qualified compounds (Section 8: CPU != CPU Scheduling)
   const nonStandalones = new Set([
+    'cpu', 'process', 'thread', 'memory', 'disk', 'job', 'io', 'i/o',
     'deep', 'neural', 'linear', 'machine', 'support', 'random', 'gradient',
     ...GENERIC_BROAD_ROOTS
   ]);
-  if (stripped.length >= 6 && !nonStandalones.has(stripped)) {
+
+  const stripped = key.replace(/\s+(?:architecture|model|algorithm|method|technique|mechanism|scheduling|policy)$/i, '').trim();
+
+  if (stripped.length >= 5 && !nonStandalones.has(stripped)) {
     return stripped;
   }
   return key;
@@ -225,6 +280,11 @@ function isBetterName(candidate: string, currentBest: string): boolean {
   if (!hasSuffixA && hasSuffixB) return true;
   if (hasSuffixA && !hasSuffixB) return false;
 
+  // Specific canonical naming preference:
+  // "Round Robin Scheduling" > "Round Robin" (or "round robin")
+  if (/\bRound Robin Scheduling\b/i.test(candidate) && !/\bScheduling\b/i.test(currentBest)) return true;
+  if (!/\bScheduling\b/i.test(candidate) && /\bRound Robin Scheduling\b/i.test(currentBest)) return false;
+
   // Prefer Title Case over lowercase
   const upperA = (candidate.match(/[A-Z]/g) || []).length;
   const upperB = (currentBest.match(/[A-Z]/g) || []).length;
@@ -236,8 +296,14 @@ function isBetterName(candidate: string, currentBest: string): boolean {
   if (candidateLower.endsWith('s') && !currentLower.endsWith('s')) return false;
   if (!candidateLower.endsWith('s') && currentLower.endsWith('s')) return true;
 
-  // Prefer names without unnecessary hyphens when space is standard, but preserve Self-Attention
-  return candidate.length >= currentBest.length;
+  // Prefer names without unnecessary hyphens when space is standard
+  const hasHyphenA = candidate.includes('-');
+  const hasHyphenB = currentBest.includes('-');
+  const isKnownHyphen = /first-come|first-served|self-attention|non-preemptive|pre-emptive/i.test(candidate);
+  if (!hasHyphenA && hasHyphenB && !isKnownHyphen) return true;
+  if (hasHyphenA && !hasHyphenB && !isKnownHyphen) return false;
+
+  return candidate.length > currentBest.length;
 }
 
 /**
@@ -321,7 +387,7 @@ export function normalizeConcepts(rawConcepts: ConceptCandidate[]): CanonicalCon
         sourceChunkIds: candidateChunkIds,
         occurrences: raw.occurrences || 1,
         confidence: raw.confidence || 0.90,
-        aliases: [],
+        aliases: raw.aliases ? [...raw.aliases] : [],
         evidence: raw.evidence,
         importance: raw.importance,
         isCoreConcept: raw.isCoreConcept
@@ -350,6 +416,16 @@ export function normalizeConcepts(rawConcepts: ConceptCandidate[]): CanonicalCon
         const alt = raw.name.trim();
         if (!existing.aliases.includes(alt)) {
           existing.aliases.push(alt);
+        }
+      }
+
+      // Merge any recorded aliases from candidate
+      if (raw.aliases && Array.isArray(raw.aliases)) {
+        if (!existing.aliases) existing.aliases = [];
+        for (const a of raw.aliases) {
+          if (!existing.aliases.includes(a) && a.toLowerCase() !== existing.name.toLowerCase()) {
+            existing.aliases.push(a);
+          }
         }
       }
 
@@ -402,7 +478,8 @@ export function normalizeConcepts(rawConcepts: ConceptCandidate[]): CanonicalCon
     const words = concept.name.trim().toLowerCase().split(/\s+/);
 
     // 1. Bare generic single word check
-    if (words.length === 1 && GENERIC_BROAD_ROOTS.has(words[0])) {
+    const nonSubsumable = new Set(['process', 'cpu', 'memory', 'thread', 'system', 'job']);
+    if (words.length === 1 && GENERIC_BROAD_ROOTS.has(words[0]) && !nonSubsumable.has(words[0])) {
       const parentCompound = multiWordConcepts.find(mc => {
         const mcWords = mc.name.toLowerCase().split(/\s+/);
         return mcWords.includes(words[0]) || mcWords.includes(safeSingularize(words[0]));

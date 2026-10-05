@@ -473,6 +473,22 @@ export class PipelineOrchestrator {
         { ...options.graphBuilder, graphId: options.graphId || options.graphBuilder?.graphId }
       );
 
+      // Development Pipeline Trace Logging (Prompt Section 17)
+      const isDev = Boolean(
+        (typeof globalThis !== 'undefined' && (globalThis as any).process?.env?.NODE_ENV !== 'production') ||
+        (typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV)
+      );
+      if (isDev) {
+        console.log('=== EXTRACTION PIPELINE DIAGNOSTICS ===');
+        console.log(`1. CANDIDATES (${rawCandidates.length}):`, rawCandidates.map(c => c.name));
+        console.log(`2. VALIDATED (${acceptedCandidates.length}):`, acceptedCandidates.map(c => c.name));
+        console.log(`3. NORMALIZED (${canonicalConcepts.length}):`, canonicalConcepts.map(c => c.name));
+        console.log(`4. REJECTED (${relevanceReport?.rejected?.length || 0}):`, relevanceReport?.rejected?.map(r => `${r.name} [${r.reason}]`));
+        console.log(`5. FINAL CONCEPTS (${graph.nodes.length}):`, graph.nodes.map(n => ({ name: n.name, type: n.type, isCore: n.isCoreConcept, evidence: n.evidence?.slice(0, 60) })));
+        console.log(`6. FINAL RELATIONSHIPS (${graph.relationships.length}):`, graph.relationships.map(r => `${r.source} --[${r.type}]--> ${r.target}`));
+        console.log('========================================');
+      }
+
       notify('building-graph', PIPELINE_STAGE_LABELS['building-graph'], {
         conceptsExtracted: canonicalConcepts.length,
         relationshipsMapped: graph.relationships.length,

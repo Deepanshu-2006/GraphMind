@@ -87,7 +87,8 @@ export function buildGraphNodes(concepts: CanonicalConcept[]): KnowledgeNode[] {
         evidenceItems,
         aliases: c.aliases ? [...c.aliases] : [],
         importance: c.importance,
-        isCoreConcept: c.isCoreConcept
+        isCoreConcept: c.isCoreConcept,
+        occurrences: c.occurrences
       };
       nodeMap.set(trimmedId, newNode);
       if (normKey) keyMap.set(normKey, newNode);
@@ -148,6 +149,9 @@ export function buildGraphNodes(concepts: CanonicalConcept[]): KnowledgeNode[] {
       }
       if (c.isCoreConcept) {
         existing.isCoreConcept = true;
+      }
+      if (c.occurrences) {
+        existing.occurrences = (existing.occurrences || 1) + c.occurrences;
       }
     }
   }
@@ -240,10 +244,15 @@ export function buildGraphEdges(
   // If a graph has high connectivity, prevent hairball explosion by keeping the top most meaningful edges per node
   if (cleanEdges.length > 25) {
     const REL_PRIORITY: Record<string, number> = {
+      'reduces': 10,
+      'optimizes': 10,
+      'causes': 10,
       'prerequisite': 10,
       'foundation-for': 10,
+      'type-of': 9,
       'part-of': 8,
       'implements': 8,
+      'measured-by': 8,
       'extends': 7,
       'uses': 6,
       'applied-to': 5,
@@ -316,9 +325,13 @@ export function buildKnowledgeGraph(
     // Keep connected nodes OR high-confidence/prominent nodes
     nodes = nodes.filter(n => {
       if (connectedNodeIds.has(n.id)) return true;
-      // Keep foundational or highly mentioned concepts even if isolated
+      // Keep foundational, defined, or multi-occurrence concepts even if isolated
       const isCore = n.type === 'foundation' || n.type === 'topic' || n.type === 'paradigm' || n.importance === 'core' || n.isCoreConcept;
-      const hasHighEvidence = (n.sourceChunkIds && n.sourceChunkIds.length >= 2) || (n.confidence && n.confidence >= 0.95);
+      const hasDefinition = Boolean(n.evidence && /(?:is called|is defined as|refers to|is an?|known as)/i.test(n.evidence));
+      const hasHighEvidence = (n.sourceChunkIds && n.sourceChunkIds.length >= 2) || 
+                              (n.confidence && n.confidence >= 0.90) ||
+                              (n.occurrences && n.occurrences >= 2) ||
+                              hasDefinition;
       return isCore || hasHighEvidence;
     });
 

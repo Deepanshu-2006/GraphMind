@@ -58,6 +58,7 @@ export interface KnowledgeNode {
   importance?: number | ConceptImportance;
   isCoreConcept?: boolean;
   aliases?: string[];
+  occurrences?: number;
 }
 
 /**

@@ -210,13 +210,16 @@ export function analyzeCandidateOccurrences(
   let hasDefinitionEvidence = false;
   let hasRelationshipEvidence = false;
 
+  const defVerbs = 'is an?|are|refers to|is defined as|was proposed as|enables|allows|provides the|computes|acts as|serves as|manages|allocates|translates|accelerates|executes|coordinates|controls|divides|creates|updates|optimizes|trains|learns|processes|evaluates|transforms|minimizes|maximizes';
+  const passiveDefVerbs = 'is called|called|known as|referred to as|termed';
   const definitionPattern = new RegExp(
-    `\\b${escaped}\\b(?:\\s*\\([A-Z0-9]{2,6}\\))?\\s+(?:is an?|are|refers to|is defined as|was proposed as|enables|allows|provides the|computes|acts as|serves as|manages|allocates|translates|accelerates|executes|coordinates|controls|divides|creates|updates|optimizes|trains|learns|processes|evaluates|transforms|minimizes|maximizes)\\b`,
+    `(?:\\b${escaped}\\b(?:\\s*\\([A-Z0-9]{2,6}\\))?\\s+(?:${defVerbs})\\b|\\b(?:${passiveDefVerbs})\\b[\\s\\w,()]{0,20}\\b${escaped}\\b)`,
     'i'
   );
 
+  const relVerbs = 'use[s]?|used by|depend[s]? on|rel(?:y|ies) on|consist[s]? of|composed of|part of|extends?|interacts? with|connected to|allocates?|translates?|exchanges?|accelerates?|updates?|optimizes?|minimizes?|maximizes?|cause[s]?|caused by|reduce[s]?|reduced by|leads? to|results? in|triggers?';
   const relationshipPattern = new RegExp(
-    `\\b${escaped}\\b[\\s\\w,()]{0,35}\\b(?:use[s]?|depend[s]? on|rel(?:y|ies) on|consist[s]? of|composed of|part of|extends?|interacts? with|connected to|allocates?|translates?|exchanges?|accelerates?|updates?|optimizes?|minimizes?|maximizes?)\\b`,
+    `(?:\\b${escaped}\\b[\\s\\w,()]{0,35}\\b(?:${relVerbs})\\b|\\b(?:${relVerbs})\\b[\\s\\w,()]{0,35}\\b${escaped}\\b)`,
     'i'
   );
 
@@ -281,7 +284,10 @@ export function analyzeCandidateOccurrences(
 
   // Cross-reference with DocumentProfile definitions and formulas
   if (documentProfile?.definitionsFound) {
-    if (documentProfile.definitionsFound.some(d => d.term.toLowerCase() === lower)) {
+    if (documentProfile.definitionsFound.some(d => {
+      const cleanTerm = d.term.toLowerCase().replace(/^(?:the|a|an)\s+/i, '').trim();
+      return cleanTerm === lower || cleanTerm.includes(lower) || lower.includes(cleanTerm);
+    })) {
       hasDefinitionEvidence = true;
     }
   }
@@ -467,6 +473,15 @@ export function scoreCandidate(
     }
   }
 
+  // Standalone hardware/broad acronyms (like CPU, PC, IO when not defined and not a heading)
+  const BARE_CONTEXTLESS_ACRONYMS = new Set(['cpu', 'pc', 'io', 'i/o', 'ram', 'rom']);
+  if (BARE_CONTEXTLESS_ACRONYMS.has(candidate.name.toLowerCase().trim())) {
+    if (!occ.hasDefinitionEvidence && occ.headings.length === 0) {
+      isAccepted = false;
+      rejectionReason = `Bare hardware acronym without document definition or section heading ("${candidate.name}")`;
+    }
+  }
+
   if (isAccepted && relevanceScore < config.minRelevanceScore && !candidate.isCoreConcept && !occ.hasDefinitionEvidence) {
     isAccepted = false;
     rejectionReason = `Relevance score (${relevanceScore.toFixed(2)}) below quality threshold (${config.minRelevanceScore})`;
@@ -514,8 +529,8 @@ export function scoreCandidate(
     isAccepted,
     rejectionReason,
     evidence: resolvedEvidence,
-    importance: candidate.importance ?? relevanceScore,
-    isCoreConcept: candidate.isCoreConcept ?? (relevanceScore >= 0.8)
+    importance: candidate.importance ?? (candidate.isCoreConcept ? 'core' : 'supporting'),
+    isCoreConcept: candidate.isCoreConcept ?? (candidate.importance === 'core')
   };
 }
 
@@ -635,6 +650,8 @@ export function evaluateAndFilterCandidates(
     importance: sc.importance ?? sc.relevanceScore,
     isCoreConcept: sc.isCoreConcept,
     evidence: sc.evidence,
+    evidenceItems: sc.evidenceItems ? [...sc.evidenceItems] : undefined,
+    aliases: sc.aliases ? [...sc.aliases] : undefined,
     teachesOrExplains: sc.teachesOrExplains
   }));
 
