@@ -299,6 +299,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer;
 }
 
 .topbar-graph-chevron {
@@ -310,6 +311,198 @@
 .topbar-graph-chevron.open {
   transform: rotate(180deg);
   color: #FFFFFF;
+}
+
+/* Inline Graph Title Renaming */
+.topbar-graph-trigger-group {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+}
+
+.topbar-graph-rename-affordance {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin-left: 2px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #666666;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 160ms ease, color 140ms ease, background-color 140ms ease, border-color 140ms ease;
+}
+
+.topbar-graph-trigger-group:hover .topbar-graph-rename-affordance,
+.topbar-graph-rename-affordance:focus-visible {
+  opacity: 1;
+}
+
+.topbar-graph-rename-affordance:hover {
+  color: #EDEDED;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.topbar-graph-rename-affordance:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.3);
+  outline-offset: 1px;
+}
+
+.topbar-inline-edit-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 2px;
+  max-width: min(440px, 48vw);
+}
+
+.topbar-inline-input-sizer {
+  display: inline-grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+  max-width: min(300px, 34vw);
+  min-width: 60px;
+}
+
+.topbar-inline-input-ghost {
+  grid-area: 1 / 1;
+  visibility: hidden;
+  white-space: pre;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  padding: 2px 2px 3px 2px;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.topbar-inline-title-input {
+  grid-area: 1 / 1;
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: #EDEDED;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 0;
+  padding: 2px 2px 3px 2px;
+  outline: none;
+  line-height: normal;
+  transition: border-bottom-color 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.topbar-inline-title-input:focus {
+  border-bottom-color: rgba(255, 255, 255, 0.65);
+}
+
+.topbar-inline-title-input.has-error {
+  border-bottom-color: #FF5C5C;
+}
+
+.topbar-inline-error-tooltip {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 2px;
+  background: #181111;
+  border: 1px solid rgba(255, 92, 92, 0.3);
+  color: #FF8585;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 450;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  z-index: 95;
+  pointer-events: none;
+}
+
+.topbar-inline-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.topbar-inline-cancel-btn {
+  background: transparent;
+  border: none;
+  padding: 2px 5px;
+  color: #777777;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 450;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 140ms ease, opacity 140ms ease;
+  user-select: none;
+}
+
+.topbar-inline-cancel-btn:hover:not(:disabled) {
+  color: #A3A3A3;
+}
+
+.topbar-inline-cancel-btn:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.25);
+  outline-offset: 1px;
+}
+
+.topbar-inline-cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.topbar-inline-save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: transparent;
+  border: none;
+  padding: 2px 5px;
+  color: #DADADA;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 450;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 140ms ease, opacity 140ms ease;
+  user-select: none;
+}
+
+.topbar-inline-save-btn:hover:not(:disabled) {
+  color: #FFFFFF;
+}
+
+.topbar-inline-save-btn:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.25);
+  outline-offset: 1px;
+}
+
+.topbar-inline-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.topbar-inline-save-arrow {
+  color: var(--accent); /* subtle GraphMind green */
+  font-size: 12px;
+  line-height: 1;
+  transition: transform 140ms ease;
+}
+
+.topbar-inline-save-btn:hover:not(:disabled) .topbar-inline-save-arrow {
+  transform: translateX(1.5px);
 }
 
 /* First-time create graph button */

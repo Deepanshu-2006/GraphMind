@@ -11,6 +11,7 @@ interface TopBarProps {
   activeGraphMeta?: KnowledgeGraphMeta | null;
   onSelectGraph?: (graphId: string) => void;
   onOpenNewGraphModal?: () => void;
+  onRenameGraph?: (graphId: string, newName: string) => void;
   onOpenSearch: () => void;
   onToggleMobileMenu: () => void;
   onOpenCreateModal: () => void;
@@ -24,6 +25,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   activeGraphMeta = null,
   onSelectGraph = () => {},
   onOpenNewGraphModal = () => {},
+  onRenameGraph,
   onOpenSearch,
   onToggleMobileMenu,
   onOpenCreateModal,
@@ -50,6 +52,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             activeGraphMeta={activeGraphMeta}
             onSelectGraph={onSelectGraph}
             onOpenNewGraph={onOpenNewGraphModal}
+            onRenameGraph={onRenameGraph}
           />
         ) : (
           <div className="topbar-context" title={project.name}>

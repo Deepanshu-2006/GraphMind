@@ -56,6 +56,7 @@ export function AppContent() {
     activeSources,
     activeCompletedConceptIds,
     createGraph,
+    renameGraph,
     switchGraph,
     deleteGraph,
     updateActiveGraph,
@@ -398,6 +399,7 @@ export function AppContent() {
         activeGraphMeta={activeGraphMeta}
         onSelectGraph={handleSelectGraph}
         onOpenNewGraphModal={() => setNewGraphModalOpen(true)}
+        onRenameGraph={renameGraph}
         onOpenSearch={() => setSearchPaletteOpen(true)}
         onOpenCreateModal={() => setCreateModalOpen(true)}
       >

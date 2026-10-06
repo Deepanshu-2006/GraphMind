@@ -14,6 +14,7 @@ interface AppShellProps {
   activeGraphMeta?: KnowledgeGraphMeta | null;
   onSelectGraph?: (graphId: string) => void;
   onOpenNewGraphModal?: () => void;
+  onRenameGraph?: (graphId: string, newName: string) => void;
   onOpenSearch: () => void;
   onOpenCreateModal: () => void;
   children: React.ReactNode;
@@ -28,6 +29,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   activeGraphMeta = null,
   onSelectGraph = () => {},
   onOpenNewGraphModal = () => {},
+  onRenameGraph,
   onOpenSearch,
   onOpenCreateModal,
   children
@@ -76,6 +78,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           activeGraphMeta={activeGraphMeta}
           onSelectGraph={onSelectGraph}
           onOpenNewGraphModal={onOpenNewGraphModal}
+          onRenameGraph={onRenameGraph}
           onOpenSearch={onOpenSearch}
           onToggleMobileMenu={() => setMobileMenuOpen(prev => !prev)}
           onOpenCreateModal={onOpenCreateModal}
