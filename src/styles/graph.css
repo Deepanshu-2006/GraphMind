@@ -164,12 +164,26 @@
   flex-shrink: 0;
 }
 
-/* Practice Mode Status Pips (Phase 2 Section 16) */
+/* Practice & Knowledge State Status Pips (Phase 2 & Phase 3 Section 2, 3, 20) */
 .practice-status-pip {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   flex-shrink: 0;
+  display: inline-block;
+  animation: practice-pip-enter 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 220ms ease, opacity 220ms ease;
+}
+
+@keyframes practice-pip-enter {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .practice-pip-understood {
@@ -180,9 +194,18 @@
   background-color: #D49A3D;
 }
 
+.practice-pip-learning {
+  background-color: #888888;
+}
+
+.practice-pip-unseen {
+  border: 1px solid #555555;
+  background-color: transparent;
+}
+
 .knowledge-node-card.practice-learning:not(.selected) {
-  background-color: #151815 !important;
-  border-color: #2D332D !important;
+  background-color: #141414 !important;
+  border-color: #2b2b2b !important;
 }
 
 /* 3. One-line short description / brief */
@@ -1755,6 +1778,219 @@
 .practice-insufficient-text {
   color: #8E918C;
   font-size: 12.5px;
+}
+
+/* =========================================================================
+   PHASE 3: KNOWLEDGE STATE & LIVING REVISION MAP STYLES
+   ========================================================================= */
+
+/* Search item row with status indicator */
+.search-item-main-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* Floating Toolbar Revision Filter Group (Section 12) */
+.toolbar-study-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background-color: #0E0E0E;
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.study-filter-btn {
+  background: transparent;
+  border: none;
+  color: #888888;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 180ms ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: inherit;
+}
+
+.study-filter-btn:hover {
+  color: #E0E0E0;
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.study-filter-btn.active {
+  color: #F5F5F5;
+  background-color: #1C1C1C;
+}
+
+.study-filter-badge {
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 10px;
+  background-color: rgba(212, 154, 61, 0.16);
+  color: #D49A3D;
+  line-height: 1.2;
+}
+
+/* Study State Legend / Summary Popover (Section 4 & 17) */
+.toolbar-legend-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-legend-btn {
+  background: transparent;
+  border: none;
+  color: #888888;
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 180ms ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: inherit;
+}
+
+.toolbar-legend-btn:hover,
+.toolbar-legend-btn.active {
+  color: #F5F5F5;
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.toolbar-legend-label {
+  white-space: nowrap;
+}
+
+.study-state-legend-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #111111;
+  border: 1px solid #242424;
+  border-radius: 6px;
+  padding: 10px 12px;
+  min-width: 190px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  pointer-events: auto;
+}
+
+.legend-popover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 7px;
+  margin-bottom: 7px;
+  border-bottom: 1px solid #1E1E1E;
+}
+
+.legend-popover-title {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #666666;
+  text-transform: uppercase;
+}
+
+.legend-popover-count {
+  font-size: 10.5px;
+  color: #888888;
+}
+
+.legend-popover-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.legend-popover-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-row-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.legend-row-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #DDDDDD;
+  line-height: 1.2;
+}
+
+.legend-row-desc {
+  font-size: 9.5px;
+  color: #666666;
+}
+
+/* Study Panel Marked for Review note (Phase 3 Section 15) */
+.study-review-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background-color: rgba(212, 154, 61, 0.08);
+  border: 1px solid rgba(212, 154, 61, 0.2);
+  border-radius: 4px;
+  font-size: 11.5px;
+  color: #D49A3D;
+}
+
+.study-review-text {
+  font-weight: 500;
+}
+
+/* Empty State Banner for Review Filter (Phase 3 Section 26) */
+.study-empty-review-banner {
+  position: absolute;
+  bottom: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #111111;
+  border: 1px solid #242424;
+  border-radius: 20px;
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: #888888;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 50;
+  pointer-events: auto;
+}
+
+.empty-review-text {
+  color: #888888;
+}
+
+.empty-review-action {
+  background: transparent;
+  border: none;
+  color: #A3FF12;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 0;
+  font-family: inherit;
+}
+
+.empty-review-action:hover {
+  color: #BAFF33;
 }
 
 /* ==================================================
