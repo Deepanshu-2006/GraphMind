@@ -166,14 +166,15 @@ export function calculateVisibleGraph({
       return {
         ...edge,
         selected: isIncident,
+        className: isIncident ? 'highlighted' : isDimmed ? 'dimmed' : '',
         data: {
           ...(edge.data || {}),
           isHighlighted: isIncident
         },
         style: {
           stroke: isIncident ? '#A3FF12' : isDimmed ? 'rgba(255, 255, 255, 0.08)' : '#333333',
-          strokeWidth: isIncident ? 1.75 : 1.25,
-          opacity: isDimmed ? 0.25 : 0.85
+          strokeWidth: isIncident ? 1.85 : 1.25,
+          opacity: isDimmed ? 0.12 : 0.85
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
@@ -418,14 +419,15 @@ export function calculateVisibleGraph({
     visibleEdges.push({
       ...edge,
       selected: isIncident,
+      className: isIncident ? 'highlighted' : isDimmed ? 'dimmed' : '',
       data: {
         ...(edge.data || {}),
         isHighlighted: isIncident
       },
       style: {
         stroke: isIncident ? '#A3FF12' : isDimmed ? 'rgba(255, 255, 255, 0.08)' : '#333333',
-        strokeWidth: isIncident ? 1.75 : 1.25,
-        opacity: isDimmed ? 0.25 : 0.85
+        strokeWidth: isIncident ? 1.85 : 1.25,
+        opacity: isDimmed ? 0.12 : 0.85
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,

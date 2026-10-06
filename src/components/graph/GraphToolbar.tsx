@@ -23,6 +23,9 @@ interface GraphToolbarProps {
   isExporting?: boolean;
   densityMode?: GraphDensityMode;
   onDensityChange?: (mode: GraphDensityMode) => void;
+  isStudyPanelOpen?: boolean;
+  selectedConceptLabel?: string | null;
+  onToggleStudyPanel?: () => void;
 }
 
 export const GraphToolbar: React.FC<GraphToolbarProps> = ({
@@ -36,7 +39,10 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   onExportJson,
   isExporting = false,
   densityMode = 'balanced',
-  onDensityChange
+  onDensityChange,
+  isStudyPanelOpen = false,
+  selectedConceptLabel,
+  onToggleStudyPanel
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -182,6 +188,23 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
           Expanded
         </button>
       </div>
+
+      {onToggleStudyPanel && (
+        <>
+          <div className="toolbar-vertical-divider" />
+          <button
+            type="button"
+            className={`canvas-action-btn toolbar-study-btn ${isStudyPanelOpen ? 'active' : ''}`}
+            onClick={onToggleStudyPanel}
+            title={isStudyPanelOpen ? 'Close study panel' : `Study ${selectedConceptLabel || 'concept'}`}
+            aria-label="Study mode"
+            aria-pressed={isStudyPanelOpen}
+          >
+            <span className={`study-status-dot ${isStudyPanelOpen ? 'active' : ''}`} aria-hidden="true" />
+            <span className="study-btn-label">Study</span>
+          </button>
+        </>
+      )}
 
       <div className="toolbar-vertical-divider" />
 

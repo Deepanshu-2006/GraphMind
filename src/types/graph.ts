@@ -25,7 +25,9 @@ export interface ConceptRelationship {
 export interface ConceptSourceReference {
   id: string;
   name: string;
+  fileName?: string;
   chunkIds?: string[];
+  page?: number;
 }
 
 export interface SelectedRelationshipData {
@@ -49,6 +51,7 @@ export type ZoomDisclosureLevel = 'simplified' | 'standard' | 'detailed';
 export interface GraphConceptData extends Record<string, unknown> {
   id: string;
   label: string;
+  name?: string;
   code: string;
   category: ConceptCategory;
   description: string;
@@ -58,6 +61,10 @@ export interface GraphConceptData extends Record<string, unknown> {
   source: string;
   sources?: ConceptSourceReference[];
   sourceChunkIds?: string[];
+  evidence?: string;
+  evidenceItems?: import('./knowledgeGraph').ConceptEvidenceItem[];
+  keyIdeas?: string[];
+  page?: number;
   synapseCount: number;
   highlighted?: boolean;
   dimmed?: boolean;

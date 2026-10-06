@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import {
   ReactFlow,
   Background,
@@ -772,6 +773,15 @@ function FlowCanvas({
     [mode, focusNodeOnCanvas]
   );
 
+  // Node Double Click handler (Requirement 11: keep existing graph behavior / keep node selected)
+  const handleNodeDoubleClick: NodeMouseHandler = useCallback(
+    (_, node) => {
+      if (mode !== 'interactive') return;
+      focusNodeOnCanvas(node.id, false);
+    },
+    [mode, focusNodeOnCanvas]
+  );
+
   // Edge / Relationship Click handler (Prompt 20, Requirement 4)
   const handleEdgeClick: EdgeMouseHandler = useCallback(
     (_, edge) => {
@@ -902,7 +912,7 @@ function FlowCanvas({
         </div>
       )}
 
-      {/* Floating Toolbar (with Search, Density, Nav, Export image & Export JSON) */}
+      {/* Floating Toolbar (with Search, Density, Nav, Export image, Export JSON & Study mode) */}
       <GraphToolbar
         onSearchSelect={focusNodeOnCanvas}
         onFitView={handleResetView}
@@ -915,6 +925,20 @@ function FlowCanvas({
         isExporting={isExporting}
         densityMode={densityMode}
         onDensityChange={setDensityMode}
+        isStudyPanelOpen={isInspectorOpen && Boolean(activeConceptData || selectedRelationship)}
+        selectedConceptLabel={activeConceptData?.label || activeConceptData?.name || null}
+        onToggleStudyPanel={() => {
+          if (isInspectorOpen) {
+            setIsInspectorOpen(false);
+            setSelectedRelationship(null);
+            setSelectedNodeId(null);
+            setNavHistory([]);
+          } else if (selectedNodeId) {
+            setIsInspectorOpen(true);
+          } else if (effectiveNodes.length > 0) {
+            focusNodeOnCanvas(effectiveNodes[0].id, true);
+          }
+        }}
       />
 
       {/* Subtle Understated Contextual Indicator (when presentation subset is active) */}
@@ -943,6 +967,7 @@ function FlowCanvas({
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           onNodeClick={handleNodeClick}
+          onNodeDoubleClick={handleNodeDoubleClick}
           onEdgeClick={handleEdgeClick}
           onPaneClick={handlePaneClick}
           onMove={handleViewportMove}
@@ -1027,25 +1052,27 @@ function FlowCanvas({
       )}
 
 
-      {/* 4. Inspector Context Panel (Interactive mode only: Concept or Relationship) */}
-      {mode === 'interactive' && isInspectorOpen && (activeConceptData || selectedRelationship) && (
-        <NodeContextPanel
-          concept={activeConceptData}
-          selectedRelationship={selectedRelationship}
-          previousConceptName={previousConceptName}
-          onGoBack={handleGoBack}
-          onClose={() => {
-            setIsInspectorOpen(false);
-            setSelectedRelationship(null);
-            setSelectedNodeId(null);
-            setNavHistory([]);
-          }}
-          onSelectConcept={(conceptId) => focusNodeOnCanvas(conceptId, true)}
-          onFocusNode={(conceptId) => focusNodeOnCanvas(conceptId, true)}
-          onSelectSource={onSelectSource}
-          isCollapsed={!isInspectorOpen}
-        />
-      )}
+      {/* 4. Study / Inspector Context Panel (Interactive mode only: Concept or Relationship) */}
+      <AnimatePresence>
+        {mode === 'interactive' && isInspectorOpen && (activeConceptData || selectedRelationship) && (
+          <NodeContextPanel
+            concept={activeConceptData}
+            selectedRelationship={selectedRelationship}
+            previousConceptName={previousConceptName}
+            onGoBack={handleGoBack}
+            onClose={() => {
+              setIsInspectorOpen(false);
+              setSelectedRelationship(null);
+              setSelectedNodeId(null);
+              setNavHistory([]);
+            }}
+            onSelectConcept={(conceptId) => focusNodeOnCanvas(conceptId, true)}
+            onFocusNode={(conceptId) => focusNodeOnCanvas(conceptId, true)}
+            onSelectSource={onSelectSource}
+            isCollapsed={!isInspectorOpen}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

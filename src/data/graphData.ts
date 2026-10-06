@@ -131,7 +131,15 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
       position: { x: 80, y: 320 },
       code: 'ML-01',
       confidence: 99,
-      prerequisites: ['Linear Algebra', 'Probability & Statistics']
+      prerequisites: ['Linear Algebra', 'Probability & Statistics'],
+      evidence: 'Machine learning algorithms model structural patterns from empirical training data without explicit hand-crafted rules.',
+      evidenceItems: [
+        {
+          sourceId: 'src-stanford-cs229',
+          page: 3,
+          text: 'Machine learning algorithms model structural patterns from empirical training data without explicit hand-crafted rules.'
+        }
+      ]
     },
     {
       id: 'nn',
@@ -142,7 +150,15 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
       position: { x: 440, y: 110 },
       code: 'NN-03',
       confidence: 96,
-      prerequisites: ['Deep Learning', 'Matrix Operations']
+      prerequisites: ['Deep Learning', 'Matrix Operations'],
+      evidence: 'A network of interconnected computational units that apply parameterized weights and non-linear activation functions.',
+      evidenceItems: [
+        {
+          sourceId: 'src-mit-6s191',
+          page: 7,
+          text: 'A network of interconnected computational units that apply parameterized weights and non-linear activation functions.'
+        }
+      ]
     },
     {
       id: 'dl',
@@ -153,7 +169,15 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
       position: { x: 500, y: 360 },
       code: 'DL-02',
       confidence: 97,
-      prerequisites: ['Machine Learning', 'Gradient Descent']
+      prerequisites: ['Machine Learning', 'Gradient Descent'],
+      evidence: 'Deep learning discovers hierarchical representations by composing multiple non-linear processing layers into end-to-end differentiable architectures.',
+      evidenceItems: [
+        {
+          sourceId: 'src-lecture-04',
+          page: 4,
+          text: 'Deep learning discovers hierarchical representations by composing multiple non-linear processing layers into end-to-end differentiable architectures.'
+        }
+      ]
     },
     {
       id: 'cnn',
@@ -164,7 +188,15 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
       position: { x: 860, y: 70 },
       code: 'CNN-04',
       confidence: 95,
-      prerequisites: ['Neural Networks', 'Convolutions']
+      prerequisites: ['Neural Networks', 'Convolutions'],
+      evidence: 'Convolutional neural networks apply learnable kernel filters across spatial grids to preserve translation-invariant visual features.',
+      evidenceItems: [
+        {
+          sourceId: 'src-stanford-cs231n',
+          page: 12,
+          text: 'Convolutional neural networks apply learnable kernel filters across spatial grids to preserve translation-invariant visual features.'
+        }
+      ]
     },
     {
       id: 'rnn',
@@ -175,7 +207,15 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
       position: { x: 840, y: 250 },
       code: 'RNN-05',
       confidence: 91,
-      prerequisites: ['Neural Networks', 'Sequence Modeling']
+      prerequisites: ['Neural Networks', 'Sequence Modeling'],
+      evidence: 'Recurrent neural networks preserve temporal dependencies across sequential steps by maintaining and updating recursive hidden states.',
+      evidenceItems: [
+        {
+          sourceId: 'src-stanford-cs224n',
+          page: 9,
+          text: 'Recurrent neural networks preserve temporal dependencies across sequential steps by maintaining and updating recursive hidden states.'
+        }
+      ]
     },
     {
       id: 'attn',
@@ -186,7 +226,15 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
       position: { x: 380, y: 600 },
       code: 'ATTN-06',
       confidence: 96,
-      prerequisites: ['Deep Learning', 'Vector Dot Products']
+      prerequisites: ['Deep Learning', 'Vector Dot Products'],
+      evidence: 'Attention allows models to dynamically weigh the importance of all input positions relative to each other, mitigating the bottleneck of fixed-length vectors.',
+      evidenceItems: [
+        {
+          sourceId: 'src-bahdanau-2014',
+          page: 5,
+          text: 'Attention allows models to dynamically weigh the importance of all input positions relative to each other, mitigating the bottleneck of fixed-length vectors.'
+        }
+      ]
     },
     {
       id: 'tf',
@@ -197,7 +245,15 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
       position: { x: 760, y: 520 },
       code: 'TF-07',
       confidence: 94,
-      prerequisites: ['Neural Networks', 'Attention Mechanism']
+      prerequisites: ['Neural Networks', 'Attention Mechanism'],
+      evidence: 'The Transformer relies entirely on self-attention mechanisms to compute representations of its input and output without using sequence-aligned RNNs or convolution.',
+      evidenceItems: [
+        {
+          sourceId: 'src-arxiv-attention',
+          page: 2,
+          text: 'The Transformer relies entirely on self-attention mechanisms to compute representations of its input and output without using sequence-aligned RNNs or convolution.'
+        }
+      ]
     },
     {
       id: 'cv',
@@ -208,7 +264,15 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
       position: { x: 1220, y: 140 },
       code: 'CV-08',
       confidence: 98,
-      prerequisites: ['CNN', 'Spatial Features']
+      prerequisites: ['CNN', 'Spatial Features'],
+      evidence: 'Computer vision systems extract high-level semantic meaning from digital images and video streams for automated recognition and scene understanding.',
+      evidenceItems: [
+        {
+          sourceId: 'src-cs231n-slides',
+          page: 15,
+          text: 'Computer vision systems extract high-level semantic meaning from digital images and video streams for automated recognition and scene understanding.'
+        }
+      ]
     },
     {
       id: 'nlp',
@@ -219,7 +283,15 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
       position: { x: 1160, y: 400 },
       code: 'NLP-09',
       confidence: 97,
-      prerequisites: ['Transformers', 'Tokenization']
+      prerequisites: ['Transformers', 'Tokenization'],
+      evidence: 'Natural language processing combines computational linguistics with statistical models to enable machines to understand and generate human text.',
+      evidenceItems: [
+        {
+          sourceId: 'src-jurafsky-martin',
+          page: 8,
+          text: 'Natural language processing combines computational linguistics with statistical models to enable machines to understand and generate human text.'
+        }
+      ]
     }
   ],
   relationships: [
@@ -377,7 +449,7 @@ export function knowledgeGraphToReactFlow(graph: KnowledgeGraph): {
   }
 
   const sourceMap = new Map<string, KnowledgeSource>();
-  for (const s of graph.sources) {
+  for (const s of graph.sources || []) {
     sourceMap.set(s.id, s);
   }
 
@@ -439,14 +511,17 @@ export function knowledgeGraphToReactFlow(graph: KnowledgeGraph): {
       }
     }
 
-    const primarySource = sourceRefs[0]?.name || (n.sourceIds[0] ? sourceMap.get(n.sourceIds[0])?.name : undefined);
+    const primarySource = sourceRefs[0]?.name || (n.sourceIds?.[0] ? sourceMap.get(n.sourceIds[0])?.name : undefined);
     const sourceDisplay = primarySource || 'Indexed Material';
     const category = normalizeCategory(n.type);
     const relationships = nodeRelMap.get(n.id) || [];
+    const firstEvidenceItem = n.evidenceItems?.[0];
+    const page = firstEvidenceItem?.page ?? sourceRefs[0]?.page;
 
     conceptDetails[n.id] = {
       id: n.id,
       label: n.name,
+      name: n.name,
       code: n.code || n.id.toUpperCase(),
       category,
       description: n.description,
@@ -456,6 +531,9 @@ export function knowledgeGraphToReactFlow(graph: KnowledgeGraph): {
       source: sourceDisplay,
       sources: sourceRefs,
       sourceChunkIds: n.sourceChunkIds,
+      evidence: n.evidence || firstEvidenceItem?.text,
+      evidenceItems: n.evidenceItems,
+      page,
       synapseCount: relationships.length,
       isPrerequisite: category === 'Foundation' || category === 'Paradigm',
       isMethod: category === 'Method' || category === 'Architecture',
