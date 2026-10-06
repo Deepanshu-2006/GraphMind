@@ -108,14 +108,14 @@ button, input, select, textarea {
 }
 
 /* Visible Keyboard Focus States (Prompt 10, Accessibility) */
-:focus-visible {
+:focus-visible:not(.topbar-inline-title-input):not(.topbar-search-input) {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 button:focus-visible,
 a:focus-visible,
-input:focus-visible,
+input:not(.topbar-inline-title-input):not(.topbar-search-input):focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 [tabindex="0"]:focus-visible,

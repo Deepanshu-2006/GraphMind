@@ -6,11 +6,10 @@ import type { WorkspaceMode } from './components/graph/KnowledgeGraphWorkspace';
 import { CreateGraphModal } from './components/modals/CreateGraphModal';
 import { NewGraphModal } from './components/modals/NewGraphModal';
 import { DeleteGraphModal } from './components/modals/DeleteGraphModal';
-import { CommandPalette } from './components/modals/CommandPalette';
 import { SourcesView } from './components/sources/SourcesView';
 import { LearningPathsView } from './components/paths/LearningPathsView';
 import { SettingsView } from './components/settings/SettingsView';
-import { normalizeCategory, demoKnowledgeGraph } from './data/graphData';
+import { demoKnowledgeGraph } from './data/graphData';
 import type { KnowledgeSource, KnowledgeGraph } from './types/knowledgeGraph';
 import { sourceToRecentMaterial } from './services/sourceIngestion';
 import { pipelineOrchestrator, type PipelineStage, type PipelineProgressEvent } from './services/pipelineOrchestrator';
@@ -34,7 +33,6 @@ export function AppContent() {
   const [canvasDroppedFiles, setCanvasDroppedFiles] = useState<File[]>([]);
   const [newGraphModalOpen, setNewGraphModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [searchPaletteOpen, setSearchPaletteOpen] = useState(false);
   const [focusedConceptId, setFocusedConceptId] = useState<string | null>(null);
 
   const getInitialMode = (): WorkspaceMode => {
@@ -123,18 +121,6 @@ export function AppContent() {
     navigateToSection('graph');
   };
 
-  // Searchable concepts dynamically derived strictly from the active graph (Prompt 25)
-  const searchableConcepts = useMemo(() => {
-    if (effectiveGraph && effectiveGraph.nodes && effectiveGraph.nodes.length > 0) {
-      return effectiveGraph.nodes.map((node) => ({
-        id: node.id,
-        name: node.name,
-        category: node.type ? normalizeCategory(node.type) : 'Concept',
-        summary: node.description || ''
-      }));
-    }
-    return [];
-  }, [effectiveGraph]);
 
   const recentMaterials = useMemo<RecentMaterial[]>(() => {
     return activeSources.map(sourceToRecentMaterial);
@@ -157,13 +143,9 @@ export function AppContent() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Global hotkeys (Cmd+K / Ctrl+K and Cmd+,)
+  // Global hotkeys (Cmd+, for settings; Cmd+K is handled natively by HeaderSearch)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setSearchPaletteOpen(prev => !prev);
-      }
       if ((e.metaKey || e.ctrlKey) && e.key === ',') {
         e.preventDefault();
         navigateToSection('settings');
@@ -397,10 +379,11 @@ export function AppContent() {
         graphs={graphs}
         activeGraphId={activeGraphId}
         activeGraphMeta={activeGraphMeta}
+        activeGraph={effectiveGraph}
         onSelectGraph={handleSelectGraph}
         onOpenNewGraphModal={() => setNewGraphModalOpen(true)}
         onRenameGraph={renameGraph}
-        onOpenSearch={() => setSearchPaletteOpen(true)}
+        onSelectConcept={handleExploreConceptInGraph}
         onOpenCreateModal={() => setCreateModalOpen(true)}
       >
         {/* Overview View */}
@@ -512,16 +495,6 @@ export function AppContent() {
         onConfirm={handleConfirmDeleteActiveGraph}
       />
 
-      {/* Global Command Palette (Cmd + K) */}
-      <CommandPalette
-        isOpen={searchPaletteOpen}
-        onClose={() => setSearchPaletteOpen(false)}
-        concepts={searchableConcepts}
-        onSelectConcept={(conceptId) => {
-          setFocusedConceptId(conceptId);
-          navigateToSection('graph');
-        }}
-      />
     </>
   );
 }

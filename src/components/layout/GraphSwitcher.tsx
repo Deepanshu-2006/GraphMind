@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Check, Plus, Pencil } from 'lucide-react';
+import { ChevronDown, Check, Plus, PenLine } from 'lucide-react';
 import type { KnowledgeGraphMeta } from '../../types/knowledgeGraph';
 import { useOptionalGraph } from '../../context/GraphContext';
 
@@ -15,7 +15,7 @@ interface GraphSwitcherProps {
 
 type EditPhase = 'idle' | 'editing' | 'saved' | 'settling' | 'cancelling';
 
-const EDITORIAL_EASE = [0.16, 1, 0.3, 1] as const;
+const EDITORIAL_EASE = [0.22, 1, 0.36, 1] as const;
 
 export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
   graphs,
@@ -45,13 +45,17 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
     }
   }, []);
 
-  // Cancel edit mode if active graph switches externally
+  const prevActiveGraphIdRef = useRef(activeGraphId);
+  // Cancel edit mode only if active graph switches to a different graph externally
   useEffect(() => {
-    if (isEditing) {
-      clearAnimTimeout();
-      setIsEditing(false);
-      setEditPhase('idle');
-      setValidationError(null);
+    if (prevActiveGraphIdRef.current !== activeGraphId) {
+      prevActiveGraphIdRef.current = activeGraphId;
+      if (isEditing) {
+        clearAnimTimeout();
+        setIsEditing(false);
+        setEditPhase('idle');
+        setValidationError(null);
+      }
     }
   }, [activeGraphId, clearAnimTimeout, isEditing]);
 
@@ -95,19 +99,24 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
     };
   }, [clearAnimTimeout]);
 
+  const resolveActiveMeta = useCallback(() => {
+    return activeGraphMeta || graphs.find(g => g.id === activeGraphId) || (graphs.length > 0 ? graphs[0] : null);
+  }, [activeGraphMeta, activeGraphId, graphs]);
+
   const startEditing = useCallback(() => {
-    if (!activeGraphMeta) return;
+    const meta = resolveActiveMeta();
+    if (!meta) return;
     if (clickTimeoutRef.current) {
       clearTimeout(clickTimeoutRef.current);
       clickTimeoutRef.current = null;
     }
     clearAnimTimeout();
     setIsOpen(false);
-    setDraftTitle(activeGraphMeta.name);
+    setDraftTitle(meta.name);
     setValidationError(null);
     setEditPhase('editing');
     setIsEditing(true);
-  }, [activeGraphMeta, clearAnimTimeout]);
+  }, [resolveActiveMeta, clearAnimTimeout]);
 
   // Automatically focus and place caret at the end of text
   useEffect(() => {
@@ -123,11 +132,12 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
   }, [isEditing, editPhase]);
 
   const handleCancel = useCallback(() => {
-    if (!activeGraphMeta || editPhase !== 'editing') return;
+    const meta = resolveActiveMeta();
+    if (!meta || editPhase !== 'editing') return;
     clearAnimTimeout();
     exitDirectionRef.current = -6;
     setEditPhase('cancelling');
-    setDraftTitle(activeGraphMeta.name);
+    setDraftTitle(meta.name);
     setValidationError(null);
 
     // Allow reverse animation to complete (underline contract + action slide-out)
@@ -135,10 +145,12 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
       setIsEditing(false);
       setEditPhase('idle');
     }, 240);
-  }, [activeGraphMeta, clearAnimTimeout, editPhase]);
+  }, [resolveActiveMeta, clearAnimTimeout, editPhase]);
 
   const handleSave = useCallback(() => {
-    if (!activeGraphId || !activeGraphMeta || editPhase !== 'editing') return;
+    const meta = resolveActiveMeta();
+    const targetGraphId = activeGraphId || meta?.id;
+    if (!targetGraphId || !meta || editPhase !== 'editing') return;
 
     const trimmed = draftTitle.trim();
     if (!trimmed) {
@@ -162,11 +174,11 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
     setValidationError(null);
 
     try {
-      if (trimmed !== activeGraphMeta.name) {
+      if (trimmed !== meta.name) {
         if (onRenameGraph) {
-          onRenameGraph(activeGraphId, trimmed);
+          onRenameGraph(targetGraphId, trimmed);
         } else if (graphContext?.renameGraph) {
-          graphContext.renameGraph(activeGraphId, trimmed);
+          graphContext.renameGraph(targetGraphId, trimmed);
         }
       }
 
@@ -187,7 +199,7 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
       setValidationError(err instanceof Error ? err.message : 'Failed to rename graph.');
       setEditPhase('editing');
     }
-  }, [activeGraphId, activeGraphMeta, editPhase, draftTitle, clearAnimTimeout, onRenameGraph, graphContext]);
+  }, [activeGraphId, resolveActiveMeta, editPhase, draftTitle, clearAnimTimeout, onRenameGraph, graphContext]);
 
   // Input keyboard navigation & global hotkey shielding
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -215,13 +227,25 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
   // Single click vs double click on title text
   const handleTitleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+
+    // Catch double-click directly via native event detail counter
+    if (e.detail === 2) {
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+      }
+      setIsOpen(false);
+      startEditing();
+      return;
+    }
+
     if (clickTimeoutRef.current) {
       clearTimeout(clickTimeoutRef.current);
     }
     clickTimeoutRef.current = setTimeout(() => {
       setIsOpen(prev => !prev);
       clickTimeoutRef.current = null;
-    }, 220);
+    }, 280);
   };
 
   const handleTitleDoubleClick = (e: React.MouseEvent) => {
@@ -269,22 +293,23 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
     );
   }
 
-  const currentDisplayName = activeGraphMeta?.name || 'Select graph';
+  const currentDisplayName = resolveActiveMeta()?.name || 'Select graph';
   const isActionExit = editPhase === 'settling' || editPhase === 'cancelling';
   const isUnderlineExpanded = editPhase === 'editing' || editPhase === 'saved';
   const underlineOrigin = editPhase === 'saved' || editPhase === 'settling' ? 'right' : 'left';
 
   return (
     <div className="topbar-graph-switcher-wrap" ref={containerRef}>
-      <AnimatePresence initial={false} mode="sync">
+      <AnimatePresence mode="sync">
         {isEditing ? (
           <motion.div
             key="inline-edit"
             className="topbar-inline-edit-wrap"
-            initial={{ opacity: 0, y: 0 }}
+            initial={{ opacity: 0.85, y: 2, scale: 0.995 }}
             animate={{
               opacity: isActionExit ? 0 : 1,
-              y: isActionExit ? 0 : -2
+              y: isActionExit ? 0 : 0,
+              scale: isActionExit ? 0.995 : 1
             }}
             exit={{ opacity: 0, y: 0, pointerEvents: 'none' }}
             transition={{ duration: 0.2, ease: EDITORIAL_EASE }}
@@ -313,9 +338,12 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
                 className={`topbar-inline-underline ${validationError ? 'has-error' : ''}`}
                 initial={{ scaleX: 0 }}
                 animate={{ scaleX: isUnderlineExpanded ? 1 : 0 }}
-                style={{ transformOrigin: underlineOrigin }}
+                style={{
+                  originX: underlineOrigin === 'right' ? 1 : 0,
+                  transformOrigin: underlineOrigin === 'right' ? 'right' : 'left'
+                }}
                 transition={{
-                  duration: isUnderlineExpanded ? 0.26 : 0.22,
+                  duration: isUnderlineExpanded ? 0.25 : 0.22,
                   ease: EDITORIAL_EASE
                 }}
               />
@@ -342,8 +370,8 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
                   animate={{ opacity: 1 }}
                   exit={{
                     opacity: 0,
-                    x: exitDirectionRef.current,
-                    transition: { duration: 0.18, ease: EDITORIAL_EASE }
+                    x: -6,
+                    transition: { duration: 0.2, ease: EDITORIAL_EASE }
                   }}
                 >
                   <motion.button
@@ -352,7 +380,7 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
                     onClick={handleCancel}
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.2, ease: EDITORIAL_EASE }}
+                    transition={{ duration: 0.2, delay: 0.07, ease: EDITORIAL_EASE }}
                     disabled={editPhase !== 'editing'}
                     title="Cancel editing (Esc)"
                     id="btn-topbar-rename-cancel"
@@ -366,7 +394,7 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
                     onClick={handleSave}
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.2, delay: 0.05, ease: EDITORIAL_EASE }}
+                    transition={{ duration: 0.2, delay: 0.12, ease: EDITORIAL_EASE }}
                     disabled={editPhase !== 'editing'}
                     title="Save changes (Enter)"
                     id="btn-topbar-rename-save"
@@ -407,7 +435,7 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
           <motion.div
             key="trigger-group"
             className="topbar-graph-trigger-group"
-            initial={{ opacity: 0, y: -1 }}
+            initial={{ opacity: 0.9, y: 1 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, pointerEvents: 'none' }}
             transition={{ duration: 0.2, ease: EDITORIAL_EASE }}
@@ -450,7 +478,7 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
               title="Rename graph (or double-click title)"
               id="btn-topbar-graph-rename"
             >
-              <Pencil size={11} strokeWidth={1.8} aria-hidden="true" />
+              <PenLine size={12} strokeWidth={1.6} aria-hidden="true" />
             </button>
           </motion.div>
         )}

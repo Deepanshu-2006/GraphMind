@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import type { NavSection, ProjectWorkspace, RecentMaterial } from '../../types';
-import type { KnowledgeGraphMeta } from '../../types/knowledgeGraph';
+import type { KnowledgeGraph, KnowledgeGraphMeta } from '../../types/knowledgeGraph';
 
 interface AppShellProps {
   currentSection: NavSection;
@@ -12,10 +12,12 @@ interface AppShellProps {
   graphs?: KnowledgeGraphMeta[];
   activeGraphId?: string | null;
   activeGraphMeta?: KnowledgeGraphMeta | null;
+  activeGraph?: KnowledgeGraph | null;
   onSelectGraph?: (graphId: string) => void;
   onOpenNewGraphModal?: () => void;
   onRenameGraph?: (graphId: string, newName: string) => void;
-  onOpenSearch: () => void;
+  onOpenSearch?: () => void;
+  onSelectConcept?: (conceptId: string) => void;
   onOpenCreateModal: () => void;
   children: React.ReactNode;
 }
@@ -27,10 +29,12 @@ export const AppShell: React.FC<AppShellProps> = ({
   graphs = [],
   activeGraphId = null,
   activeGraphMeta = null,
+  activeGraph = null,
   onSelectGraph = () => {},
   onOpenNewGraphModal = () => {},
   onRenameGraph,
   onOpenSearch,
+  onSelectConcept,
   onOpenCreateModal,
   children
 }) => {
@@ -76,10 +80,12 @@ export const AppShell: React.FC<AppShellProps> = ({
           graphs={graphs}
           activeGraphId={activeGraphId}
           activeGraphMeta={activeGraphMeta}
+          activeGraph={activeGraph}
           onSelectGraph={onSelectGraph}
           onOpenNewGraphModal={onOpenNewGraphModal}
           onRenameGraph={onRenameGraph}
           onOpenSearch={onOpenSearch}
+          onSelectConcept={onSelectConcept}
           onToggleMobileMenu={() => setMobileMenuOpen(prev => !prev)}
           onOpenCreateModal={onOpenCreateModal}
           isMobileMenuOpen={mobileMenuOpen}

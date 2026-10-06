@@ -1,18 +1,21 @@
 import React from 'react';
-import { Search, Menu, UploadCloud } from 'lucide-react';
+import { Menu, UploadCloud } from 'lucide-react';
 import type { ProjectWorkspace } from '../../types';
-import type { KnowledgeGraphMeta } from '../../types/knowledgeGraph';
+import type { KnowledgeGraph, KnowledgeGraphMeta } from '../../types/knowledgeGraph';
 import { GraphSwitcher } from './GraphSwitcher';
+import { HeaderSearch } from './HeaderSearch';
 
 interface TopBarProps {
   project: ProjectWorkspace;
   graphs?: KnowledgeGraphMeta[];
   activeGraphId?: string | null;
   activeGraphMeta?: KnowledgeGraphMeta | null;
+  activeGraph?: KnowledgeGraph | null;
   onSelectGraph?: (graphId: string) => void;
   onOpenNewGraphModal?: () => void;
   onRenameGraph?: (graphId: string, newName: string) => void;
-  onOpenSearch: () => void;
+  onOpenSearch?: () => void;
+  onSelectConcept?: (conceptId: string) => void;
   onToggleMobileMenu: () => void;
   onOpenCreateModal: () => void;
   isMobileMenuOpen?: boolean;
@@ -23,10 +26,11 @@ export const TopBar: React.FC<TopBarProps> = ({
   graphs = [],
   activeGraphId = null,
   activeGraphMeta = null,
+  activeGraph = null,
   onSelectGraph = () => {},
   onOpenNewGraphModal = () => {},
   onRenameGraph,
-  onOpenSearch,
+  onSelectConcept,
   onToggleMobileMenu,
   onOpenCreateModal,
   isMobileMenuOpen = false
@@ -63,22 +67,15 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       {/* Right: Search, Upload Material shortcut, User Avatar */}
       <div className="topbar-right">
-        {/* Search trigger: compact, subtle command control */}
-        <button 
-          type="button"
-          className="topbar-search-trigger"
-          onClick={onOpenSearch}
-          aria-label="Search concepts (⌘K)"
-          title="Search concepts (⌘K)"
-        >
-          <Search size={14} strokeWidth={1.5} className="topbar-search-icon" aria-hidden="true" />
-          <span className="topbar-search-text">Search concepts</span>
-          <kbd className="search-kbd" aria-hidden="true">⌘K</kbd>
-        </button>
+        {/* Redesigned editorial knowledge navigation search instrument */}
+        <HeaderSearch
+          activeGraph={activeGraph}
+          onSelectConcept={onSelectConcept}
+        />
 
         {/* Upload Material: Quiet contextual shortcut */}
         <button 
-          type="button"
+          type="button" 
           className="topbar-upload-btn" 
           onClick={onOpenCreateModal}
           title="Upload material"
