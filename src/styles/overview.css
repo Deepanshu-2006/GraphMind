@@ -179,17 +179,24 @@
   vertical-align: baseline;
 }
 
-/* Supporting Description: Calm, editorial, returned to stable baseline with controlled width */
+/* Supporting Description: Calm, editorial, text mask with reserved vertical space */
+.overview-hero-desc-wrapper {
+  position: relative;
+  overflow: hidden; /* Editorial text mask / clip-path */
+  min-height: 58px; /* Reserved vertical room so changing descriptions never shift actions below */
+  max-width: clamp(430px, 34vw, 490px);
+  margin-top: 28px;
+  margin-left: 0;
+}
+
 .overview-hero-desc {
   font-family: var(--font-body);
-  font-size: clamp(16px, 1.15vw, 17.5px);
-  line-height: 1.52;
-  color: #8C9199;
-  max-width: clamp(470px, 34vw, 510px); /* 480–520px calm column */
-  margin-top: 28px;
-  margin-left: 0; /* Returns to stable left axis */
+  font-size: clamp(17px, 1.22vw, 19px);
+  line-height: 1.5;
+  color: #8F8F8F;
   letter-spacing: -0.012em;
   font-weight: 400;
+  margin: 0;
 }
 
 /* Editorial Action Row: grounded quietly on the left */
@@ -2023,7 +2030,7 @@
     margin-left: clamp(24px, 3.2vw, 40px); /* Reduced offset for tablet */
   }
 
-  .overview-hero-desc {
+  .overview-hero-desc-wrapper {
     max-width: 480px;
   }
 }
@@ -2200,11 +2207,15 @@
     margin-left: 0; /* Clean single column: no forced stagger on mobile */
   }
 
-  .overview-hero-desc {
-    font-size: 15.5px;
+  .overview-hero-desc-wrapper {
     margin-top: 20px;
     max-width: 100%;
-    margin-left: 0;
+    min-height: 52px;
+  }
+
+  .overview-hero-desc {
+    font-size: 15.5px;
+    margin: 0;
   }
 
   .overview-hero-actions {
@@ -2261,9 +2272,14 @@
     letter-spacing: -0.04em;
   }
 
+  .overview-hero-desc-wrapper {
+    margin-top: 18px;
+    min-height: 48px;
+  }
+
   .overview-hero-desc {
     font-size: 14.5px;
-    margin-top: 18px;
+    margin: 0;
   }
 
   .overview-hero-actions {

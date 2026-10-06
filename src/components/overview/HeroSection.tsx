@@ -1,13 +1,17 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { motion, useMotionValue, useSpring } from 'framer-motion';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
+import { motion, useMotionValue, useSpring, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { ArrowUp, ArrowRight } from 'lucide-react';
 import { KnowledgeOrb3D } from './KnowledgeOrb3D';
-import type { KnowledgeGraphMeta } from '../../types/knowledgeGraph';
+import type { KnowledgeGraph, KnowledgeGraphMeta } from '../../types/knowledgeGraph';
+import { useGraph } from '../../context/GraphContext';
+import { generateGraphDescription } from '../../services/editorialCopy';
 
 interface HeroSectionProps {
   onCreateGraph: () => void;
   onExploreDemo: () => void;
   graphMeta?: KnowledgeGraphMeta | null;
+  graph?: KnowledgeGraph | null;
+  isProcessing?: boolean;
   sourceCount?: number;
   conceptCount?: number;
   relationshipCount?: number;
@@ -20,11 +24,21 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   onCreateGraph,
   onExploreDemo,
   graphMeta = null,
+  graph,
+  isProcessing = false,
   sourceCount = 0,
   conceptCount = 0,
   relationshipCount = 0
 }) => {
   const heroRef = useRef<HTMLElement>(null);
+  const shouldReduceMotion = useReducedMotion();
+  const graphContext = useGraph();
+  const effectiveGraph = graph !== undefined ? graph : graphContext?.activeGraph;
+
+  // Dynamic editorial description derived deterministically from actual graph concepts
+  const heroDescription = useMemo(() => {
+    return generateGraphDescription(effectiveGraph, { isProcessing });
+  }, [effectiveGraph, isProcessing]);
 
   // 1. Continuous Scroll Progress with Fluid Spring Physics (Sections 17, 18, 38)
   const targetScrollRef = useRef(0);
@@ -139,19 +153,6 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   // D. Scroll cue fade
   const cueOpacity = Math.max(0, 1.0 - smoothScroll / 0.10) * 0.55;
 
-  // Supporting description below hero heading: dynamically matches the active graph title
-  const heroSubtitle = React.useMemo(() => {
-    if (!graphMeta) {
-      return 'GraphMind finds the ideas inside your study material and maps how they connect.';
-    }
-    // If a custom description is explicitly provided that isn't the default/stale "... knowledge graph"
-    if (graphMeta.description && !graphMeta.description.toLowerCase().endsWith('knowledge graph')) {
-      return graphMeta.description;
-    }
-    // Matches the active graph title
-    return `${graphMeta.name} knowledge graph`;
-  }, [graphMeta]);
-
   return (
     <section ref={heroRef} className="overview-hero" aria-label="GraphMind interactive 3d knowledge orb hero">
       {/* Layer 1: The Interactive 3D Knowledge Orb with Continuous Scroll Dissolution */}
@@ -177,7 +178,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           }}
         >
           <span className="hero-eyebrow-dot" aria-hidden="true" />
-          <span>Knowledge Mapping{graphMeta?.name ? ` · ${graphMeta.name}` : ''}</span>
+          <span>YOUR MATERIAL · NOW CONNECTED</span>
         </motion.div>
 
         {/* Display Headline with Character-by-Character Entrance & Scroll Exit */}
@@ -263,9 +264,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           </span>
         </h1>
 
-        {/* Supporting Copy: Line below heading matching active graph title */}
-        <motion.p 
-          className="overview-hero-desc"
+        {/* Supporting Copy: Overflow text mask with subtle editorial translateY transition */}
+        <motion.div 
+          className="overview-hero-desc-wrapper"
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: descOpacity, y: descY }}
           transition={{ 
@@ -274,8 +275,31 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             ease: [0.22, 1, 0.36, 1] 
           }}
         >
-          {heroSubtitle}
-        </motion.p>
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.p 
+              key={heroDescription}
+              className="overview-hero-desc"
+              initial={{ 
+                opacity: 0, 
+                y: shouldReduceMotion ? 0 : 10 
+              }}
+              animate={{ 
+                opacity: 1, 
+                y: 0 
+              }}
+              exit={{ 
+                opacity: 0, 
+                y: shouldReduceMotion ? 0 : -10 
+              }}
+              transition={{ 
+                duration: shouldReduceMotion ? 0 : 0.42, 
+                ease: [0.22, 1, 0.36, 1] 
+              }}
+            >
+              {heroDescription}
+            </motion.p>
+          </AnimatePresence>
+        </motion.div>
 
         {/* Action Controls: Editorial Action Row (28–36px gap) */}
         <motion.div 

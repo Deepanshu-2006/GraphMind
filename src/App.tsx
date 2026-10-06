@@ -396,6 +396,8 @@ export function AppContent() {
             }}
             hasContent={(contextActiveGraph?.nodes?.length || 0) > 0}
             graphMeta={activeGraphMeta}
+            graph={effectiveGraph}
+            isProcessing={pipelineStage !== 'complete' && pipelineStage !== 'error' && activeSources.some(s => s.status === 'processing')}
             sourceCount={activeSources.length}
             conceptCount={contextActiveGraph?.nodes?.length || 0}
             relationshipCount={contextActiveGraph?.relationships?.length || 0}

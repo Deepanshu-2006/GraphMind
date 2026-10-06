@@ -4,13 +4,15 @@ import { FromMaterialToMeaning } from './FromMaterialToMeaning';
 import { EditorialCTASection } from './EditorialCTASection';
 import { FooterSection } from './FooterSection';
 
-import type { KnowledgeGraphMeta } from '../../types/knowledgeGraph';
+import type { KnowledgeGraph, KnowledgeGraphMeta } from '../../types/knowledgeGraph';
 
 interface OverviewViewProps {
   onCreateGraph: () => void;
   onExploreDemo: () => void;
   hasContent?: boolean;
   graphMeta?: KnowledgeGraphMeta | null;
+  graph?: KnowledgeGraph | null;
+  isProcessing?: boolean;
   sourceCount?: number;
   conceptCount?: number;
   relationshipCount?: number;
@@ -20,6 +22,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onCreateGraph,
   onExploreDemo,
   graphMeta = null,
+  graph,
+  isProcessing = false,
   sourceCount = 0,
   conceptCount = 0,
   relationshipCount = 0
@@ -31,6 +35,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         onCreateGraph={onCreateGraph}
         onExploreDemo={onExploreDemo}
         graphMeta={graphMeta}
+        graph={graph}
+        isProcessing={isProcessing}
         sourceCount={sourceCount}
         conceptCount={conceptCount}
         relationshipCount={relationshipCount}
