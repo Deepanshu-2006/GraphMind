@@ -73,62 +73,76 @@ function searchConcepts(graph: KnowledgeGraph, query: string) {
 
 describe('GraphMind Global Search Redesign Specification', () => {
   describe('Design System Dimensions & Visual Conformance', () => {
-    it('defines idle state within required 190–205px width and 34–36px height', () => {
+    it('defines idle state within required 190–200px width and 34–36px height', () => {
       const idleConfig = {
-        width: 196,
+        width: 195,
         height: 34,
-        background: '#101010',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
+        background: 'rgba(255, 255, 255, 0.018)',
+        border: '1px solid rgba(255, 255, 255, 0.075)',
         borderRadius: 8
       };
-      assert.ok(idleConfig.width >= 190 && idleConfig.width <= 205, 'Idle width must be 190-205px');
+      assert.ok(idleConfig.width >= 190 && idleConfig.width <= 200, 'Idle width must be 190-200px');
       assert.ok(idleConfig.height >= 34 && idleConfig.height <= 36, 'Idle height must be 34-36px');
-      assert.equal(idleConfig.background, '#101010');
+      assert.equal(idleConfig.background, 'rgba(255, 255, 255, 0.018)');
       assert.equal(idleConfig.borderRadius, 8);
     });
 
-    it('defines focused state with horizontal expansion of 40–60px', () => {
-      const idleWidth = 196;
-      const focusedWidth = 248;
+    it('defines focused state with horizontal expansion to ~270px', () => {
+      const idleWidth = 195;
+      const focusedWidth = 270;
       const expansion = focusedWidth - idleWidth;
 
-      assert.ok(expansion >= 40 && expansion <= 60, `Expansion of ${expansion}px must be in 40–60px range`);
-      assert.ok(focusedWidth >= 240 && focusedWidth <= 250, 'Focused width must be 240–250px');
+      assert.equal(expansion, 75, 'Expansion should expand from 195px to 270px');
+      assert.equal(focusedWidth, 270, 'Focused width must be 270px');
     });
 
-    it('specifies thin 14px search glyph with 1.3px stroke and #777 idle color', () => {
+    it('specifies thin 14px search glyph with 1.4px stroke and staged colors (#666 -> #909090 -> #B8FF3D)', () => {
       const iconSpec = {
         size: 14,
-        strokeWidth: 1.3,
-        idleColor: '#777777',
-        hoverColor: '#A8A8A8'
+        strokeWidth: 1.4,
+        idleColor: '#666666',
+        hoverColor: '#909090',
+        focusColor: '#B8FF3D'
       };
       assert.equal(iconSpec.size, 14);
-      assert.equal(iconSpec.strokeWidth, 1.3);
-      assert.notEqual(iconSpec.idleColor, '#A3FF12', 'Search icon must NOT be permanently green');
+      assert.equal(iconSpec.strokeWidth, 1.4);
+      assert.equal(iconSpec.idleColor, '#666666');
+      assert.equal(iconSpec.hoverColor, '#909090');
+      assert.equal(iconSpec.focusColor, '#B8FF3D');
     });
 
-    it('specifies two separate native keycaps (⌘ and K)', () => {
+    it('specifies two separate native keycaps (⌘ and K) with staged exit', () => {
       const keycaps = ['⌘', 'K'];
       assert.equal(keycaps.length, 2, 'Must use two separate keycaps');
       assert.equal(keycaps[0], '⌘');
       assert.equal(keycaps[1], 'K');
     });
 
-    it('specifies 1px green underline accent drawing left to right on focus', () => {
-      const underlineAccent = {
+    it('specifies 1px green bottom line drawing left to right on focus', () => {
+      const focusLine = {
         height: '1px',
         color: '#A3FF12',
+        position: 'bottom',
         transformOrigin: 'left',
         initialTransform: 'scaleX(0)',
         focusedTransform: 'scaleX(1)',
         duration: '220ms'
       };
-      assert.equal(underlineAccent.height, '1px');
-      assert.equal(underlineAccent.transformOrigin, 'left');
-      assert.equal(underlineAccent.initialTransform, 'scaleX(0)');
-      assert.equal(underlineAccent.focusedTransform, 'scaleX(1)');
-      assert.equal(underlineAccent.duration, '220ms');
+      assert.equal(focusLine.height, '1px');
+      assert.equal(focusLine.position, 'bottom');
+      assert.equal(focusLine.transformOrigin, 'left');
+      assert.equal(focusLine.initialTransform, 'scaleX(0)');
+      assert.equal(focusLine.focusedTransform, 'scaleX(1)');
+      assert.equal(focusLine.duration, '220ms');
+    });
+
+    it('specifies outer wrapper reserving 270px to stabilize header layout', () => {
+      const wrapperSpec = {
+        width: 270,
+        alignment: 'flex-end'
+      };
+      assert.equal(wrapperSpec.width, 270);
+      assert.equal(wrapperSpec.alignment, 'flex-end');
     });
 
     it('specifies search results dropdown overlay specs', () => {

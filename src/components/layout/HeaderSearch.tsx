@@ -233,105 +233,107 @@ export const HeaderSearch: React.FC<HeaderSearchProps> = ({
   const activeItemId = isOpen && filteredResults[selectedIndex] ? `search-item-${filteredResults[selectedIndex].id}` : undefined;
 
   return (
-    <div
-      ref={containerRef}
-      className={`topbar-search-control topbar-search-trigger ${isFocused ? 'focused' : ''} ${hasQuery ? 'has-query' : ''} ${className}`}
-      onClick={handleContainerClick}
-      role="search"
-      aria-haspopup="listbox"
-    >
-      {/* 14px thin search glyph, stroke 1.3px, transitions to #A8A8A8 */}
-      <Search
-        size={14}
-        strokeWidth={1.3}
-        className="topbar-search-icon"
-        aria-hidden="true"
-      />
+    <div className="topbar-search-wrapper">
+      <div
+        ref={containerRef}
+        className={`topbar-search-control ${isFocused ? 'focused' : ''} ${hasQuery ? 'has-query' : ''} ${className}`}
+        onClick={handleContainerClick}
+        role="search"
+        aria-haspopup="listbox"
+      >
+        {/* Search Glyph: 14px, stroke 1.4px, transitions #666 -> #909090 -> #B8FF3D */}
+        <Search
+          size={14}
+          strokeWidth={1.4}
+          className="topbar-search-icon"
+          aria-hidden="true"
+        />
 
-      {/* Accessible real input */}
-      <input
-        ref={inputRef}
-        type="text"
-        className="topbar-search-input"
-        placeholder={isFocused ? 'Search concepts…' : 'Search concepts'}
-        value={query}
-        onChange={handleInputChange}
-        onFocus={handleInputFocus}
-        onKeyDown={handleKeyDown}
-        aria-label="Search concepts"
-        role="combobox"
-        aria-expanded={isOpen}
-        aria-autocomplete="list"
-        aria-controls="header-search-results"
-        aria-activedescendant={activeItemId}
-        autoComplete="off"
-        spellCheck={false}
-      />
+        {/* Real Accessible Input — ZERO browser border/outline/box-shadow */}
+        <input
+          ref={inputRef}
+          type="text"
+          className="topbar-search-input"
+          placeholder="Search concepts"
+          value={query}
+          onChange={handleInputChange}
+          onFocus={handleInputFocus}
+          onKeyDown={handleKeyDown}
+          aria-label="Search concepts"
+          role="combobox"
+          aria-expanded={isOpen}
+          aria-autocomplete="list"
+          aria-controls="header-search-results"
+          aria-activedescendant={activeItemId}
+          autoComplete="off"
+          spellCheck={false}
+        />
 
-      {/* Keyboard Shortcut Keycaps: Two subtle native keycaps (⌘ and K) */}
-      <div className="topbar-search-shortcut" aria-hidden="true">
-        <span className="topbar-search-keycap">⌘</span>
-        <span className="topbar-search-keycap">K</span>
-      </div>
+        {/* Keyboard Shortcut Keycaps: Two subtle native keycaps (⌘ and K) */}
+        <div className="topbar-search-shortcut" aria-hidden="true">
+          <span className="topbar-search-keycap">⌘</span>
+          <span className="topbar-search-keycap">K</span>
+        </div>
 
-      {/* Focus accent: 1px GraphMind green line drawing from left to right */}
-      <div className="topbar-search-accent-line" aria-hidden="true" />
+        {/* Focus accent: 1px GraphMind green line along the bottom edge of outer container */}
+        <div className="topbar-search-focus-line" aria-hidden="true" />
 
-      {/* Search Results Dropdown Overlay */}
-      {isOpen && (
-        <div
-          id="header-search-results"
-          className="topbar-search-dropdown"
-          role="listbox"
-          aria-label="Matching concepts"
-        >
-          <div className="search-results-header">CONCEPTS</div>
+        {/* Search Results Dropdown Overlay — positioned relative to the expanded container */}
+        {isOpen && (
+          <div
+            id="header-search-results"
+            className="topbar-search-dropdown"
+            role="listbox"
+            aria-label="Matching concepts"
+          >
+            <div className="search-results-header">CONCEPTS</div>
 
-          {filteredResults.length > 0 ? (
-            <div ref={listRef} className="search-results-list">
-              {filteredResults.slice(0, 8).map((concept, index) => {
-                const isSelected = index === selectedIndex;
-                const indexStr = String(index + 1).padStart(2, '0');
-                const connText = `${concept.connections} ${concept.connections === 1 ? 'connection' : 'connections'}`;
+            {filteredResults.length > 0 ? (
+              <div ref={listRef} className="search-results-list">
+                {filteredResults.slice(0, 8).map((concept, index) => {
+                  const isSelected = index === selectedIndex;
+                  const indexStr = String(index + 1).padStart(2, '0');
+                  const connText = `${concept.connections} ${concept.connections === 1 ? 'connection' : 'connections'}`;
 
-                return (
-                  <div
-                    key={concept.id}
-                    id={`search-item-${concept.id}`}
-                    role="option"
-                    aria-selected={isSelected}
-                    className={`search-result-row ${isSelected ? 'selected' : ''}`}
-                    style={{ animationDelay: `${index * 24}ms` }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSelectConcept(concept.id);
-                    }}
-                    onMouseEnter={() => setSelectedIndex(index)}
-                  >
-                    <div className="search-result-prefix">
-                      <span className="search-result-green-dot" aria-hidden="true" />
-                      <span className="search-result-index">{indexStr}</span>
-                    </div>
-                    <div className="search-result-body">
-                      <div className="search-result-title">{concept.name}</div>
-                      <div className="search-result-meta">
-                        {concept.category} · {connText}
+                  return (
+                    <div
+                      key={concept.id}
+                      id={`search-item-${concept.id}`}
+                      role="option"
+                      aria-selected={isSelected}
+                      className={`search-result-row ${isSelected ? 'selected' : ''}`}
+                      style={{ animationDelay: `${index * 24}ms` }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectConcept(concept.id);
+                      }}
+                      onMouseEnter={() => setSelectedIndex(index)}
+                    >
+                      <div className="search-result-prefix">
+                        <span className="search-result-green-dot" aria-hidden="true" />
+                        <span className="search-result-index">{indexStr}</span>
+                      </div>
+                      <div className="search-result-body">
+                        <div className="search-result-title">{concept.name}</div>
+                        <div className="search-result-meta">
+                          {concept.category} · {connText}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="search-empty-state" role="status">
-              <div className="search-empty-label">NO MATCHES</div>
-              <div className="search-empty-text">
-                Nothing in this graph matches &ldquo;{query.trim()}&rdquo;.
+                  );
+                })}
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            ) : (
+              <div className="search-empty-state" role="status">
+                <div className="search-empty-label">NO MATCHES</div>
+                <div className="search-empty-text">
+                  Nothing in this graph matches &ldquo;{query.trim()}&rdquo;.
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
