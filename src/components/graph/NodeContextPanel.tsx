@@ -138,6 +138,11 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
     setIsSubmitted(false);
     setEvaluation(null);
     setSelfAssessed(null);
+
+    // Phase 3 Section 8: Meaningful study interaction transitions unseen -> learning
+    if (concept?.id && (!concept.practiceStatus || concept.practiceStatus === 'unseen')) {
+      onUpdatePracticeState?.(concept.id, 'learning');
+    }
   }, [concept?.id]);
 
   // Build question context
@@ -584,15 +589,28 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
                 </section>
               ) : null}
 
-              {/* SECONDARY ACTION: TEST YOURSELF → (Phase 2 Entry Point) */}
+              {/* STUDY STATE: Marked for review note (Phase 3 Section 15) */}
+              {concept!.practiceStatus === 'needs-review' && (
+                <section className="study-section study-review-status-section">
+                  <h3 className="study-section-label">STUDY STATE</h3>
+                  <div className="study-review-note">
+                    <span className="practice-status-pip practice-pip-needs-review" aria-hidden="true" />
+                    <span className="study-review-text">Marked for review.</span>
+                  </div>
+                </section>
+              )}
+
+              {/* SECONDARY ACTION: TEST YOURSELF / REVIEW AGAIN → (Phase 2 & 3 Entry Point) */}
               <div className="study-practice-cta-section">
                 <button
                   type="button"
                   className="study-practice-cta-btn"
                   onClick={() => setPanelMode('practice')}
-                  title={`Test yourself on ${canonicalName}`}
+                  title={concept!.practiceStatus === 'needs-review' ? `Review ${canonicalName} again` : `Test yourself on ${canonicalName}`}
                 >
-                  <span className="practice-cta-text">TEST YOURSELF</span>
+                  <span className="practice-cta-text">
+                    {concept!.practiceStatus === 'needs-review' ? 'REVIEW AGAIN' : 'TEST YOURSELF'}
+                  </span>
                   <ArrowRight size={13} className="practice-cta-arrow" />
                 </button>
               </div>

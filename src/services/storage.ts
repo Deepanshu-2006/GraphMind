@@ -620,11 +620,11 @@ export function saveConceptPracticeStates(
 }
 
 /**
- * Get practice state for a single concept
+ * Get knowledge/practice state for a single concept in a graph
  */
-export function getConceptPracticeState(
-  conceptId: string,
-  graphId?: string
+export function getKnowledgeState(
+  graphId: string | undefined,
+  conceptId: string
 ): ConceptPracticeState {
   const states = loadConceptPracticeStates(graphId);
   return states[conceptId] || {
@@ -635,25 +635,100 @@ export function getConceptPracticeState(
 }
 
 /**
- * Update practice status for a concept and persist
+ * Get practice state for a single concept (backwards compatible wrapper)
+ */
+export function getConceptPracticeState(
+  conceptId: string,
+  graphId?: string
+): ConceptPracticeState {
+  return getKnowledgeState(graphId, conceptId);
+}
+
+/**
+ * Update knowledge status for a concept and persist (Phase 3 Section 9)
+ */
+export function updateKnowledgeState(
+  graphId: string | undefined,
+  conceptId: string,
+  status: PracticeStatus
+): ConceptPracticeState {
+  const states = loadConceptPracticeStates(graphId);
+  const prev = states[conceptId] || { conceptId, status: 'unseen', practiceCount: 0 };
+  const now = new Date().toISOString();
+  
+  const updated: ConceptPracticeState = {
+    ...prev,
+    conceptId,
+    status,
+    firstStudiedAt: prev.firstStudiedAt || (status !== 'unseen' ? now : undefined),
+    lastStudiedAt: now,
+    lastPracticedAt: now,
+    practiceCount: (prev.practiceCount || 0) + 1
+  };
+
+  states[conceptId] = updated;
+  saveConceptPracticeStates(states, graphId);
+  return updated;
+}
+
+/**
+ * Record meaningful study of a concept (Phase 3 Section 8)
+ * Transitions unseen -> learning, sets firstStudiedAt and lastStudiedAt.
+ * If already learning/needs-review/understood, does not alter status.
+ */
+export function recordConceptStudy(
+  graphId: string | undefined,
+  conceptId: string
+): ConceptPracticeState {
+  const states = loadConceptPracticeStates(graphId);
+  const prev = states[conceptId] || { conceptId, status: 'unseen', practiceCount: 0 };
+  const now = new Date().toISOString();
+
+  if (prev.status && prev.status !== 'unseen') {
+    const updated: ConceptPracticeState = {
+      ...prev,
+      lastStudiedAt: now
+    };
+    states[conceptId] = updated;
+    saveConceptPracticeStates(states, graphId);
+    return updated;
+  }
+
+  const updated: ConceptPracticeState = {
+    ...prev,
+    conceptId,
+    status: 'learning',
+    firstStudiedAt: prev.firstStudiedAt || now,
+    lastStudiedAt: now,
+    practiceCount: prev.practiceCount || 0
+  };
+  states[conceptId] = updated;
+  saveConceptPracticeStates(states, graphId);
+  return updated;
+}
+
+/**
+ * Get all concept IDs in a graph matching a specific knowledge state (Phase 3 Section 31)
+ */
+export function getConceptsByKnowledgeState(
+  graphId: string | undefined,
+  status: PracticeStatus
+): string[] {
+  const states = loadConceptPracticeStates(graphId);
+  return Object.values(states)
+    .filter(s => s.status === status)
+    .map(s => s.conceptId);
+}
+
+/**
+ * Update practice status for a concept and persist (backwards compatible wrapper)
  */
 export function updateConceptPracticeState(
   conceptId: string,
   status: PracticeStatus,
   graphId?: string
 ): ConceptPracticeState {
-  const states = loadConceptPracticeStates(graphId);
-  const prev = states[conceptId] || { conceptId, status: 'unseen', practiceCount: 0 };
-  const updated: ConceptPracticeState = {
-    ...prev,
-    conceptId,
-    status,
-    lastPracticedAt: new Date().toISOString(),
-    practiceCount: (prev.practiceCount || 0) + 1
-  };
-  states[conceptId] = updated;
-  saveConceptPracticeStates(states, graphId);
-  return updated;
+  return updateKnowledgeState(graphId, conceptId, status);
 }
 
 /**

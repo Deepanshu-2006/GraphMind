@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { Search } from 'lucide-react';
 import type { KnowledgeGraph } from '../../types/knowledgeGraph';
 import { useGraph } from '../../context/GraphContext';
+import { loadConceptPracticeStates } from '../../services/storage';
 
 export interface HeaderSearchProps {
   activeGraph?: KnowledgeGraph | null;
@@ -38,6 +39,11 @@ export const HeaderSearch: React.FC<HeaderSearchProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  // Load practice states for the current graph to indicate study state
+  const practiceStates = useMemo(() => {
+    return loadConceptPracticeStates(graph?.id);
+  }, [graph?.id, isOpen]);
 
   // Compute connections per concept from active graph relationships
   const connectionCounts = useMemo(() => {
@@ -310,7 +316,15 @@ export const HeaderSearch: React.FC<HeaderSearchProps> = ({
                       onMouseEnter={() => setSelectedIndex(index)}
                     >
                       <div className="search-result-prefix">
-                        <span className="search-result-green-dot" aria-hidden="true" />
+                        {practiceStates[concept.id]?.status === 'understood' ? (
+                          <span className="practice-status-pip practice-pip-understood" title="Understood" aria-hidden="true" />
+                        ) : practiceStates[concept.id]?.status === 'needs-review' ? (
+                          <span className="practice-status-pip practice-pip-needs-review" title="Needs review" aria-hidden="true" />
+                        ) : practiceStates[concept.id]?.status === 'learning' ? (
+                          <span className="practice-status-pip practice-pip-learning" title="Learning" aria-hidden="true" />
+                        ) : (
+                          <span className="search-result-green-dot" aria-hidden="true" />
+                        )}
                         <span className="search-result-index">{indexStr}</span>
                       </div>
                       <div className="search-result-body">

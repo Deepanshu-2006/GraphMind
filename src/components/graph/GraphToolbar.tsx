@@ -9,7 +9,7 @@ import {
   Image as ImageIcon,
   FileJson
 } from 'lucide-react';
-import type { SearchResultItem, GraphDensityMode } from '../../types/graph';
+import type { SearchResultItem, GraphDensityMode, StudyFilterMode } from '../../types/graph';
 
 interface GraphToolbarProps {
   onSearchSelect: (nodeId: string) => void;
@@ -26,6 +26,10 @@ interface GraphToolbarProps {
   isStudyPanelOpen?: boolean;
   selectedConceptLabel?: string | null;
   onToggleStudyPanel?: () => void;
+  studyFilterMode?: StudyFilterMode;
+  onStudyFilterChange?: (mode: StudyFilterMode) => void;
+  needsReviewCount?: number;
+  totalConceptsCount?: number;
 }
 
 export const GraphToolbar: React.FC<GraphToolbarProps> = ({
@@ -42,14 +46,20 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   onDensityChange,
   isStudyPanelOpen = false,
   selectedConceptLabel,
-  onToggleStudyPanel
+  onToggleStudyPanel,
+  studyFilterMode = 'all',
+  onStudyFilterChange,
+  needsReviewCount = 0,
+  totalConceptsCount = 0
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isLegendOpen, setIsLegendOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const searchRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
+  const legendRef = useRef<HTMLDivElement>(null);
 
   const filteredSearchResults = React.useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -79,6 +89,9 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
       if (exportRef.current && !exportRef.current.contains(target)) {
         setIsExportOpen(false);
       }
+      if (legendRef.current && !legendRef.current.contains(target)) {
+        setIsLegendOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -105,6 +118,7 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
     } else if (e.key === 'Escape') {
       setIsDropdownOpen(false);
       setIsExportOpen(false);
+      setIsLegendOpen(false);
     }
   };
 
@@ -145,13 +159,109 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
                   role="option"
                   aria-selected={idx === selectedIndex}
                 >
-                  <span className="search-item-label">{item.label}</span>
+                  <div className="search-item-main-row">
+                    {item.practiceStatus === 'understood' ? (
+                      <span className="practice-status-pip practice-pip-understood" title="Understood" aria-hidden="true" />
+                    ) : item.practiceStatus === 'needs-review' ? (
+                      <span className="practice-status-pip practice-pip-needs-review" title="Needs review" aria-hidden="true" />
+                    ) : item.practiceStatus === 'learning' ? (
+                      <span className="practice-status-pip practice-pip-learning" title="Learning" aria-hidden="true" />
+                    ) : null}
+                    <span className="search-item-label">{item.label}</span>
+                  </div>
                   <span className="search-item-category">{item.category}</span>
                 </div>
               ))
             ) : (
               <div className="floating-search-empty" role="status">No concepts found.</div>
             )}
+          </div>
+        )}
+      </div>
+
+      <div className="toolbar-vertical-divider" />
+
+      {/* Revision Filter: ALL | NEEDS REVIEW (Phase 3 Section 12) */}
+      <div className="toolbar-study-filter-group" role="group" aria-label="Study filter">
+        <button
+          type="button"
+          className={`study-filter-btn ${studyFilterMode === 'all' ? 'active' : ''}`}
+          onClick={() => onStudyFilterChange?.('all')}
+          title="Show all concepts"
+          aria-pressed={studyFilterMode === 'all'}
+        >
+          All
+        </button>
+        <button
+          type="button"
+          className={`study-filter-btn ${studyFilterMode === 'needs-review' ? 'active' : ''}`}
+          onClick={() => onStudyFilterChange?.('needs-review')}
+          title={needsReviewCount > 0 ? `Show ${needsReviewCount} concepts to review` : 'Nothing needs review yet'}
+          aria-pressed={studyFilterMode === 'needs-review'}
+        >
+          <span>Needs Review</span>
+          {needsReviewCount > 0 && (
+            <span className="study-filter-badge">{needsReviewCount}</span>
+          )}
+        </button>
+      </div>
+
+      <div className="toolbar-vertical-divider" />
+
+      {/* Study State Legend / Summary Popover (Phase 3 Section 4 & 17) */}
+      <div className="toolbar-legend-wrap" ref={legendRef}>
+        <button
+          type="button"
+          className={`canvas-action-btn toolbar-legend-btn ${isLegendOpen ? 'active' : ''}`}
+          onClick={() => setIsLegendOpen(!isLegendOpen)}
+          title="Study state summary & legend"
+          aria-label="Study state legend"
+          aria-expanded={isLegendOpen}
+        >
+          <span className="toolbar-legend-label">
+            {needsReviewCount > 0 ? `${needsReviewCount} to review` : 'Study State'}
+          </span>
+        </button>
+        {isLegendOpen && (
+          <div className="study-state-legend-popover" role="dialog" aria-label="Study states legend">
+            <div className="legend-popover-header">
+              <span className="legend-popover-title">STUDY STATE</span>
+              {totalConceptsCount > 0 && (
+                <span className="legend-popover-count">
+                  {totalConceptsCount} {totalConceptsCount === 1 ? 'concept' : 'concepts'}
+                </span>
+              )}
+            </div>
+            <div className="legend-popover-list">
+              <div className="legend-popover-row">
+                <span className="practice-status-pip practice-pip-understood" aria-hidden="true" />
+                <div className="legend-row-text">
+                  <span className="legend-row-label">Understood</span>
+                  <span className="legend-row-desc">Practiced and understood</span>
+                </div>
+              </div>
+              <div className="legend-popover-row">
+                <span className="practice-status-pip practice-pip-needs-review" aria-hidden="true" />
+                <div className="legend-row-text">
+                  <span className="legend-row-label">Needs Review</span>
+                  <span className="legend-row-desc">Marked for review</span>
+                </div>
+              </div>
+              <div className="legend-popover-row">
+                <span className="practice-status-pip practice-pip-learning" aria-hidden="true" />
+                <div className="legend-row-text">
+                  <span className="legend-row-label">Learning</span>
+                  <span className="legend-row-desc">Currently studying</span>
+                </div>
+              </div>
+              <div className="legend-popover-row">
+                <span className="practice-status-pip practice-pip-unseen" aria-hidden="true" />
+                <div className="legend-row-text">
+                  <span className="legend-row-label">Unseen</span>
+                  <span className="legend-row-desc">Not yet studied</span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

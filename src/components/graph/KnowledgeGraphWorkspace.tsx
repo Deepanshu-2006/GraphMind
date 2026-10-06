@@ -33,8 +33,8 @@ import type {
   GraphDensityMode, 
   ZoomDisclosureLevel 
 } from '../../types/graph';
-import type { PracticeStatus, ConceptPracticeState } from '../../types/practice';
-import { loadConceptPracticeStates, updateConceptPracticeState } from '../../services/storage';
+import type { PracticeStatus, ConceptPracticeState, StudyFilterMode } from '../../types/practice';
+import { loadConceptPracticeStates, updateConceptPracticeState, recordConceptStudy } from '../../services/storage';
 import type { PipelineStage, PipelineProgressEvent } from '../../services/pipelineOrchestrator';
 import { exportKnowledgeGraphJson, exportKnowledgeGraphPng } from '../../services/graphExport';
 import { calculateVisibleGraph } from '../../services/graphViewport';
@@ -279,6 +279,7 @@ function FlowCanvas({
 
   const [densityMode, setDensityMode] = useState<GraphDensityMode>('balanced');
   const [zoomDisclosureLevel, setZoomDisclosureLevel] = useState<ZoomDisclosureLevel>('standard');
+  const [studyFilterMode, setStudyFilterMode] = useState<StudyFilterMode>('all');
 
   // Intelligent Graph Viewport Presentation: computes visible subset, visibility states & exploration depths
   const viewportResult = useMemo(() => {
@@ -288,9 +289,11 @@ function FlowCanvas({
       allEdges: effectiveEdges,
       selectedNodeId,
       densityMode,
-      zoomLevel: zoomDisclosureLevel
+      zoomLevel: zoomDisclosureLevel,
+      studyFilterMode,
+      practiceStates
     });
-  }, [mode, effectiveNodes, effectiveEdges, selectedNodeId, densityMode, zoomDisclosureLevel]);
+  }, [mode, effectiveNodes, effectiveEdges, selectedNodeId, densityMode, zoomDisclosureLevel, studyFilterMode, practiceStates]);
 
   // Sync state whenever viewport presentation changes in interactive mode
   useEffect(() => {
@@ -307,6 +310,33 @@ function FlowCanvas({
     setZoomDisclosureLevel((prev) => (prev !== nextLevel ? nextLevel : prev));
   }, []);
 
+  // Meaningful study interaction tracking: unseen -> learning (Phase 3 Section 8)
+  useEffect(() => {
+    if (!selectedNodeId || !isInspectorOpen || mode !== 'interactive') return;
+    const currentStatus = practiceStates[selectedNodeId]?.status;
+    if (!currentStatus || currentStatus === 'unseen') {
+      const updated = recordConceptStudy(graph?.id, selectedNodeId);
+      setPracticeStates(prev => ({
+        ...prev,
+        [selectedNodeId]: updated
+      }));
+      setNodes(prev => prev.map(n => {
+        if (n.id === selectedNodeId) {
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              practiceStatus: updated.status,
+              practiceState: updated,
+              knowledgeState: updated
+            }
+          };
+        }
+        return n;
+      }));
+    }
+  }, [selectedNodeId, isInspectorOpen, mode, graph?.id, practiceStates]);
+
   // Active concept data for inspector: strictly based on selectedNodeId (Prompt 26, Requirement 5 & 8)
   const activeConceptData = useMemo(() => {
     if (!selectedNodeId) return null;
@@ -322,7 +352,8 @@ function FlowCanvas({
     return {
       ...base,
       practiceStatus: pState?.status || 'unseen',
-      practiceState: pState
+      practiceState: pState,
+      knowledgeState: pState
     };
   }, [selectedNodeId, effectiveConceptDetails, effectiveNodes, practiceStates]);
 
@@ -922,14 +953,21 @@ function FlowCanvas({
     }
   }, [graph, effectiveNodes, effectiveEdges]);
 
+  const needsReviewCount = useMemo(() => {
+    return Object.values(practiceStates).filter(s => s.status === 'needs-review').length;
+  }, [practiceStates]);
+
+  const totalConceptsCount = effectiveNodes.length;
+
   const searchItems = useMemo(() => {
     return effectiveNodes.map((n) => ({
       id: n.id,
       label: n.data.label,
       category: n.data.category,
-      code: n.data.code
+      code: n.data.code,
+      practiceStatus: practiceStates[n.id]?.status || 'unseen'
     }));
-  }, [effectiveNodes]);
+  }, [effectiveNodes, practiceStates]);
 
   return (
     <div className="freeform-graph-container" id="knowledge-graph-workspace">
@@ -941,7 +979,7 @@ function FlowCanvas({
         </div>
       )}
 
-      {/* Floating Toolbar (with Search, Density, Nav, Export image, Export JSON & Study mode) */}
+      {/* Floating Toolbar (with Search, Density, Nav, Export image, Export JSON, Revision filter & Study mode) */}
       <GraphToolbar
         onSearchSelect={focusNodeOnCanvas}
         onFitView={handleResetView}
@@ -954,6 +992,10 @@ function FlowCanvas({
         isExporting={isExporting}
         densityMode={densityMode}
         onDensityChange={setDensityMode}
+        studyFilterMode={studyFilterMode}
+        onStudyFilterChange={setStudyFilterMode}
+        needsReviewCount={needsReviewCount}
+        totalConceptsCount={totalConceptsCount}
         isStudyPanelOpen={isInspectorOpen && Boolean(activeConceptData || selectedRelationship)}
         selectedConceptLabel={activeConceptData?.label || activeConceptData?.name || null}
         onToggleStudyPanel={() => {
@@ -969,6 +1011,20 @@ function FlowCanvas({
           }
         }}
       />
+
+      {/* Empty State Notice for Needs Review filter (Phase 3 Section 26) */}
+      {mode === 'interactive' && studyFilterMode === 'needs-review' && needsReviewCount === 0 && (
+        <div className="study-empty-review-banner" role="status" aria-live="polite">
+          <span className="empty-review-text">Nothing needs review yet.</span>
+          <button 
+            type="button" 
+            className="empty-review-action"
+            onClick={() => setStudyFilterMode('all')}
+          >
+            Show all
+          </button>
+        </div>
+      )}
 
       {/* Subtle Understated Contextual Indicator (when presentation subset is active) */}
       {mode === 'interactive' && viewportResult?.isSubsetEnabled && viewportResult?.contextualHint && (
@@ -1118,7 +1174,8 @@ function FlowCanvas({
                     data: {
                       ...n.data,
                       practiceStatus: status,
-                      practiceState: updated
+                      practiceState: updated,
+                      knowledgeState: updated
                     }
                   };
                 }

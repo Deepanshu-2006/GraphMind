@@ -92,12 +92,14 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
           />
         )}
         <span className="node-card-name" title={concept.label}>{concept.label}</span>
-        {isSelected ? (
-          <span className="node-accent-pip" aria-hidden="true" />
-        ) : practiceStatus === 'understood' ? (
+        {practiceStatus === 'understood' ? (
           <span className="practice-status-pip practice-pip-understood" title="Understood" aria-hidden="true" />
         ) : practiceStatus === 'needs-review' ? (
           <span className="practice-status-pip practice-pip-needs-review" title="Needs review" aria-hidden="true" />
+        ) : practiceStatus === 'learning' ? (
+          <span className="practice-status-pip practice-pip-learning" title="Learning" aria-hidden="true" />
+        ) : isSelected ? (
+          <span className="node-accent-pip" aria-hidden="true" />
         ) : null}
       </div>
 

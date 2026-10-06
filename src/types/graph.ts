@@ -74,9 +74,10 @@ export interface GraphConceptData extends Record<string, unknown> {
   isMethod?: boolean;
   craftingNew?: boolean;
   craftingActive?: boolean;
-  // Practice Mode state (Phase 2)
+  // Practice & Knowledge State (Phase 2 & Phase 3)
   practiceStatus?: import('./practice').PracticeStatus;
   practiceState?: import('./practice').ConceptPracticeState;
+  knowledgeState?: import('./practice').ConceptPracticeState;
   // Scalable viewport presentation attributes
   visibilityState?: ConceptVisibilityState;
   visibilityPriority?: number;
@@ -91,4 +92,5 @@ export interface SearchResultItem {
   label: string;
   category: ConceptCategory;
   code: string;
+  practiceStatus?: import('./practice').PracticeStatus;
 }
