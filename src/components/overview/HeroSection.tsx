@@ -139,6 +139,19 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   // D. Scroll cue fade
   const cueOpacity = Math.max(0, 1.0 - smoothScroll / 0.10) * 0.55;
 
+  // Supporting description below hero heading: dynamically matches the active graph title
+  const heroSubtitle = React.useMemo(() => {
+    if (!graphMeta) {
+      return 'GraphMind finds the ideas inside your study material and maps how they connect.';
+    }
+    // If a custom description is explicitly provided that isn't the default/stale "... knowledge graph"
+    if (graphMeta.description && !graphMeta.description.toLowerCase().endsWith('knowledge graph')) {
+      return graphMeta.description;
+    }
+    // Matches the active graph title
+    return `${graphMeta.name} knowledge graph`;
+  }, [graphMeta]);
+
   return (
     <section ref={heroRef} className="overview-hero" aria-label="GraphMind interactive 3d knowledge orb hero">
       {/* Layer 1: The Interactive 3D Knowledge Orb with Continuous Scroll Dissolution */}
@@ -250,7 +263,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           </span>
         </h1>
 
-        {/* Supporting Copy */}
+        {/* Supporting Copy: Line below heading matching active graph title */}
         <motion.p 
           className="overview-hero-desc"
           initial={{ opacity: 0, y: 18 }}
@@ -261,11 +274,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             ease: [0.22, 1, 0.36, 1] 
           }}
         >
-          {graphMeta?.description 
-            ? graphMeta.description 
-            : graphMeta 
-            ? `GraphMind finds the concepts inside ${graphMeta.name} and maps how they connect.`
-            : 'GraphMind finds the ideas inside your study material and maps how they connect.'}
+          {heroSubtitle}
         </motion.p>
 
         {/* Action Controls: Editorial Action Row (28–36px gap) */}

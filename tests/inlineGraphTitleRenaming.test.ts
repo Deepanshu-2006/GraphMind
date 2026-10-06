@@ -459,5 +459,71 @@ describe('Inline Graph-Title Renaming Architecture & Persistence', () => {
       assert.notEqual(selectionStart, 0, 'Should not select all text from 0');
     });
   });
+
+  describe('Hero Section Subtitle & Description Synchronization on Rename', () => {
+    it('synchronizes description with new graph title on rename', () => {
+      const graph = createGraph('Operating Systems');
+      assert.equal(graph.description, 'Operating Systems knowledge graph');
+
+      const renamed = renameGraph(graph.id, 'Distributed Systems');
+      assert.ok(renamed);
+      assert.equal(renamed.name, 'Distributed Systems');
+      assert.equal(renamed.description, 'Distributed Systems knowledge graph');
+    });
+
+    it('auto-heals stale description in loadGraphs when name was renamed previously', () => {
+      const staleGraphs = [
+        {
+          id: 'graph-test-1',
+          name: 'Operating Systems',
+          description: 'Neural & Cognitive Architectures knowledge graph',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      ];
+      saveGraphs(staleGraphs);
+
+      const loaded = loadGraphs();
+      assert.equal(loaded.length, 1);
+      assert.equal(loaded[0].name, 'Operating Systems');
+      assert.equal(loaded[0].description, 'Operating Systems knowledge graph');
+    });
+
+    it('computes hero subtitle to dynamically match graph title', () => {
+      function getHeroSubtitle(meta: { name: string; description?: string } | null): string {
+        if (!meta) {
+          return 'GraphMind finds the ideas inside your study material and maps how they connect.';
+        }
+        if (meta.description && !meta.description.toLowerCase().endsWith('knowledge graph')) {
+          return meta.description;
+        }
+        return `${meta.name} knowledge graph`;
+      }
+
+      // Initial graph
+      assert.equal(
+        getHeroSubtitle({ name: 'Neural & Cognitive Architectures', description: 'Neural & Cognitive Architectures knowledge graph' }),
+        'Neural & Cognitive Architectures knowledge graph'
+      );
+
+      // Renamed to Operating Systems with stale description
+      assert.equal(
+        getHeroSubtitle({ name: 'Operating Systems', description: 'Neural & Cognitive Architectures knowledge graph' }),
+        'Operating Systems knowledge graph'
+      );
+
+      // Renamed to Operating Systems with updated description
+      assert.equal(
+        getHeroSubtitle({ name: 'Operating Systems', description: 'Operating Systems knowledge graph' }),
+        'Operating Systems knowledge graph'
+      );
+
+      // Custom non-default description is preserved
+      assert.equal(
+        getHeroSubtitle({ name: 'Operating Systems', description: 'A comprehensive study of UNIX kernels and virtualization' }),
+        'A comprehensive study of UNIX kernels and virtualization'
+      );
+    });
+  });
 });
 

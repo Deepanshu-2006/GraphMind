@@ -129,7 +129,7 @@ export const GraphProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const defaultMeta: KnowledgeGraphMeta = {
             id: currentId,
             name: DEFAULT_MIGRATION_GRAPH_NAME,
-            description: 'Neural & Cognitive Architectures knowledge graph',
+            description: `${DEFAULT_MIGRATION_GRAPH_NAME} knowledge graph`,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           };

@@ -128,7 +128,19 @@ export function loadGraphs(): KnowledgeGraphMeta[] {
 
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      return parsed as KnowledgeGraphMeta[];
+      let hasMutated = false;
+      const healed = (parsed as KnowledgeGraphMeta[]).map(g => {
+        // Auto-heal graphs where description was a default/previous "... knowledge graph" that drifted from graph name
+        if (g.description && g.description.toLowerCase().endsWith('knowledge graph') && g.description !== `${g.name} knowledge graph`) {
+          hasMutated = true;
+          return { ...g, description: `${g.name} knowledge graph` };
+        }
+        return g;
+      });
+      if (hasMutated) {
+        saveGraphs(healed);
+      }
+      return healed;
     }
     return [];
   } catch (err) {
@@ -223,7 +235,7 @@ export function createGraph(name: string, description?: string): KnowledgeGraphM
   const newGraph: KnowledgeGraphMeta = {
     id,
     name: trimmedName,
-    description: description?.trim() || undefined,
+    description: description?.trim() || `${trimmedName} knowledge graph`,
     createdAt: now,
     updatedAt: now
   };
@@ -255,7 +267,12 @@ export function renameGraph(graphId: string, newName: string): KnowledgeGraphMet
   let updatedMeta: KnowledgeGraphMeta | null = null;
   const nextGraphs = currentGraphs.map(g => {
     if (g.id === graphId) {
-      updatedMeta = { ...g, name: trimmed, updatedAt: new Date().toISOString() };
+      let updatedDesc = g.description;
+      // If description was empty, was default, or was "... knowledge graph", update to match new name
+      if (!updatedDesc || updatedDesc.toLowerCase().endsWith('knowledge graph') || updatedDesc === `${g.name} knowledge graph`) {
+        updatedDesc = `${trimmed} knowledge graph`;
+      }
+      updatedMeta = { ...g, name: trimmed, description: updatedDesc, updatedAt: new Date().toISOString() };
       return updatedMeta;
     }
     return g;
