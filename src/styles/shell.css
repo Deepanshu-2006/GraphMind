@@ -714,67 +714,89 @@
    Editorial, quiet, precise knowledge instrument
    ================================================== */
 
+.topbar-search-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  width: 270px;
+  flex-shrink: 0;
+}
+
 .topbar-search-control {
   position: relative;
   display: flex;
   align-items: center;
-  width: 196px;
+  width: 195px;
   height: 34px;
   padding: 0 8px 0 12px;
-  background-color: #101010;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: rgba(255, 255, 255, 0.018);
+  border: 1px solid rgba(255, 255, 255, 0.075);
   border-radius: 8px;
   box-sizing: border-box;
   cursor: text;
   transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1),
-              border-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
-              transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
-              background-color 160ms ease;
+              border-color 180ms ease,
+              background-color 180ms ease;
   user-select: none;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
-/* Hover state: 1px lift, subtle border brighten, no glow */
+/* Hover state: subtle border brighten, slightly brighter background, no glow, no bounce */
 .topbar-search-control:hover:not(.focused) {
-  border-color: rgba(255, 255, 255, 0.13);
-  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.12);
+  background-color: rgba(255, 255, 255, 0.03);
 }
 
 .topbar-search-control:hover:not(.focused) .topbar-search-icon {
-  color: #A8A8A8;
+  color: #909090;
 }
 
-/* Focused / Active state: expands 40-60px (196px -> 248px) */
+/* Focused / Active state: expands whole container to 270px */
 .topbar-search-control.focused {
-  width: 248px;
+  width: 270px;
   border-color: rgba(255, 255, 255, 0.11);
+  background-color: rgba(255, 255, 255, 0.03);
   transform: none;
 }
 
 .topbar-search-control.focused .topbar-search-icon {
-  color: #A8A8A8;
+  color: #B8FF3D;
+  transform: translateX(1px);
 }
 
-/* Search Icon: Thin 14px glyph, 1.3px stroke, #777 */
+/* Accessible focus-within without neon green border */
+.topbar-search-control:focus-within {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Search Icon: Thin 14px glyph, 1.4px stroke, #666 */
 .topbar-search-icon {
-  color: #777777;
+  color: #666666;
   flex-shrink: 0;
   margin-right: 8px;
-  transition: color 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: color 160ms ease, transform 160ms ease;
   pointer-events: none;
 }
 
-/* Real Accessible Input */
-.topbar-search-input {
+/* Real Accessible Input — ZERO borders, ZERO outline, ZERO box-shadow */
+.topbar-search-input,
+.topbar-search-input:focus,
+.topbar-search-input:focus-visible,
+.topbar-search-input:active {
   flex: 1;
   min-width: 0;
   height: 100%;
-  background: transparent;
-  border: none;
-  outline: none;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-appearance: none;
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 400;
-  color: #F5F5F5;
+  letter-spacing: -0.01em;
+  color: #D0D0D0;
   padding: 0;
   margin: 0;
   cursor: text;
@@ -796,14 +818,14 @@
   gap: 3px;
   flex-shrink: 0;
   margin-left: 6px;
-  transition: opacity 180ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 150ms ease 40ms, transform 150ms cubic-bezier(0.22, 1, 0.36, 1) 40ms;
   pointer-events: none;
 }
 
 .topbar-search-control.focused .topbar-search-shortcut,
 .topbar-search-control.has-query .topbar-search-shortcut {
   opacity: 0;
-  transform: translateX(4px);
+  transform: translateX(6px);
 }
 
 .topbar-search-keycap {
@@ -825,21 +847,23 @@
   box-sizing: border-box;
 }
 
-/* Focus Accent: 1px green underline drawn left -> right */
-.topbar-search-accent-line {
+/* Focus Accent: 1px GraphMind green line along the bottom edge of outer container */
+.topbar-search-focus-line {
   position: absolute;
   bottom: -1px;
-  left: 8px;
-  right: 8px;
+  left: 0;
+  right: 0;
   height: 1px;
   background-color: var(--accent, #A3FF12);
   transform-origin: left;
   transform: scaleX(0);
-  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1) 70ms;
   pointer-events: none;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
 }
 
-.topbar-search-control.focused .topbar-search-accent-line {
+.topbar-search-control.focused .topbar-search-focus-line {
   transform: scaleX(1);
 }
 
@@ -1127,12 +1151,14 @@
   .app-topbar {
     padding: 0 18px;
   }
-  .topbar-search-control,
-  .topbar-search-trigger {
-    width: 175px;
+  .topbar-search-wrapper {
+    width: 240px;
+  }
+  .topbar-search-control {
+    width: 180px;
   }
   .topbar-search-control.focused {
-    width: 220px;
+    width: 240px;
   }
   .topbar-context {
     max-width: 220px;
@@ -1158,6 +1184,16 @@
 
   .mobile-menu-toggle {
     display: flex;
+  }
+
+  .topbar-search-wrapper {
+    width: 230px;
+  }
+  .topbar-search-control {
+    width: 175px;
+  }
+  .topbar-search-control.focused {
+    width: 230px;
   }
 
   .topbar-context {
@@ -1188,8 +1224,15 @@
     flex-shrink: 0;
   }
 
-  .topbar-search-control,
-  .topbar-search-trigger {
+  .topbar-search-wrapper {
+    width: 32px;
+  }
+
+  .topbar-search-wrapper:has(.focused) {
+    width: 200px;
+  }
+
+  .topbar-search-control {
     width: 32px;
     height: 32px;
     padding: 0;
