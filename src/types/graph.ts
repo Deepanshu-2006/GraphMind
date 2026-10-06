@@ -74,12 +74,17 @@ export interface GraphConceptData extends Record<string, unknown> {
   isMethod?: boolean;
   craftingNew?: boolean;
   craftingActive?: boolean;
+  // Practice Mode state (Phase 2)
+  practiceStatus?: import('./practice').PracticeStatus;
+  practiceState?: import('./practice').ConceptPracticeState;
   // Scalable viewport presentation attributes
   visibilityState?: ConceptVisibilityState;
   visibilityPriority?: number;
   explorationDepth?: number;
   zoomLevel?: ZoomDisclosureLevel;
 }
+
+export * from './practice';
 
 export interface SearchResultItem {
   id: string;

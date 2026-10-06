@@ -164,6 +164,27 @@
   flex-shrink: 0;
 }
 
+/* Practice Mode Status Pips (Phase 2 Section 16) */
+.practice-status-pip {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.practice-pip-understood {
+  background-color: #A3FF12;
+}
+
+.practice-pip-needs-review {
+  background-color: #D49A3D;
+}
+
+.knowledge-node-card.practice-learning:not(.selected) {
+  background-color: #151815 !important;
+  border-color: #2D332D !important;
+}
+
 /* 3. One-line short description / brief */
 .node-card-brief {
   font-size: 11.5px;
@@ -1329,6 +1350,411 @@
   font-size: 10px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+
+/* ==================================================
+   14. PRACTICE MODE (Phase 2)
+   - Secondary action in Learn panel: TEST YOURSELF →
+   - Contextual Question, Options, Input & Feedback
+   - Self-assessment: AGAIN / GOT IT
+   - Graph-grounded navigation
+   ================================================== */
+
+/* Learn Panel: Secondary TEST YOURSELF CTA */
+.study-practice-cta-section {
+  border-top: 1px solid #1E1E1E;
+  padding-top: 14px;
+  margin-top: 2px;
+}
+
+.study-practice-cta-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 9px 12px;
+  background-color: #111111;
+  border: 1px solid #202020;
+  border-radius: 6px;
+  color: #A0A0A0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 160ms ease;
+  box-sizing: border-box;
+}
+
+.study-practice-cta-btn:hover {
+  background-color: #151814;
+  border-color: #2C3822;
+  color: #F5F5F5;
+}
+
+.study-practice-cta-btn:hover .practice-cta-arrow {
+  color: #A3FF12;
+  transform: translateX(2px);
+}
+
+.practice-cta-text {
+  text-transform: uppercase;
+}
+
+.practice-cta-arrow {
+  color: #7A8077;
+  transition: transform 160ms ease, color 160ms ease;
+}
+
+/* Practice Panel Content */
+.practice-panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.practice-header-tag {
+  color: #888888;
+}
+
+/* Question Section */
+.practice-question-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.practice-question-text {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #EDEDED;
+  margin: 0;
+  user-select: text;
+  font-weight: 450;
+}
+
+/* Multiple Choice / Options */
+.practice-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.practice-option-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 12px;
+  background-color: #111111;
+  border: 1px solid #202020;
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 150ms ease;
+  width: 100%;
+  box-sizing: border-box;
+  color: #D4D4D4;
+}
+
+.practice-option-row:hover:not(:disabled) {
+  background-color: #151515;
+  border-color: #333333;
+  color: #F5F5F5;
+}
+
+.practice-option-row:focus-visible {
+  outline: 2px solid #A3FF12;
+  outline-offset: 1px;
+}
+
+.practice-option-row.selected {
+  background-color: #141812;
+  border-color: #A3FF12;
+  color: #F5F5F5;
+}
+
+.practice-option-row.is-correct-target {
+  background-color: #131A11;
+  border-color: #2F4D1E;
+}
+
+.practice-option-row.is-wrong {
+  background-color: #1A1412;
+  border-color: #4D261E;
+  opacity: 0.85;
+}
+
+.practice-option-letter {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: #727471;
+  width: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.practice-option-row.selected .practice-option-letter {
+  color: #A3FF12;
+}
+
+.practice-option-text {
+  font-size: 12.5px;
+  line-height: 1.45;
+  flex-grow: 1;
+}
+
+.practice-option-pip {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: #A3FF12;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+/* Short Answer Input */
+.practice-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.practice-short-input {
+  width: 100%;
+  padding: 9px 12px;
+  background-color: #111111;
+  border: 1px solid #242424;
+  border-radius: 6px;
+  color: #F5F5F5;
+  font-size: 13px;
+  font-family: inherit;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 150ms ease;
+}
+
+.practice-short-input:focus {
+  border-color: #383A38;
+}
+
+.practice-reveal-btn {
+  align-self: flex-start;
+  background: transparent;
+  border: none;
+  padding: 2px 0;
+  color: #888888;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.practice-reveal-btn:hover {
+  color: #A3FF12;
+}
+
+/* Submit Action Button */
+.practice-submit-wrap {
+  margin-top: 2px;
+}
+
+.practice-submit-btn {
+  width: 100%;
+  padding: 9px 14px;
+  background-color: #161816;
+  border: 1px solid #2B302B;
+  border-radius: 6px;
+  color: #F5F5F5;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 160ms ease;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.practice-submit-btn:hover:not(:disabled) {
+  background-color: #1A2118;
+  border-color: #A3FF12;
+}
+
+.practice-submit-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  border-color: #202020;
+}
+
+/* Feedback Flow */
+.practice-feedback-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.practice-feedback-banner {
+  padding: 10px 12px;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-sizing: border-box;
+}
+
+.practice-feedback-banner.correct {
+  background-color: #121A11;
+  border: 1px solid #2B3D1B;
+}
+
+.practice-feedback-banner.incorrect {
+  background-color: #1A1512;
+  border: 1px solid #3D2B1B;
+}
+
+.practice-feedback-status {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.practice-feedback-banner.correct .practice-feedback-status {
+  color: #A3FF12;
+}
+
+.practice-feedback-banner.incorrect .practice-feedback-status {
+  color: #D49A3D;
+}
+
+.practice-correct-reveal {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: #D4D4D4;
+}
+
+.practice-reveal-prefix {
+  font-size: 11px;
+  color: #8E918C;
+}
+
+.practice-reveal-correct-name {
+  color: #F5F5F5;
+  font-weight: 550;
+}
+
+.practice-explanation {
+  font-size: 12.5px;
+  color: #CCCCCC;
+  line-height: 1.5;
+}
+
+/* Self-Assessment */
+.practice-self-assess-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.practice-self-assess-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.practice-assess-btn {
+  flex: 1;
+  padding: 8px 10px;
+  background-color: #111111;
+  border: 1px solid #222222;
+  border-radius: 6px;
+  color: #A0A0A0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 150ms ease;
+  text-align: center;
+}
+
+.practice-assess-btn:hover {
+  background-color: #161616;
+  color: #F5F5F5;
+  border-color: #333333;
+}
+
+.practice-assess-btn.active-again {
+  background-color: #1A1512;
+  border-color: #D49A3D;
+  color: #D49A3D;
+}
+
+.practice-assess-btn.active-got-it {
+  background-color: #121A11;
+  border-color: #A3FF12;
+  color: #A3FF12;
+}
+
+/* Navigation Actions */
+.practice-footer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 4px;
+}
+
+.practice-next-concept-btn {
+  width: 100%;
+  padding: 8px 12px;
+  background-color: #151814;
+  border: 1px solid #2C3822;
+  border-radius: 6px;
+  color: #F5F5F5;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 150ms ease;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.practice-next-concept-btn:hover {
+  background-color: #1B2418;
+  border-color: #A3FF12;
+  color: #A3FF12;
+}
+
+.practice-back-to-learn-btn {
+  background: transparent;
+  border: none;
+  padding: 6px 0;
+  color: #7A8077;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 150ms ease;
+  text-align: left;
+}
+
+.practice-back-to-learn-btn:hover {
+  color: #F5F5F5;
+}
+
+.practice-unavailable-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.practice-insufficient-text {
+  color: #8E918C;
+  font-size: 12.5px;
 }
 
 /* ==================================================

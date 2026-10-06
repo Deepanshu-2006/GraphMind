@@ -9,10 +9,13 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
   const zoomLevel = concept.zoomLevel || 'standard';
   const visibilityState = concept.visibilityState || (isSelected ? 'focused' : 'visible');
 
+  const practiceStatus = concept.practiceStatus || 'unseen';
+
   const nodeClasses = [
     'knowledge-node-card',
     `zoom-${zoomLevel}`,
     `state-${visibilityState}`,
+    `practice-${practiceStatus}`,
     isSelected ? 'selected' : '',
     concept.highlighted ? 'highlighted' : '',
     concept.dimmed ? 'dimmed' : '',
@@ -32,7 +35,7 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
       role="button"
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      aria-label={`Concept: ${concept.label}. ${concept.category}.${isSelected ? ' Selected.' : ''} ${concept.description || ''}`}
+      aria-label={`Concept: ${concept.label}. ${concept.category}.${isSelected ? ' Selected.' : ''} Practice: ${practiceStatus}. ${concept.description || ''}`}
       aria-pressed={Boolean(isSelected)}
       aria-current={isSelected ? 'true' : undefined}
       data-concept-id={concept.id}
@@ -89,7 +92,13 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
           />
         )}
         <span className="node-card-name" title={concept.label}>{concept.label}</span>
-        {isSelected && <span className="node-accent-pip" aria-hidden="true" />}
+        {isSelected ? (
+          <span className="node-accent-pip" aria-hidden="true" />
+        ) : practiceStatus === 'understood' ? (
+          <span className="practice-status-pip practice-pip-understood" title="Understood" aria-hidden="true" />
+        ) : practiceStatus === 'needs-review' ? (
+          <span className="practice-status-pip practice-pip-needs-review" title="Needs review" aria-hidden="true" />
+        ) : null}
       </div>
 
       {/* 3. Description: Progressive disclosure based on zoom */}

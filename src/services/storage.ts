@@ -1,4 +1,5 @@
 import type { KnowledgeSource, KnowledgeGraph, KnowledgeGraphMeta } from '../types/knowledgeGraph';
+import type { ConceptPracticeState, PracticeStatus } from '../types/practice';
 
 export const DEFAULT_MIGRATION_GRAPH_ID = 'graph-neural-cognitive-default';
 export const DEFAULT_MIGRATION_GRAPH_NAME = 'Neural & Cognitive Architectures';
@@ -8,6 +9,7 @@ const STORAGE_KEYS = {
   ACTIVE_GRAPH_ID: 'graphmind_active_graph_id_v1',
   GRAPH_DATA_PREFIX: 'graphmind_graph_data_v1_',
   COMPLETED_CONCEPTS_PREFIX: 'graphmind_completed_concepts_v1_',
+  PRACTICE_STATE_PREFIX: 'graphmind_practice_state_v1_',
   GRAPH_SOURCE_TYPE_PREFIX: 'graphmind_graph_source_type_v1_',
   // Canonical user sources collection (contains sources for all graphs, keyed by graphId)
   USER_SOURCES: 'graphmind_user_sources_v1',
@@ -581,6 +583,80 @@ export function toggleCompletedConceptId(conceptId: string, graphId?: string): s
 }
 
 /**
+ * Load practice states for all concepts in a specific graph
+ */
+export function loadConceptPracticeStates(graphId?: string): Record<string, ConceptPracticeState> {
+  if (typeof localStorage === 'undefined') return {};
+
+  try {
+    const targetId = graphId || loadActiveGraphId() || DEFAULT_MIGRATION_GRAPH_ID;
+    const raw = localStorage.getItem(STORAGE_KEYS.PRACTICE_STATE_PREFIX + targetId);
+    if (!raw) return {};
+
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return {};
+    return parsed as Record<string, ConceptPracticeState>;
+  } catch (err) {
+    console.warn('[Storage] Failed to read concept practice states:', err);
+    return {};
+  }
+}
+
+/**
+ * Save practice states for concepts in a specific graph
+ */
+export function saveConceptPracticeStates(
+  states: Record<string, ConceptPracticeState>,
+  graphId?: string
+): void {
+  if (typeof localStorage === 'undefined') return;
+
+  try {
+    const targetId = graphId || loadActiveGraphId() || DEFAULT_MIGRATION_GRAPH_ID;
+    localStorage.setItem(STORAGE_KEYS.PRACTICE_STATE_PREFIX + targetId, JSON.stringify(states));
+  } catch (err) {
+    console.warn('[Storage] Failed to persist concept practice states:', err);
+  }
+}
+
+/**
+ * Get practice state for a single concept
+ */
+export function getConceptPracticeState(
+  conceptId: string,
+  graphId?: string
+): ConceptPracticeState {
+  const states = loadConceptPracticeStates(graphId);
+  return states[conceptId] || {
+    conceptId,
+    status: 'unseen',
+    practiceCount: 0
+  };
+}
+
+/**
+ * Update practice status for a concept and persist
+ */
+export function updateConceptPracticeState(
+  conceptId: string,
+  status: PracticeStatus,
+  graphId?: string
+): ConceptPracticeState {
+  const states = loadConceptPracticeStates(graphId);
+  const prev = states[conceptId] || { conceptId, status: 'unseen', practiceCount: 0 };
+  const updated: ConceptPracticeState = {
+    ...prev,
+    conceptId,
+    status,
+    lastPracticedAt: new Date().toISOString(),
+    practiceCount: (prev.practiceCount || 0) + 1
+  };
+  states[conceptId] = updated;
+  saveConceptPracticeStates(states, graphId);
+  return updated;
+}
+
+/**
  * Clear all user data (for testing or reset)
  */
 export function clearAllUserData(): void {
@@ -592,6 +668,7 @@ export function clearAllUserData(): void {
     for (const g of graphs) {
       localStorage.removeItem(STORAGE_KEYS.GRAPH_DATA_PREFIX + g.id);
       localStorage.removeItem(STORAGE_KEYS.COMPLETED_CONCEPTS_PREFIX + g.id);
+      localStorage.removeItem(STORAGE_KEYS.PRACTICE_STATE_PREFIX + g.id);
       localStorage.removeItem(STORAGE_KEYS.GRAPH_SOURCE_TYPE_PREFIX + g.id);
     }
     localStorage.removeItem(STORAGE_KEYS.GRAPHS);

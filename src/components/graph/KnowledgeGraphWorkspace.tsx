@@ -33,6 +33,8 @@ import type {
   GraphDensityMode, 
   ZoomDisclosureLevel 
 } from '../../types/graph';
+import type { PracticeStatus, ConceptPracticeState } from '../../types/practice';
+import { loadConceptPracticeStates, updateConceptPracticeState } from '../../services/storage';
 import type { PipelineStage, PipelineProgressEvent } from '../../services/pipelineOrchestrator';
 import { exportKnowledgeGraphJson, exportKnowledgeGraphPng } from '../../services/graphExport';
 import { calculateVisibleGraph } from '../../services/graphViewport';
@@ -133,6 +135,14 @@ function FlowCanvas({
   const reactFlowInstance = useReactFlow();
 
 
+  const [practiceStates, setPracticeStates] = useState<Record<string, ConceptPracticeState>>(() => {
+    return loadConceptPracticeStates(graph?.id);
+  });
+
+  useEffect(() => {
+    setPracticeStates(loadConceptPracticeStates(graph?.id));
+  }, [graph?.id]);
+
   const { effectiveNodes, effectiveEdges, effectiveConceptDetails } = useMemo(() => {
     const activeGraphSource = (graph && graph.nodes && graph.nodes.length > 0)
       ? graph
@@ -140,28 +150,38 @@ function FlowCanvas({
       ? livePipelineEvent.partialGraph
       : null;
 
+    let baseNodes = initialNodes;
+    let baseEdges = initialEdges;
+    let baseDetails = initialConceptDetails;
+
     if (activeGraphSource) {
       const rf = knowledgeGraphToReactFlow(activeGraphSource);
-      return {
-        effectiveNodes: rf.nodes,
-        effectiveEdges: rf.edges,
-        effectiveConceptDetails: rf.conceptDetails
-      };
-    }
-    if (graph) {
+      baseNodes = rf.nodes;
+      baseEdges = rf.edges;
+      baseDetails = rf.conceptDetails;
+    } else if (graph) {
       const rf = knowledgeGraphToReactFlow(graph);
-      return {
-        effectiveNodes: rf.nodes,
-        effectiveEdges: rf.edges,
-        effectiveConceptDetails: rf.conceptDetails
-      };
+      baseNodes = rf.nodes;
+      baseEdges = rf.edges;
+      baseDetails = rf.conceptDetails;
     }
+
+    // Attach current practice status to nodes
+    const nodesWithPractice = baseNodes.map(n => ({
+      ...n,
+      data: {
+        ...n.data,
+        practiceStatus: practiceStates[n.id]?.status || 'unseen',
+        practiceState: practiceStates[n.id]
+      }
+    }));
+
     return {
-      effectiveNodes: initialNodes,
-      effectiveEdges: initialEdges,
-      effectiveConceptDetails: initialConceptDetails
+      effectiveNodes: nodesWithPractice,
+      effectiveEdges: baseEdges,
+      effectiveConceptDetails: baseDetails
     };
-  }, [graph, livePipelineEvent?.partialGraph]);
+  }, [graph, livePipelineEvent?.partialGraph, practiceStates]);
 
   const [internalMode, setMode] = useState<WorkspaceMode>(initialMode);
   const [statusMessage, setStatusMessage] = useState<string>('');
@@ -290,12 +310,21 @@ function FlowCanvas({
   // Active concept data for inspector: strictly based on selectedNodeId (Prompt 26, Requirement 5 & 8)
   const activeConceptData = useMemo(() => {
     if (!selectedNodeId) return null;
+    let base: GraphConceptData | null = null;
     if (effectiveConceptDetails[selectedNodeId]) {
-      return effectiveConceptDetails[selectedNodeId];
+      base = effectiveConceptDetails[selectedNodeId];
+    } else {
+      const fallbackNode = effectiveNodes.find(n => n.id === selectedNodeId);
+      base = fallbackNode?.data || null;
     }
-    const fallbackNode = effectiveNodes.find(n => n.id === selectedNodeId);
-    return fallbackNode?.data || null;
-  }, [selectedNodeId, effectiveConceptDetails, effectiveNodes]);
+    if (!base) return null;
+    const pState = practiceStates[selectedNodeId];
+    return {
+      ...base,
+      practiceStatus: pState?.status || 'unseen',
+      practiceState: pState
+    };
+  }, [selectedNodeId, effectiveConceptDetails, effectiveNodes, practiceStates]);
 
   // Previous concept name for subtle back navigation (Prompt 26, Requirement 6)
   const previousNodeId = navHistory.length > 0 ? navHistory[navHistory.length - 1] : null;
@@ -1070,6 +1099,32 @@ function FlowCanvas({
             onFocusNode={(conceptId) => focusNodeOnCanvas(conceptId, true)}
             onSelectSource={onSelectSource}
             isCollapsed={!isInspectorOpen}
+            allGraphConcepts={effectiveNodes.map(n => ({
+              id: n.id,
+              name: n.data.name || n.data.label,
+              category: n.data.category,
+              description: n.data.description
+            }))}
+            onUpdatePracticeState={(conceptId: string, status: PracticeStatus) => {
+              const updated = updateConceptPracticeState(conceptId, status, graph?.id);
+              setPracticeStates(prev => ({
+                ...prev,
+                [conceptId]: updated
+              }));
+              setNodes(prev => prev.map(n => {
+                if (n.id === conceptId) {
+                  return {
+                    ...n,
+                    data: {
+                      ...n.data,
+                      practiceStatus: status,
+                      practiceState: updated
+                    }
+                  };
+                }
+                return n;
+              }));
+            }}
           />
         )}
       </AnimatePresence>
