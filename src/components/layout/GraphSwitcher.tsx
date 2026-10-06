@@ -13,6 +13,10 @@ interface GraphSwitcherProps {
   onRenameGraph?: (graphId: string, newName: string) => void;
 }
 
+type EditPhase = 'idle' | 'editing' | 'saved' | 'settling' | 'cancelling';
+
+const EDITORIAL_EASE = [0.16, 1, 0.3, 1] as const;
+
 export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
   graphs,
   activeGraphId,
@@ -24,21 +28,32 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
   const graphContext = useOptionalGraph();
   const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [editPhase, setEditPhase] = useState<EditPhase>('idle');
   const [draftTitle, setDraftTitle] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const exitDirectionRef = useRef<-6 | 6>(6);
+
+  const clearAnimTimeout = useCallback(() => {
+    if (animTimeoutRef.current) {
+      clearTimeout(animTimeoutRef.current);
+      animTimeoutRef.current = null;
+    }
+  }, []);
 
   // Cancel edit mode if active graph switches externally
   useEffect(() => {
     if (isEditing) {
+      clearAnimTimeout();
       setIsEditing(false);
+      setEditPhase('idle');
       setValidationError(null);
     }
-  }, [activeGraphId]);
+  }, [activeGraphId, clearAnimTimeout, isEditing]);
 
   // Close dropdown on outside click (only when dropdown is open and not editing)
   useEffect(() => {
@@ -69,15 +84,16 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, isEditing]);
 
-  // Cleanup click debounce timer on unmount
+  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (clickTimeoutRef.current) {
         clearTimeout(clickTimeoutRef.current);
         clickTimeoutRef.current = null;
       }
+      clearAnimTimeout();
     };
-  }, []);
+  }, [clearAnimTimeout]);
 
   const startEditing = useCallback(() => {
     if (!activeGraphMeta) return;
@@ -85,34 +101,44 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
       clearTimeout(clickTimeoutRef.current);
       clickTimeoutRef.current = null;
     }
+    clearAnimTimeout();
     setIsOpen(false);
     setDraftTitle(activeGraphMeta.name);
     setValidationError(null);
+    setEditPhase('editing');
     setIsEditing(true);
-  }, [activeGraphMeta]);
+  }, [activeGraphMeta, clearAnimTimeout]);
 
-  // Automatically focus and select the entire title when editing begins
+  // Automatically focus and place caret at the end of text
   useEffect(() => {
-    if (isEditing) {
+    if (isEditing && editPhase === 'editing') {
       requestAnimationFrame(() => {
         if (inputRef.current) {
           inputRef.current.focus();
-          inputRef.current.select();
+          const length = inputRef.current.value.length;
+          inputRef.current.setSelectionRange(length, length);
         }
       });
     }
-  }, [isEditing]);
+  }, [isEditing, editPhase]);
 
   const handleCancel = useCallback(() => {
-    if (!activeGraphMeta) return;
+    if (!activeGraphMeta || editPhase !== 'editing') return;
+    clearAnimTimeout();
+    exitDirectionRef.current = -6;
+    setEditPhase('cancelling');
     setDraftTitle(activeGraphMeta.name);
     setValidationError(null);
-    setIsEditing(false);
-  }, [activeGraphMeta]);
+
+    // Allow reverse animation to complete (underline contract + action slide-out)
+    animTimeoutRef.current = setTimeout(() => {
+      setIsEditing(false);
+      setEditPhase('idle');
+    }, 240);
+  }, [activeGraphMeta, clearAnimTimeout, editPhase]);
 
   const handleSave = useCallback(() => {
-    if (isSubmitting) return;
-    if (!activeGraphId || !activeGraphMeta) return;
+    if (!activeGraphId || !activeGraphMeta || editPhase !== 'editing') return;
 
     const trimmed = draftTitle.trim();
     if (!trimmed) {
@@ -131,7 +157,8 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
       return;
     }
 
-    setIsSubmitting(true);
+    clearAnimTimeout();
+    exitDirectionRef.current = 6;
     setValidationError(null);
 
     try {
@@ -142,13 +169,25 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
           graphContext.renameGraph(activeGraphId, trimmed);
         }
       }
-      setIsEditing(false);
+
+      // Step 1: Smooth transition to "Saved ✓" confirmation
+      setEditPhase('saved');
+
+      // Step 2: Keep confirmation visible for 300ms, then initiate settling
+      animTimeoutRef.current = setTimeout(() => {
+        setEditPhase('settling');
+
+        // Step 3: Allow underline contract + action fade-away + title settle to finish
+        animTimeoutRef.current = setTimeout(() => {
+          setIsEditing(false);
+          setEditPhase('idle');
+        }, 220);
+      }, 300);
     } catch (err) {
       setValidationError(err instanceof Error ? err.message : 'Failed to rename graph.');
-    } finally {
-      setIsSubmitting(false);
+      setEditPhase('editing');
     }
-  }, [isSubmitting, activeGraphId, activeGraphMeta, draftTitle, onRenameGraph, graphContext]);
+  }, [activeGraphId, activeGraphMeta, editPhase, draftTitle, clearAnimTimeout, onRenameGraph, graphContext]);
 
   // Input keyboard navigation & global hotkey shielding
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -166,6 +205,7 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (editPhase !== 'editing') return;
     setDraftTitle(e.target.value);
     if (validationError && e.target.value.trim().length > 0) {
       setValidationError(null);
@@ -230,6 +270,9 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
   }
 
   const currentDisplayName = activeGraphMeta?.name || 'Select graph';
+  const isActionExit = editPhase === 'settling' || editPhase === 'cancelling';
+  const isUnderlineExpanded = editPhase === 'editing' || editPhase === 'saved';
+  const underlineOrigin = editPhase === 'saved' || editPhase === 'settling' ? 'right' : 'left';
 
   return (
     <div className="topbar-graph-switcher-wrap" ref={containerRef}>
@@ -238,10 +281,13 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
           <motion.div
             key="inline-edit"
             className="topbar-inline-edit-wrap"
-            initial={{ opacity: 0, y: 2 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -2 }}
-            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            initial={{ opacity: 0, y: 0 }}
+            animate={{
+              opacity: isActionExit ? 0 : 1,
+              y: isActionExit ? 0 : -2
+            }}
+            exit={{ opacity: 0, y: 0, pointerEvents: 'none' }}
+            transition={{ duration: 0.2, ease: EDITORIAL_EASE }}
           >
             <div className="topbar-inline-input-sizer">
               <span className="topbar-inline-input-ghost" aria-hidden="true">
@@ -259,6 +305,19 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
                 maxLength={100}
                 spellCheck={false}
                 autoComplete="off"
+                disabled={editPhase !== 'editing'}
+              />
+
+              {/* Subtle green editing underline with editorial left->right expansion & right->left contract */}
+              <motion.div
+                className={`topbar-inline-underline ${validationError ? 'has-error' : ''}`}
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: isUnderlineExpanded ? 1 : 0 }}
+                style={{ transformOrigin: underlineOrigin }}
+                transition={{
+                  duration: isUnderlineExpanded ? 0.26 : 0.22,
+                  ease: EDITORIAL_EASE
+                }}
               />
             </div>
 
@@ -275,47 +334,83 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
               </motion.div>
             )}
 
-            <div className="topbar-inline-actions">
-              <motion.button
-                type="button"
-                className="topbar-inline-cancel-btn"
-                onClick={handleCancel}
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 6 }}
-                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                disabled={isSubmitting}
-                title="Cancel editing (Esc)"
-                id="btn-topbar-rename-cancel"
-              >
-                Cancel
-              </motion.button>
+            <AnimatePresence>
+              {!isActionExit && (
+                <motion.div
+                  className="topbar-inline-actions"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{
+                    opacity: 0,
+                    x: exitDirectionRef.current,
+                    transition: { duration: 0.18, ease: EDITORIAL_EASE }
+                  }}
+                >
+                  <motion.button
+                    type="button"
+                    className="topbar-inline-cancel-btn"
+                    onClick={handleCancel}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2, ease: EDITORIAL_EASE }}
+                    disabled={editPhase !== 'editing'}
+                    title="Cancel editing (Esc)"
+                    id="btn-topbar-rename-cancel"
+                  >
+                    Cancel
+                  </motion.button>
 
-              <motion.button
-                type="button"
-                className="topbar-inline-save-btn"
-                onClick={handleSave}
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 6 }}
-                transition={{ duration: 0.18, delay: 0.04, ease: [0.16, 1, 0.3, 1] }}
-                disabled={isSubmitting}
-                title="Save changes (Enter)"
-                id="btn-topbar-rename-save"
-              >
-                <span className="topbar-inline-save-label">Save</span>
-                <span className="topbar-inline-save-arrow" aria-hidden="true">→</span>
-              </motion.button>
-            </div>
+                  <motion.button
+                    type="button"
+                    className="topbar-inline-save-btn"
+                    onClick={handleSave}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2, delay: 0.05, ease: EDITORIAL_EASE }}
+                    disabled={editPhase !== 'editing'}
+                    title="Save changes (Enter)"
+                    id="btn-topbar-rename-save"
+                  >
+                    <AnimatePresence mode="wait" initial={false}>
+                      {editPhase === 'saved' ? (
+                        <motion.span
+                          key="saved"
+                          className="topbar-inline-save-content"
+                          initial={{ opacity: 0, y: 2 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -2 }}
+                          transition={{ duration: 0.15 }}
+                        >
+                          <span>Saved</span>
+                          <Check size={11} strokeWidth={2.4} className="topbar-inline-saved-check" aria-hidden="true" />
+                        </motion.span>
+                      ) : (
+                        <motion.span
+                          key="save"
+                          className="topbar-inline-save-content"
+                          initial={{ opacity: 0, y: 2 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -2 }}
+                          transition={{ duration: 0.15 }}
+                        >
+                          <span>Save</span>
+                          <span className="topbar-inline-save-arrow" aria-hidden="true">→</span>
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         ) : (
           <motion.div
             key="trigger-group"
             className="topbar-graph-trigger-group"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            initial={{ opacity: 0, y: -1 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, pointerEvents: 'none' }}
+            transition={{ duration: 0.2, ease: EDITORIAL_EASE }}
           >
             <button
               type="button"

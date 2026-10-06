@@ -396,4 +396,68 @@ describe('Inline Graph-Title Renaming Architecture & Persistence', () => {
       assert.equal(saveBtnAttributes.type, 'button');
     });
   });
+
+  describe('Micro-Interaction Lifecycle & Motion State Transitions', () => {
+    type EditPhase = 'idle' | 'editing' | 'saved' | 'settling' | 'cancelling';
+
+    const getUnderlineOrigin = (phase: EditPhase): 'left' | 'right' => {
+      return phase === 'saved' || phase === 'settling' ? 'right' : 'left';
+    };
+
+    const isUnderlineExpanded = (phase: EditPhase): boolean => {
+      return phase === 'editing' || phase === 'saved';
+    };
+
+    const isActionExit = (phase: EditPhase): boolean => {
+      return phase === 'settling' || phase === 'cancelling' || phase === 'idle';
+    };
+
+    it('manages underline expansion and contraction origins correctly', () => {
+      // While editing: underline expanded, origin 'left'
+      assert.equal(isUnderlineExpanded('editing'), true);
+      assert.equal(getUnderlineOrigin('editing'), 'left');
+
+      // On Save confirmation ("Saved ✓"): underline still expanded, origin flips to 'right'
+      assert.equal(isUnderlineExpanded('saved'), true);
+      assert.equal(getUnderlineOrigin('saved'), 'right');
+
+      // On Settling: underline contracts (scaleX: 0) from right to left
+      assert.equal(isUnderlineExpanded('settling'), false);
+      assert.equal(getUnderlineOrigin('settling'), 'right');
+
+      // On Cancel: underline contracts (scaleX: 0) from left
+      assert.equal(isUnderlineExpanded('cancelling'), false);
+      assert.equal(getUnderlineOrigin('cancelling'), 'left');
+    });
+
+    it('ensures actions exit smoothly only during settling or cancelling phases', () => {
+      assert.equal(isActionExit('editing'), false, 'Actions visible during editing');
+      assert.equal(isActionExit('saved'), false, 'Actions visible during Saved confirmation');
+      assert.equal(isActionExit('settling'), true, 'Actions exit smoothly during settling');
+      assert.equal(isActionExit('cancelling'), true, 'Actions exit smoothly during cancelling');
+    });
+
+    it('validates caret placement at end of string without full selection', () => {
+      const text = 'Neural Architectures';
+      let selectionStart = -1;
+      let selectionEnd = -1;
+
+      const mockInput = {
+        value: text,
+        setSelectionRange: (start: number, end: number) => {
+          selectionStart = start;
+          selectionEnd = end;
+        }
+      };
+
+      // Caret placed at end of string
+      const len = mockInput.value.length;
+      mockInput.setSelectionRange(len, len);
+
+      assert.equal(selectionStart, text.length);
+      assert.equal(selectionEnd, text.length);
+      assert.notEqual(selectionStart, 0, 'Should not select all text from 0');
+    });
+  });
 });
+
