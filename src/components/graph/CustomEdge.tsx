@@ -41,9 +41,9 @@ export const CustomEdge = memo(({
         markerEnd={markerEnd}
         interactionWidth={20}
         style={{
-          stroke: isHighlighted ? '#A3FF12' : '#2A2C2A',
-          strokeWidth: isHighlighted ? 1.85 : 1.15,
-          opacity: isHighlighted ? 1 : 0.65,
+          stroke: isHighlighted ? '#A3FF12' : 'rgba(255, 255, 255, 0.12)',
+          strokeWidth: isHighlighted ? 1.5 : 1,
+          opacity: isHighlighted ? 1 : 0.85,
           transition: 'stroke 180ms ease, stroke-width 180ms ease, opacity 180ms ease',
           ...style,
         }}

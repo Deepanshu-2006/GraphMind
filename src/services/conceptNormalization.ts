@@ -7,7 +7,7 @@ import type {
   TextChunk,
   ConceptRelevanceReport
 } from '../types/knowledgeGraph';
-import { extractConcepts, type ConceptExtractionOptions } from './conceptExtraction';
+import { extractConcepts, cleanConceptDescription, type ConceptExtractionOptions } from './conceptExtraction';
 import { GENERIC_BROAD_ROOTS } from '../config/conceptQuality';
 
 /**
@@ -46,7 +46,8 @@ const TECHNICAL_ACRONYM_MAP = new Map<string, string>([
   ['fcfs', 'first come first served'],
   ['sjf', 'shortest job first'],
   ['srtf', 'shortest remaining time first'],
-  ['os', 'operating system']
+  ['os', 'operating system'],
+  ['process scheduling', 'cpu scheduling']
 ]);
 
 /**
@@ -309,31 +310,45 @@ function isBetterName(candidate: string, currentBest: string): boolean {
 /**
  * Selects the most informative, definitive explanation between two candidate descriptions.
  */
-function selectBestDescription(descA: string, descB: string): string {
-  if (!descA) return descB || '';
-  if (!descB) return descA || '';
+function selectBestDescription(name: string, descA: string, descB: string): string {
+  const cleanA = cleanConceptDescription(name, descA || '');
+  const cleanB = cleanConceptDescription(name, descB || '');
+  if (!cleanA) return cleanB || '';
+  if (!cleanB) return cleanA || '';
 
-  const hasDefA = /\b(?:is an?|are|refers to|computes|enables|was proposed)\b/i.test(descA);
-  const hasDefB = /\b(?:is an?|are|refers to|computes|enables|was proposed)\b/i.test(descB);
+  const hasDefA = /\b(?:is an?|are|refers to|computes|enables|was proposed|mechanism|algorithm|technique|time from|percentage of)\b/i.test(cleanA);
+  const hasDefB = /\b(?:is an?|are|refers to|computes|enables|was proposed|mechanism|algorithm|technique|time from|percentage of)\b/i.test(cleanB);
 
-  if (hasDefA && !hasDefB) return descA;
-  if (!hasDefA && hasDefB) return descB;
+  if (hasDefA && !hasDefB) return cleanA;
+  if (!hasDefA && hasDefB) return cleanB;
 
-  // Avoid fallback boilerplate ("is a key concept discussed in...")
-  const isFallbackA = descA.includes('discussed in') || descA.includes('key concept');
-  const isFallbackB = descB.includes('discussed in') || descB.includes('key concept');
-  if (!isFallbackA && isFallbackB) return descA;
-  if (isFallbackA && !isFallbackB) return descB;
-
-  return descA.length >= descB.length ? descA : descB;
+  return cleanA.length >= cleanB.length ? cleanA : cleanB;
 }
+
+const TYPE_SPECIFICITY_RANK: Record<string, number> = {
+  'algorithm': 10,
+  'metric': 10,
+  'system': 9,
+  'process': 8,
+  'technique': 8,
+  'method': 7,
+  'theory': 7,
+  'component': 6,
+  'formula': 6,
+  'architecture': 5,
+  'application': 4,
+  'concept': 1,
+  'topic': 1
+};
 
 /**
  * Upgrades generic 'concept' types to specific architecture, algorithm, or method categories.
  */
 function resolveConceptType(typeA: ConceptCandidateType, typeB: ConceptCandidateType): ConceptCandidateType {
-  if (typeA && typeA !== 'concept') return typeA;
-  if (typeB && typeB !== 'concept') return typeB;
+  const rankA = TYPE_SPECIFICITY_RANK[(typeA || '').toLowerCase()] || 2;
+  const rankB = TYPE_SPECIFICITY_RANK[(typeB || '').toLowerCase()] || 2;
+  if (rankA >= rankB && typeA) return typeA;
+  if (rankB > rankA && typeB) return typeB;
   return typeA || typeB || 'concept';
 }
 
@@ -382,7 +397,7 @@ export function normalizeConcepts(rawConcepts: ConceptCandidate[]): CanonicalCon
         id,
         name: displayName,
         type: raw.type || 'concept',
-        description: raw.description?.trim() || '',
+        description: cleanConceptDescription(displayName, raw.description || raw.evidence || ''),
         sourceIds: candidateSourceIds,
         sourceChunkIds: candidateChunkIds,
         occurrences: raw.occurrences || 1,
@@ -443,7 +458,7 @@ export function normalizeConcepts(rawConcepts: ConceptCandidate[]): CanonicalCon
       existing.type = resolveConceptType(existing.type, raw.type);
 
       // Upgrade description if current candidate has a better definition
-      existing.description = selectBestDescription(raw.description, existing.description);
+      existing.description = selectBestDescription(existing.name, raw.description, existing.description);
 
       // Preserve highest importance and evidence
       if (raw.evidence && !existing.evidence) {

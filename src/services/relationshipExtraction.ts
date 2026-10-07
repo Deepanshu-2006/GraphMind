@@ -106,6 +106,54 @@ const RELATION_SPECIFICITY_RANK: Record<string, number> = {
 };
 
 /**
+ * Normalizes relationship type into a clean, human-readable semantic label:
+ * e.g. "is a type of", "measured by", "uses", "causes", "optimizes", "reduces", "depends on"
+ */
+export function humanizeRelationLabel(type: string): string {
+  const norm = (type || '').toLowerCase().trim();
+  switch (norm) {
+    case 'type-of':
+    case 'is-a':
+    case 'instance-of':
+      return 'is a type of';
+    case 'measured-by':
+      return 'measured by';
+    case 'optimizes':
+      return 'optimizes';
+    case 'causes':
+      return 'causes';
+    case 'reduces':
+      return 'reduces';
+    case 'improves':
+      return 'improves';
+    case 'uses':
+      return 'uses';
+    case 'depends-on':
+      return 'depends on';
+    case 'part-of':
+    case 'consists-of':
+      return 'consists of';
+    case 'foundation-for':
+      return 'foundation for';
+    case 'enables':
+      return 'enables';
+    case 'requires':
+      return 'requires';
+    case 'precedes':
+      return 'precedes';
+    case 'contrasts-with':
+      return 'contrasts with';
+    case 'example-of':
+      return 'example of';
+    case 'applied-to':
+      return 'applied to';
+    case 'related-to':
+    default:
+      return 'related to';
+  }
+}
+
+/**
  * Discovers if the source sentence establishes a semantic relationship between conceptA and conceptB.
  * Controlled vocabulary:
  * - foundation-for
@@ -171,7 +219,7 @@ export function findSemanticRelation(
     source: src.id,
     target: tgt.id,
     type,
-    label: type,
+    label: humanizeRelationLabel(type),
     description: cleanDescription,
     sourceChunkIds: [chunkId],
     sourceIds: sourceId ? [sourceId] : [],
@@ -441,7 +489,7 @@ export function deduplicateRelationships(relationships: KnowledgeRelationship[])
         existing.source = rel.source;
         existing.target = rel.target;
         existing.type = rel.type;
-        existing.label = rel.label || rel.type;
+        existing.label = humanizeRelationLabel(rel.label || rel.type);
         existing.id = `rel-${rel.source}-${rel.type}-${rel.target}`;
         if (rel.description) existing.description = rel.description.trim();
       } else if ((rel.description || '').length > (existing.description || '').length && currentRank === existingRank) {

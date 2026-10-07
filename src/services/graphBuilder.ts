@@ -8,6 +8,7 @@ import type {
 } from '../types/knowledgeGraph';
 import { extractText } from './textExtraction';
 import { extractAndNormalizeConcepts, generateCanonicalKey } from './conceptNormalization';
+import { cleanConceptDescription } from './conceptExtraction';
 import { extractRelationshipsFromChunks, deduplicateRelationships } from './relationshipExtraction';
 import { computeGraphLayout } from './graphLayout';
 
@@ -79,7 +80,7 @@ export function buildGraphNodes(concepts: CanonicalConcept[]): KnowledgeNode[] {
         id: trimmedId,
         name: c.name.trim(),
         type: c.type || 'concept',
-        description: c.description?.trim() || '',
+        description: cleanConceptDescription(c.name.trim(), c.description?.trim() || evidenceText),
         sourceIds: [...(c.sourceIds || [])],
         sourceChunkIds: [...(c.sourceChunkIds || [])],
         confidence: c.confidence,

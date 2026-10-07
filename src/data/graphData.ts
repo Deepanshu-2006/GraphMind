@@ -394,34 +394,38 @@ export const defaultKnowledgeGraph: KnowledgeGraph = {
 export function normalizeCategory(type: string = ''): ConceptCategory {
   const norm = (type || '').toLowerCase().trim();
   switch (norm) {
-    case 'foundation':
-    case 'topic':
-    case 'core':
-    case 'subject':
-      return 'Foundation';
+    case 'algorithm':
+      return 'Algorithm';
 
-    case 'paradigm':
+    case 'metric':
+    case 'property':
+      return 'Metric';
+
+    case 'process':
+      return 'Process';
+
+    case 'system':
+    case 'architecture':
+      return 'System';
+
+    case 'technique':
+      return 'Technique';
+
+    case 'method':
+      return 'Method';
+
     case 'theory':
+    case 'paradigm':
     case 'principle':
     case 'law':
     case 'theorem':
-      return 'Paradigm';
+      return 'Theory';
 
-    case 'method':
-    case 'process':
-    case 'algorithm':
-    case 'technique':
-    case 'experiment':
-      return 'Method';
-
-    case 'architecture':
-    case 'formula':
     case 'component':
-    case 'object':
-    case 'property':
-    case 'concept':
-    case 'definition':
-      return 'Architecture';
+      return 'Component';
+
+    case 'formula':
+      return 'Theory';
 
     case 'application':
     case 'example':
@@ -429,8 +433,14 @@ export function normalizeCategory(type: string = ''): ConceptCategory {
     case 'dataset':
       return 'Application';
 
+    case 'foundation':
+    case 'topic':
+    case 'core':
+    case 'subject':
+    case 'concept':
+    case 'definition':
     default:
-      return 'Foundation';
+      return 'Concept';
   }
 }
 
@@ -555,7 +565,7 @@ export function knowledgeGraphToReactFlow(graph: KnowledgeGraph): {
     };
   });
 
-  // 3. Build ReactFlow Edges
+  // 3. Build ReactFlow Edges with optimal handle assignment to prevent looping crossings
   const edges: Edge[] = graph.relationships.map(rel => {
     // Preserve progressive crafting edge ID conventions ('e-src-tgt')
     const edgeId = rel.id.startsWith('rel-') 
@@ -567,10 +577,39 @@ export function knowledgeGraphToReactFlow(graph: KnowledgeGraph): {
       .map(id => sourceMap.get(id)?.fileName || sourceMap.get(id)?.name)
       .filter((name): name is string => Boolean(name));
 
+    const srcPos = computedLayout.get(rel.source);
+    const tgtPos = computedLayout.get(rel.target);
+    let sourceHandle = 'source-right';
+    let targetHandle = 'target-left';
+
+    if (srcPos && tgtPos) {
+      const dx = tgtPos.x - srcPos.x;
+      const dy = tgtPos.y - srcPos.y;
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        if (dx >= 0) {
+          sourceHandle = 'source-right';
+          targetHandle = 'target-left';
+        } else {
+          sourceHandle = 'source-left';
+          targetHandle = 'target-right';
+        }
+      } else {
+        if (dy >= 0) {
+          sourceHandle = 'source-bottom';
+          targetHandle = 'target-top';
+        } else {
+          sourceHandle = 'source-top';
+          targetHandle = 'target-bottom';
+        }
+      }
+    }
+
     return {
       id: edgeId,
       source: rel.source,
       target: rel.target,
+      sourceHandle,
+      targetHandle,
       type: 'custom',
       label,
       data: { 

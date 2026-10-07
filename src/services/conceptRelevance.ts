@@ -65,7 +65,8 @@ export function isGenericConceptPhrase(name: string, documentProfile?: DocumentP
     'resources', 'program', 'execution', 'next', 'use', 'using', 'detail', 'object',
     'property', 'case', 'content', 'procedure', 'value', 'parameter', 'pattern',
     'metric', 'input', 'output', 'error', 'solution', 'answer', 'table', 'figure',
-    'page', 'algorithm', 'process',
+    'page', 'algorithm', 'process', 'number', 'mechanism', 'time', 'computer',
+    'criterion', 'criteria', 'meaning',
     ...GENERIC_BROAD_ROOTS
   ]);
 
@@ -172,6 +173,11 @@ export function isGenericConceptPhrase(name: string, documentProfile?: DocumentP
   // Reject conversational fragments
   if (['such as', 'for example', 'as well as', 'in addition', 'on the other hand'].includes(substantive)) {
     return { isGeneric: true, reason: `Conversational sentence fragment ("${trimmed}")` };
+  }
+
+  // Reject structural / table artifacts
+  if (/(?:scheduling\s+criteria|criterion\s+meaning|table\s+meaning|general\s+summary|overview\s+summary)$/i.test(trimmed)) {
+    return { isGeneric: true, reason: `Structural table or document artifact ("${trimmed}")` };
   }
 
   return { isGeneric: false };

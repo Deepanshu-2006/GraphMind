@@ -11,8 +11,11 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
 
   const practiceStatus = concept.practiceStatus || 'unseen';
 
+  const isCore = Boolean(concept.isCoreConcept || concept.isPrerequisite || (concept as any).isCore);
+
   const nodeClasses = [
     'knowledge-node-card',
+    isCore ? 'core-concept' : 'supporting-concept',
     `zoom-${zoomLevel}`,
     `state-${visibilityState}`,
     `practice-${practiceStatus}`,
@@ -40,11 +43,29 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
       aria-current={isSelected ? 'true' : undefined}
       data-concept-id={concept.id}
     >
-      {/* Handles on all 4 sides for natural organic connections */}
+      {/* Handles on all 4 sides for natural organic connections without crossing */}
       <Handle
         type="target"
         position={Position.Left}
         id="target-left"
+        className="node-handle"
+      />
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="source-left"
+        className="node-handle"
+      />
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="target-right"
+        className="node-handle"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="source-right"
         className="node-handle"
       />
       <Handle
@@ -55,8 +76,14 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
       />
       <Handle
         type="source"
-        position={Position.Right}
-        id="source-right"
+        position={Position.Top}
+        id="source-top"
+        className="node-handle"
+      />
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="target-bottom"
         className="node-handle"
       />
       <Handle

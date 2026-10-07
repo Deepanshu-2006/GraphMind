@@ -11,6 +11,14 @@ export type ConceptNodeType =
   | 'architecture'
   | 'method'
   | 'application'
+  | 'concept'
+  | 'algorithm'
+  | 'process'
+  | 'theory'
+  | 'metric'
+  | 'component'
+  | 'system'
+  | 'technique'
   | string;
 
 export interface NodePosition {
@@ -192,6 +200,9 @@ export type ConceptCandidateType =
   | 'Component'
   | 'Application'
   | 'Property'
+  | 'Metric'
+  | 'System'
+  | 'Technique'
   | 'concept'
   | 'topic'
   | 'method'

@@ -97,6 +97,7 @@ export const ACADEMIC_AND_GENERIC_FILLER = new Set([
   'motivation', 'contribution', 'contributions', 'setup', 'setting', 'settings',
   'comparison', 'perspective', 'viewpoint', 'aspect', 'aspects',
   'definition', 'definitions', 'theorem', 'proof', 'lemma', 'corollary',
+  'criterion', 'criteria', 'meaning',
   // Abstract empty words
   'concept', 'concepts', 'topic', 'topics', 'idea', 'ideas', 'detail', 'details',
   'element', 'elements', 'factor', 'factors', 'item', 'items', 'thing', 'things',
@@ -114,7 +115,7 @@ export const GENERIC_STANDALONE_WORDS = new Set([
   'program', 'execution', 'next', 'use', 'using', 'detail', 'object', 'property',
   'case', 'content', 'procedure', 'value', 'parameter', 'pattern', 'metric',
   'input', 'output', 'error', 'solution', 'answer', 'table', 'figure', 'page',
-  'algorithm', 'process',
+  'algorithm', 'process', 'number', 'mechanism', 'time', 'computer',
   ...GENERIC_BROAD_ROOTS
 ]);
 
@@ -271,6 +272,7 @@ export function isValidConceptName(name: string, documentProfile?: DocumentProfi
 
 /**
  * Classifies concept candidate into one of the controlled knowledge types.
+ * Respects canonical categories: CONCEPT, METHOD, ALGORITHM, PROCESS, THEORY, METRIC, COMPONENT, SYSTEM, TECHNIQUE.
  */
 export function classifyConceptType(name: string, context: string = ''): ConceptCandidateType {
   const lowerName = name.toLowerCase();
@@ -280,31 +282,48 @@ export function classifyConceptType(name: string, context: string = ''): Concept
   if (/\b(?:formula|equation|law|rule|theorem)\b/.test(lowerName) || /\b(?:1\/v|1\/f|m\s*=|E\s*=|y\s*=)\b/.test(lowerCtx)) {
     return 'Formula';
   }
-  // Algorithm & Policy
+
+  // CPU Scheduling explicitly -> Concept
+  if (lowerName === 'cpu scheduling') {
+    return 'Concept';
+  }
+
+  // Algorithm
   if (/\b(?:algorithm|sort|search|tree|heuristic|graph traversal|backpropagation|round robin|shortest job|shortest remaining|first-come|fcfs|sjf|srtf|priority scheduling)\b/.test(lowerName)) {
     return 'Algorithm';
   }
-  // Property, Metric & Criterion
-  if (/\b(?:atomicity|consistency|isolation|durability|property|focal length|radius of curvature|magnification|aperture|metric|waiting time|turnaround time|response time|throughput|cpu utilization|utilization)\b/.test(lowerName)) {
-    return 'Property';
+
+  // Metric
+  if (/\b(?:waiting time|turnaround time|response time|throughput|cpu utilization|utilization|metric|focal length|radius of curvature|magnification|aperture|accuracy|latency|error rate|loss)\b/.test(lowerName)) {
+    return 'Metric';
   }
-  // Process & Mechanism
-  if (/\b(?:process|scheduling|concurrency|reflection|refraction|pipeline|lifecycle|execution|paging|context switch|aging)\b/.test(lowerName)) {
-    return 'Process';
+
+  // System
+  if (/\b(?:operating system|file system|database system|distributed system|kernel|system)\b/.test(lowerName)) {
+    return 'System';
   }
-  // Principle & Theory
-  if (/\b(?:principle|theory|acid|paradigm|framework)\b/.test(lowerName)) {
-    return 'Principle';
+
+  // Technique
+  if (/\b(?:aging|regularization|normalization|dropout|caching|virtual memory|technique)\b/.test(lowerName)) {
+    return 'Technique';
   }
-  // Architecture & Model
-  if (/\b(?:architecture|transformer|cnn|rnn|gan|network|model|system|operating system|kernel)\b/.test(lowerName)) {
-    return 'architecture';
-  }
-  // Method & Technique
-  if (/\b(?:method|technique|descent|regularization|normalization)\b/.test(lowerName)) {
+
+  // Method
+  if (/\b(?:method|gradient descent|simplex|monte carlo)\b/.test(lowerName)) {
     return 'Method';
   }
-  // Component & Structure
+
+  // Process
+  if (/\b(?:process|concurrency|reflection|refraction|pipeline|lifecycle|execution|paging|context switch)\b/.test(lowerName)) {
+    return 'Process';
+  }
+
+  // Theory / Principle
+  if (/\b(?:principle|theory|acid|paradigm|framework)\b/.test(lowerName)) {
+    return 'Theory';
+  }
+
+  // Component
   if (/\b(?:mirror|lens|cpu|mmu|pcb|tlb|table|hardware|disk|cache|scheduler)\b/.test(lowerName)) {
     return 'Component';
   }
@@ -313,29 +332,139 @@ export function classifyConceptType(name: string, context: string = ''): Concept
 }
 
 /**
+ * Cleans and formats an extracted source sentence into a concise, high-quality description:
+ * - Strips leading section numbers or list markers ("1. ", "3. ")
+ * - Strips table artifacts or meta headers ("Criterion Meaning", "Scheduling Criteria")
+ * - Removes duplicated concept titles (e.g. "CPU Scheduling CPU scheduling is the mechanism..." -> "The mechanism...")
+ * - Removes redundant leading phrases (e.g. "Waiting time: Time a process spends..." -> "Time a process spends...")
+ * - Avoids starting with repeating the concept title ("Round Robin Scheduling is a..." -> "A scheduling method that...")
+ * - Ensures 1-2 concise, source-grounded sentences without hallucination or filler.
+ */
+export function cleanConceptDescription(name: string, rawText: string): string {
+  if (!rawText || typeof rawText !== 'string') return '';
+  let text = rawText.trim().replace(/\s+/g, ' ');
+
+  // 1. Remove markdown headers, list numbering, and bullet markers
+  text = text.replace(/^#+\s*/, '');
+  text = text.replace(/^\d+[\.:)]\s*/, '');
+  text = text.replace(/^[-*•]\s*/, '');
+
+  // 2. Remove table header artifacts like "Criterion Meaning"
+  text = text.replace(/^(?:criterion\s+meaning|meaning)\s*[-:–—]?\s*/i, '');
+
+  // 3. Remove leading repeated name variants
+  // (e.g., "CPU Scheduling CPU scheduling is...", "Round Robin Scheduling Round Robin scheduling is...")
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const repeatedPattern = new RegExp(
+    `^(?:${escapedName}|${name.replace(/[-_]/g, ' ')})(?:\\s*\\([A-Z0-9]{2,6}\\))?\\s*[-:–—]?\\s*(?:(?:${escapedName}|${name.replace(/[-_]/g, ' ')})\\s*(?:scheduling|algorithm|process|technique|method)?\\s*)?`,
+    'i'
+  );
+  text = text.replace(repeatedPattern, '').trim();
+
+  // 4. If text starts with "is / are / refers to / is defined as / is the / is a / is an", strip and capitalize substantive continuation
+  const defPrefixPattern = /^(?:is\s+defined\s+as|refers\s+to|is\s+called|is\s+known\s+as|is\s+termed|is\s+the|is\s+an?|are|was\s+proposed\s+as)\s+/i;
+  if (defPrefixPattern.test(text)) {
+    const matched = text.match(defPrefixPattern)![0];
+    const rest = text.slice(matched.length).trim();
+    if (matched.toLowerCase().includes('the ')) {
+      text = 'The ' + rest;
+    } else if (matched.toLowerCase().includes('an ')) {
+      text = 'An ' + rest;
+    } else if (matched.toLowerCase().includes('a ')) {
+      text = 'A ' + rest;
+    } else {
+      text = rest.charAt(0).toUpperCase() + rest.slice(1);
+    }
+  }
+
+  // 5. If it starts with a colon e.g. ": Time a process spends...", strip the colon
+  text = text.replace(/^[-:–—]\s*/, '').trim();
+
+  // 6. If the text still starts with the concept name itself followed by "is / are":
+  // e.g. "CPU scheduling is the mechanism..." -> "The mechanism..."
+  const nameIsPattern = new RegExp(`^${escapedName}\\s+(?:is|are)\\s+(?:the|an?)\\s+`, 'i');
+  if (nameIsPattern.test(text)) {
+    const after = text.replace(nameIsPattern, '').trim();
+    const article = /^[aeiou]/i.test(after) ? 'An' : 'A';
+    if (/^(?:mechanism|process|method|algorithm|technique|way|criterion|measure)\b/i.test(after)) {
+      text = 'The ' + after;
+    } else {
+      text = article + ' ' + after;
+    }
+  } else {
+    // Or if it starts with "[name] [verb]" e.g. "Round Robin scheduling assigns..." -> "Assigns..."
+    const nameVerbPattern = new RegExp(`^${escapedName}\\s+(?:scheduling|algorithm|technique|method)?\\s*`, 'i');
+    if (nameVerbPattern.test(text)) {
+      const stripped = text.replace(nameVerbPattern, '').trim();
+      if (stripped.length > 15) {
+        text = stripped.charAt(0).toUpperCase() + stripped.slice(1);
+      }
+    }
+  }
+
+  // 7. Clamp to 1-2 full sentences, avoiding truncation mid-sentence
+  const sentences = text.match(/[^.!?]+[.!?]+/g);
+  if (sentences && sentences.length > 0) {
+    if (sentences.length === 1) {
+      text = sentences[0].trim();
+    } else {
+      const two = `${sentences[0].trim()} ${sentences[1].trim()}`;
+      text = two.length <= 260 ? two : sentences[0].trim();
+    }
+  }
+
+  // Ensure first character is capitalized
+  if (text.length > 0) {
+    text = text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
+  return text;
+}
+
+/**
  * Extracts a concise educational description sentence from evidence context.
+ * Strips title repetitions, avoids generic filler, and guarantees source grounding.
  */
 export function extractConceptDescription(name: string, chunkText: string): string {
-  if (!chunkText) return `${name} as described in the learning material.`;
-  const sentences = chunkText.split(/(?<=[.!?])\s+/);
+  if (!chunkText) return '';
+  const paragraphs = chunkText.split(/\n\s*\n+/);
+  const sentences: string[] = [];
+  for (const p of paragraphs) {
+    for (const s of p.split(/(?<=[.!?])\s+|\n+/)) {
+      const trimmed = s.trim();
+      if (trimmed.length > 15) sentences.push(trimmed);
+    }
+  }
   const lower = name.toLowerCase();
 
   // 1. Look for direct definitional sentence
   for (const s of sentences) {
     const sLower = s.toLowerCase();
-    if (sLower.includes(lower) && /(?:is defined as|refers to|is a|is an|ensures|preserves|controls|consists of|is called|is the mechanism|is designed for|is a technique)/i.test(s)) {
-      return s.trim().replace(/\s+/g, ' ');
+    if (sLower.includes(lower) && /(?:is defined as|refers to|is a|is an|is the|ensures|preserves|controls|consists of|is called|is the mechanism|is designed for|is a technique|selects|assigns|measures|criterion|time from|percentage of)/i.test(s)) {
+      const cleaned = cleanConceptDescription(name, s);
+      if (cleaned && cleaned.length >= 20) return cleaned;
     }
   }
 
-  // 2. Look for any sentence mentioning the name
+  // 2. Look for any substantive sentence mentioning the name
   for (const s of sentences) {
-    if (s.toLowerCase().includes(lower) && s.length >= 20 && s.length <= 250) {
-      return s.trim().replace(/\s+/g, ' ');
+    if (s.toLowerCase().includes(lower) && s.length >= 25 && s.length <= 250) {
+      const cleaned = cleanConceptDescription(name, s);
+      if (cleaned && cleaned.length >= 20) return cleaned;
     }
   }
 
-  return `${name} as discussed in the learning material.`;
+  // 3. Fallback to first non-empty cleaned sentence in chunk
+  for (const s of sentences) {
+    const cleaned = cleanConceptDescription(name, s);
+    if (cleaned && cleaned.length >= 15) return cleaned;
+  }
+
+  // 4. Final fallback: whole chunk text cleaned
+  const wholeCleaned = cleanConceptDescription(name, chunkText);
+  if (wholeCleaned && wholeCleaned.length >= 10) return wholeCleaned;
+
+  return '';
 }
 
 /**

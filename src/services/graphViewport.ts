@@ -263,15 +263,15 @@ export function calculateVisibleGraph({
           isHighlighted: isIncident
         },
         style: {
-          stroke: isIncident ? '#A3FF12' : isDimmed ? 'rgba(255, 255, 255, 0.08)' : '#333333',
-          strokeWidth: isIncident ? 1.85 : 1.25,
+          stroke: isIncident ? '#A3FF12' : isDimmed ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.12)',
+          strokeWidth: isIncident ? 1.85 : 1,
           opacity: isDimmed ? 0.12 : 0.85
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          width: 14,
-          height: 14,
-          color: isIncident ? '#A3FF12' : isDimmed ? 'rgba(255, 255, 255, 0.15)' : '#444444'
+          width: 12,
+          height: 12,
+          color: isIncident ? '#A3FF12' : isDimmed ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.14)'
         }
       };
     });
@@ -593,15 +593,15 @@ export function calculateVisibleGraph({
         isHighlighted: isIncident
       },
       style: {
-        stroke: isIncident ? '#A3FF12' : isDimmed ? 'rgba(255, 255, 255, 0.08)' : '#333333',
-        strokeWidth: isIncident ? 1.85 : 1.25,
+        stroke: isIncident ? '#A3FF12' : isDimmed ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.12)',
+        strokeWidth: isIncident ? 1.85 : 1,
         opacity: isDimmed ? 0.12 : 0.85
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        width: 14,
-        height: 14,
-        color: isIncident ? '#A3FF12' : isDimmed ? 'rgba(255, 255, 255, 0.15)' : '#444444'
+        width: 12,
+        height: 12,
+        color: isIncident ? '#A3FF12' : isDimmed ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.14)'
       }
     });
   }

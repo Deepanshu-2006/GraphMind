@@ -1,11 +1,20 @@
 export * from './knowledgeGraph';
 
 export type ConceptCategory = 
+  | 'Concept'
+  | 'Algorithm'
+  | 'Metric'
+  | 'Process'
+  | 'System'
+  | 'Technique'
+  | 'Method'
+  | 'Theory'
+  | 'Component'
   | 'Foundation' 
   | 'Paradigm' 
   | 'Architecture' 
-  | 'Method' 
-  | 'Application';
+  | 'Application'
+  | string;
 
 export type FilterCategory = 'ALL' | 'CONCEPTS' | 'PREREQUISITES' | 'APPLICATIONS' | 'METHODS';
 
