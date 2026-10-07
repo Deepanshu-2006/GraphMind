@@ -2724,6 +2724,414 @@
   border-color: rgba(212, 154, 61, 0.28);
 }
 
+/* ==================================================
+   PHASE 5: EXAM PREPARATION / REVISION MODE
+   ================================================== */
+
+/* Revision Node & Edge Visual Hierarchy (Prompt Sections 3, 14, 15) */
+.knowledge-node-card.revision-current {
+  border: 1.5px solid #A3FF12 !important;
+  box-shadow: 0 0 16px rgba(163, 255, 18, 0.22), 0 2px 8px rgba(0, 0, 0, 0.6) !important;
+  background-color: #121611 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  z-index: 25 !important;
+  transition: border-color 280ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 280ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.knowledge-node-card.revision-visited {
+  opacity: 0.78 !important;
+  border-color: rgba(163, 255, 18, 0.22) !important;
+  transition: opacity 280ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.react-flow__edge.revision-active path {
+  stroke: #A3FF12 !important;
+  stroke-width: 2.2px !important;
+  stroke-opacity: 0.95 !important;
+  transition: stroke 280ms cubic-bezier(0.16, 1, 0.3, 1), stroke-width 280ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Toolbar Revision Controls (Prompt Section 1, 8, 9) */
+.study-revise-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.study-revise-btn.active {
+  background-color: #141A12 !important;
+  border-color: #2F4221 !important;
+  color: #A3FF12 !important;
+}
+
+.toolbar-revision-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 2px;
+  padding-left: 4px;
+  border-left: 1px solid #222620;
+}
+
+.toolbar-revision-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: #8E918C;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.toolbar-revision-arrow:hover:not(:disabled) {
+  color: #A3FF12;
+  background-color: #161D13;
+  border-color: #2F4221;
+}
+
+.toolbar-revision-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.toolbar-revision-counter {
+  font-size: 10px;
+  font-weight: 700;
+  color: #A3FF12;
+  letter-spacing: 0.06em;
+  padding: 0 4px;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+/* Revision Detail Panel Workspace (Prompt Section 4, 10, 16) */
+.revision-panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.revision-header {
+  border-bottom: 1px solid #1E221D;
+  padding-bottom: 12px;
+}
+
+.revision-header-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.revision-progress-tag {
+  color: #A3FF12 !important;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+
+.revision-exit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+  color: #7E827D;
+  font-size: 10.5px;
+  cursor: pointer;
+  transition: color 150ms ease;
+  font-family: inherit;
+}
+
+.revision-exit-btn:hover {
+  color: #F5F5F5;
+}
+
+.revision-concept-meta-label {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #7E827D;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-top: 6px;
+}
+
+.revision-concept-title {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  color: #F5F5F5 !important;
+  line-height: 1.25 !important;
+  margin-top: 2px !important;
+}
+
+.revision-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.revision-explanation {
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+  color: #E0E2DD !important;
+  margin: 0 !important;
+  user-select: text;
+}
+
+.revision-connected-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.revision-connected-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  background-color: #121412;
+  border: 1px solid #222920;
+  border-radius: 5px;
+  color: #D8DCD5;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 140ms ease;
+  font-family: inherit;
+  text-align: left;
+}
+
+.revision-connected-chip:hover {
+  background-color: #182215;
+  border-color: #A3FF12;
+  color: #A3FF12;
+}
+
+.revision-connected-name {
+  font-weight: 500;
+}
+
+.revision-connected-label {
+  font-size: 9px;
+  color: #7A8077;
+}
+
+.revision-connected-arrow {
+  color: #6C726A;
+  transition: transform 140ms ease;
+}
+
+.revision-connected-chip:hover .revision-connected-arrow {
+  color: #A3FF12;
+  transform: translateX(2px);
+}
+
+.revision-quote {
+  border-left: 2px solid #2B3A20;
+  padding-left: 10px;
+  font-style: italic;
+  color: #ACB0A8;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 2px 0 6px 0;
+  user-select: text;
+}
+
+.revision-sources-list {
+  margin-top: 2px;
+}
+
+.revision-source-box {
+  margin-top: 2px;
+}
+
+.revision-recall-cta-wrap {
+  margin-top: 4px;
+}
+
+.revision-recall-btn {
+  width: 100%;
+}
+
+/* Assessment Buttons: KNOW IT / REVIEW AGAIN (Prompt Section 10) */
+.revision-assess-section {
+  border-top: 1px solid #1E221D;
+  padding-top: 12px;
+  margin-top: 6px;
+}
+
+.revision-assess-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.revision-btn-know {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 12px;
+  background-color: #121811;
+  border: 1px solid #293822;
+  border-radius: 6px;
+  color: #A3FF12;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 150ms ease;
+  font-family: inherit;
+}
+
+.revision-btn-know:hover {
+  background-color: #192416;
+  border-color: #A3FF12;
+  color: #BAFF33;
+}
+
+.revision-btn-know:focus-visible {
+  outline: 2px solid #A3FF12;
+  outline-offset: 1px;
+}
+
+.revision-btn-review {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 12px;
+  background-color: #161411;
+  border: 1px solid #3A2E1C;
+  border-radius: 6px;
+  color: #D49A3D;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 150ms ease;
+  font-family: inherit;
+}
+
+.revision-btn-review:hover {
+  background-color: #221D15;
+  border-color: #E2AC52;
+  color: #F0BC62;
+}
+
+.revision-btn-review:focus-visible {
+  outline: 2px solid #D49A3D;
+  outline-offset: 1px;
+}
+
+/* Navigation: ← PREVIOUS / NEXT → (Prompt Section 8 & 9) */
+.revision-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid #181C17;
+}
+
+.revision-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  background-color: transparent;
+  border: 1px solid #232722;
+  border-radius: 4px;
+  color: #9EA29A;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 140ms ease;
+  font-family: inherit;
+}
+
+.revision-nav-btn:hover:not(:disabled) {
+  border-color: #A3FF12;
+  color: #F5F5F5;
+  background-color: #121411;
+}
+
+.revision-nav-btn:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+
+.revision-nav-counter {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #8C9188;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+/* Empty Revision State (Prompt Section 18) */
+.revision-empty-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 0;
+}
+
+.revision-empty-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.revision-empty-start-btn {
+  width: 100%;
+}
+
+.study-revise-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  padding: 8px 12px;
+  background-color: #111510;
+  border: 1px solid #222E1A;
+  border-radius: 6px;
+  color: #A3FF12;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 150ms ease;
+  margin-top: 6px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.study-revise-cta-btn:hover {
+  background-color: #172115;
+  border-color: #A3FF12;
+  color: #BAFF33;
+}
+
+.study-revise-cta-btn:focus-visible {
+  outline: 2px solid #A3FF12;
+  outline-offset: 1px;
+}
 
 /* ==================================================
    15. EMPTY, LOADING, & CRAFTING STATES (Prompt 8)
