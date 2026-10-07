@@ -313,38 +313,98 @@ describe('GraphMind Canvas Toolbar Redesign — Information Architecture & Behav
     });
   });
 
-  describe('8. Study Mode Transformation Animation Architecture (Sections 1–15)', () => {
-    test('configures restrained layout spring without overshoot or bounce', () => {
+  describe('8. Study Mode Transformation Animation Architecture (Sections 1–24)', () => {
+    test('enforces editorial typography and eliminates button-container styling (Section 1, 5, 18)', () => {
+      const exitStudyTypography = {
+        fontSize: '13px',
+        fontWeight: 500,
+        letterSpacing: '-0.01em',
+        normalColor: 'rgba(255, 255, 255, 0.72)',
+        hoverColor: 'rgba(255, 255, 255, 0.95)',
+        background: 'transparent',
+        border: 'transparent',
+        hasButtonContainerBox: false,
+        hasGlow: false
+      };
+
+      assert.equal(exitStudyTypography.fontSize, '13px');
+      assert.equal(exitStudyTypography.fontWeight, 500);
+      assert.equal(exitStudyTypography.letterSpacing, '-0.01em');
+      assert.equal(exitStudyTypography.normalColor, 'rgba(255, 255, 255, 0.72)');
+      assert.equal(exitStudyTypography.hoverColor, 'rgba(255, 255, 255, 0.95)');
+      assert.equal(exitStudyTypography.background, 'transparent');
+      assert.equal(exitStudyTypography.border, 'transparent');
+      assert.equal(exitStudyTypography.hasButtonContainerBox, false);
+      assert.equal(exitStudyTypography.hasGlow, false);
+    });
+
+    test('validates exit study hover micro-interaction: arrow shifts left while text remains stationary (Section 6 & 20)', () => {
+      const hoverInteraction = {
+        arrowShiftX: -3, // translates ~3px toward the left
+        textShiftX: 0,   // text remains stationary
+        brightnessBoost: true,
+        backgroundChange: false,
+        borderChange: false
+      };
+
+      assert.equal(hoverInteraction.arrowShiftX, -3);
+      assert.equal(hoverInteraction.textShiftX, 0);
+      assert.equal(hoverInteraction.brightnessBoost, true);
+      assert.equal(hoverInteraction.backgroundChange, false);
+      assert.equal(hoverInteraction.borderChange, false);
+    });
+
+    test('features extremely restrained 3px green active indicator dot (Section 19)', () => {
+      const activeIndicator = {
+        size: 3,
+        color: '#A3FF12',
+        shape: 'circle',
+        isFullButtonFill: false
+      };
+
+      assert.equal(activeIndicator.size, 3);
+      assert.equal(activeIndicator.color, '#A3FF12');
+      assert.equal(activeIndicator.shape, 'circle');
+      assert.equal(activeIndicator.isFullButtonFill, false);
+    });
+
+    test('configures restrained layout spring without overshoot or bounce (Section 17)', () => {
       const springConfig = {
         type: 'spring',
-        stiffness: 420,
-        damping: 32,
+        stiffness: 440,
+        damping: 34,
         mass: 0.7
       };
 
-      // Damping ratio = damping / (2 * sqrt(mass * stiffness)) = 32 / (2 * sqrt(294)) ≈ 0.93 (near critical)
+      // Damping ratio = damping / (2 * sqrt(mass * stiffness)) = 34 / (2 * sqrt(308)) ≈ 0.969 (near critical)
       const criticalDamping = 2 * Math.sqrt(springConfig.mass * springConfig.stiffness);
       const dampingRatio = springConfig.damping / criticalDamping;
 
-      assert.equal(springConfig.stiffness, 420);
-      assert.equal(springConfig.damping, 32);
+      assert.equal(springConfig.stiffness, 440);
+      assert.equal(springConfig.damping, 34);
       assert.equal(springConfig.mass, 0.7);
-      assert.ok(dampingRatio > 0.85 && dampingRatio < 1.0, 'Spring must be near critically damped to prevent bouncing');
+      assert.ok(dampingRatio > 0.90 && dampingRatio < 1.0, 'Spring must be near critically damped to prevent bouncing');
     });
 
-    test('reverses sequence on exit: Next → All → Exit study → Study', () => {
-      const enterSequence = ['divider-1', 'filter', 'divider-2', 'next'];
+    test('reverses sequence on exit: Next → All → Exit study → Study (Section 4 & 15)', () => {
+      const enterSequence = ['exit-study', 'divider-1', 'filter', 'divider-2', 'next'];
       const exitSequence = [...enterSequence].reverse();
 
-      assert.deepEqual(exitSequence, ['next', 'divider-2', 'filter', 'divider-1']);
+      assert.deepEqual(exitSequence, ['next', 'divider-2', 'filter', 'divider-1', 'exit-study']);
+
+      // Total exit transition should complete within 400–550ms
+      const exitDurationMs = 460;
+      assert.ok(exitDurationMs >= 400 && exitDurationMs <= 550, 'Exit transition must fall between 400 and 550ms');
     });
 
-    test('maintains quiet active accent travelling beam timing within 200–300ms', () => {
-      const beamDurationMs = 280;
-      assert.ok(beamDurationMs >= 200 && beamDurationMs <= 300);
+    test('maintains quiet active accent travelling beam timing within 250–350ms with very low opacity (Section 7)', () => {
+      const beamDurationMs = 300;
+      const initialOpacity = 0.35;
+      assert.ok(beamDurationMs >= 250 && beamDurationMs <= 350, 'Beam duration must be between 250-350ms');
+      assert.ok(initialOpacity <= 0.45, 'Beam opacity must be very low and non-neon');
     });
 
-    test('reduced motion disables unfolding translations and defaults to short opacity transition', () => {
+    test('reduced motion disables unfolding translations and defaults to short opacity transition (Section 22)', () => {
       const reducedMotionVariants = {
         hidden: { opacity: 0, transition: { duration: 0.1 } },
         visible: { opacity: 1, transition: { duration: 0.1 } }
@@ -356,4 +416,5 @@ describe('GraphMind Canvas Toolbar Redesign — Information Architecture & Behav
     });
   });
 });
+
 

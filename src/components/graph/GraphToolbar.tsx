@@ -64,6 +64,8 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   const [isStudyFilterMenuOpen, setIsStudyFilterMenuOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isTransitionSettled, setIsTransitionSettled] = useState(true);
+  const [showSignalRipple, setShowSignalRipple] = useState(false);
+  const prevStudyPanelOpen = useRef(isStudyPanelOpen);
 
   const shouldReduceMotion = useReducedMotion();
 
@@ -74,6 +76,16 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const studyFilterRef = useRef<HTMLDivElement>(null);
 
+  // Trigger whisper-thin green signal ripple traveling across expanding toolbar on activation (Section 7)
+  useEffect(() => {
+    if (!prevStudyPanelOpen.current && isStudyPanelOpen) {
+      setShowSignalRipple(true);
+      const timer = setTimeout(() => setShowSignalRipple(false), 300);
+      return () => clearTimeout(timer);
+    }
+    prevStudyPanelOpen.current = isStudyPanelOpen;
+  }, [isStudyPanelOpen]);
+
   // Transition settled tracking for unclipped dropdown popovers
   useEffect(() => {
     setIsTransitionSettled(false);
@@ -83,13 +95,13 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
     return () => clearTimeout(timer);
   }, [isStudyPanelOpen]);
 
-  // Spring transition: stiffness: 420, damping: 32, mass: 0.7 (Section 3 & 14: restrained, no bounce)
+  // Spring transition: stiffness: 440, damping: 34, mass: 0.7 (Section 17: restrained spring, near critically damped, no bounce)
   const toolbarSpringTransition = useMemo(() => {
     if (shouldReduceMotion) return { duration: 0.1 };
     return {
       type: 'spring',
-      stiffness: 420,
-      damping: 32,
+      stiffness: 440,
+      damping: 34,
       mass: 0.7
     } as const;
   }, [shouldReduceMotion]);
@@ -107,8 +119,9 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
       opacity: 1,
       transition: {
         when: 'beforeChildren',
-        staggerChildren: 0.05,
-        staggerDirection: 1
+        staggerChildren: 0.048,
+        staggerDirection: 1,
+        delayChildren: 0.035
       }
     }
   }), []);
@@ -116,10 +129,10 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   const itemVariants = useMemo(() => ({
     hidden: {
       opacity: 0,
-      x: -8,
-      scale: 0.97,
+      x: -10,
+      scale: 0.98,
       transition: {
-        duration: 0.24,
+        duration: 0.22,
         ease: [0.22, 1, 0.36, 1]
       }
     },
@@ -128,7 +141,7 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
       x: 0,
       scale: 1,
       transition: {
-        duration: 0.3,
+        duration: 0.28,
         ease: [0.22, 1, 0.36, 1]
       }
     }
@@ -139,7 +152,7 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
       opacity: 0,
       scaleY: 0.5,
       transition: {
-        duration: 0.18,
+        duration: 0.16,
         ease: [0.22, 1, 0.36, 1]
       }
     },
@@ -394,23 +407,23 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
 
       {/* 2. STUDY ACTION OR STUDY MODE (Sections 1-7, 10, 12: Continuous Unfolding Transformation) */}
       <div className="toolbar-study-transform-wrap" role="region" aria-label="Study mode controls">
-        {/* Subtle travelling green signal beam on activation (Section 7) */}
-        {isStudyPanelOpen && !shouldReduceMotion && (
+        {/* Subtle travelling green signal beam on activation (Section 7: 250-350ms, very low opacity) */}
+        {showSignalRipple && !shouldReduceMotion && (
           <motion.div
             key="study-signal-beam"
             className="study-signal-beam"
-            initial={{ scaleX: 0, opacity: 0.85, originX: 0 }}
-            animate={{ scaleX: 1, opacity: [0.85, 0.85, 0] }}
-            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            initial={{ scaleX: 0, opacity: 0.35, originX: 0 }}
+            animate={{ scaleX: 1, opacity: [0.35, 0.3, 0] }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             aria-hidden="true"
           />
         )}
 
-        {/* Anchor button: Morphs between "Study" and "← Exit study" (Section 3) */}
+        {/* Anchor button: Morphs between "Study" and "← Exit study" (Sections 1-6, 11, 19, 20) */}
         <motion.button
           layout="position"
           type="button"
-          className={`toolbar-text-btn ${isStudyPanelOpen ? 'study-exit-btn active' : 'toolbar-study-trigger'}`}
+          className={`toolbar-text-btn toolbar-study-anchor-btn ${isStudyPanelOpen ? 'study-exit-btn' : 'toolbar-study-trigger'}`}
           onClick={() => {
             setIsViewMenuOpen(false);
             setIsMoreMenuOpen(false);
@@ -426,23 +439,41 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
             {isStudyPanelOpen ? (
               <motion.span
                 key="exit-study-label"
-                className="study-btn-inner"
-                initial={shouldReduceMotion ? false : { opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={shouldReduceMotion ? undefined : { opacity: 0, x: -8 }}
-                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                className="study-exit-label-wrap"
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 7, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={shouldReduceMotion ? undefined : { 
+                  opacity: 0, 
+                  y: 7, 
+                  scale: 0.97, 
+                  transition: { duration: 0.22, delay: 0.1, ease: [0.22, 1, 0.36, 1] } 
+                }}
+                transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
               >
-                <ArrowLeft size={12} className="study-exit-icon" aria-hidden="true" />
-                <span className="toolbar-btn-text">Exit study</span>
+                <span className="study-active-indicator" aria-hidden="true" />
+                <span className="study-exit-arrow" aria-hidden="true">
+                  <ArrowLeft size={11.5} strokeWidth={1.8} />
+                </span>
+                <span className="study-exit-text">Exit study</span>
               </motion.span>
             ) : (
               <motion.span
                 key="normal-study-label"
-                className="study-btn-inner"
-                initial={shouldReduceMotion ? false : { opacity: 0, x: 6 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={shouldReduceMotion ? undefined : { opacity: 0, x: 6 }}
-                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                className="study-normal-label-wrap"
+                initial={shouldReduceMotion ? false : { opacity: 0, y: -6, scale: 0.97 }}
+                animate={{ 
+                  opacity: 1, 
+                  y: 0, 
+                  scale: 1, 
+                  transition: { duration: 0.26, delay: 0.12, ease: [0.16, 1, 0.3, 1] } 
+                }}
+                exit={shouldReduceMotion ? undefined : { 
+                  opacity: 0, 
+                  y: -6, 
+                  scale: 0.97, 
+                  transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } 
+                }}
+                transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
               >
                 <span className="toolbar-btn-text">Study</span>
                 {needsReviewCount > 0 && (
@@ -583,7 +614,7 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
                 variants={shouldReduceMotion ? reducedItemVariants : itemVariants}
               >
                 <span className="toolbar-btn-text">Next</span>
-                <ArrowRight size={12} className="study-next-icon" aria-hidden="true" />
+                <ArrowRight size={11.5} className="study-next-icon" aria-hidden="true" />
               </motion.button>
             </motion.div>
           )}

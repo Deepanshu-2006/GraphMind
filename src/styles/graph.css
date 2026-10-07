@@ -612,7 +612,7 @@
   line-height: 1.2;
 }
 
-/* Study Mode Transformation (Sections 1-7: Linear / Arc / Raycast Physical Transformation) */
+/* Study Mode Transformation (Sections 1–24: Continuous Instrument State Model) */
 .toolbar-study-transform-wrap {
   position: relative;
   display: flex;
@@ -621,64 +621,136 @@
   min-width: 0;
 }
 
-.study-btn-inner {
+/* Anchor Button Base */
+.toolbar-study-anchor-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  box-shadow: none !important;
+  transition: color 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.toolbar-study-anchor-btn:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.25);
+  outline-offset: 1px;
+}
+
+/* Study Trigger (Normal State) */
+.toolbar-study-anchor-btn.toolbar-study-trigger {
+  color: #8A8A8A;
+  padding: 0 8px;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.toolbar-study-anchor-btn.toolbar-study-trigger:hover {
+  color: #E8E8E8;
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+.study-normal-label-wrap {
   display: inline-flex;
   align-items: center;
   gap: 5px;
 }
 
-.study-exit-icon-wrap {
+/* Exit Study State Control (Sections 1, 5, 6, 19, 20: Editorial State Control, NOT a button) */
+.toolbar-study-anchor-btn.study-exit-btn {
+  color: rgba(255, 255, 255, 0.72) !important;
+  font-family: inherit;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  padding: 0 4px;
+  gap: 4px;
+}
+
+.toolbar-study-anchor-btn.study-exit-btn:hover {
+  color: rgba(255, 255, 255, 0.95) !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Active Study Indicator: 3px green dot (Section 19: Extremely restrained) */
+.study-active-indicator {
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background-color: #A3FF12;
+  margin-right: 4px;
+  flex-shrink: 0;
+  opacity: 0.92;
+  transition: opacity 180ms ease;
+}
+
+.toolbar-study-anchor-btn.study-exit-btn:hover .study-active-indicator {
+  opacity: 1;
+}
+
+/* Exit Study Inner Wrap */
+.study-exit-label-wrap {
   display: inline-flex;
   align-items: center;
+  gap: 4px;
 }
 
-.study-exit-btn {
-  color: #8A8A8A;
+/* Exit Study Arrow Micro-Interaction: travels ~3px toward the left on hover (Section 6 & 20) */
+.study-exit-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  color: inherit;
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.study-exit-btn:hover {
-  color: #E8E8E8;
+.toolbar-study-anchor-btn.study-exit-btn:hover .study-exit-arrow {
+  transform: translateX(-3px);
 }
 
-.study-exit-btn.active {
-  color: #E8E8E8;
-  background-color: rgba(163, 255, 18, 0.05);
-  border: 1px solid rgba(163, 255, 18, 0.16);
+.study-exit-text {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  color: inherit;
+  transition: color 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.study-exit-btn.active:hover {
-  background-color: rgba(163, 255, 18, 0.09);
-  border-color: rgba(163, 255, 18, 0.24);
-}
-
-.study-exit-icon {
-  color: #5E5E5E;
-  transition: transform 140ms ease, color 140ms ease;
-}
-
-.study-exit-btn:hover .study-exit-icon {
-  color: #E8E8E8;
-  transform: translateX(-1px);
-}
-
+/* Next concept button */
 .study-next-btn {
   color: #8A8A8A;
+  transition: color 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .study-next-btn:hover {
   color: #E8E8E8;
+  background-color: rgba(255, 255, 255, 0.04);
 }
 
 .study-next-icon {
-  color: #5E5E5E;
-  transition: transform 140ms ease, color 140ms ease;
+  color: #666666;
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), color 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .study-next-btn:hover .study-next-icon {
   color: #E8E8E8;
-  transform: translateX(1px);
+  transform: translateX(2px);
 }
 
+/* Masked Reveal Strip (Section 9: Interface unfolds from internal clipping region) */
 .study-emerging-strip {
   display: flex;
   align-items: center;
@@ -689,86 +761,83 @@
 
 .study-emerging-strip.strip-overflow-masked {
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(to right, transparent 0px, black 6px, black 100%);
-  mask-image: linear-gradient(to right, transparent 0px, black 6px, black 100%);
+  clip-path: inset(0 -2px 0 0);
+  -webkit-mask-image: linear-gradient(to right, transparent 0px, black 8px, black 100%);
+  mask-image: linear-gradient(to right, transparent 0px, black 8px, black 100%);
 }
 
 .study-emerging-strip.strip-overflow-visible {
   overflow: visible;
+  clip-path: none;
   -webkit-mask-image: none;
   mask-image: none;
 }
 
-/* Section 7: Travelling Green Signal Beam on Study Mode Activation */
+/* Section 7: Travelling Green Signal Beam on Study Mode Activation (250-350ms, low opacity) */
 .study-signal-beam {
   position: absolute;
-  bottom: -2px;
+  bottom: 0px;
   left: 0;
   right: 0;
-  height: 1.5px;
-  background: linear-gradient(90deg, #A3FF12 0%, #A3FF12 85%, transparent 100%);
-  border-radius: 1px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(163, 255, 18, 0.45) 0%, rgba(163, 255, 18, 0.25) 75%, transparent 100%);
   pointer-events: none;
   z-index: 10;
+  transform-origin: left center;
 }
 
-/* Section 8: Graph Response to Study Mode Activation (250-400ms transition) */
+/* Section 13: Graph Response to Study Mode Activation (300-450ms synchronized transition) */
 .freeform-graph-container.in-study-mode .knowledge-node-card.selected {
-  animation: studyNodeSelectedPulse 350ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  box-shadow: 0 0 0 1px #A3FF12, 0 6px 20px rgba(163, 255, 18, 0.15), 0 2px 8px rgba(0, 0, 0, 0.6) !important;
-}
-
-@keyframes studyNodeSelectedPulse {
-  0% {
-    transform: scale(0.98);
-    filter: brightness(1);
-  }
-  100% {
-    transform: scale(1.02);
-    filter: brightness(1.06);
-  }
+  box-shadow: 0 0 0 1px #A3FF12, 0 4px 16px rgba(163, 255, 18, 0.16), 0 2px 8px rgba(0, 0, 0, 0.6) !important;
+  transition: box-shadow 380ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .freeform-graph-container.in-study-mode .knowledge-node-card.dimmed {
-  opacity: 0.22 !important;
-  filter: grayscale(50%) brightness(0.9) !important;
-  transition: opacity 350ms cubic-bezier(0.22, 1, 0.36, 1), filter 350ms cubic-bezier(0.22, 1, 0.36, 1);
+  opacity: 0.20 !important;
+  filter: grayscale(40%) brightness(0.88) !important;
+  transition: opacity 380ms cubic-bezier(0.22, 1, 0.36, 1), filter 380ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .freeform-graph-container.in-study-mode .knowledge-node-card.highlighted {
   opacity: 1 !important;
-  filter: brightness(1.04);
-  transition: opacity 350ms ease, filter 350ms ease;
+  filter: brightness(1.05);
+  transition: opacity 380ms cubic-bezier(0.22, 1, 0.36, 1), filter 380ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .freeform-graph-container.in-study-mode .react-flow__edge.highlighted path,
 .freeform-graph-container.in-study-mode .react-flow__edge:not(.dimmed) path {
   stroke-opacity: 0.95;
-  transition: stroke-opacity 350ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: stroke-opacity 380ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .freeform-graph-container.in-study-mode .react-flow__edge.dimmed path {
-  stroke-opacity: 0.10;
-  transition: stroke-opacity 350ms cubic-bezier(0.22, 1, 0.36, 1);
+  stroke-opacity: 0.08;
+  transition: stroke-opacity 380ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Section 15: Reduced Motion Preferences */
+/* Section 22: Reduced Motion Preferences */
 @media (prefers-reduced-motion: reduce) {
   .study-signal-beam {
     display: none !important;
   }
   .study-emerging-strip.strip-overflow-masked {
     overflow: visible;
+    clip-path: none;
     -webkit-mask-image: none;
     mask-image: none;
   }
-  .freeform-graph-container.in-study-mode .knowledge-node-card.selected {
-    animation: none;
-    transform: scale(1.02);
+  .study-exit-arrow,
+  .study-next-icon {
+    transition: none !important;
   }
+  .study-exit-btn:hover .study-exit-arrow {
+    transform: none !important;
+  }
+  .freeform-graph-container.in-study-mode .knowledge-node-card.selected,
   .freeform-graph-container.in-study-mode .knowledge-node-card.dimmed,
+  .freeform-graph-container.in-study-mode .knowledge-node-card.highlighted,
   .freeform-graph-container.in-study-mode .react-flow__edge path {
-    transition: none;
+    transition: none !important;
   }
 }
 
