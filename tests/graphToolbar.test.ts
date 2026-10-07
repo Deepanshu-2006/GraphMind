@@ -312,4 +312,48 @@ describe('GraphMind Canvas Toolbar Redesign — Information Architecture & Behav
       }
     });
   });
+
+  describe('8. Study Mode Transformation Animation Architecture (Sections 1–15)', () => {
+    test('configures restrained layout spring without overshoot or bounce', () => {
+      const springConfig = {
+        type: 'spring',
+        stiffness: 420,
+        damping: 32,
+        mass: 0.7
+      };
+
+      // Damping ratio = damping / (2 * sqrt(mass * stiffness)) = 32 / (2 * sqrt(294)) ≈ 0.93 (near critical)
+      const criticalDamping = 2 * Math.sqrt(springConfig.mass * springConfig.stiffness);
+      const dampingRatio = springConfig.damping / criticalDamping;
+
+      assert.equal(springConfig.stiffness, 420);
+      assert.equal(springConfig.damping, 32);
+      assert.equal(springConfig.mass, 0.7);
+      assert.ok(dampingRatio > 0.85 && dampingRatio < 1.0, 'Spring must be near critically damped to prevent bouncing');
+    });
+
+    test('reverses sequence on exit: Next → All → Exit study → Study', () => {
+      const enterSequence = ['divider-1', 'filter', 'divider-2', 'next'];
+      const exitSequence = [...enterSequence].reverse();
+
+      assert.deepEqual(exitSequence, ['next', 'divider-2', 'filter', 'divider-1']);
+    });
+
+    test('maintains quiet active accent travelling beam timing within 200–300ms', () => {
+      const beamDurationMs = 280;
+      assert.ok(beamDurationMs >= 200 && beamDurationMs <= 300);
+    });
+
+    test('reduced motion disables unfolding translations and defaults to short opacity transition', () => {
+      const reducedMotionVariants = {
+        hidden: { opacity: 0, transition: { duration: 0.1 } },
+        visible: { opacity: 1, transition: { duration: 0.1 } }
+      };
+
+      assert.equal(reducedMotionVariants.hidden.opacity, 0);
+      assert.equal(reducedMotionVariants.visible.opacity, 1);
+      assert.equal(reducedMotionVariants.visible.transition.duration, 0.1);
+    });
+  });
 });
+

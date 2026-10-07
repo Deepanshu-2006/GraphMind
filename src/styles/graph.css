@@ -612,23 +612,24 @@
   line-height: 1.2;
 }
 
-/* Study Mode Transition Container (Section 3: 180-240ms motion) */
-.toolbar-study-mode-container {
+/* Study Mode Transformation (Sections 1-7: Linear / Arc / Raycast Physical Transformation) */
+.toolbar-study-transform-wrap {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 4px;
-  animation: studyModeTransition 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  min-width: 0;
 }
 
-@keyframes studyModeTransition {
-  from {
-    opacity: 0;
-    transform: translateX(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+.study-btn-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.study-exit-icon-wrap {
+  display: inline-flex;
+  align-items: center;
 }
 
 .study-exit-btn {
@@ -637,6 +638,17 @@
 
 .study-exit-btn:hover {
   color: #E8E8E8;
+}
+
+.study-exit-btn.active {
+  color: #E8E8E8;
+  background-color: rgba(163, 255, 18, 0.05);
+  border: 1px solid rgba(163, 255, 18, 0.16);
+}
+
+.study-exit-btn.active:hover {
+  background-color: rgba(163, 255, 18, 0.09);
+  border-color: rgba(163, 255, 18, 0.24);
 }
 
 .study-exit-icon {
@@ -665,6 +677,99 @@
 .study-next-btn:hover .study-next-icon {
   color: #E8E8E8;
   transform: translateX(1px);
+}
+
+.study-emerging-strip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.study-emerging-strip.strip-overflow-masked {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent 0px, black 6px, black 100%);
+  mask-image: linear-gradient(to right, transparent 0px, black 6px, black 100%);
+}
+
+.study-emerging-strip.strip-overflow-visible {
+  overflow: visible;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+/* Section 7: Travelling Green Signal Beam on Study Mode Activation */
+.study-signal-beam {
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  background: linear-gradient(90deg, #A3FF12 0%, #A3FF12 85%, transparent 100%);
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Section 8: Graph Response to Study Mode Activation (250-400ms transition) */
+.freeform-graph-container.in-study-mode .knowledge-node-card.selected {
+  animation: studyNodeSelectedPulse 350ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  box-shadow: 0 0 0 1px #A3FF12, 0 6px 20px rgba(163, 255, 18, 0.15), 0 2px 8px rgba(0, 0, 0, 0.6) !important;
+}
+
+@keyframes studyNodeSelectedPulse {
+  0% {
+    transform: scale(0.98);
+    filter: brightness(1);
+  }
+  100% {
+    transform: scale(1.02);
+    filter: brightness(1.06);
+  }
+}
+
+.freeform-graph-container.in-study-mode .knowledge-node-card.dimmed {
+  opacity: 0.22 !important;
+  filter: grayscale(50%) brightness(0.9) !important;
+  transition: opacity 350ms cubic-bezier(0.22, 1, 0.36, 1), filter 350ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.freeform-graph-container.in-study-mode .knowledge-node-card.highlighted {
+  opacity: 1 !important;
+  filter: brightness(1.04);
+  transition: opacity 350ms ease, filter 350ms ease;
+}
+
+.freeform-graph-container.in-study-mode .react-flow__edge.highlighted path,
+.freeform-graph-container.in-study-mode .react-flow__edge:not(.dimmed) path {
+  stroke-opacity: 0.95;
+  transition: stroke-opacity 350ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.freeform-graph-container.in-study-mode .react-flow__edge.dimmed path {
+  stroke-opacity: 0.10;
+  transition: stroke-opacity 350ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Section 15: Reduced Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+  .study-signal-beam {
+    display: none !important;
+  }
+  .study-emerging-strip.strip-overflow-masked {
+    overflow: visible;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .freeform-graph-container.in-study-mode .knowledge-node-card.selected {
+    animation: none;
+    transform: scale(1.02);
+  }
+  .freeform-graph-container.in-study-mode .knowledge-node-card.dimmed,
+  .freeform-graph-container.in-study-mode .react-flow__edge path {
+    transition: none;
+  }
 }
 
 /* Dropdown Container */

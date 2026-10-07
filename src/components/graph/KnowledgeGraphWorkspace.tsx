@@ -1018,8 +1018,10 @@ function FlowCanvas({
     }
   }, [studyFilterMode, needsReviewCount, effectiveNodes, practiceStates, selectedNodeId, activeConceptData, focusNodeOnCanvas]);
 
+  const isStudyActive = Boolean(isInspectorOpen && (activeConceptData || selectedRelationship));
+
   return (
-    <div className="freeform-graph-container" id="knowledge-graph-workspace">
+    <div className={`freeform-graph-container ${isStudyActive ? 'in-study-mode' : ''}`} id="knowledge-graph-workspace">
       {/* 1. Processing Status Banner (shown once loading orb dissolves or in direct crafting without central overlay) */}
       {mode === 'crafting' && !effectiveOverlayMounted && displayStatusMessage && (
         <div className="graph-crafting-indicator" role="status" aria-live="polite">
