@@ -8,7 +8,9 @@ import {
   MoreHorizontal,
   ImageIcon,
   FileJson,
-  Download
+  Download,
+  Maximize,
+  Minimize
 } from 'lucide-react';
 import type { SearchResultItem, GraphDensityMode, StudyFilterMode } from '../../types/graph';
 
@@ -32,6 +34,8 @@ export interface GraphToolbarProps {
   onStudyFilterChange?: (mode: StudyFilterMode) => void;
   needsReviewCount?: number;
   totalConceptsCount?: number;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 export const GraphToolbar: React.FC<GraphToolbarProps> = ({
@@ -53,7 +57,9 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   studyFilterMode = 'all',
   onStudyFilterChange,
   needsReviewCount = 0,
-  totalConceptsCount = 0
+  totalConceptsCount = 0,
+  isFullscreen = false,
+  onToggleFullscreen
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -798,6 +804,29 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
                 <span className="menu-item-label">Reset view</span>
               </button>
 
+              {onToggleFullscreen && (
+                <button
+                  type="button"
+                  className="toolbar-menu-item"
+                  onClick={() => {
+                    setIsMoreMenuOpen(false);
+                    onToggleFullscreen();
+                  }}
+                  role="menuitem"
+                >
+                  <span className="menu-item-left">
+                    {isFullscreen ? (
+                      <Minimize size={12} className="menu-item-sub-icon" aria-hidden="true" />
+                    ) : (
+                      <Maximize size={12} className="menu-item-sub-icon" aria-hidden="true" />
+                    )}
+                    <span className="menu-item-label">
+                      {isFullscreen ? 'Exit full screen' : 'Enter full screen'}
+                    </span>
+                  </span>
+                </button>
+              )}
+
               <div className="menu-divider" />
 
               <button
@@ -833,6 +862,23 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
             </div>
           )}
         </div>
+
+        {/* 6. IMMERSIVE FULLSCREEN EXIT CONTROL (Section 7, 16, 17) */}
+        {isFullscreen && onToggleFullscreen && (
+          <>
+            <motion.div layout="position" className="toolbar-vertical-divider" />
+            <motion.button
+              layout="position"
+              type="button"
+              className="toolbar-icon-btn toolbar-fullscreen-btn active"
+              onClick={onToggleFullscreen}
+              title="Exit full screen"
+              aria-label="Exit full screen"
+            >
+              <Minimize size={14} aria-hidden="true" />
+            </motion.button>
+          </>
+        )}
       </motion.div>
     </motion.div>
   );

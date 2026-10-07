@@ -44,6 +44,14 @@ export function AppContent() {
   };
 
   const [graphMode, setGraphMode] = useState<WorkspaceMode>(getInitialMode);
+  const [isGraphFullscreen, setIsGraphFullscreen] = useState(false);
+
+  // Automatically exit fullscreen if navigating away from graph
+  useEffect(() => {
+    if (currentSection !== 'graph' && isGraphFullscreen) {
+      setIsGraphFullscreen(false);
+    }
+  }, [currentSection, isGraphFullscreen]);
 
   // Consume central graph context (Prompt Requirements 1–25)
   const {
@@ -385,6 +393,7 @@ export function AppContent() {
         onRenameGraph={renameGraph}
         onSelectConcept={handleExploreConceptInGraph}
         onOpenCreateModal={() => setCreateModalOpen(true)}
+        isGraphFullscreen={isGraphFullscreen}
       >
         {/* Overview View */}
         {currentSection === 'overview' && (
@@ -430,6 +439,8 @@ export function AppContent() {
               setPipelineStage('complete');
               setLivePipelineEvent(null);
             }}
+            isGraphFullscreen={isGraphFullscreen}
+            onToggleFullscreen={() => setIsGraphFullscreen(prev => !prev)}
           />
         )}
 

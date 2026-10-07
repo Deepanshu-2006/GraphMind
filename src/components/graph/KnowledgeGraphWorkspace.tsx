@@ -12,7 +12,7 @@ import {
 } from '@xyflow/react';
 import type { Node, Edge, NodeMouseHandler, EdgeMouseHandler } from '@xyflow/react';
 import { ThinkingOrb } from 'thinking-orbs';
-import { Plus, Minus, Maximize } from 'lucide-react';
+import { Plus, Minus, Maximize, Minimize } from 'lucide-react';
 
 import { ConceptNode } from './ConceptNode';
 import { CustomEdge } from './CustomEdge';
@@ -67,6 +67,8 @@ export interface KnowledgeGraphWorkspaceProps {
   onClearFocusedNode?: () => void;
   onSelectSource?: (sourceNameOrId?: string) => void;
   onFilesDropped?: (files: File[]) => void;
+  isGraphFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 // Progressive Crafting Steps (Prompt 22: Contextual processing copy)
@@ -131,10 +133,27 @@ function FlowCanvas({
   focusedNodeId,
   onClearFocusedNode,
   onSelectSource,
-  onFilesDropped
+  onFilesDropped,
+  isGraphFullscreen: isGraphFullscreenProp,
+  onToggleFullscreen: onToggleFullscreenProp
 }: KnowledgeGraphWorkspaceProps) {
   const reactFlowInstance = useReactFlow();
 
+  const [internalFullscreen, setInternalFullscreen] = useState(false);
+  const isGraphFullscreen = isGraphFullscreenProp !== undefined ? isGraphFullscreenProp : internalFullscreen;
+  const savedViewportRef = useRef<{ x: number; y: number; zoom: number } | null>(null);
+
+  // Synchronize document.body class with fullscreen state
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.body.classList.toggle('graph-fullscreen-active', isGraphFullscreen);
+    }
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.body.classList.remove('graph-fullscreen-active');
+      }
+    };
+  }, [isGraphFullscreen]);
 
   const [practiceStates, setPracticeStates] = useState<Record<string, ConceptPracticeState>>(() => {
     return loadConceptPracticeStates(graph?.id);
@@ -887,19 +906,83 @@ function FlowCanvas({
     }
   }, [focusedNodeId, mode, focusNodeOnCanvas, onClearFocusedNode]);
 
-  // Escape Key to deselect (Prompt 26, Requirement 8)
+  // Fullscreen toggle handler with continuous viewport preservation (Section 3, 5, 8, 9)
+  const handleToggleFullscreen = useCallback((forcedState?: boolean) => {
+    try {
+      const currentVp = reactFlowInstance.getViewport();
+      savedViewportRef.current = currentVp;
+    } catch {
+      // safe fallback if getViewport is not available
+    }
+
+    const nextState = typeof forcedState === 'boolean'
+      ? forcedState
+      : !isGraphFullscreen;
+
+    if (onToggleFullscreenProp) {
+      onToggleFullscreenProp();
+    } else {
+      setInternalFullscreen(nextState);
+    }
+
+    if (typeof document !== 'undefined') {
+      document.body.classList.toggle('graph-fullscreen-active', nextState);
+    }
+
+    // Preserve exact viewport across container layout transition (Section 9)
+    requestAnimationFrame(() => {
+      if (savedViewportRef.current) {
+        try {
+          reactFlowInstance.setViewport(savedViewportRef.current);
+        } catch {
+          // fallback
+        }
+      }
+    });
+
+    setTimeout(() => {
+      if (savedViewportRef.current) {
+        try {
+          reactFlowInstance.setViewport(savedViewportRef.current);
+        } catch {
+          // fallback
+        }
+      }
+    }, 320);
+  }, [isGraphFullscreen, onToggleFullscreenProp, reactFlowInstance]);
+
+  // Escape Key Handler (Section 12: Exits fullscreen without deselecting node or resetting context)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && mode === 'interactive') {
-        setSelectedRelationship(null);
-        setSelectedNodeId(null);
-        setIsInspectorOpen(false);
-        setNavHistory([]);
+      if (e.key !== 'Escape' || mode !== 'interactive') return;
+
+      // 1. If text input or textarea currently has focus, preserve default input behavior
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        return;
       }
+
+      // 2. If a modal dialog is open, let modal handle Escape
+      if (document.querySelector('.modal-backdrop, [role="dialog"]')) {
+        return;
+      }
+
+      // 3. If in fullscreen mode, exit fullscreen and PRESERVE selected node and detail panel context
+      if (isGraphFullscreen) {
+        e.preventDefault();
+        handleToggleFullscreen(false);
+        return;
+      }
+
+      // 4. Otherwise, deselect node and close inspector
+      setSelectedRelationship(null);
+      setSelectedNodeId(null);
+      setIsInspectorOpen(false);
+      setNavHistory([]);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mode]);
+  }, [mode, isGraphFullscreen, handleToggleFullscreen]);
 
   // Toolbar actions
   const handleResetView = useCallback(() => {
@@ -1021,7 +1104,7 @@ function FlowCanvas({
   const isStudyActive = Boolean(isInspectorOpen && (activeConceptData || selectedRelationship));
 
   return (
-    <div className={`freeform-graph-container ${isStudyActive ? 'in-study-mode' : ''}`} id="knowledge-graph-workspace">
+    <div className={`freeform-graph-container ${isStudyActive ? 'in-study-mode' : ''} ${isGraphFullscreen ? 'is-fullscreen' : ''}`} id="knowledge-graph-workspace">
       {/* 1. Processing Status Banner (shown once loading orb dissolves or in direct crafting without central overlay) */}
       {mode === 'crafting' && !effectiveOverlayMounted && displayStatusMessage && (
         <div className="graph-crafting-indicator" role="status" aria-live="polite">
@@ -1047,6 +1130,8 @@ function FlowCanvas({
         onStudyFilterChange={setStudyFilterMode}
         needsReviewCount={needsReviewCount}
         totalConceptsCount={totalConceptsCount}
+        isFullscreen={isGraphFullscreen}
+        onToggleFullscreen={() => handleToggleFullscreen()}
         isStudyPanelOpen={isInspectorOpen && Boolean(activeConceptData || selectedRelationship)}
         selectedConceptLabel={activeConceptData?.label || activeConceptData?.name || null}
         onNextConcept={handleNextStudyConcept}
@@ -1151,12 +1236,16 @@ function FlowCanvas({
           </button>
           <button
             type="button"
-            className="corner-control-btn"
-            onClick={handleResetView}
-            title="Fit graph to view"
-            aria-label="Fit graph to view"
+            className={`corner-control-btn ${isGraphFullscreen ? 'active' : ''}`}
+            onClick={() => handleToggleFullscreen()}
+            title={isGraphFullscreen ? 'Exit full screen' : 'Enter full screen'}
+            aria-label={isGraphFullscreen ? 'Exit full screen' : 'Enter full screen'}
           >
-            <Maximize size={14} aria-hidden="true" />
+            {isGraphFullscreen ? (
+              <Minimize size={14} aria-hidden="true" />
+            ) : (
+              <Maximize size={14} aria-hidden="true" />
+            )}
           </button>
         </div>
       )}

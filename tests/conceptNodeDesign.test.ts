@@ -10,16 +10,16 @@ describe('GraphMind Concept Cards Redesign — Typography & Visual Hierarchy', (
         fontWeight: 500,
         letterSpacing: '0.12em',
         textTransform: 'uppercase',
-        color: '#666666',
+        color: '#777777',
         lineHeight: 1,
         isPillOrBadge: false
       };
 
       const conceptNameSpec = {
-        fontSizeRange: [16, 18], // 16–18px
+        fontSizeRange: [16, 17], // 16–17px
         actualFontSize: 16.5,
         fontWeightRange: [550, 600],
-        actualFontWeight: 580,
+        actualFontWeight: 600,
         letterSpacing: '-0.015em',
         lineHeight: 1.15,
         color: '#F5F5F5',
@@ -30,11 +30,11 @@ describe('GraphMind Concept Cards Redesign — Typography & Visual Hierarchy', (
       };
 
       const descriptionSpec = {
-        fontSizeRange: [12, 13], // 12–13px
-        actualFontSize: 12.5,
+        fontSizeRange: [12, 12], // exactly 12px
+        actualFontSize: 12,
         fontWeight: 400,
         lineHeight: 1.45,
-        color: '#8A8A8A',
+        color: '#7E7E7E',
         maxLines: 3
       };
 
@@ -46,7 +46,7 @@ describe('GraphMind Concept Cards Redesign — Typography & Visual Hierarchy', (
       assert.equal(typeSpec.isPillOrBadge, false);
 
       // Concept name verification
-      assert.ok(conceptNameSpec.actualFontSize >= 16 && conceptNameSpec.actualFontSize <= 18);
+      assert.ok(conceptNameSpec.actualFontSize >= 16 && conceptNameSpec.actualFontSize <= 17);
       assert.ok(conceptNameSpec.actualFontWeight >= 550 && conceptNameSpec.actualFontWeight <= 600);
       assert.equal(conceptNameSpec.color, '#F5F5F5');
       assert.equal(conceptNameSpec.isUppercase, false);
@@ -55,9 +55,9 @@ describe('GraphMind Concept Cards Redesign — Typography & Visual Hierarchy', (
       assert.equal(conceptNameSpec.maxLines, 2);
 
       // Description verification
-      assert.ok(descriptionSpec.actualFontSize >= 12 && descriptionSpec.actualFontSize <= 13);
+      assert.equal(descriptionSpec.actualFontSize, 12);
       assert.equal(descriptionSpec.fontWeight, 400);
-      assert.equal(descriptionSpec.color, '#8A8A8A');
+      assert.equal(descriptionSpec.color, '#7E7E7E');
       assert.equal(descriptionSpec.maxLines, 3);
     });
   });
@@ -67,29 +67,33 @@ describe('GraphMind Concept Cards Redesign — Typography & Visual Hierarchy', (
       const cardGeometry = {
         widthRange: [210, 240], // 210–240px
         actualWidth: 224,
-        paddingRange: [16, 18], // 16–18px
+        paddingRange: [15, 17], // 15–17px
         actualPadding: 16,
-        gapRange: [8, 10],      // 8–10px rhythm
+        gapRange: [7, 9],       // 7–9px rhythm
         actualGap: 8,
-        borderRadiusRange: [8, 10],
+        borderRadiusRange: [8, 8],
         actualBorderRadius: 8,
         surfaceColor: '#111111',
-        borderColor: 'rgba(255, 255, 255, 0.08)'
+        borderColor: 'rgba(255, 255, 255, 0.07)',
+        hasShadow: false,
+        hasGlow: false
       };
 
       assert.ok(cardGeometry.actualWidth >= 210 && cardGeometry.actualWidth <= 240);
-      assert.ok(cardGeometry.actualPadding >= 16 && cardGeometry.actualPadding <= 18);
-      assert.ok(cardGeometry.actualGap >= 8 && cardGeometry.actualGap <= 10);
-      assert.ok(cardGeometry.actualBorderRadius >= 8 && cardGeometry.actualBorderRadius <= 10);
+      assert.ok(cardGeometry.actualPadding >= 15 && cardGeometry.actualPadding <= 17);
+      assert.ok(cardGeometry.actualGap >= 7 && cardGeometry.actualGap <= 9);
+      assert.equal(cardGeometry.actualBorderRadius, 8);
       assert.equal(cardGeometry.surfaceColor, '#111111');
-      assert.equal(cardGeometry.borderColor, 'rgba(255, 255, 255, 0.08)');
+      assert.equal(cardGeometry.borderColor, 'rgba(255, 255, 255, 0.07)');
+      assert.equal(cardGeometry.hasShadow, false);
+      assert.equal(cardGeometry.hasGlow, false);
     });
   });
 
   describe('3. Node State Indicator Dot (Section 5)', () => {
     test('configures intentional 4px dot at upper-right without neon glow', () => {
       const normalDot = {
-        size: 4,
+        size: 3.5,
         color: '#555555',
         position: 'upper-right',
         hasGlow: false
@@ -101,17 +105,17 @@ describe('GraphMind Concept Cards Redesign — Typography & Visual Hierarchy', (
       };
 
       const selectedDot = {
-        sizeRange: [4, 5],
-        actualSize: 4.5,
+        sizeRange: [3.5, 4.5],
+        actualSize: 4,
         color: '#A3FF12',
         hasGlow: false
       };
 
-      assert.equal(normalDot.size, 4);
+      assert.ok(normalDot.size >= 3 && normalDot.size <= 4);
       assert.equal(normalDot.color, '#555555');
       assert.equal(normalDot.hasGlow, false);
       assert.equal(hoverDot.color, '#A3FF12');
-      assert.ok(selectedDot.actualSize >= 4 && selectedDot.actualSize <= 5);
+      assert.equal(selectedDot.actualSize, 4);
       assert.equal(selectedDot.color, '#A3FF12');
       assert.equal(selectedDot.hasGlow, false);
     });
@@ -120,10 +124,10 @@ describe('GraphMind Concept Cards Redesign — Typography & Visual Hierarchy', (
   describe('4. Hover & Interaction States (Section 7)', () => {
     test('hover state is tactile and subtle without dramatic scaling or neon glow', () => {
       const hoverBehavior = {
-        transitionDurationRange: [150, 200], // 150–200ms
+        transitionDurationRange: [160, 200], // 160–200ms
         easing: 'ease-out',
-        backgroundLighter: true, // #161616 (~2-3% lighter than #111111)
-        borderBrighter: true,    // rgba(255, 255, 255, 0.16)
+        backgroundLighter: true, // #131313 (~1% lighter than #111111)
+        borderBrighter: true,    // rgba(255, 255, 255, 0.13)
         titleBrighter: true,     // #FFFFFF
         hasScale: false,
         hasGlow: false,
@@ -142,45 +146,50 @@ describe('GraphMind Concept Cards Redesign — Typography & Visual Hierarchy', (
   describe('5. Visual Hierarchy: Selected vs Connected vs Dimmed (Section 8–10)', () => {
     test('enforces strict 3-tier hierarchy: SELECTED → CONNECTED → UNRELATED', () => {
       const selectedNode = {
-        border: '1px solid #A3FF12',
+        border: '1px solid rgba(163, 255, 18, 0.72)',
         isThickBorder: false,
         hasGlow: false,
         hasGradient: false,
         hasPulsingBorder: false,
-        surface: '#161616',
+        hasOuterGreenShadow: false,
+        surface: '#141414',
         titleColor: '#FFFFFF',
-        typeColor: '#A3FF12',
+        typeColor: '#8A8A8A', // muted gray, never green!
         descriptionColor: '#8A8A8A', // remains muted
         connectedEdgesColor: '#A3FF12'
       };
 
       const connectedNode = {
-        isTurnedGreen: false, // Section 9: Do NOT turn every connected node green!
-        border: '1px solid rgba(255, 255, 255, 0.16)',
-        surface: '#141414',
+        isTurnedGreen: false, // Section 12: Connected nodes should NOT become green!
+        border: '1px solid rgba(255, 255, 255, 0.12)',
+        surface: '#121212',
         opacity: 1,
-        titleColor: '#FFFFFF'
+        titleColor: '#FFFFFF',
+        descriptionColor: '#7E7E7E'
       };
 
       const dimmedNode = {
-        opacityRange: [0.35, 0.5], // Section 10: 0.35–0.5
+        opacityRange: [0.35, 0.5], // Section 13: 0.35–0.5
         actualOpacity: 0.38,
         isCompletelyHidden: false
       };
 
       // Selected verification
-      assert.equal(selectedNode.border, '1px solid #A3FF12');
+      assert.equal(selectedNode.border, '1px solid rgba(163, 255, 18, 0.72)');
       assert.equal(selectedNode.isThickBorder, false);
       assert.equal(selectedNode.hasGlow, false);
       assert.equal(selectedNode.hasGradient, false);
+      assert.equal(selectedNode.hasOuterGreenShadow, false);
+      assert.equal(selectedNode.surface, '#141414');
       assert.equal(selectedNode.titleColor, '#FFFFFF');
-      assert.equal(selectedNode.typeColor, '#A3FF12');
+      assert.equal(selectedNode.typeColor, '#8A8A8A');
       assert.equal(selectedNode.descriptionColor, '#8A8A8A');
 
       // Connected verification
       assert.equal(connectedNode.isTurnedGreen, false);
       assert.equal(connectedNode.opacity, 1);
       assert.equal(connectedNode.titleColor, '#FFFFFF');
+      assert.equal(connectedNode.descriptionColor, '#7E7E7E');
 
       // Dimmed verification
       assert.ok(dimmedNode.actualOpacity >= 0.35 && dimmedNode.actualOpacity <= 0.5);

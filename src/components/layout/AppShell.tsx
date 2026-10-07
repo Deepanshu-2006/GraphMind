@@ -19,6 +19,7 @@ interface AppShellProps {
   onOpenSearch?: () => void;
   onSelectConcept?: (conceptId: string) => void;
   onOpenCreateModal: () => void;
+  isGraphFullscreen?: boolean;
   children: React.ReactNode;
 }
 
@@ -36,6 +37,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   onOpenSearch,
   onSelectConcept,
   onOpenCreateModal,
+  isGraphFullscreen = false,
   children
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -52,7 +54,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   }, [mobileMenuOpen]);
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${isGraphFullscreen ? 'graph-fullscreen-active' : ''}`}>
       {/* Mobile backdrop */}
       {mobileMenuOpen && (
         <div 
