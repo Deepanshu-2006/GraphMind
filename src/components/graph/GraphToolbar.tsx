@@ -59,6 +59,7 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isStudyFilterMenuOpen, setIsStudyFilterMenuOpen] = useState(false);
@@ -95,6 +96,7 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
       const target = e.target as Node;
       if (searchRef.current && !searchRef.current.contains(target)) {
         setIsSearchOpen(false);
+        setIsSearchFocused(false);
       }
       if (viewMenuRef.current && !viewMenuRef.current.contains(target)) {
         setIsViewMenuOpen(false);
@@ -128,6 +130,10 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
 
+  const handleContainerClick = () => {
+    searchInputRef.current?.focus();
+  };
+
   const handleSelectResult = (nodeId: string) => {
     onSearchSelect(nodeId);
     setSearchQuery('');
@@ -148,6 +154,7 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
       }
     } else if (e.key === 'Escape') {
       setIsSearchOpen(false);
+      setIsSearchFocused(false);
       setIsViewMenuOpen(false);
       setIsMoreMenuOpen(false);
       setIsStudyFilterMenuOpen(false);
@@ -168,14 +175,25 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
 
   return (
     <div className="canvas-floating-toolbar" role="toolbar" aria-label="Graph controls">
-      {/* 1. PRIMARY SEARCH CONTROL (Width 240-280px desktop, #101010 surface, subtle green focus accent) */}
-      <div className="floating-search-wrap" ref={searchRef}>
-        <Search size={13} className="floating-search-icon" aria-hidden="true" />
+      {/* 1. PRIMARY SEARCH CONTROL (Same as topbar searchbar) */}
+      <div 
+        className={`topbar-search-control floating-search-wrap ${isSearchFocused ? 'focused' : ''} ${searchQuery.trim() ? 'has-query' : ''}`}
+        ref={searchRef}
+        onClick={handleContainerClick}
+        role="search"
+        aria-haspopup="listbox"
+      >
+        <Search
+          size={14}
+          strokeWidth={1.4}
+          className="topbar-search-icon floating-search-icon"
+          aria-hidden="true"
+        />
         <input
           ref={searchInputRef}
           type="text"
-          className="floating-search-input"
-          placeholder="Search concepts..."
+          className="topbar-search-input floating-search-input"
+          placeholder="Search concepts"
           value={searchQuery}
           onChange={(e) => {
             setSearchQuery(e.target.value);
@@ -183,43 +201,84 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
             setIsSearchOpen(true);
           }}
           onFocus={() => {
+            setIsSearchFocused(true);
             if (searchQuery.trim()) {
               setIsSearchOpen(true);
             }
+          }}
+          onBlur={() => {
+            setIsSearchFocused(false);
           }}
           onKeyDown={handleSearchKeyDown}
           aria-label="Search concepts"
           role="combobox"
           aria-expanded={isSearchOpen}
+          autoComplete="off"
+          spellCheck={false}
         />
-        <kbd className="floating-search-shortcut" aria-hidden="true">⌘K</kbd>
+        <div className="topbar-search-shortcut" aria-hidden="true">
+          <span className="topbar-search-keycap">⌘</span>
+          <span className="topbar-search-keycap">K</span>
+        </div>
+
+        <div className="topbar-search-focus-line" aria-hidden="true" />
 
         {isSearchOpen && searchQuery.trim() && (
-          <div className="floating-search-dropdown" role="listbox">
+          <div
+            id="toolbar-search-results"
+            className="topbar-search-dropdown floating-search-dropdown"
+            role="listbox"
+            aria-label="Matching concepts"
+          >
+            <div className="search-results-header">CONCEPTS</div>
+
             {filteredSearchResults.length > 0 ? (
-              filteredSearchResults.map((item, idx) => (
-                <div
-                  key={item.id}
-                  className={`floating-search-item ${idx === selectedIndex ? 'active' : ''}`}
-                  onClick={() => handleSelectResult(item.id)}
-                  role="option"
-                  aria-selected={idx === selectedIndex}
-                >
-                  <div className="search-item-main-row">
-                    {item.practiceStatus === 'understood' ? (
-                      <span className="practice-status-pip practice-pip-understood" title="Understood" aria-hidden="true" />
-                    ) : item.practiceStatus === 'needs-review' ? (
-                      <span className="practice-status-pip practice-pip-needs-review" title="Needs review" aria-hidden="true" />
-                    ) : item.practiceStatus === 'learning' ? (
-                      <span className="practice-status-pip practice-pip-learning" title="Learning" aria-hidden="true" />
-                    ) : null}
-                    <span className="search-item-label">{item.label}</span>
-                  </div>
-                  <span className="search-item-category">{item.category}</span>
-                </div>
-              ))
+              <div className="search-results-list">
+                {filteredSearchResults.slice(0, 8).map((item, index) => {
+                  const isSelected = index === selectedIndex;
+                  const indexStr = String(index + 1).padStart(2, '0');
+
+                  return (
+                    <div
+                      key={item.id}
+                      id={`toolbar-search-item-${item.id}`}
+                      role="option"
+                      aria-selected={isSelected}
+                      className={`search-result-row ${isSelected ? 'selected' : ''}`}
+                      style={{ animationDelay: `${index * 24}ms` }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectResult(item.id);
+                      }}
+                      onMouseEnter={() => setSelectedIndex(index)}
+                    >
+                      <div className="search-result-prefix">
+                        {item.practiceStatus === 'understood' ? (
+                          <span className="practice-status-pip practice-pip-understood" title="Understood" aria-hidden="true" />
+                        ) : item.practiceStatus === 'needs-review' ? (
+                          <span className="practice-status-pip practice-pip-needs-review" title="Needs review" aria-hidden="true" />
+                        ) : item.practiceStatus === 'learning' ? (
+                          <span className="practice-status-pip practice-pip-learning" title="Learning" aria-hidden="true" />
+                        ) : (
+                          <span className="search-result-green-dot" aria-hidden="true" />
+                        )}
+                        <span className="search-result-index">{indexStr}</span>
+                      </div>
+                      <div className="search-result-body">
+                        <div className="search-result-title">{item.label}</div>
+                        <div className="search-result-meta">{item.category}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             ) : (
-              <div className="floating-search-empty" role="status">No concepts found.</div>
+              <div className="search-empty-state" role="status">
+                <div className="search-empty-label">NO MATCHES</div>
+                <div className="search-empty-text">
+                  Nothing in this graph matches &ldquo;{searchQuery.trim()}&rdquo;.
+                </div>
+              </div>
             )}
           </div>
         )}
