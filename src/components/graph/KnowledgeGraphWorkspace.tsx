@@ -34,12 +34,13 @@ import type {
   GraphDensityMode, 
   ZoomDisclosureLevel 
 } from '../../types/graph';
-import type { PracticeStatus, ConceptPracticeState, StudyFilterMode } from '../../types/practice';
+import type { PracticeStatus, ConceptPracticeState, StudyFilterMode, RevisionPathStep } from '../../types/practice';
 import { loadConceptPracticeStates, updateConceptPracticeState, recordConceptStudy } from '../../services/storage';
 import type { PipelineStage, PipelineProgressEvent } from '../../services/pipelineOrchestrator';
 import { exportKnowledgeGraphJson, exportKnowledgeGraphPng } from '../../services/graphExport';
 import { calculateVisibleGraph } from '../../services/graphViewport';
 import { findNextRecallConceptId } from '../../services/practiceQuestionGenerator';
+import { generateRevisionPath } from '../../services/revisionPathGenerator';
 
 const nodeTypes = {
   conceptNode: ConceptNode
@@ -316,6 +317,12 @@ function FlowCanvas({
     currentConceptId: null
   });
 
+  // Revision In-Memory Session State (Phase 5)
+  const [isRevisionMode, setIsRevisionMode] = useState<boolean>(false);
+  const [revisionPath, setRevisionPath] = useState<RevisionPathStep[]>([]);
+  const [revisionIndex, setRevisionIndex] = useState<number>(0);
+  const [revisionVisitedIds, setRevisionVisitedIds] = useState<Set<string>>(new Set());
+
   // Intelligent Graph Viewport Presentation: computes visible subset, visibility states & exploration depths
   const viewportResult = useMemo(() => {
     if (mode !== 'interactive') return null;
@@ -328,9 +335,27 @@ function FlowCanvas({
       studyFilterMode,
       practiceStates,
       recalledConceptIds: recallSession.recalledConceptIds,
-      reviewConceptIds: recallSession.reviewConceptIds
+      reviewConceptIds: recallSession.reviewConceptIds,
+      isRevisionMode,
+      revisionCurrentConceptId: isRevisionMode && revisionPath[revisionIndex] ? revisionPath[revisionIndex].conceptId : null,
+      revisionVisitedConceptIds: revisionVisitedIds
     });
-  }, [mode, effectiveNodes, effectiveEdges, selectedNodeId, densityMode, zoomDisclosureLevel, studyFilterMode, practiceStates, recallSession.recalledConceptIds, recallSession.reviewConceptIds]);
+  }, [
+    mode,
+    effectiveNodes,
+    effectiveEdges,
+    selectedNodeId,
+    densityMode,
+    zoomDisclosureLevel,
+    studyFilterMode,
+    practiceStates,
+    recallSession.recalledConceptIds,
+    recallSession.reviewConceptIds,
+    isRevisionMode,
+    revisionPath,
+    revisionIndex,
+    revisionVisitedIds
+  ]);
 
   // Sync state whenever viewport presentation changes in interactive mode
   useEffect(() => {
@@ -834,7 +859,7 @@ function FlowCanvas({
   // Smooth Camera & Node Focus with history tracking (Prompt 25 & Prompt 26, Requirements 2 & 6)
   // When a concept is selected or searched, it becomes Depth 0 (focused) and automatically reveals its
   // Depth 1 & 2 neighborhood in calculateVisibleGraph with perfectly stable coordinates.
-  const focusNodeOnCanvas = useCallback((nodeId: string, pushHistory = true) => {
+  const focusNodeOnCanvas = useCallback((nodeId: string, pushHistory = true, customDuration?: number) => {
     if (pushHistory && selectedNodeId && selectedNodeId !== nodeId) {
       setNavHistory((prev) => [...prev, selectedNodeId]);
     }
@@ -844,12 +869,13 @@ function FlowCanvas({
 
     const targetNode = effectiveNodes.find((n) => n.id === nodeId);
     if (targetNode) {
+      const duration = customDuration !== undefined ? customDuration : isRevisionMode ? 300 : 650;
       reactFlowInstance.setCenter(targetNode.position.x + 100, targetNode.position.y + 45, {
         zoom: Math.max(reactFlowInstance.getZoom(), 1.05),
-        duration: 650
+        duration
       });
     }
-  }, [selectedNodeId, effectiveNodes, reactFlowInstance]);
+  }, [selectedNodeId, effectiveNodes, reactFlowInstance, isRevisionMode]);
 
   // Return to previous concept (Prompt 26, Requirement 6: subtle navigation without breadcrumb clutter)
   const handleGoBack = useCallback(() => {
@@ -1202,7 +1228,176 @@ function FlowCanvas({
       null;
   }, [selectedNodeId, effectiveNodes, effectiveEdges, recallSession, practiceStates, effectiveConceptDetails]);
 
-  const isStudyActive = Boolean(isInspectorOpen && (activeConceptData || selectedRelationship));
+  // Revision Session Handlers (Phase 5)
+  const handleToggleRevisionMode = useCallback((forceState?: boolean, startNodeId?: string) => {
+    const nextState = forceState !== undefined ? forceState : !isRevisionMode;
+    if (nextState) {
+      const reviewIds = new Set<string>();
+      recallSession.reviewConceptIds.forEach(id => reviewIds.add(id));
+      Object.entries(practiceStates).forEach(([id, st]) => {
+        if (st.status === 'needs-review') reviewIds.add(id);
+      });
+
+      const anchorNodeId = startNodeId || selectedNodeId || null;
+      const hasReviewItems = reviewIds.size > 0;
+
+      const path = generateRevisionPath({
+        allNodes: effectiveNodes,
+        allEdges: effectiveEdges,
+        reviewConceptIds: reviewIds,
+        testedConceptIds: recallSession.testedConceptIds,
+        practiceStates,
+        startConceptId: anchorNodeId,
+        onlyReviewQueue: !anchorNodeId && !hasReviewItems
+      });
+
+      setRevisionPath(path);
+      setRevisionIndex(0);
+      setRevisionVisitedIds(new Set());
+      setIsRevisionMode(true);
+      setIsTestMode(false);
+      setIsInspectorOpen(true);
+
+      if (path.length > 0) {
+        focusNodeOnCanvas(path[0].conceptId, true, 300);
+      }
+    } else {
+      setIsRevisionMode(false);
+      setRevisionPath([]);
+      setRevisionIndex(0);
+    }
+  }, [isRevisionMode, recallSession, practiceStates, selectedNodeId, effectiveNodes, effectiveEdges, focusNodeOnCanvas]);
+
+  const handleStartCoreRevision = useCallback(() => {
+    const path = generateRevisionPath({
+      allNodes: effectiveNodes,
+      allEdges: effectiveEdges,
+      reviewConceptIds: new Set<string>(),
+      testedConceptIds: recallSession.testedConceptIds,
+      practiceStates,
+      startConceptId: selectedNodeId || (effectiveNodes[0]?.id ?? null),
+      onlyReviewQueue: false
+    });
+
+    setRevisionPath(path);
+    setRevisionIndex(0);
+    setRevisionVisitedIds(new Set());
+    setIsRevisionMode(true);
+    setIsTestMode(false);
+    setIsInspectorOpen(true);
+
+    if (path.length > 0) {
+      focusNodeOnCanvas(path[0].conceptId, true, 300);
+    }
+  }, [effectiveNodes, effectiveEdges, recallSession.testedConceptIds, practiceStates, selectedNodeId, focusNodeOnCanvas]);
+
+  const handlePrevRevisionConcept = useCallback(() => {
+    if (!isRevisionMode || revisionIndex <= 0) return;
+    const prevIdx = revisionIndex - 1;
+    setRevisionIndex(prevIdx);
+    const prevStep = revisionPath[prevIdx];
+    if (prevStep) {
+      focusNodeOnCanvas(prevStep.conceptId, true, 300);
+    }
+  }, [isRevisionMode, revisionIndex, revisionPath, focusNodeOnCanvas]);
+
+  const handleNextRevisionConcept = useCallback(() => {
+    if (!isRevisionMode) return;
+    if (revisionIndex < revisionPath.length - 1) {
+      const currentStep = revisionPath[revisionIndex];
+      if (currentStep) {
+        setRevisionVisitedIds(prev => new Set(prev).add(currentStep.conceptId));
+      }
+      const nextIdx = revisionIndex + 1;
+      setRevisionIndex(nextIdx);
+      const nextStep = revisionPath[nextIdx];
+      if (nextStep) {
+        focusNodeOnCanvas(nextStep.conceptId, true, 300);
+      }
+    }
+  }, [isRevisionMode, revisionIndex, revisionPath, focusNodeOnCanvas]);
+
+  const handleRevisionKnowIt = useCallback((conceptId: string) => {
+    setRecallSession(prev => {
+      const nextRecalled = new Set(prev.recalledConceptIds).add(conceptId);
+      const nextReview = new Set(prev.reviewConceptIds);
+      nextReview.delete(conceptId);
+      const nextTested = new Set(prev.testedConceptIds).add(conceptId);
+      return {
+        ...prev,
+        recalledConceptIds: nextRecalled,
+        reviewConceptIds: nextReview,
+        testedConceptIds: nextTested
+      };
+    });
+
+    const updated = updateConceptPracticeState(conceptId, 'understood', graph?.id);
+    setPracticeStates(prev => ({
+      ...prev,
+      [conceptId]: updated
+    }));
+
+    setRevisionVisitedIds(prev => new Set(prev).add(conceptId));
+
+    if (revisionIndex < revisionPath.length - 1) {
+      const nextIdx = revisionIndex + 1;
+      setRevisionIndex(nextIdx);
+      focusNodeOnCanvas(revisionPath[nextIdx].conceptId, true, 300);
+    }
+  }, [graph?.id, revisionIndex, revisionPath, focusNodeOnCanvas]);
+
+  const handleRevisionReviewAgain = useCallback((conceptId: string) => {
+    setRecallSession(prev => {
+      const nextReview = new Set(prev.reviewConceptIds).add(conceptId);
+      const nextTested = new Set(prev.testedConceptIds).add(conceptId);
+      return {
+        ...prev,
+        reviewConceptIds: nextReview,
+        testedConceptIds: nextTested
+      };
+    });
+
+    const updated = updateConceptPracticeState(conceptId, 'needs-review', graph?.id);
+    setPracticeStates(prev => ({
+      ...prev,
+      [conceptId]: updated
+    }));
+
+    setRevisionPath(prev => {
+      const last = prev[prev.length - 1];
+      if (last && last.conceptId === conceptId && prev.length === 1) {
+        return prev;
+      }
+      const currentNode = effectiveNodes.find(n => n.id === conceptId);
+      const name = currentNode?.data?.name || currentNode?.data?.label || conceptId;
+      return [
+        ...prev,
+        {
+          conceptId,
+          conceptName: name,
+          reason: 'review-again' as const,
+          explanation: 'Re-queued for review'
+        }
+      ];
+    });
+
+    setRevisionVisitedIds(prev => new Set(prev).add(conceptId));
+
+    if (revisionIndex < revisionPath.length - 1) {
+      const nextIdx = revisionIndex + 1;
+      setRevisionIndex(nextIdx);
+      focusNodeOnCanvas(revisionPath[nextIdx].conceptId, true, 300);
+    }
+  }, [graph?.id, effectiveNodes, revisionIndex, revisionPath, focusNodeOnCanvas]);
+
+  const revisionProgress = useMemo(() => {
+    if (!isRevisionMode) return null;
+    const total = revisionPath.length;
+    const current = total > 0 ? revisionIndex + 1 : 0;
+    return { current, total };
+  }, [isRevisionMode, revisionIndex, revisionPath.length]);
+
+  const isStudyActive = Boolean(isInspectorOpen && (activeConceptData || selectedRelationship || isRevisionMode));
 
   return (
     <div className={`freeform-graph-container ${isStudyActive ? 'in-study-mode' : ''} ${isGraphFullscreen ? 'is-fullscreen' : ''}`} id="knowledge-graph-workspace">
@@ -1233,15 +1428,23 @@ function FlowCanvas({
         totalConceptsCount={totalConceptsCount}
         isFullscreen={isGraphFullscreen}
         onToggleFullscreen={() => handleToggleFullscreen()}
-        isStudyPanelOpen={isInspectorOpen && Boolean(activeConceptData || selectedRelationship)}
+        isStudyPanelOpen={isInspectorOpen && Boolean(activeConceptData || selectedRelationship || isRevisionMode)}
         selectedConceptLabel={activeConceptData?.label || activeConceptData?.name || null}
         isTestMode={isTestMode}
         onToggleTestMode={() => handleToggleTestMode()}
-        onNextConcept={isTestMode ? handleNextRecallConcept : handleNextStudyConcept}
+        isRevisionMode={isRevisionMode}
+        onToggleRevisionMode={() => handleToggleRevisionMode()}
+        revisionProgress={revisionProgress}
+        onPrevRevisionConcept={handlePrevRevisionConcept}
+        onNextRevisionConcept={handleNextRevisionConcept}
+        hasPrevRevisionConcept={isRevisionMode && revisionIndex > 0}
+        hasNextRevisionConcept={isRevisionMode && revisionIndex < revisionPath.length - 1}
+        onNextConcept={isRevisionMode ? handleNextRevisionConcept : isTestMode ? handleNextRecallConcept : handleNextStudyConcept}
         onToggleStudyPanel={() => {
           if (isInspectorOpen) {
             setIsInspectorOpen(false);
             setIsTestMode(false);
+            setIsRevisionMode(false);
             setSelectedRelationship(null);
             setSelectedNodeId(null);
             setNavHistory([]);
@@ -1415,9 +1618,9 @@ function FlowCanvas({
       )}
 
 
-      {/* 4. Study / Inspector Context Panel (Interactive mode only: Concept or Relationship) */}
+      {/* 4. Study / Inspector Context Panel (Interactive mode only: Concept or Relationship or Revision) */}
       <AnimatePresence>
-        {mode === 'interactive' && isInspectorOpen && (activeConceptData || selectedRelationship) && (
+        {mode === 'interactive' && isInspectorOpen && (activeConceptData || selectedRelationship || isRevisionMode) && (
           <NodeContextPanel
             concept={activeConceptData}
             selectedRelationship={selectedRelationship}
@@ -1426,6 +1629,7 @@ function FlowCanvas({
             onClose={() => {
               setIsInspectorOpen(false);
               setIsTestMode(false);
+              setIsRevisionMode(false);
               setSelectedRelationship(null);
               setSelectedNodeId(null);
               setNavHistory([]);
@@ -1465,8 +1669,18 @@ function FlowCanvas({
             onToggleTestMode={handleToggleTestMode}
             onRecordSessionRecalled={handleRecordSessionRecalled}
             onRecordSessionReview={handleRecordSessionReview}
-            onNextConcept={handleNextRecallConcept}
-            nextConceptName={nextRecallConceptName}
+            onNextConcept={isRevisionMode ? handleNextRevisionConcept : handleNextRecallConcept}
+            nextConceptName={isRevisionMode ? (revisionPath[revisionIndex + 1]?.conceptName || null) : nextRecallConceptName}
+            isRevisionMode={isRevisionMode}
+            onToggleRevisionMode={handleToggleRevisionMode}
+            revisionProgress={revisionProgress}
+            onPrevRevisionConcept={handlePrevRevisionConcept}
+            onNextRevisionConcept={handleNextRevisionConcept}
+            hasPrevRevisionConcept={isRevisionMode && revisionIndex > 0}
+            hasNextRevisionConcept={isRevisionMode && revisionIndex < revisionPath.length - 1}
+            onMarkRevisionKnowIt={handleRevisionKnowIt}
+            onMarkRevisionReviewAgain={handleRevisionReviewAgain}
+            onStartCoreRevision={handleStartCoreRevision}
           />
         )}
       </AnimatePresence>
