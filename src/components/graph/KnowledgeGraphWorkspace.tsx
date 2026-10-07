@@ -12,6 +12,7 @@ import {
 } from '@xyflow/react';
 import type { Node, Edge, NodeMouseHandler, EdgeMouseHandler } from '@xyflow/react';
 import { ThinkingOrb } from 'thinking-orbs';
+import { Plus, Minus, Maximize } from 'lucide-react';
 
 import { ConceptNode } from './ConceptNode';
 import { CustomEdge } from './CustomEdge';
@@ -969,6 +970,54 @@ function FlowCanvas({
     }));
   }, [effectiveNodes, practiceStates]);
 
+  const handleNextStudyConcept = useCallback(() => {
+    // 1. If we have concepts needing review, prioritize cycling through review concepts
+    if (studyFilterMode === 'needs-review' || needsReviewCount > 0) {
+      const reviewNodes = effectiveNodes.filter(n => {
+        const s = practiceStates[n.id]?.status || n.data.practiceStatus;
+        return s === 'needs-review';
+      });
+      if (reviewNodes.length > 0) {
+        const currentIdx = reviewNodes.findIndex(n => n.id === selectedNodeId);
+        const nextIdx = currentIdx >= 0 ? (currentIdx + 1) % reviewNodes.length : 0;
+        focusNodeOnCanvas(reviewNodes[nextIdx].id, true);
+        return;
+      }
+    }
+
+    // 2. If in-progress filter is active
+    if (studyFilterMode === 'in-progress') {
+      const inProgNodes = effectiveNodes.filter(n => {
+        const s = practiceStates[n.id]?.status || n.data.practiceStatus;
+        return s === 'learning';
+      });
+      if (inProgNodes.length > 0) {
+        const currentIdx = inProgNodes.findIndex(n => n.id === selectedNodeId);
+        const nextIdx = currentIdx >= 0 ? (currentIdx + 1) % inProgNodes.length : 0;
+        focusNodeOnCanvas(inProgNodes[nextIdx].id, true);
+        return;
+      }
+    }
+
+    // 3. If currently selected node has connected neighbors, jump to first connected neighbor
+    if (activeConceptData?.relationships && activeConceptData.relationships.length > 0) {
+      const targets = activeConceptData.relationships
+        .map(r => r.targetId)
+        .filter(id => id !== selectedNodeId && effectiveNodes.some(n => n.id === id));
+      if (targets.length > 0) {
+        focusNodeOnCanvas(targets[0], true);
+        return;
+      }
+    }
+
+    // 4. Default: cycle through effective nodes
+    if (effectiveNodes.length > 0) {
+      const currentIdx = effectiveNodes.findIndex(n => n.id === selectedNodeId);
+      const nextIdx = currentIdx >= 0 ? (currentIdx + 1) % effectiveNodes.length : 0;
+      focusNodeOnCanvas(effectiveNodes[nextIdx].id, true);
+    }
+  }, [studyFilterMode, needsReviewCount, effectiveNodes, practiceStates, selectedNodeId, activeConceptData, focusNodeOnCanvas]);
+
   return (
     <div className="freeform-graph-container" id="knowledge-graph-workspace">
       {/* 1. Processing Status Banner (shown once loading orb dissolves or in direct crafting without central overlay) */}
@@ -979,7 +1028,7 @@ function FlowCanvas({
         </div>
       )}
 
-      {/* Floating Toolbar (with Search, Density, Nav, Export image, Export JSON, Revision filter & Study mode) */}
+      {/* Floating Toolbar (Redesigned Editorial Canvas Toolbar) */}
       <GraphToolbar
         onSearchSelect={focusNodeOnCanvas}
         onFitView={handleResetView}
@@ -998,6 +1047,7 @@ function FlowCanvas({
         totalConceptsCount={totalConceptsCount}
         isStudyPanelOpen={isInspectorOpen && Boolean(activeConceptData || selectedRelationship)}
         selectedConceptLabel={activeConceptData?.label || activeConceptData?.name || null}
+        onNextConcept={handleNextStudyConcept}
         onToggleStudyPanel={() => {
           if (isInspectorOpen) {
             setIsInspectorOpen(false);
@@ -1075,6 +1125,39 @@ function FlowCanvas({
           />
         </ReactFlow>
       </div>
+
+      {/* Subtle Canvas Corner Navigation Controls (Section 7: Bottom-right, quiet 32px targets) */}
+      {mode === 'interactive' && (
+        <div className="canvas-corner-controls" role="group" aria-label="Canvas zoom and fit controls">
+          <button
+            type="button"
+            className="corner-control-btn"
+            onClick={handleZoomIn}
+            title="Zoom in"
+            aria-label="Zoom in"
+          >
+            <Plus size={14} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="corner-control-btn"
+            onClick={handleZoomOut}
+            title="Zoom out"
+            aria-label="Zoom out"
+          >
+            <Minus size={14} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="corner-control-btn"
+            onClick={handleResetView}
+            title="Fit graph to view"
+            aria-label="Fit graph to view"
+          >
+            <Maximize size={14} aria-hidden="true" />
+          </button>
+        </div>
+      )}
 
       {/* 2. CANVAS-NATIVE EMPTY STATE (Quiet, Editorial, Spatial) */}
       {mode === 'empty' && (

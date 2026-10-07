@@ -14,7 +14,7 @@ export interface ConceptPracticeState {
 
 export type ConceptKnowledgeState = ConceptPracticeState;
 
-export type StudyFilterMode = 'all' | 'needs-review';
+export type StudyFilterMode = 'all' | 'needs-review' | 'in-progress' | 'studied';
 
 /**
  * Returns lightweight internal review priority score (Section 11):

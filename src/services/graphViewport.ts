@@ -117,19 +117,27 @@ export function calculateVisibleGraph({
 }: GraphViewportParams): GraphViewportResult {
   const totalCount = allNodes.length;
 
-  // Compute review nodes & direct neighbors for Phase 3 revision filter
+  // Compute filtered nodes & direct neighbors for revision/study filter
   const reviewNodeIds = new Set<string>();
-  if (studyFilterMode === 'needs-review') {
+  const targetFilterStatus = studyFilterMode === 'needs-review'
+    ? 'needs-review'
+    : studyFilterMode === 'in-progress'
+    ? 'learning'
+    : studyFilterMode === 'studied'
+    ? 'understood'
+    : null;
+
+  if (targetFilterStatus) {
     for (const n of allNodes) {
       const pStatus = practiceStates[n.id]?.status || n.data.practiceStatus;
-      if (pStatus === 'needs-review') {
+      if (pStatus === targetFilterStatus) {
         reviewNodeIds.add(n.id);
       }
     }
   }
 
   const reviewNeighbors = new Set<string>();
-  if (studyFilterMode === 'needs-review' && reviewNodeIds.size > 0) {
+  if (targetFilterStatus && reviewNodeIds.size > 0) {
     for (const edge of allEdges) {
       if (reviewNodeIds.has(edge.source) && !reviewNodeIds.has(edge.target)) {
         reviewNeighbors.add(edge.target);
@@ -140,7 +148,7 @@ export function calculateVisibleGraph({
     }
   }
 
-  const isReviewFilterActive = studyFilterMode === 'needs-review' && reviewNodeIds.size > 0;
+  const isReviewFilterActive = Boolean(targetFilterStatus) && reviewNodeIds.size > 0;
 
   // -------------------------------------------------------------------------
   // 1. SMALL GRAPHS (<= 20 concepts): Show all naturally without artificial hiding
@@ -273,6 +281,14 @@ export function calculateVisibleGraph({
       contextualHint = reviewNodeIds.size === 0
         ? 'Nothing needs review yet'
         : `${reviewNodeIds.size} concept${reviewNodeIds.size === 1 ? '' : 's'} to review`;
+    } else if (studyFilterMode === 'in-progress') {
+      contextualHint = reviewNodeIds.size === 0
+        ? 'No concepts in progress'
+        : `${reviewNodeIds.size} concept${reviewNodeIds.size === 1 ? '' : 's'} in progress`;
+    } else if (studyFilterMode === 'studied') {
+      contextualHint = reviewNodeIds.size === 0
+        ? 'No studied concepts yet'
+        : `${reviewNodeIds.size} studied concept${reviewNodeIds.size === 1 ? '' : 's'}`;
     }
 
     return {
@@ -596,6 +612,14 @@ export function calculateVisibleGraph({
     contextualHint = reviewNodeIds.size === 0
       ? 'Nothing needs review yet'
       : `${reviewNodeIds.size} concept${reviewNodeIds.size === 1 ? '' : 's'} to review`;
+  } else if (studyFilterMode === 'in-progress') {
+    contextualHint = reviewNodeIds.size === 0
+      ? 'No concepts in progress'
+      : `${reviewNodeIds.size} concept${reviewNodeIds.size === 1 ? '' : 's'} in progress`;
+  } else if (studyFilterMode === 'studied') {
+    contextualHint = reviewNodeIds.size === 0
+      ? 'No studied concepts yet'
+      : `${reviewNodeIds.size} studied concept${reviewNodeIds.size === 1 ? '' : 's'}`;
   } else if (densityMode === 'focused') {
     contextualHint = selectedNodeId 
       ? 'Focused on neighborhood' 

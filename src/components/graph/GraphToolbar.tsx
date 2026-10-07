@@ -1,17 +1,20 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Search, 
   Maximize, 
   RotateCcw, 
   Plus, 
   Minus,
-  Download,
-  Image as ImageIcon,
+  ChevronDown,
+  ArrowLeft,
+  ArrowRight,
+  MoreHorizontal,
+  ImageIcon,
   FileJson
 } from 'lucide-react';
 import type { SearchResultItem, GraphDensityMode, StudyFilterMode } from '../../types/graph';
 
-interface GraphToolbarProps {
+export interface GraphToolbarProps {
   onSearchSelect: (nodeId: string) => void;
   onFitView: () => void;
   onResetView: () => void;
@@ -26,6 +29,7 @@ interface GraphToolbarProps {
   isStudyPanelOpen?: boolean;
   selectedConceptLabel?: string | null;
   onToggleStudyPanel?: () => void;
+  onNextConcept?: () => void;
   studyFilterMode?: StudyFilterMode;
   onStudyFilterChange?: (mode: StudyFilterMode) => void;
   needsReviewCount?: number;
@@ -47,21 +51,26 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   isStudyPanelOpen = false,
   selectedConceptLabel,
   onToggleStudyPanel,
+  onNextConcept,
   studyFilterMode = 'all',
   onStudyFilterChange,
   needsReviewCount = 0,
   totalConceptsCount = 0
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isExportOpen, setIsExportOpen] = useState(false);
-  const [isLegendOpen, setIsLegendOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [isStudyFilterMenuOpen, setIsStudyFilterMenuOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const searchRef = useRef<HTMLDivElement>(null);
-  const exportRef = useRef<HTMLDivElement>(null);
-  const legendRef = useRef<HTMLDivElement>(null);
 
-  const filteredSearchResults = React.useMemo(() => {
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const viewMenuRef = useRef<HTMLDivElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+  const studyFilterRef = useRef<HTMLDivElement>(null);
+
+  const filteredSearchResults = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return [];
     return availableNodes
@@ -80,30 +89,52 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
       });
   }, [availableNodes, searchQuery]);
 
+  // Click outside listener for all dropdowns & popovers
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
       if (searchRef.current && !searchRef.current.contains(target)) {
-        setIsDropdownOpen(false);
+        setIsSearchOpen(false);
       }
-      if (exportRef.current && !exportRef.current.contains(target)) {
-        setIsExportOpen(false);
+      if (viewMenuRef.current && !viewMenuRef.current.contains(target)) {
+        setIsViewMenuOpen(false);
       }
-      if (legendRef.current && !legendRef.current.contains(target)) {
-        setIsLegendOpen(false);
+      if (moreMenuRef.current && !moreMenuRef.current.contains(target)) {
+        setIsMoreMenuOpen(false);
+      }
+      if (studyFilterRef.current && !studyFilterRef.current.contains(target)) {
+        setIsStudyFilterMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Keyboard shortcut listener for ⌘K / Ctrl+K
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        const activeEl = document.activeElement;
+        // Don't hijack if user is typing in another input (unless it's already this one)
+        if (activeEl?.tagName === 'INPUT' && activeEl !== searchInputRef.current) {
+          return;
+        }
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
   const handleSelectResult = (nodeId: string) => {
     onSearchSelect(nodeId);
     setSearchQuery('');
-    setIsDropdownOpen(false);
+    setIsSearchOpen(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelectedIndex(prev => (filteredSearchResults.length > 0 ? (prev + 1) % filteredSearchResults.length : 0));
@@ -116,39 +147,54 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
         handleSelectResult(filteredSearchResults[selectedIndex].id);
       }
     } else if (e.key === 'Escape') {
-      setIsDropdownOpen(false);
-      setIsExportOpen(false);
-      setIsLegendOpen(false);
+      setIsSearchOpen(false);
+      setIsViewMenuOpen(false);
+      setIsMoreMenuOpen(false);
+      setIsStudyFilterMenuOpen(false);
+      searchInputRef.current?.blur();
     }
+  };
+
+  const viewModeLabel = densityMode.charAt(0).toUpperCase() + densityMode.slice(1);
+
+  const getStudyFilterLabel = () => {
+    if (studyFilterMode === 'needs-review') {
+      return needsReviewCount > 0 ? `${needsReviewCount} to review` : 'Needs review';
+    }
+    if (studyFilterMode === 'in-progress') return 'In progress';
+    if (studyFilterMode === 'studied') return 'Studied';
+    return 'All';
   };
 
   return (
     <div className="canvas-floating-toolbar" role="toolbar" aria-label="Graph controls">
-      {/* Search concepts */}
+      {/* 1. PRIMARY SEARCH CONTROL (Width 240-280px desktop, #101010 surface, subtle green focus accent) */}
       <div className="floating-search-wrap" ref={searchRef}>
         <Search size={13} className="floating-search-icon" aria-hidden="true" />
         <input
+          ref={searchInputRef}
           type="text"
           className="floating-search-input"
-          placeholder="Search concepts"
+          placeholder="Search concepts..."
           value={searchQuery}
           onChange={(e) => {
             setSearchQuery(e.target.value);
             setSelectedIndex(0);
-            setIsDropdownOpen(true);
+            setIsSearchOpen(true);
           }}
           onFocus={() => {
             if (searchQuery.trim()) {
-              setIsDropdownOpen(true);
+              setIsSearchOpen(true);
             }
           }}
-          onKeyDown={handleKeyDown}
+          onKeyDown={handleSearchKeyDown}
           aria-label="Search concepts"
           role="combobox"
-          aria-expanded={isDropdownOpen}
+          aria-expanded={isSearchOpen}
         />
+        <kbd className="floating-search-shortcut" aria-hidden="true">⌘K</kbd>
 
-        {isDropdownOpen && searchQuery.trim() && (
+        {isSearchOpen && searchQuery.trim() && (
           <div className="floating-search-dropdown" role="listbox">
             {filteredSearchResults.length > 0 ? (
               filteredSearchResults.map((item, idx) => (
@@ -181,232 +227,329 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
 
       <div className="toolbar-vertical-divider" />
 
-      {/* Revision Filter: ALL | NEEDS REVIEW (Phase 3 Section 12) */}
-      <div className="toolbar-study-filter-group" role="group" aria-label="Study filter">
+      {/* 2. STUDY ACTION OR STUDY MODE (Section 3: Study as a mode, not a filter pill) */}
+      {!isStudyPanelOpen ? (
         <button
           type="button"
-          className={`study-filter-btn ${studyFilterMode === 'all' ? 'active' : ''}`}
-          onClick={() => onStudyFilterChange?.('all')}
-          title="Show all concepts"
-          aria-pressed={studyFilterMode === 'all'}
+          className="toolbar-text-btn toolbar-study-trigger"
+          onClick={onToggleStudyPanel}
+          title={selectedConceptLabel ? `Study ${selectedConceptLabel}` : 'Enter study mode'}
+          aria-label="Study mode"
         >
-          All
-        </button>
-        <button
-          type="button"
-          className={`study-filter-btn ${studyFilterMode === 'needs-review' ? 'active' : ''}`}
-          onClick={() => onStudyFilterChange?.('needs-review')}
-          title={needsReviewCount > 0 ? `Show ${needsReviewCount} concepts to review` : 'Nothing needs review yet'}
-          aria-pressed={studyFilterMode === 'needs-review'}
-        >
-          <span>Needs Review</span>
+          <span className="toolbar-btn-text">Study</span>
           {needsReviewCount > 0 && (
-            <span className="study-filter-badge">{needsReviewCount}</span>
+            <span className="toolbar-review-counter" title={`${needsReviewCount} concepts need review`}>
+              {needsReviewCount}
+            </span>
           )}
         </button>
-      </div>
-
-      <div className="toolbar-vertical-divider" />
-
-      {/* Study State Legend / Summary Popover (Phase 3 Section 4 & 17) */}
-      <div className="toolbar-legend-wrap" ref={legendRef}>
-        <button
-          type="button"
-          className={`canvas-action-btn toolbar-legend-btn ${isLegendOpen ? 'active' : ''}`}
-          onClick={() => setIsLegendOpen(!isLegendOpen)}
-          title="Study state summary & legend"
-          aria-label="Study state legend"
-          aria-expanded={isLegendOpen}
-        >
-          <span className="toolbar-legend-label">
-            {needsReviewCount > 0 ? `${needsReviewCount} to review` : 'Study State'}
-          </span>
-        </button>
-        {isLegendOpen && (
-          <div className="study-state-legend-popover" role="dialog" aria-label="Study states legend">
-            <div className="legend-popover-header">
-              <span className="legend-popover-title">STUDY STATE</span>
-              {totalConceptsCount > 0 && (
-                <span className="legend-popover-count">
-                  {totalConceptsCount} {totalConceptsCount === 1 ? 'concept' : 'concepts'}
-                </span>
-              )}
-            </div>
-            <div className="legend-popover-list">
-              <div className="legend-popover-row">
-                <span className="practice-status-pip practice-pip-understood" aria-hidden="true" />
-                <div className="legend-row-text">
-                  <span className="legend-row-label">Understood</span>
-                  <span className="legend-row-desc">Practiced and understood</span>
-                </div>
-              </div>
-              <div className="legend-popover-row">
-                <span className="practice-status-pip practice-pip-needs-review" aria-hidden="true" />
-                <div className="legend-row-text">
-                  <span className="legend-row-label">Needs Review</span>
-                  <span className="legend-row-desc">Marked for review</span>
-                </div>
-              </div>
-              <div className="legend-popover-row">
-                <span className="practice-status-pip practice-pip-learning" aria-hidden="true" />
-                <div className="legend-row-text">
-                  <span className="legend-row-label">Learning</span>
-                  <span className="legend-row-desc">Currently studying</span>
-                </div>
-              </div>
-              <div className="legend-popover-row">
-                <span className="practice-status-pip practice-pip-unseen" aria-hidden="true" />
-                <div className="legend-row-text">
-                  <span className="legend-row-label">Unseen</span>
-                  <span className="legend-row-desc">Not yet studied</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="toolbar-vertical-divider" />
-
-      {/* Lightweight Graph Density Control (Focused | Balanced | Expanded) */}
-      <div className="toolbar-density-pill-group" role="group" aria-label="Graph density control">
-        <button
-          type="button"
-          className={`density-pill-btn ${densityMode === 'focused' ? 'active' : ''}`}
-          onClick={() => onDensityChange?.('focused')}
-          title="Focused: Show selected concept and immediate neighborhood"
-          aria-pressed={densityMode === 'focused'}
-        >
-          Focused
-        </button>
-        <button
-          type="button"
-          className={`density-pill-btn ${densityMode === 'balanced' ? 'active' : ''}`}
-          onClick={() => onDensityChange?.('balanced')}
-          title="Balanced: Curated overview of major concepts across the graph"
-          aria-pressed={densityMode === 'balanced'}
-        >
-          Balanced
-        </button>
-        <button
-          type="button"
-          className={`density-pill-btn ${densityMode === 'expanded' ? 'active' : ''}`}
-          onClick={() => onDensityChange?.('expanded')}
-          title="Expanded: Reveal more of the underlying graph"
-          aria-pressed={densityMode === 'expanded'}
-        >
-          Expanded
-        </button>
-      </div>
-
-      {onToggleStudyPanel && (
-        <>
-          <div className="toolbar-vertical-divider" />
+      ) : (
+        /* Active Study Mode: ← Exit study | Filter selector | Next → */
+        <div className="toolbar-study-mode-container" role="region" aria-label="Study mode controls">
           <button
             type="button"
-            className={`canvas-action-btn toolbar-study-btn ${isStudyPanelOpen ? 'active' : ''}`}
+            className="toolbar-text-btn study-exit-btn"
             onClick={onToggleStudyPanel}
-            title={isStudyPanelOpen ? 'Close study panel' : `Study ${selectedConceptLabel || 'concept'}`}
-            aria-label="Study mode"
-            aria-pressed={isStudyPanelOpen}
+            title="Exit study mode"
+            aria-label="Exit study mode"
           >
-            <span className={`study-status-dot ${isStudyPanelOpen ? 'active' : ''}`} aria-hidden="true" />
-            <span className="study-btn-label">Study</span>
+            <ArrowLeft size={12} className="study-exit-icon" aria-hidden="true" />
+            <span className="toolbar-btn-text">Exit study</span>
           </button>
-        </>
+
+          <div className="toolbar-vertical-divider" />
+
+          {/* Contextual Study Filter dropdown (Section 6) */}
+          <div className="toolbar-dropdown-wrap" ref={studyFilterRef}>
+            <button
+              type="button"
+              className={`toolbar-text-btn study-filter-trigger ${isStudyFilterMenuOpen ? 'active' : ''}`}
+              onClick={() => {
+                setIsStudyFilterMenuOpen(prev => !prev);
+                setIsViewMenuOpen(false);
+                setIsMoreMenuOpen(false);
+              }}
+              title="Filter study concepts"
+              aria-label="Study filter"
+              aria-haspopup="menu"
+              aria-expanded={isStudyFilterMenuOpen}
+            >
+              <span className="toolbar-btn-text">{getStudyFilterLabel()}</span>
+              <ChevronDown size={11} className={`toolbar-chevron ${isStudyFilterMenuOpen ? 'open' : ''}`} aria-hidden="true" />
+            </button>
+
+            {isStudyFilterMenuOpen && (
+              <div className="toolbar-menu-popover study-filter-popover" role="menu">
+                <div className="menu-section-header">STUDY FILTER</div>
+                
+                <button
+                  type="button"
+                  className={`toolbar-menu-item ${studyFilterMode === 'all' ? 'active' : ''}`}
+                  onClick={() => {
+                    onStudyFilterChange?.('all');
+                    setIsStudyFilterMenuOpen(false);
+                  }}
+                  role="menuitem"
+                >
+                  <span className="menu-item-left">
+                    {studyFilterMode === 'all' && <span className="menu-active-dot" aria-hidden="true" />}
+                    <span className="menu-item-label">All</span>
+                  </span>
+                  {totalConceptsCount > 0 && <span className="menu-item-count">{totalConceptsCount}</span>}
+                </button>
+
+                <button
+                  type="button"
+                  className={`toolbar-menu-item ${studyFilterMode === 'needs-review' ? 'active' : ''}`}
+                  onClick={() => {
+                    onStudyFilterChange?.('needs-review');
+                    setIsStudyFilterMenuOpen(false);
+                  }}
+                  role="menuitem"
+                >
+                  <span className="menu-item-left">
+                    {studyFilterMode === 'needs-review' && <span className="menu-active-dot" aria-hidden="true" />}
+                    <span className="practice-status-pip practice-pip-needs-review" aria-hidden="true" />
+                    <span className="menu-item-label">Needs review</span>
+                  </span>
+                  {needsReviewCount > 0 && <span className="menu-item-count review-count">{needsReviewCount}</span>}
+                </button>
+
+                <button
+                  type="button"
+                  className={`toolbar-menu-item ${studyFilterMode === 'in-progress' ? 'active' : ''}`}
+                  onClick={() => {
+                    onStudyFilterChange?.('in-progress');
+                    setIsStudyFilterMenuOpen(false);
+                  }}
+                  role="menuitem"
+                >
+                  <span className="menu-item-left">
+                    {studyFilterMode === 'in-progress' && <span className="menu-active-dot" aria-hidden="true" />}
+                    <span className="practice-status-pip practice-pip-learning" aria-hidden="true" />
+                    <span className="menu-item-label">In progress</span>
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  className={`toolbar-menu-item ${studyFilterMode === 'studied' ? 'active' : ''}`}
+                  onClick={() => {
+                    onStudyFilterChange?.('studied');
+                    setIsStudyFilterMenuOpen(false);
+                  }}
+                  role="menuitem"
+                >
+                  <span className="menu-item-left">
+                    {studyFilterMode === 'studied' && <span className="menu-active-dot" aria-hidden="true" />}
+                    <span className="practice-status-pip practice-pip-understood" aria-hidden="true" />
+                    <span className="menu-item-label">Studied</span>
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="toolbar-vertical-divider" />
+
+          {/* Next concept button */}
+          <button
+            type="button"
+            className="toolbar-text-btn study-next-btn"
+            onClick={onNextConcept}
+            title="Next concept to study"
+            aria-label="Next concept"
+          >
+            <span className="toolbar-btn-text">Next</span>
+            <ArrowRight size={12} className="study-next-icon" aria-hidden="true" />
+          </button>
+        </div>
       )}
 
       <div className="toolbar-vertical-divider" />
 
-      {/* Navigation Controls: Zoom In, Zoom Out, Fit, Reset */}
-      <div className="toolbar-actions-group">
+      {/* 3. VIEW MODE DROPDOWN (Section 4: Replaces 3 pills with compact Balanced ▾) */}
+      <div className="toolbar-dropdown-wrap" ref={viewMenuRef}>
         <button
           type="button"
-          className="canvas-action-btn"
-          onClick={onZoomIn}
-          title="Zoom in"
-          aria-label="Zoom in"
+          className={`toolbar-text-btn toolbar-view-trigger ${isViewMenuOpen ? 'active' : ''}`}
+          onClick={() => {
+            setIsViewMenuOpen(prev => !prev);
+            setIsMoreMenuOpen(false);
+            setIsStudyFilterMenuOpen(false);
+          }}
+          title={`Graph density: ${viewModeLabel}`}
+          aria-label="View mode"
+          aria-haspopup="menu"
+          aria-expanded={isViewMenuOpen}
         >
-          <Plus size={14} aria-hidden="true" />
+          <span className="toolbar-btn-text">{viewModeLabel}</span>
+          <ChevronDown size={11} className={`toolbar-chevron ${isViewMenuOpen ? 'open' : ''}`} aria-hidden="true" />
         </button>
 
-        <button
-          type="button"
-          className="canvas-action-btn"
-          onClick={onZoomOut}
-          title="Zoom out"
-          aria-label="Zoom out"
-        >
-          <Minus size={14} aria-hidden="true" />
-        </button>
-
-        <button
-          type="button"
-          className="canvas-action-btn"
-          onClick={onFitView}
-          title="Fit to view"
-          aria-label="Fit graph to view"
-        >
-          <Maximize size={14} aria-hidden="true" />
-        </button>
-
-        <button
-          type="button"
-          className="canvas-action-btn"
-          onClick={onResetView}
-          title="Reset view"
-          aria-label="Reset view"
-        >
-          <RotateCcw size={13} aria-hidden="true" />
-        </button>
+        {isViewMenuOpen && (
+          <div className="toolbar-menu-popover view-mode-popover" role="menu">
+            {(['focused', 'balanced', 'expanded'] as GraphDensityMode[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className={`toolbar-menu-item ${densityMode === mode ? 'active' : ''}`}
+                onClick={() => {
+                  onDensityChange?.(mode);
+                  setIsViewMenuOpen(false);
+                }}
+                role="menuitem"
+              >
+                <span className="menu-item-left">
+                  {densityMode === mode && <span className="menu-active-dot" aria-hidden="true" />}
+                  <span className="menu-item-label">
+                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="toolbar-vertical-divider" />
 
-      {/* Export Menu (Prompt 27: small menu with Export image and Export JSON) */}
-      <div className="toolbar-export-wrap" ref={exportRef}>
+      {/* 4. UTILITY CONTROLS: [ − ] [ + ] [ ⛶ ] [ ··· ] (Section 1 & 5) */}
+      <div className="toolbar-utility-group">
         <button
           type="button"
-          className={`canvas-action-btn export-trigger-btn ${isExportOpen ? 'active' : ''}`}
-          onClick={() => setIsExportOpen(prev => !prev)}
-          title="Export graph"
-          aria-label="Export graph"
-          aria-haspopup="menu"
-          aria-expanded={isExportOpen}
-          disabled={isExporting}
+          className="toolbar-icon-btn toolbar-zoom-btn"
+          onClick={onZoomOut}
+          title="Zoom out"
+          aria-label="Zoom out"
         >
-          <Download size={13} aria-hidden="true" />
-          <span className="export-btn-label">{isExporting ? 'Exporting…' : 'Export'}</span>
+          <Minus size={13} aria-hidden="true" />
         </button>
 
-        {isExportOpen && (
-          <div className="export-dropdown-menu" role="menu">
-            <button
-              type="button"
-              className="export-dropdown-item"
-              onClick={() => {
-                setIsExportOpen(false);
-                onExportImage();
-              }}
-              role="menuitem"
-            >
-              <ImageIcon size={13} className="export-item-icon" aria-hidden="true" />
-              <span>Export image</span>
-            </button>
-            <button
-              type="button"
-              className="export-dropdown-item"
-              onClick={() => {
-                setIsExportOpen(false);
-                onExportJson();
-              }}
-              role="menuitem"
-            >
-              <FileJson size={13} className="export-item-icon" aria-hidden="true" />
-              <span>Export JSON</span>
-            </button>
-          </div>
-        )}
+        <button
+          type="button"
+          className="toolbar-icon-btn toolbar-zoom-btn"
+          onClick={onZoomIn}
+          title="Zoom in"
+          aria-label="Zoom in"
+        >
+          <Plus size={13} aria-hidden="true" />
+        </button>
+
+        <button
+          type="button"
+          className="toolbar-icon-btn toolbar-zoom-btn"
+          onClick={onFitView}
+          title="Fit graph"
+          aria-label="Fit graph"
+        >
+          <Maximize size={13} aria-hidden="true" />
+        </button>
+
+        <div className="toolbar-vertical-divider toolbar-more-divider" />
+
+        {/* 5. SECONDARY MENU (Section 5: ··· opens minimal menu with View, Fit, Reset, Export) */}
+        <div className="toolbar-dropdown-wrap" ref={moreMenuRef}>
+          <button
+            type="button"
+            className={`toolbar-icon-btn toolbar-more-btn ${isMoreMenuOpen ? 'active' : ''}`}
+            onClick={() => {
+              setIsMoreMenuOpen(prev => !prev);
+              setIsViewMenuOpen(false);
+              setIsStudyFilterMenuOpen(false);
+            }}
+            title="More canvas actions"
+            aria-label="More actions"
+            aria-haspopup="menu"
+            aria-expanded={isMoreMenuOpen}
+          >
+            <MoreHorizontal size={14} aria-hidden="true" />
+          </button>
+
+          {isMoreMenuOpen && (
+            <div className="toolbar-menu-popover canvas-more-popover" role="menu">
+              <div className="menu-section-header">VIEW</div>
+              {(['focused', 'balanced', 'expanded'] as GraphDensityMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={`toolbar-menu-item ${densityMode === mode ? 'active' : ''}`}
+                  onClick={() => {
+                    onDensityChange?.(mode);
+                    setIsMoreMenuOpen(false);
+                  }}
+                  role="menuitem"
+                >
+                  <span className="menu-item-left">
+                    {densityMode === mode && <span className="menu-active-dot" aria-hidden="true" />}
+                    <span className="menu-item-label">
+                      {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                    </span>
+                  </span>
+                </button>
+              ))}
+
+              <div className="menu-divider" />
+
+              <button
+                type="button"
+                className="toolbar-menu-item"
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  onFitView();
+                }}
+                role="menuitem"
+              >
+                <span className="menu-item-label">Fit graph</span>
+              </button>
+
+              <button
+                type="button"
+                className="toolbar-menu-item"
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  onResetView();
+                }}
+                role="menuitem"
+              >
+                <span className="menu-item-label">Reset view</span>
+              </button>
+
+              <div className="menu-divider" />
+
+              <button
+                type="button"
+                className="toolbar-menu-item"
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  onExportImage();
+                }}
+                role="menuitem"
+                disabled={isExporting}
+              >
+                <span className="menu-item-left">
+                  <ImageIcon size={12} className="menu-item-sub-icon" aria-hidden="true" />
+                  <span className="menu-item-label">{isExporting ? 'Exporting image…' : 'Export image'}</span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                className="toolbar-menu-item"
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  onExportJson();
+                }}
+                role="menuitem"
+              >
+                <span className="menu-item-left">
+                  <FileJson size={12} className="menu-item-sub-icon" aria-hidden="true" />
+                  <span className="menu-item-label">Export JSON</span>
+                </span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
