@@ -90,6 +90,10 @@ export interface GraphConceptData extends Record<string, unknown> {
   // Active Recall Session State (Phase 4)
   isSessionRecalled?: boolean;
   isSessionReview?: boolean;
+  // Revision Mode & Path State (Phase 5)
+  isRevisionCurrent?: boolean;
+  isRevisionPathVisited?: boolean;
+  isRevisionActive?: boolean;
   // Scalable viewport presentation attributes
   visibilityState?: ConceptVisibilityState;
   visibilityPriority?: number;

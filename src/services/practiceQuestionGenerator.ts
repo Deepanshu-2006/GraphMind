@@ -53,8 +53,8 @@ function shuffleOptions<T>(array: T[], seed = 42): T[] {
 /**
  * Formats relationship labels into natural language phrases.
  */
-function formatRelationshipPhrase(relType: string, source: string, target: string): string {
-  const cleanType = relType.replace(/-/g, ' ').toLowerCase();
+function formatRelationshipPhrase(relType?: string, source: string = 'this concept', target: string = 'related concept'): string {
+  const cleanType = (relType || 'connects to').replace(/-/g, ' ').toLowerCase();
   switch (cleanType) {
     case 'uses':
       return `${source} uses ${target}`;
@@ -413,6 +413,19 @@ export function generateActiveRecallQuestions(ctx: QuestionGenerationContext): A
       sourceName,
       page
     });
+
+    questions.push({
+      id: `recall-def-direct-${ctx.conceptId}`,
+      conceptId: ctx.conceptId,
+      conceptName,
+      pattern: 'definition',
+      question: `Define ${conceptName}.`,
+      answer: definitionText,
+      explanation: `${conceptName}: "${definitionText}".`,
+      passage: primarySentence,
+      sourceName,
+      page
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -469,6 +482,42 @@ export function generateActiveRecallQuestions(ctx: QuestionGenerationContext): A
         relatedConceptName: targetName,
         relationshipType: rel.type
       });
+
+      // Exam prompt variation: "Explain the relationship between X and Y."
+      questions.push({
+        id: `recall-rel-explain-${ctx.conceptId}-${rel.targetId}-${rel.type}`,
+        conceptId: ctx.conceptId,
+        conceptName,
+        pattern: 'relationship',
+        question: `Explain the relationship between ${conceptName} and ${targetName}.`,
+        answer: answerText,
+        explanation: answerText,
+        passage: primarySentence,
+        sourceName,
+        page,
+        relatedConceptId: rel.targetId,
+        relatedConceptName: targetName,
+        relationshipType: rel.type
+      });
+
+      // If relation is part-of or uses, generate role question
+      if (/part|role|uses|manages|component/i.test(rel.type)) {
+        questions.push({
+          id: `recall-rel-role-${ctx.conceptId}-${rel.targetId}-${rel.type}`,
+          conceptId: ctx.conceptId,
+          conceptName,
+          pattern: 'relationship',
+          question: `What role does ${conceptName} play in ${targetName}?`,
+          answer: answerText,
+          explanation: answerText,
+          passage: primarySentence,
+          sourceName,
+          page,
+          relatedConceptId: rel.targetId,
+          relatedConceptName: targetName,
+          relationshipType: rel.type
+        });
+      }
     }
   }
 
@@ -500,6 +549,25 @@ export function generateActiveRecallQuestions(ctx: QuestionGenerationContext): A
         relatedConceptName: targetName,
         relationshipType: rel.type
       });
+
+      // Exam prompt: "What concept depends on X?"
+      if (/depend/i.test(cleanType)) {
+        questions.push({
+          id: `recall-conn-depend-${ctx.conceptId}-${rel.targetId}`,
+          conceptId: ctx.conceptId,
+          conceptName,
+          pattern: 'connection',
+          question: `What concept depends on ${conceptName}?`,
+          answer: answerText,
+          explanation: `${targetName} depends on ${conceptName}.`,
+          passage: primarySentence,
+          sourceName,
+          page,
+          relatedConceptId: rel.targetId,
+          relatedConceptName: targetName,
+          relationshipType: rel.type
+        });
+      }
     }
   }
 

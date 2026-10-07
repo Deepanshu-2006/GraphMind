@@ -14,6 +14,9 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
   const isSessionReview = Boolean(concept.isSessionReview);
 
   const isCore = Boolean(concept.isCoreConcept || concept.isPrerequisite || (concept as any).isCore);
+  const isRevisionCurrent = Boolean(concept.isRevisionCurrent);
+  const isRevisionPathVisited = Boolean(concept.isRevisionPathVisited);
+  const isRevisionActive = Boolean(concept.isRevisionActive);
 
   const nodeClasses = [
     'knowledge-node-card',
@@ -23,6 +26,9 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
     `practice-${practiceStatus}`,
     isSessionRecalled ? 'session-recalled' : '',
     isSessionReview ? 'session-review' : '',
+    isRevisionCurrent ? 'revision-current' : '',
+    isRevisionPathVisited ? 'revision-visited' : '',
+    isRevisionActive ? 'revision-active' : '',
     isSelected ? 'selected' : '',
     concept.highlighted ? 'highlighted' : '',
     concept.dimmed ? 'dimmed' : '',
@@ -37,6 +43,7 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
   };
 
   const sessionStatusText = isSessionRecalled ? ' Recalled in session.' : isSessionReview ? ' Marked for review.' : '';
+  const revisionStatusText = isRevisionCurrent ? ' Current revision target.' : isRevisionPathVisited ? ' Visited in revision.' : '';
 
   return (
     <div 
@@ -44,7 +51,7 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
       role="button"
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      aria-label={`Concept: ${concept.label}. ${concept.category}.${isSelected ? ' Selected.' : ''} Practice: ${practiceStatus}.${sessionStatusText} ${concept.description || ''}`}
+      aria-label={`Concept: ${concept.label}. ${concept.category}.${isSelected ? ' Selected.' : ''} Practice: ${practiceStatus}.${sessionStatusText}${revisionStatusText} ${concept.description || ''}`}
       aria-pressed={Boolean(isSelected)}
       aria-current={isSelected ? 'true' : undefined}
       data-concept-id={concept.id}

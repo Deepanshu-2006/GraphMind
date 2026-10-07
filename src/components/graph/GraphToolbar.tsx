@@ -38,6 +38,14 @@ export interface GraphToolbarProps {
   onToggleFullscreen?: () => void;
   isTestMode?: boolean;
   onToggleTestMode?: () => void;
+  // Phase 5: Revision Mode
+  isRevisionMode?: boolean;
+  onToggleRevisionMode?: () => void;
+  revisionProgress?: { current: number; total: number } | null;
+  onPrevRevisionConcept?: () => void;
+  onNextRevisionConcept?: () => void;
+  hasPrevRevisionConcept?: boolean;
+  hasNextRevisionConcept?: boolean;
 }
 
 export const GraphToolbar: React.FC<GraphToolbarProps> = ({
@@ -63,7 +71,14 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   isFullscreen = false,
   onToggleFullscreen,
   isTestMode = false,
-  onToggleTestMode
+  onToggleTestMode,
+  isRevisionMode = false,
+  onToggleRevisionMode,
+  revisionProgress,
+  onPrevRevisionConcept,
+  onNextRevisionConcept,
+  hasPrevRevisionConcept = false,
+  hasNextRevisionConcept = false
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -632,18 +647,75 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
                 variants={shouldReduceMotion ? reducedDividerVariants : dividerVariants} 
               />
 
-              {/* Next concept button */}
+              {/* Revision Mode action in Study Toolbar (Phase 5 Section 1) */}
               <motion.button
                 type="button"
-                className="toolbar-text-btn study-next-btn"
-                onClick={onNextConcept}
-                title="Next concept to study"
-                aria-label="Next concept"
+                className={`toolbar-text-btn study-revise-btn ${isRevisionMode ? 'active' : ''}`}
+                onClick={onToggleRevisionMode}
+                title={isRevisionMode ? "Exit revision mode" : "Start guided exam revision through graph"}
+                aria-label={isRevisionMode ? "Exit revision mode" : "Start revision"}
+                aria-pressed={isRevisionMode}
                 variants={shouldReduceMotion ? reducedItemVariants : itemVariants}
               >
-                <span className="toolbar-btn-text">Next</span>
-                <ArrowRight size={11.5} className="study-next-icon" aria-hidden="true" />
+                <span className="toolbar-btn-text">Revise</span>
               </motion.button>
+
+              {/* If Revision Mode is active: subtle editorial progress (e.g. 04 / 12) + Prev / Next (Section 8 & 9) */}
+              {isRevisionMode && revisionProgress && (
+                <>
+                  <motion.div 
+                    className="toolbar-vertical-divider" 
+                    variants={shouldReduceMotion ? reducedDividerVariants : dividerVariants} 
+                  />
+                  <div className="toolbar-revision-nav" aria-label="Revision navigation">
+                    <button
+                      type="button"
+                      className="toolbar-text-btn toolbar-revision-nav-btn"
+                      onClick={onPrevRevisionConcept}
+                      disabled={!hasPrevRevisionConcept}
+                      title="Previous revision concept"
+                      aria-label="Previous concept in revision"
+                    >
+                      <ArrowLeft size={11} />
+                    </button>
+                    <span className="toolbar-revision-counter" aria-live="polite">
+                      {String(revisionProgress.current).padStart(2, '0')} / {String(revisionProgress.total).padStart(2, '0')}
+                    </span>
+                    <button
+                      type="button"
+                      className="toolbar-text-btn toolbar-revision-nav-btn"
+                      onClick={onNextRevisionConcept}
+                      disabled={!hasNextRevisionConcept}
+                      title="Next revision concept"
+                      aria-label="Next concept in revision"
+                    >
+                      <ArrowRight size={11} />
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {!isRevisionMode && (
+                <>
+                  <motion.div 
+                    className="toolbar-vertical-divider" 
+                    variants={shouldReduceMotion ? reducedDividerVariants : dividerVariants} 
+                  />
+
+                  {/* Next concept button */}
+                  <motion.button
+                    type="button"
+                    className="toolbar-text-btn study-next-btn"
+                    onClick={onNextConcept}
+                    title="Next concept to study"
+                    aria-label="Next concept"
+                    variants={shouldReduceMotion ? reducedItemVariants : itemVariants}
+                  >
+                    <span className="toolbar-btn-text">Next</span>
+                    <ArrowRight size={11.5} className="study-next-icon" aria-hidden="true" />
+                  </motion.button>
+                </>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

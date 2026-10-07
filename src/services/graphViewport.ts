@@ -38,6 +38,10 @@ export interface GraphViewportParams {
   practiceStates?: Record<string, import('../types/practice').ConceptPracticeState>;
   recalledConceptIds?: Set<string> | string[];
   reviewConceptIds?: Set<string> | string[];
+  // Phase 5: Revision Mode
+  isRevisionMode?: boolean;
+  revisionCurrentConceptId?: string | null;
+  revisionVisitedConceptIds?: Set<string> | string[];
 }
 
 export interface GraphViewportResult {
@@ -117,11 +121,18 @@ export function calculateVisibleGraph({
   studyFilterMode = 'all',
   practiceStates = {},
   recalledConceptIds,
-  reviewConceptIds
+  reviewConceptIds,
+  isRevisionMode = false,
+  revisionCurrentConceptId = null,
+  revisionVisitedConceptIds = []
 }: GraphViewportParams): GraphViewportResult {
   const totalCount = allNodes.length;
   const recalledSet = recalledConceptIds instanceof Set ? recalledConceptIds : new Set(recalledConceptIds || []);
   const reviewSet = reviewConceptIds instanceof Set ? reviewConceptIds : new Set(reviewConceptIds || []);
+  const revisionVisitedSet = revisionVisitedConceptIds instanceof Set
+    ? revisionVisitedConceptIds
+    : new Set(revisionVisitedConceptIds || []);
+  const effectiveRevisionCurrentId = revisionCurrentConceptId || selectedNodeId;
 
   // Compute filtered nodes & direct neighbors for revision/study filter
   const reviewNodeIds = new Set<string>();
@@ -178,7 +189,29 @@ export function calculateVisibleGraph({
       let isDimmed = false;
       let isHighlighted = false;
 
-      if (isReviewFilterActive) {
+      if (isRevisionMode) {
+        if (isSelected || (effectiveRevisionCurrentId && node.id === effectiveRevisionCurrentId)) {
+          visibilityState = 'focused';
+          explorationDepth = 0;
+          isHighlighted = true;
+          isDimmed = false;
+        } else if (isNeighbor) {
+          visibilityState = 'contextual';
+          explorationDepth = 1;
+          isHighlighted = true;
+          isDimmed = false;
+        } else if (revisionVisitedSet.has(node.id)) {
+          visibilityState = 'visible';
+          explorationDepth = 2;
+          isHighlighted = false;
+          isDimmed = false;
+        } else {
+          visibilityState = 'visible';
+          explorationDepth = 3;
+          isHighlighted = false;
+          isDimmed = true;
+        }
+      } else if (isReviewFilterActive) {
         const isReviewNode = reviewNodeIds.has(node.id);
         const isReviewNeighbor = reviewNeighbors.has(node.id);
 
@@ -216,6 +249,9 @@ export function calculateVisibleGraph({
         isDimmed = hasSelection && !isSelected && !isNeighbor;
       }
 
+      const isRevisionCurrent = Boolean(isRevisionMode && (isSelected || (effectiveRevisionCurrentId && node.id === effectiveRevisionCurrentId)));
+      const isRevisionVisited = Boolean(isRevisionMode && !isRevisionCurrent && revisionVisitedSet.has(node.id));
+
       return {
         ...node,
         selected: isSelected,
@@ -228,7 +264,10 @@ export function calculateVisibleGraph({
           highlighted: isHighlighted,
           dimmed: isDimmed,
           isSessionRecalled: Boolean(recalledSet.has(node.id) || node.data?.isSessionRecalled),
-          isSessionReview: Boolean(reviewSet.has(node.id) || node.data?.isSessionReview)
+          isSessionReview: Boolean(reviewSet.has(node.id) || node.data?.isSessionReview),
+          isRevisionCurrent,
+          isRevisionPathVisited: isRevisionVisited,
+          isRevisionActive: isRevisionMode
         }
       };
     });
@@ -236,6 +275,21 @@ export function calculateVisibleGraph({
     const styledEdges: Edge[] = allEdges.map((edge) => {
       let isIncident = false;
       let isDimmed = false;
+
+      if (isRevisionMode) {
+        const activeRevisionId = effectiveRevisionCurrentId || selectedNodeId;
+        const isRevisionIncident = Boolean(activeRevisionId && (edge.source === activeRevisionId || edge.target === activeRevisionId));
+        return {
+          ...edge,
+          selected: isRevisionIncident,
+          className: isRevisionIncident ? 'highlighted revision-active' : 'dimmed',
+          data: {
+            ...(edge.data || {}),
+            isHighlighted: isRevisionIncident,
+            isRevisionActive: true
+          }
+        };
+      }
 
       if (isReviewFilterActive) {
         const connectsReviewContext = 
@@ -504,7 +558,25 @@ export function calculateVisibleGraph({
     let isDimmed = false;
     let isHighlighted = false;
 
-    if (isReviewFilterActive) {
+    if (isRevisionMode) {
+      if (isSelected || (effectiveRevisionCurrentId && id === effectiveRevisionCurrentId)) {
+        visibilityState = 'focused';
+        isHighlighted = true;
+        isDimmed = false;
+      } else if (isDirectNeighbor) {
+        visibilityState = 'contextual';
+        isHighlighted = true;
+        isDimmed = false;
+      } else if (revisionVisitedSet.has(id)) {
+        visibilityState = 'visible';
+        isHighlighted = false;
+        isDimmed = false;
+      } else {
+        visibilityState = 'visible';
+        isHighlighted = false;
+        isDimmed = true;
+      }
+    } else if (isReviewFilterActive) {
       const isReviewNode = reviewNodeIds.has(id);
       const isReviewNeighbor = reviewNeighbors.has(id);
 
@@ -536,6 +608,9 @@ export function calculateVisibleGraph({
       isDimmed = hasSelection && !isSelected && !isDirectNeighbor;
     }
 
+    const isRevisionCurrent = Boolean(isRevisionMode && (isSelected || (effectiveRevisionCurrentId && id === effectiveRevisionCurrentId)));
+    const isRevisionVisited = Boolean(isRevisionMode && !isRevisionCurrent && revisionVisitedSet.has(id));
+
     visibleNodes.push({
       ...originalNode,
       selected: isSelected,
@@ -549,7 +624,10 @@ export function calculateVisibleGraph({
         highlighted: isHighlighted,
         dimmed: isDimmed,
         isSessionRecalled: Boolean(recalledSet.has(id) || originalNode.data?.isSessionRecalled),
-        isSessionReview: Boolean(reviewSet.has(id) || originalNode.data?.isSessionReview)
+        isSessionReview: Boolean(reviewSet.has(id) || originalNode.data?.isSessionReview),
+        isRevisionCurrent,
+        isRevisionPathVisited: isRevisionVisited,
+        isRevisionActive: isRevisionMode
       }
     });
   }
@@ -568,6 +646,22 @@ export function calculateVisibleGraph({
 
     let isIncident = false;
     let isDimmed = false;
+
+    if (isRevisionMode) {
+      const activeRevisionId = effectiveRevisionCurrentId || selectedNodeId;
+      const isRevisionIncident = Boolean(activeRevisionId && (edge.source === activeRevisionId || edge.target === activeRevisionId));
+      visibleEdges.push({
+        ...edge,
+        selected: isRevisionIncident,
+        className: isRevisionIncident ? 'highlighted revision-active' : 'dimmed',
+        data: {
+          ...(edge.data || {}),
+          isHighlighted: isRevisionIncident,
+          isRevisionActive: true
+        }
+      });
+      continue;
+    }
 
     if (isReviewFilterActive) {
       const connectsReviewContext = 

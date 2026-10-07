@@ -121,3 +121,32 @@ export interface ActiveRecallSessionState {
   currentConceptId: string | null;
 }
 
+/**
+ * Phase 5: Revision Mode & Guided Graph Path Types
+ */
+export type RevisionReason =
+  | 'marked-for-review'
+  | 'connected-concept'
+  | 'core-concept'
+  | 'unreviewed'
+  | 'review-again';
+
+export interface RevisionPathStep {
+  conceptId: string;
+  conceptName: string;
+  category?: string;
+  reason: RevisionReason;
+  connectedThroughConceptId?: string;
+  relationshipType?: string;
+  isCore?: boolean;
+}
+
+export interface RevisionSessionState {
+  isActive: boolean;
+  path: RevisionPathStep[];
+  currentIndex: number;
+  reviewedConceptIds: string[];
+  markedForReviewIds: string[];
+}
+
+
