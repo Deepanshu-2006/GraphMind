@@ -1,12 +1,14 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowUpRight, ArrowLeft, ArrowRight } from 'lucide-react';
 import type { GraphConceptData, SelectedRelationshipData } from '../../types/graph';
-import type { PracticeQuestion, PracticeStatus, QuestionGenerationContext } from '../../types/practice';
+import type { 
+  PracticeStatus, 
+  QuestionGenerationContext,
+  ActiveRecallQuestion
+} from '../../types/practice';
 import { 
-  getPracticeQuestionForConcept, 
-  evaluateAnswer,
-  hasSufficientMaterial
+  getActiveRecallQuestionForConcept
 } from '../../services/practiceQuestionGenerator';
 
 export interface NodeContextPanelProps {
@@ -21,6 +23,12 @@ export interface NodeContextPanelProps {
   isCollapsed?: boolean;
   allGraphConcepts?: Array<{ id: string; name: string; category?: string; description?: string }>;
   onUpdatePracticeState?: (conceptId: string, status: PracticeStatus) => void;
+  isTestMode?: boolean;
+  onToggleTestMode?: (isTest: boolean) => void;
+  onRecordSessionRecalled?: (conceptId: string) => void;
+  onRecordSessionReview?: (conceptId: string) => void;
+  onNextConcept?: () => void;
+  nextConceptName?: string | null;
 }
 
 /**
@@ -120,23 +128,37 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
   onSelectSource,
   isCollapsed = false,
   allGraphConcepts = [],
-  onUpdatePracticeState
+  onUpdatePracticeState,
+  isTestMode = false,
+  onToggleTestMode,
+  onRecordSessionRecalled,
+  onRecordSessionReview,
+  onNextConcept,
+  nextConceptName
 }) => {
-  // Mode state: 'learn' (Phase 1) | 'practice' (Phase 2)
-  const [panelMode, setPanelMode] = useState<'learn' | 'practice'>('learn');
+  // Mode state: 'learn' | 'recall' (Phase 4 Active Recall)
+  const [panelMode, setPanelMode] = useState<'learn' | 'recall'>(isTestMode ? 'recall' : 'learn');
 
-  // Practice session state
-  const [studentAnswer, setStudentAnswer] = useState<string>('');
-  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
-  const [evaluation, setEvaluation] = useState<{ isCorrect: boolean; feedback: string } | null>(null);
-  const [selfAssessed, setSelfAssessed] = useState<'again' | 'got-it' | null>(null);
+  // Synchronize panelMode with isTestMode external prop
+  useEffect(() => {
+    if (isTestMode && panelMode !== 'recall') {
+      setPanelMode('recall');
+    } else if (!isTestMode && panelMode === 'recall') {
+      setPanelMode('learn');
+    }
+  }, [isTestMode]);
+
+  // Active Recall interaction state
+  const [isAnswerRevealed, setIsAnswerRevealed] = useState<boolean>(false);
+  const [selfAssessed, setSelfAssessed] = useState<'yes' | 'review' | null>(null);
   const [answeredQuestionIds, setAnsweredQuestionIds] = useState<Set<string>>(new Set());
 
-  // Reset practice interaction state when concept changes
+  const revealButtonRef = useRef<HTMLButtonElement>(null);
+  const nextButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Reset interaction state when concept changes
   useEffect(() => {
-    setStudentAnswer('');
-    setIsSubmitted(false);
-    setEvaluation(null);
+    setIsAnswerRevealed(false);
     setSelfAssessed(null);
 
     // Phase 3 Section 8: Meaningful study interaction transitions unseen -> learning
@@ -174,83 +196,108 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
     };
   }, [concept, allGraphConcepts]);
 
-  const currentQuestion: PracticeQuestion | null = useMemo(() => {
+  // Grounded Active Recall Prompt (Phase 4 Section 3 & 4)
+  const activeRecallQuestion: ActiveRecallQuestion | null = useMemo(() => {
     if (!questionContext) return null;
-    return getPracticeQuestionForConcept(questionContext, answeredQuestionIds);
+    return getActiveRecallQuestionForConcept(questionContext, answeredQuestionIds);
   }, [questionContext, answeredQuestionIds]);
 
-  const canPractice = useMemo(() => {
-    if (!questionContext) return false;
-    return hasSufficientMaterial(questionContext);
-  }, [questionContext]);
+  // Next connected concept fallback
+  const nextConnectedConcept = useMemo(() => {
+    if (!concept?.relationships || concept.relationships.length === 0) return null;
+    return concept.relationships[0];
+  }, [concept?.relationships]);
 
-  // Submission handler
-  const handleCheckAnswer = useCallback(() => {
-    if (!currentQuestion || !studentAnswer.trim() || isSubmitted) return;
-    const result = evaluateAnswer(currentQuestion, studentAnswer);
-    setEvaluation(result);
-    setIsSubmitted(true);
-    setAnsweredQuestionIds(prev => new Set(prev).add(currentQuestion.id));
+  const nextConceptRecommendation = nextConceptName || nextConnectedConcept?.targetName;
 
-    // Initial transition to 'learning' upon answering
-    if (concept?.id && (!concept.practiceStatus || concept.practiceStatus === 'unseen')) {
-      onUpdatePracticeState?.(concept.id, 'learning');
-    }
-  }, [currentQuestion, studentAnswer, isSubmitted, concept, onUpdatePracticeState]);
-
-  // Reveal answer handler (for short-answer questions when evaluation is uncertain)
+  // Handlers for Active Recall (Phase 4 Sections 5-9, 15)
   const handleRevealAnswer = useCallback(() => {
-    if (!currentQuestion || isSubmitted) return;
-    setStudentAnswer(currentQuestion.correctAnswer);
-    setEvaluation({ isCorrect: true, feedback: 'Revealed' });
-    setIsSubmitted(true);
-    setAnsweredQuestionIds(prev => new Set(prev).add(currentQuestion.id));
+    setIsAnswerRevealed(true);
+  }, []);
 
-    if (concept?.id && (!concept.practiceStatus || concept.practiceStatus === 'unseen')) {
-      onUpdatePracticeState?.(concept.id, 'learning');
-    }
-  }, [currentQuestion, isSubmitted, concept, onUpdatePracticeState]);
-
-  // Self-assessment handler
-  const handleSelfAssess = useCallback((assessment: 'again' | 'got-it') => {
+  const handleRecallSelfAssess = useCallback((assessment: 'yes' | 'review') => {
     if (!concept?.id) return;
     setSelfAssessed(assessment);
-    const newStatus: PracticeStatus = assessment === 'got-it' ? 'understood' : 'needs-review';
-    onUpdatePracticeState?.(concept.id, newStatus);
-  }, [concept?.id, onUpdatePracticeState]);
+    if (activeRecallQuestion?.id) {
+      setAnsweredQuestionIds(prev => new Set(prev).add(activeRecallQuestion.id));
+    }
 
-  // Keyboard support for Practice Mode (A/B/C/D option shortcuts & Enter to submit)
+    if (assessment === 'yes') {
+      onRecordSessionRecalled?.(concept.id);
+      onUpdatePracticeState?.(concept.id, 'understood');
+    } else {
+      onRecordSessionReview?.(concept.id);
+      onUpdatePracticeState?.(concept.id, 'needs-review');
+    }
+  }, [concept?.id, activeRecallQuestion?.id, onRecordSessionRecalled, onRecordSessionReview, onUpdatePracticeState]);
+
+  const handleNextConceptClick = useCallback(() => {
+    if (onNextConcept) {
+      onNextConcept();
+    } else if (nextConnectedConcept) {
+      onSelectConcept(nextConnectedConcept.targetId);
+    }
+  }, [onNextConcept, nextConnectedConcept, onSelectConcept]);
+
+  const handleExitTest = useCallback(() => {
+    setPanelMode('learn');
+    onToggleTestMode?.(false);
+  }, [onToggleTestMode]);
+
+  // Keyboard navigation and shortcuts (Phase 4 Section 19)
   useEffect(() => {
-    if (panelMode !== 'practice' || !currentQuestion) return;
+    if (panelMode !== 'recall') return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in text input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        if (e.key === 'Enter' && !isSubmitted && studentAnswer.trim()) {
+      // Escape: Return to concept view naturally
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleExitTest();
+        return;
+      }
+
+      // Ignore when typing in an input or textarea
+      const target = e.target as HTMLElement;
+      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      // Space or Enter: Reveal answer if not revealed
+      if ((e.key === ' ' || e.key === 'Enter') && !isAnswerRevealed && activeRecallQuestion) {
+        if (document.activeElement !== revealButtonRef.current) {
           e.preventDefault();
-          handleCheckAnswer();
+          handleRevealAnswer();
         }
         return;
       }
 
-      if (e.key === 'Enter' && !isSubmitted && studentAnswer.trim()) {
-        e.preventDefault();
-        handleCheckAnswer();
-        return;
+      // Y: Yes, recalled (when revealed and not assessed)
+      if (isAnswerRevealed && !selfAssessed) {
+        if (e.key.toLowerCase() === 'y' || e.key === '1') {
+          e.preventDefault();
+          handleRecallSelfAssess('yes');
+          return;
+        }
+        if (e.key.toLowerCase() === 'r' || e.key === '2') {
+          e.preventDefault();
+          handleRecallSelfAssess('review');
+          return;
+        }
       }
 
-      if (!isSubmitted && currentQuestion.options && currentQuestion.options.length > 0) {
-        const key = e.key.toUpperCase();
-        if (key === 'A' && currentQuestion.options[0]) setStudentAnswer(currentQuestion.options[0]);
-        if (key === 'B' && currentQuestion.options[1]) setStudentAnswer(currentQuestion.options[1]);
-        if (key === 'C' && currentQuestion.options[2]) setStudentAnswer(currentQuestion.options[2]);
-        if (key === 'D' && currentQuestion.options[3]) setStudentAnswer(currentQuestion.options[3]);
+      // Enter or N: Next concept (after self-assessed)
+      if (isAnswerRevealed && selfAssessed && (e.key === 'Enter' || e.key.toLowerCase() === 'n')) {
+        if (document.activeElement !== nextButtonRef.current) {
+          e.preventDefault();
+          handleNextConceptClick();
+        }
+        return;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [panelMode, currentQuestion, isSubmitted, studentAnswer, handleCheckAnswer]);
+  }, [panelMode, isAnswerRevealed, selfAssessed, activeRecallQuestion, handleRevealAnswer, handleRecallSelfAssess, handleNextConceptClick, handleExitTest]);
 
   if (isCollapsed || (!concept && !selectedRelationship)) {
     return null;
@@ -390,12 +437,11 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
   const relationships = concept!.relationships || [];
   const primarySource = concept!.sources?.[0]?.name || concept!.source;
   const primaryPage = concept!.sources?.[0]?.page ?? concept!.page;
-  const nextConnectedConcept = relationships[0];
 
   return (
     <motion.aside
       className="floating-node-inspector study-panel"
-      aria-label={`${panelMode === 'practice' ? 'Practice' : 'Study'} concept: ${canonicalName}`}
+      aria-label={`${panelMode === 'recall' ? 'Active recall' : 'Study'} concept: ${canonicalName}`}
       role="region"
       initial={{ opacity: 0, x: 26 }}
       animate={{ opacity: 1, x: 0 }}
@@ -600,13 +646,17 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
                 </section>
               )}
 
-              {/* SECONDARY ACTION: TEST YOURSELF / REVIEW AGAIN → (Phase 2 & 3 Entry Point) */}
+              {/* SECONDARY ACTION: TEST YOURSELF / REVIEW AGAIN → (Phase 4 Functional Active Recall) */}
               <div className="study-practice-cta-section">
                 <button
                   type="button"
                   className="study-practice-cta-btn"
-                  onClick={() => setPanelMode('practice')}
+                  onClick={() => {
+                    setPanelMode('recall');
+                    onToggleTestMode?.(true);
+                  }}
                   title={concept!.practiceStatus === 'needs-review' ? `Review ${canonicalName} again` : `Test yourself on ${canonicalName}`}
+                  aria-label={concept!.practiceStatus === 'needs-review' ? `Review ${canonicalName} again` : `Test yourself on ${canonicalName}`}
                 >
                   <span className="practice-cta-text">
                     {concept!.practiceStatus === 'needs-review' ? 'REVIEW AGAIN' : 'TEST YOURSELF'}
@@ -617,22 +667,34 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
             </motion.div>
           ) : (
             /* ==========================================================
-               PHASE 2: PRACTICE MODE
+               PHASE 4: ACTIVE RECALL / TEST YOURSELF
                ========================================================== */
             <motion.div
-              key={`practice-${concept!.id}`}
+              key={`recall-${concept!.id}`}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-              className="study-panel-content practice-panel-content"
+              className="study-panel-content recall-panel-content"
             >
-              {/* Header: PRACTICE title + canonical concept name */}
+              {/* Header: TEST YOURSELF tag + canonical name + Back to concept + Close */}
               <header className="inspector-header study-header">
                 <div className="inspector-title-wrap">
-                  <span className="study-section-label study-category-tag practice-header-tag">
-                    PRACTICE · {concept!.category}
-                  </span>
+                  <div className="recall-header-meta">
+                    <span className="study-section-label study-category-tag recall-header-tag">
+                      TEST YOURSELF · {concept!.category || 'CONCEPT'}
+                    </span>
+                    <button
+                      type="button"
+                      className="recall-back-link-btn"
+                      onClick={handleExitTest}
+                      title="Return to concept details"
+                      aria-label="Back to concept"
+                    >
+                      <ArrowLeft size={11} />
+                      <span>Back to concept</span>
+                    </button>
+                  </div>
                   <h2 className="inspector-name study-concept-title">
                     {canonicalName}
                   </h2>
@@ -641,210 +703,187 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
                   type="button"
                   className="inspector-close-btn"
                   onClick={onClose}
-                  aria-label="Close practice panel"
+                  aria-label="Close panel"
                   title="Close panel"
                 >
                   <X size={14} />
                 </button>
               </header>
 
-              {!canPractice || !currentQuestion ? (
-                /* INSUFFICIENT MATERIAL VIEW (Section 3 & 29) */
-                <section className="study-section practice-unavailable-section">
-                  <h3 className="study-section-label">NOT ENOUGH MATERIAL</h3>
-                  <p className="study-explanation practice-insufficient-text">
-                    GraphMind couldn't create a reliable question from the available material.
+              {!activeRecallQuestion ? (
+                /* INSUFFICIENT MATERIAL VIEW (Section 17) */
+                <section className="study-section recall-insufficient-section">
+                  <h3 className="study-section-label">TEST YOURSELF</h3>
+                  <p className="study-explanation recall-insufficient-text">
+                    Not enough material to test this concept yet.
                   </p>
-                  <div style={{ marginTop: '14px' }}>
+                  <div className="recall-insufficient-actions">
+                    <button
+                      type="button"
+                      className="recall-continue-btn"
+                      onClick={handleNextConceptClick}
+                      title="Continue to next concept"
+                    >
+                      <span>CONTINUE</span>
+                      <ArrowRight size={12} />
+                    </button>
                     <button
                       type="button"
                       className="practice-back-to-learn-btn"
-                      onClick={() => setPanelMode('learn')}
+                      onClick={handleExitTest}
                     >
                       ← BACK TO CONCEPT
                     </button>
                   </div>
                 </section>
               ) : (
-                /* ACTIVE PRACTICE QUESTION VIEW */
-                <>
-                  <section className="study-section practice-question-section">
+                /* ACTIVE RECALL QUESTION VIEW */
+                <div className="recall-card">
+                  {/* QUESTION SECTION (Section 2, 4, 5) */}
+                  <section className="study-section recall-question-section">
                     <h3 className="study-section-label">QUESTION</h3>
-                    <p className="practice-question-text">
-                      {currentQuestion.question}
+                    <p className="recall-question-text">
+                      {activeRecallQuestion.question}
                     </p>
 
-                    {/* Answer Controls: Multiple Choice / Options */}
-                    {currentQuestion.options && currentQuestion.options.length > 0 ? (
-                      <div className="practice-options-list" role="radiogroup" aria-label="Answer options">
-                        {currentQuestion.options.map((option, idx) => {
-                          const optionLetter = String.fromCharCode(65 + idx); // A, B, C, D
-                          const isSelected = studentAnswer === option;
-                          const isCorrectOption = currentQuestion.correctAnswer === option;
-                          const isWrongSelection = isSubmitted && isSelected && !evaluation?.isCorrect;
-
-                          let rowClass = 'practice-option-row';
-                          if (isSelected) rowClass += ' selected';
-                          if (isSubmitted && isCorrectOption) rowClass += ' is-correct-target';
-                          if (isWrongSelection) rowClass += ' is-wrong';
-
-                          return (
-                            <button
-                              key={idx}
-                              type="button"
-                              role="radio"
-                              aria-checked={isSelected}
-                              className={rowClass}
-                              onClick={() => !isSubmitted && setStudentAnswer(option)}
-                              disabled={isSubmitted}
-                            >
-                              <span className="practice-option-letter">{optionLetter}</span>
-                              <span className="practice-option-text">{option}</span>
-                              {isSelected && <span className="practice-option-pip" aria-hidden="true" />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      /* Short Answer text input */
-                      <div className="practice-input-group">
-                        <input
-                          type="text"
-                          className="practice-short-input"
-                          placeholder="Type your explanation..."
-                          value={studentAnswer}
-                          onChange={(e) => !isSubmitted && setStudentAnswer(e.target.value)}
-                          disabled={isSubmitted}
-                          aria-label="Your answer"
-                        />
-                        {!isSubmitted && (
-                          <button
-                            type="button"
-                            className="practice-reveal-btn"
-                            onClick={handleRevealAnswer}
-                            title="Reveal answer from source material"
-                          >
-                            REVEAL ANSWER
-                          </button>
-                        )}
+                    {/* HIDE THE ANSWER: Before revealing, show only [ Reveal answer ] (Section 5) */}
+                    {!isAnswerRevealed && (
+                      <div className="recall-reveal-wrap">
+                        <button
+                          type="button"
+                          ref={revealButtonRef}
+                          className="recall-reveal-btn"
+                          onClick={handleRevealAnswer}
+                          aria-expanded={false}
+                          title="Reveal answer from source material (Space or Enter)"
+                        >
+                          <span>Reveal answer</span>
+                        </button>
                       </div>
                     )}
                   </section>
 
-                  {/* Submission Action */}
-                  {!isSubmitted && (
-                    <div className="practice-submit-wrap">
-                      <button
-                        type="button"
-                        className="practice-submit-btn"
-                        disabled={!studentAnswer.trim()}
-                        onClick={handleCheckAnswer}
+                  {/* REVEAL ANIMATION (Section 6: Question remains fixed, answer area expands vertically, opacity 0->1, translateY 6->0, 250-350ms) */}
+                  <AnimatePresence>
+                    {isAnswerRevealed && (
+                      <motion.div
+                        key={`reveal-${activeRecallQuestion.id}`}
+                        initial={{ opacity: 0, y: 6, height: 0 }}
+                        animate={{ opacity: 1, y: 0, height: 'auto' }}
+                        exit={{ opacity: 0, y: -6, height: 0 }}
+                        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                        className="recall-revealed-flow"
                       >
-                        CHECK ANSWER →
-                      </button>
-                    </div>
-                  )}
+                        {/* ANSWER CONTENT */}
+                        <section className="study-section recall-answer-section">
+                          <h3 className="study-section-label">ANSWER</h3>
+                          <p className="recall-answer-text">
+                            {activeRecallQuestion.answer}
+                          </p>
+                        </section>
 
-                  {/* Feedback, Grounded Explanation & Self-Assessment (Revealed after check) */}
-                  {isSubmitted && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.22 }}
-                      className="practice-feedback-flow"
-                    >
-                      {/* Status Banner */}
-                      <div className={`practice-feedback-banner ${evaluation?.isCorrect ? 'correct' : 'incorrect'}`}>
-                        <span className="practice-feedback-status">
-                          {evaluation?.isCorrect ? 'CORRECT' : 'NOT QUITE'}
-                        </span>
-                        {!evaluation?.isCorrect && (
-                          <div className="practice-correct-reveal">
-                            <span className="practice-reveal-prefix">The correct answer is:</span>
-                            <span className="practice-reveal-correct-name">{currentQuestion.correctAnswer}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Explanation */}
-                      <section className="study-section" style={{ borderTop: 'none', paddingTop: 0 }}>
-                        <p className="study-explanation practice-explanation">
-                          {currentQuestion.explanation}
-                        </p>
-                      </section>
-
-                      {/* Provenance: From Your Material */}
-                      {currentQuestion.passage && (
-                        <section className="study-section">
-                          <h3 className="study-section-label">FROM YOUR MATERIAL</h3>
-                          <div className="study-passage-box">
-                            <blockquote className="study-passage-quote">
-                              “{currentQuestion.passage}”
-                            </blockquote>
-                            <div className="study-passage-meta">
+                        {/* SOURCE PROVENANCE (Section 16: SOURCE Test.pdf ↗) */}
+                        {activeRecallQuestion.sourceName && (
+                          <section className="study-section recall-source-section">
+                            <h3 className="study-section-label">SOURCE</h3>
+                            <div className="recall-source-box">
                               <button
                                 type="button"
                                 className="study-source-chip"
-                                onClick={() => onSelectSource?.(currentQuestion.sourceName, currentQuestion.page)}
-                                title={`View ${currentQuestion.sourceName}${currentQuestion.page ? ` (p. ${currentQuestion.page})` : ''} in Sources`}
+                                onClick={() => onSelectSource?.(activeRecallQuestion.sourceName, activeRecallQuestion.page)}
+                                title={`View ${activeRecallQuestion.sourceName}${activeRecallQuestion.page ? ` (p. ${activeRecallQuestion.page})` : ''} in Sources`}
                               >
-                                <span className="study-source-chip-name">{currentQuestion.sourceName}</span>
-                                {currentQuestion.page && (
-                                  <span className="study-source-chip-page">· p. {currentQuestion.page}</span>
+                                <span className="study-source-chip-name">{activeRecallQuestion.sourceName}</span>
+                                {activeRecallQuestion.page && (
+                                  <span className="study-source-chip-page">· p. {activeRecallQuestion.page}</span>
                                 )}
                                 <ArrowUpRight size={10} className="study-source-link-icon" />
                               </button>
                             </div>
+
+                            {/* Additional passage excerpt if available and distinct */}
+                            {activeRecallQuestion.passage && activeRecallQuestion.passage !== activeRecallQuestion.answer && (
+                              <blockquote className="study-passage-quote" style={{ marginTop: '10px' }}>
+                                “{activeRecallQuestion.passage}”
+                              </blockquote>
+                            )}
+                          </section>
+                        )}
+
+                        {/* SELF-ASSESSMENT (Section 7: Did you know this? [ YES ] [ REVIEW AGAIN ]) */}
+                        <section className="study-section recall-self-assess-section">
+                          <h3 className="study-section-label">DID YOU KNOW THIS?</h3>
+                          <div className="recall-self-assess-actions" role="group" aria-label="Self assessment">
+                            <button
+                              type="button"
+                              className={`recall-assess-btn recall-btn-yes ${selfAssessed === 'yes' ? 'selected' : ''}`}
+                              onClick={() => handleRecallSelfAssess('yes')}
+                              title="Yes, I recalled this (Press Y)"
+                              aria-pressed={selfAssessed === 'yes'}
+                            >
+                              <span>YES</span>
+                            </button>
+                            <button
+                              type="button"
+                              className={`recall-assess-btn recall-btn-review ${selfAssessed === 'review' ? 'selected' : ''}`}
+                              onClick={() => handleRecallSelfAssess('review')}
+                              title="Review again later (Press R)"
+                              aria-pressed={selfAssessed === 'review'}
+                            >
+                              <span>REVIEW AGAIN</span>
+                            </button>
                           </div>
                         </section>
-                      )}
 
-                      {/* Self-Assessment: How well did you know this? */}
-                      <section className="study-section practice-self-assess-section">
-                        <h3 className="study-section-label">HOW WELL DID YOU KNOW THIS?</h3>
-                        <div className="practice-self-assess-row" role="group" aria-label="Self assessment">
-                          <button
-                            type="button"
-                            className={`practice-assess-btn ${selfAssessed === 'again' ? 'active-again' : ''}`}
-                            onClick={() => handleSelfAssess('again')}
-                            title="Mark as needing review"
+                        {/* POST SELF-ASSESSMENT CONFIRMATION & NEXT CONCEPT (Section 8 & 9) */}
+                        {selfAssessed && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.22 }}
+                            className="recall-post-assess-wrap"
                           >
-                            AGAIN
-                          </button>
-                          <button
-                            type="button"
-                            className={`practice-assess-btn ${selfAssessed === 'got-it' ? 'active-got-it' : ''}`}
-                            onClick={() => handleSelfAssess('got-it')}
-                            title="Mark as understood"
-                          >
-                            GOT IT
-                          </button>
-                        </div>
-                      </section>
+                            <div className="recall-status-feedback">
+                              <span
+                                className={`practice-status-pip ${selfAssessed === 'yes' ? 'practice-pip-understood' : 'practice-pip-needs-review'}`}
+                                aria-hidden="true"
+                              />
+                              <span className="recall-status-text">
+                                {selfAssessed === 'yes' ? 'Recalled for this session' : 'Marked for review'}
+                              </span>
+                            </div>
 
-                      {/* Navigation Actions */}
-                      <div className="practice-footer-actions">
-                        {nextConnectedConcept && (
-                          <button
-                            type="button"
-                            className="practice-next-concept-btn"
-                            onClick={() => onSelectConcept(nextConnectedConcept.targetId)}
-                            title={`Practice connected concept: ${nextConnectedConcept.targetName}`}
-                          >
-                            <span>NEXT CONCEPT → {nextConnectedConcept.targetName}</span>
-                          </button>
+                            <div className="recall-footer-actions">
+                              <button
+                                type="button"
+                                ref={nextButtonRef}
+                                className="recall-next-concept-btn"
+                                onClick={handleNextConceptClick}
+                                title={nextConceptRecommendation ? `Next concept: ${nextConceptRecommendation}` : "Next concept (Press N or Enter)"}
+                              >
+                                <span>NEXT CONCEPT</span>
+                                {nextConceptRecommendation && (
+                                  <span className="recall-next-name">→ {nextConceptRecommendation}</span>
+                                )}
+                                {!nextConceptRecommendation && (
+                                  <ArrowRight size={13} className="recall-next-arrow" />
+                                )}
+                              </button>
+
+                              <button
+                                type="button"
+                                className="practice-back-to-learn-btn"
+                                onClick={handleExitTest}
+                              >
+                                ← BACK TO CONCEPT
+                              </button>
+                            </div>
+                          </motion.div>
                         )}
-                        <button
-                          type="button"
-                          className="practice-back-to-learn-btn"
-                          onClick={() => setPanelMode('learn')}
-                        >
-                          ← BACK TO CONCEPT
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               )}
             </motion.div>
           )}
