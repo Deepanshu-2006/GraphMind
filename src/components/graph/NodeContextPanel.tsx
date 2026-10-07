@@ -281,7 +281,15 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
         progress: null
       });
     }
-  }, [panelMode, currentQuestion, questionFeedback, currentTestIndex, testSession, onTestStateUpdate]);
+  }, [
+    panelMode,
+    currentQuestion?.id,
+    currentQuestion?.concealedNodeId,
+    questionFeedback,
+    currentTestIndex,
+    testSession?.questions.length,
+    onTestStateUpdate
+  ]);
 
   // Handlers for Active Recall (Phase 4 Sections 5-9, 15)
   const handleSelectOption = useCallback((option: ActiveRecallOption) => {
@@ -677,13 +685,48 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
   }
 
   // 2. Canonical Concept View: LEARN (Phase 1) vs PRACTICE (Phase 2)
-  const canonicalName = concept!.name || concept!.label;
-  const explanation = getConceptExplanation(concept!);
-  const keyIdeas = getKeyIdeas(concept!);
-  const passage = getGroundedPassage(concept!);
-  const relationships = concept!.relationships || [];
-  const primarySource = concept!.sources?.[0]?.name || concept!.source;
-  const primaryPage = concept!.sources?.[0]?.page ?? concept!.page;
+  if (!concept) {
+    return (
+      <motion.aside
+        className="floating-node-inspector study-panel"
+        role="region"
+        initial={{ opacity: 0, x: 26 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: 26 }}
+        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <header className="inspector-header study-header">
+          <div className="inspector-title-wrap">
+            <h2 className="inspector-name study-concept-title">
+              {panelMode === 'recall' ? 'TEST YOURSELF' : 'Concept Inspector'}
+            </h2>
+          </div>
+          <button
+            type="button"
+            className="inspector-close-btn"
+            onClick={onClose}
+            aria-label="Close panel"
+            title="Close panel"
+          >
+            <X size={14} />
+          </button>
+        </header>
+        <section className="study-section recall-insufficient-section">
+          <p className="study-explanation recall-insufficient-text">
+            Select a concept on the knowledge graph to begin testing.
+          </p>
+        </section>
+      </motion.aside>
+    );
+  }
+
+  const canonicalName = concept.name || concept.label || 'Concept';
+  const explanation = getConceptExplanation(concept);
+  const keyIdeas = getKeyIdeas(concept);
+  const passage = getGroundedPassage(concept);
+  const relationships = concept.relationships || [];
+  const primarySource = concept.sources?.[0]?.name || concept.source;
+  const primaryPage = concept.sources?.[0]?.page ?? concept.page;
 
   return (
     <motion.aside
@@ -720,7 +763,7 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
                PHASE 5: REVISION MODE WORKSPACE
                ========================================================== */
             <motion.div
-              key={`revision-${concept!.id}`}
+              key={`revision-${concept.id}`}
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -14 }}
@@ -806,9 +849,9 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
                     "{passage.text}"
                   </blockquote>
                 )}
-                {concept!.sources && concept!.sources.length > 1 ? (
+                {concept.sources && concept.sources.length > 1 ? (
                   <div className="inspector-sources-compact-list revision-sources-list">
-                    {concept!.sources.map((s, idx) => (
+                    {concept.sources.map((s, idx) => (
                       <button
                         key={`${s.id}-${idx}`}
                         type="button"
@@ -862,7 +905,7 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
                   <button
                     type="button"
                     className="revision-btn-know"
-                    onClick={() => onMarkRevisionKnowIt?.(concept!.id)}
+                    onClick={() => onMarkRevisionKnowIt?.(concept.id)}
                     title="Mark as known and proceed (Press K)"
                   >
                     <Check size={13} />
@@ -871,7 +914,7 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
                   <button
                     type="button"
                     className="revision-btn-review"
-                    onClick={() => onMarkRevisionReviewAgain?.(concept!.id)}
+                    onClick={() => onMarkRevisionReviewAgain?.(concept.id)}
                     title="Mark for further review and keep in queue (Press R)"
                   >
                     <RotateCcw size={13} />
@@ -916,7 +959,7 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
                PHASE 1: LEARN MODE
                ========================================================== */
             <motion.div
-              key={`learn-${concept!.id}`}
+              key={`learn-${concept.id}`}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
@@ -927,7 +970,7 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
               <header className="inspector-header study-header">
                 <div className="inspector-title-wrap">
                   <span className="study-section-label study-category-tag">
-                    CONCEPT · {concept!.category}
+                    CONCEPT · {concept.category}
                   </span>
                   <h2 className="inspector-name study-concept-title">
                     {canonicalName}
@@ -1038,11 +1081,11 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
               )}
 
               {/* SOURCE CITATION */}
-              {concept!.sources && concept!.sources.length > 1 ? (
+              {concept.sources && concept.sources.length > 1 ? (
                 <section className="study-section">
                   <h3 className="study-section-label">SOURCES</h3>
                   <div className="inspector-sources-compact-list">
-                    {concept!.sources.map((s, idx) => (
+                    {concept.sources.map((s, idx) => (
                       <button
                         key={`${s.id}-${idx}`}
                         type="button"
@@ -1079,7 +1122,7 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
               ) : null}
 
               {/* STUDY STATE: Marked for review note (Phase 3 Section 15) */}
-              {concept!.practiceStatus === 'needs-review' && (
+              {concept.practiceStatus === 'needs-review' && (
                 <section className="study-section study-review-status-section">
                   <h3 className="study-section-label">STUDY STATE</h3>
                   <div className="study-review-note">
@@ -1109,13 +1152,13 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
                       setPanelMode('recall');
                       onToggleTestMode?.(true);
                     }}
-                    title={concept!.practiceStatus === 'needs-review' ? `Review ${canonicalName} again` : `Test yourself on ${canonicalName}`}
-                    aria-label={concept!.practiceStatus === 'needs-review' ? `Review ${canonicalName} again` : `Test yourself on ${canonicalName}`}
+                    title={concept.practiceStatus === 'needs-review' ? `Review ${canonicalName} again` : `Test yourself on ${canonicalName}`}
+                    aria-label={concept.practiceStatus === 'needs-review' ? `Review ${canonicalName} again` : `Test yourself on ${canonicalName}`}
                   >
                     <div className="action-row-content">
                       <span className="action-primary-indicator" aria-hidden="true" />
                       <span className="action-row-title">
-                        {concept!.practiceStatus === 'needs-review' ? 'REVIEW AGAIN' : 'TEST YOURSELF'}
+                        {concept.practiceStatus === 'needs-review' ? 'REVIEW AGAIN' : 'TEST YOURSELF'}
                       </span>
                     </div>
                     <ArrowUpRight size={13} className="action-row-arrow" aria-hidden="true" />
@@ -1151,7 +1194,7 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
                PHASE 4: ACTIVE RECALL / TEST YOURSELF (GRAPH-GROUNDED)
                ========================================================== */
             <motion.div
-              key={`recall-${concept!.id}`}
+              key={`recall-${concept.id}`}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}

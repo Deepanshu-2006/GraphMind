@@ -16,6 +16,7 @@ import { pipelineOrchestrator, type PipelineStage, type PipelineProgressEvent } 
 import { DEFAULT_MIGRATION_GRAPH_ID } from './services/storage';
 import { generateLearningPaths } from './services/learningPathGeneration';
 import { GraphProvider, useGraph } from './context/GraphContext';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import type { NavSection, RecentMaterial, ProjectWorkspace } from './types';
 
 export function AppContent() {
@@ -514,9 +515,11 @@ export function AppContent() {
 
 export function App() {
   return (
-    <GraphProvider>
-      <AppContent />
-    </GraphProvider>
+    <ErrorBoundary>
+      <GraphProvider>
+        <AppContent />
+      </GraphProvider>
+    </ErrorBoundary>
   );
 }
 

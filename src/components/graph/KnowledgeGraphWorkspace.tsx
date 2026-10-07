@@ -335,9 +335,13 @@ function FlowCanvas({
     isMaterializing: boolean;
     progress: { current: number; total: number } | null;
   }) => {
-    setTestActiveQuestion(state.activeQuestion);
-    setTestConcealedNodeId(state.concealedNodeId);
-    setTestProgress(state.progress);
+    setTestActiveQuestion(prev => (prev?.id === state.activeQuestion?.id ? prev : state.activeQuestion));
+    setTestConcealedNodeId(prev => (prev === state.concealedNodeId ? prev : state.concealedNodeId));
+    setTestProgress(prev => (
+      prev?.current === state.progress?.current && prev?.total === state.progress?.total
+        ? prev
+        : state.progress
+    ));
     if (state.isMaterializing && state.activeQuestion?.concealedNodeId) {
       setTestMaterializingNodeId(state.activeQuestion.concealedNodeId);
       setTimeout(() => {
@@ -347,6 +351,16 @@ function FlowCanvas({
       setTestMaterializingNodeId(null);
     }
   }, []);
+
+  // Memoized graph concepts for questions and testing
+  const allGraphConcepts = useMemo(() => {
+    return effectiveNodes.map(n => ({
+      id: n.id,
+      name: n.data.name || n.data.label,
+      category: n.data.category,
+      description: n.data.description
+    }));
+  }, [effectiveNodes]);
 
   // Intelligent Graph Viewport Presentation: computes visible subset, visibility states & exploration depths
   const viewportResult = useMemo(() => {
@@ -392,17 +406,17 @@ function FlowCanvas({
       }
 
       // Test Mode Active: Conceal tested concept/relationship, dim unrelated nodes
-      const activeConceptId = testActiveQuestion?.conceptId || selectedNodeId;
+      const activeConceptId = testActiveQuestion?.conceptId || selectedNodeId || (effectiveNodes[0]?.id || null);
       const targetConceptId = testActiveQuestion?.relatedConceptId || testConcealedNodeId;
 
       const styledNodes = viewportResult.visibleNodes.map(node => {
         const isConcealed = Boolean(testConcealedNodeId && node.id === testConcealedNodeId);
         const isMaterializing = Boolean(testMaterializingNodeId && node.id === testMaterializingNodeId);
-        const isFocus = node.id === activeConceptId || node.id === targetConceptId;
-        const isNeighbor = activeConceptId && (
-          (node.data as any)?.directConnections?.some((c: any) => c.targetId === activeConceptId) ||
-          (node.data as any)?.relationships?.some((r: any) => r.targetId === activeConceptId)
-        );
+        const isFocus = Boolean((activeConceptId && node.id === activeConceptId) || (targetConceptId && node.id === targetConceptId));
+        const isNeighbor = Boolean(activeConceptId && effectiveEdges.some(e =>
+          (e.source === activeConceptId && e.target === node.id) ||
+          (e.target === activeConceptId && e.source === node.id)
+        ));
 
         return {
           ...node,
@@ -410,15 +424,18 @@ function FlowCanvas({
             ...node.data,
             isTestConcealed: isConcealed,
             isTestMaterializing: isMaterializing,
-            highlighted: isFocus || Boolean(isNeighbor),
+            highlighted: isFocus || isNeighbor,
             dimmed: !isFocus && !isNeighbor
           }
         };
       });
 
       const styledEdges = viewportResult.visibleEdges.map(edge => {
-        const isIncident = (edge.source === activeConceptId && edge.target === targetConceptId) ||
-                           (edge.target === activeConceptId && edge.source === targetConceptId);
+        const isIncident = (activeConceptId && targetConceptId)
+          ? ((edge.source === activeConceptId && edge.target === targetConceptId) ||
+             (edge.target === activeConceptId && edge.source === targetConceptId))
+          : (activeConceptId ? (edge.source === activeConceptId || edge.target === activeConceptId) : false);
+
         return {
           ...edge,
           data: {
@@ -429,7 +446,7 @@ function FlowCanvas({
           },
           style: {
             ...edge.style,
-            opacity: isIncident ? 1 : 0.08,
+            opacity: isIncident ? 1 : 0.22,
             stroke: isIncident ? '#A3FF12' : edge.style?.stroke
           }
         };
@@ -446,6 +463,8 @@ function FlowCanvas({
     testMaterializingNodeId,
     testActiveQuestion,
     selectedNodeId,
+    effectiveEdges,
+    effectiveNodes,
     setNodes,
     setEdges
   ]);
@@ -955,10 +974,14 @@ function FlowCanvas({
     const targetNode = effectiveNodes.find((n) => n.id === nodeId);
     if (targetNode) {
       const duration = customDuration !== undefined ? customDuration : isRevisionMode ? 300 : 650;
-      reactFlowInstance.setCenter(targetNode.position.x + 100, targetNode.position.y + 45, {
-        zoom: Math.max(reactFlowInstance.getZoom(), 1.05),
-        duration
-      });
+      try {
+        reactFlowInstance.setCenter(targetNode.position.x + 100, targetNode.position.y + 45, {
+          zoom: Math.max(reactFlowInstance.getZoom(), 1.05),
+          duration
+        });
+      } catch (err) {
+        console.warn('Could not center canvas on node:', err);
+      }
     }
   }, [selectedNodeId, effectiveNodes, reactFlowInstance, isRevisionMode]);
 
@@ -1244,8 +1267,12 @@ function FlowCanvas({
 
     if (nextMode) {
       setIsInspectorOpen(true);
-      if (!selectedNodeId && effectiveNodes.length > 0) {
-        focusNodeOnCanvas(effectiveNodes[0].id, true);
+      const targetId = (selectedNodeId && effectiveNodes.some(n => n.id === selectedNodeId))
+        ? selectedNodeId
+        : (effectiveNodes.length > 0 ? effectiveNodes[0].id : null);
+      if (targetId) {
+        setSelectedNodeId(targetId);
+        focusNodeOnCanvas(targetId, true);
       }
     }
   }, [isTestMode, selectedNodeId, effectiveNodes, focusNodeOnCanvas]);
@@ -1513,7 +1540,7 @@ function FlowCanvas({
         totalConceptsCount={totalConceptsCount}
         isFullscreen={isGraphFullscreen}
         onToggleFullscreen={() => handleToggleFullscreen()}
-        isStudyPanelOpen={isInspectorOpen && Boolean(activeConceptData || selectedRelationship || isRevisionMode)}
+        isStudyPanelOpen={isInspectorOpen && Boolean(activeConceptData || selectedRelationship || isRevisionMode || isTestMode)}
         selectedConceptLabel={activeConceptData?.label || activeConceptData?.name || null}
         isTestMode={isTestMode}
         onToggleTestMode={() => handleToggleTestMode()}
@@ -1707,7 +1734,7 @@ function FlowCanvas({
 
       {/* 4. Study / Inspector Context Panel (Interactive mode only: Concept or Relationship or Revision) */}
       <AnimatePresence>
-        {mode === 'interactive' && isInspectorOpen && (activeConceptData || selectedRelationship || isRevisionMode) && (
+        {mode === 'interactive' && isInspectorOpen && (activeConceptData || selectedRelationship || isRevisionMode || isTestMode) && (
           <NodeContextPanel
             concept={activeConceptData}
             selectedRelationship={selectedRelationship}
@@ -1725,12 +1752,7 @@ function FlowCanvas({
             onFocusNode={(conceptId) => focusNodeOnCanvas(conceptId, true)}
             onSelectSource={onSelectSource}
             isCollapsed={!isInspectorOpen}
-            allGraphConcepts={effectiveNodes.map(n => ({
-              id: n.id,
-              name: n.data.name || n.data.label,
-              category: n.data.category,
-              description: n.data.description
-            }))}
+            allGraphConcepts={allGraphConcepts}
             onUpdatePracticeState={(conceptId: string, status: PracticeStatus) => {
               const updated = updateConceptPracticeState(conceptId, status, graph?.id);
               setPracticeStates(prev => ({
