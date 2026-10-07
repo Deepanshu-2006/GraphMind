@@ -36,6 +36,8 @@ export interface GraphViewportParams {
   exploredNodeIds?: string[];
   studyFilterMode?: import('../types/practice').StudyFilterMode;
   practiceStates?: Record<string, import('../types/practice').ConceptPracticeState>;
+  recalledConceptIds?: Set<string> | string[];
+  reviewConceptIds?: Set<string> | string[];
 }
 
 export interface GraphViewportResult {
@@ -113,9 +115,13 @@ export function calculateVisibleGraph({
   densityMode = 'balanced',
   zoomLevel = 'standard',
   studyFilterMode = 'all',
-  practiceStates = {}
+  practiceStates = {},
+  recalledConceptIds,
+  reviewConceptIds
 }: GraphViewportParams): GraphViewportResult {
   const totalCount = allNodes.length;
+  const recalledSet = recalledConceptIds instanceof Set ? recalledConceptIds : new Set(recalledConceptIds || []);
+  const reviewSet = reviewConceptIds instanceof Set ? reviewConceptIds : new Set(reviewConceptIds || []);
 
   // Compute filtered nodes & direct neighbors for revision/study filter
   const reviewNodeIds = new Set<string>();
@@ -220,7 +226,9 @@ export function calculateVisibleGraph({
           zoomLevel,
           selected: isSelected,
           highlighted: isHighlighted,
-          dimmed: isDimmed
+          dimmed: isDimmed,
+          isSessionRecalled: Boolean(recalledSet.has(node.id) || node.data?.isSessionRecalled),
+          isSessionReview: Boolean(reviewSet.has(node.id) || node.data?.isSessionReview)
         }
       };
     });
@@ -539,7 +547,9 @@ export function calculateVisibleGraph({
         zoomLevel,
         selected: isSelected,
         highlighted: isHighlighted,
-        dimmed: isDimmed
+        dimmed: isDimmed,
+        isSessionRecalled: Boolean(recalledSet.has(id) || originalNode.data?.isSessionRecalled),
+        isSessionReview: Boolean(reviewSet.has(id) || originalNode.data?.isSessionReview)
       }
     });
   }

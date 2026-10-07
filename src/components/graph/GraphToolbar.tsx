@@ -36,6 +36,8 @@ export interface GraphToolbarProps {
   totalConceptsCount?: number;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
+  isTestMode?: boolean;
+  onToggleTestMode?: () => void;
 }
 
 export const GraphToolbar: React.FC<GraphToolbarProps> = ({
@@ -59,7 +61,9 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   needsReviewCount = 0,
   totalConceptsCount = 0,
   isFullscreen = false,
-  onToggleFullscreen
+  onToggleFullscreen,
+  isTestMode = false,
+  onToggleTestMode
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -604,6 +608,24 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
                   </div>
                 )}
               </motion.div>
+
+              <motion.div 
+                className="toolbar-vertical-divider" 
+                variants={shouldReduceMotion ? reducedDividerVariants : dividerVariants} 
+              />
+
+              {/* Active Recall / Test action in Study Toolbar (Phase 4 Sections 13 & 14) */}
+              <motion.button
+                type="button"
+                className={`toolbar-text-btn study-test-btn ${isTestMode ? 'active' : ''}`}
+                onClick={onToggleTestMode}
+                title={isTestMode ? "Return to concept details" : (selectedConceptLabel ? `Test yourself on ${selectedConceptLabel}` : "Test yourself")}
+                aria-label={isTestMode ? "Return to concept details" : "Test yourself"}
+                aria-pressed={isTestMode}
+                variants={shouldReduceMotion ? reducedItemVariants : itemVariants}
+              >
+                <span className="toolbar-btn-text">{isTestMode ? 'Learn' : 'Test'}</span>
+              </motion.button>
 
               <motion.div 
                 className="toolbar-vertical-divider" 

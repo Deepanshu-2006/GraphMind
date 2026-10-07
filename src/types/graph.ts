@@ -87,6 +87,9 @@ export interface GraphConceptData extends Record<string, unknown> {
   practiceStatus?: import('./practice').PracticeStatus;
   practiceState?: import('./practice').ConceptPracticeState;
   knowledgeState?: import('./practice').ConceptPracticeState;
+  // Active Recall Session State (Phase 4)
+  isSessionRecalled?: boolean;
+  isSessionReview?: boolean;
   // Scalable viewport presentation attributes
   visibilityState?: ConceptVisibilityState;
   visibilityPriority?: number;

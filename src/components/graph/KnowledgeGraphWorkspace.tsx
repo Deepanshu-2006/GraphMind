@@ -39,6 +39,7 @@ import { loadConceptPracticeStates, updateConceptPracticeState, recordConceptStu
 import type { PipelineStage, PipelineProgressEvent } from '../../services/pipelineOrchestrator';
 import { exportKnowledgeGraphJson, exportKnowledgeGraphPng } from '../../services/graphExport';
 import { calculateVisibleGraph } from '../../services/graphViewport';
+import { findNextRecallConceptId } from '../../services/practiceQuestionGenerator';
 
 const nodeTypes = {
   conceptNode: ConceptNode
@@ -301,6 +302,20 @@ function FlowCanvas({
   const [zoomDisclosureLevel, setZoomDisclosureLevel] = useState<ZoomDisclosureLevel>('standard');
   const [studyFilterMode, setStudyFilterMode] = useState<StudyFilterMode>('all');
 
+  // Active Recall In-Memory Session State (Phase 4 Section 12)
+  const [isTestMode, setIsTestMode] = useState<boolean>(false);
+  const [recallSession, setRecallSession] = useState<{
+    testedConceptIds: Set<string>;
+    recalledConceptIds: Set<string>;
+    reviewConceptIds: Set<string>;
+    currentConceptId: string | null;
+  }>({
+    testedConceptIds: new Set<string>(),
+    recalledConceptIds: new Set<string>(),
+    reviewConceptIds: new Set<string>(),
+    currentConceptId: null
+  });
+
   // Intelligent Graph Viewport Presentation: computes visible subset, visibility states & exploration depths
   const viewportResult = useMemo(() => {
     if (mode !== 'interactive') return null;
@@ -311,9 +326,11 @@ function FlowCanvas({
       densityMode,
       zoomLevel: zoomDisclosureLevel,
       studyFilterMode,
-      practiceStates
+      practiceStates,
+      recalledConceptIds: recallSession.recalledConceptIds,
+      reviewConceptIds: recallSession.reviewConceptIds
     });
-  }, [mode, effectiveNodes, effectiveEdges, selectedNodeId, densityMode, zoomDisclosureLevel, studyFilterMode, practiceStates]);
+  }, [mode, effectiveNodes, effectiveEdges, selectedNodeId, densityMode, zoomDisclosureLevel, studyFilterMode, practiceStates, recallSession.recalledConceptIds, recallSession.reviewConceptIds]);
 
   // Sync state whenever viewport presentation changes in interactive mode
   useEffect(() => {
@@ -967,22 +984,30 @@ function FlowCanvas({
         return;
       }
 
-      // 3. If in fullscreen mode, exit fullscreen and PRESERVE selected node and detail panel context
+      // 3. If in test mode, exit test mode back to concept details (Phase 4 Section 15)
+      if (isTestMode) {
+        e.preventDefault();
+        setIsTestMode(false);
+        return;
+      }
+
+      // 4. If in fullscreen mode, exit fullscreen and PRESERVE selected node and detail panel context
       if (isGraphFullscreen) {
         e.preventDefault();
         handleToggleFullscreen(false);
         return;
       }
 
-      // 4. Otherwise, deselect node and close inspector
+      // 5. Otherwise, deselect node and close inspector
       setSelectedRelationship(null);
       setSelectedNodeId(null);
       setIsInspectorOpen(false);
+      setIsTestMode(false);
       setNavHistory([]);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mode, isGraphFullscreen, handleToggleFullscreen]);
+  }, [mode, isGraphFullscreen, isTestMode, handleToggleFullscreen]);
 
   // Toolbar actions
   const handleResetView = useCallback(() => {
@@ -1101,6 +1126,82 @@ function FlowCanvas({
     }
   }, [studyFilterMode, needsReviewCount, effectiveNodes, practiceStates, selectedNodeId, activeConceptData, focusNodeOnCanvas]);
 
+  // Active Recall Session Handlers (Phase 4 Sections 8, 9, 11, 12)
+  const handleToggleTestMode = useCallback((targetMode?: boolean) => {
+    const nextMode = targetMode !== undefined ? targetMode : !isTestMode;
+    setIsTestMode(nextMode);
+
+    if (nextMode) {
+      setIsInspectorOpen(true);
+      if (!selectedNodeId && effectiveNodes.length > 0) {
+        focusNodeOnCanvas(effectiveNodes[0].id, true);
+      }
+    }
+  }, [isTestMode, selectedNodeId, effectiveNodes, focusNodeOnCanvas]);
+
+  const handleRecordSessionRecalled = useCallback((conceptId: string) => {
+    setRecallSession(prev => {
+      const nextTested = new Set(prev.testedConceptIds).add(conceptId);
+      const nextRecalled = new Set(prev.recalledConceptIds).add(conceptId);
+      const nextReview = new Set(prev.reviewConceptIds);
+      nextReview.delete(conceptId);
+      return {
+        testedConceptIds: nextTested,
+        recalledConceptIds: nextRecalled,
+        reviewConceptIds: nextReview,
+        currentConceptId: conceptId
+      };
+    });
+  }, []);
+
+  const handleRecordSessionReview = useCallback((conceptId: string) => {
+    setRecallSession(prev => {
+      const nextTested = new Set(prev.testedConceptIds).add(conceptId);
+      const nextReview = new Set(prev.reviewConceptIds).add(conceptId);
+      const nextRecalled = new Set(prev.recalledConceptIds);
+      nextRecalled.delete(conceptId);
+      return {
+        testedConceptIds: nextTested,
+        recalledConceptIds: nextRecalled,
+        reviewConceptIds: nextReview,
+        currentConceptId: conceptId
+      };
+    });
+  }, []);
+
+  const handleNextRecallConcept = useCallback(() => {
+    const nextId = findNextRecallConceptId({
+      currentConceptId: selectedNodeId || '',
+      allNodes: effectiveNodes,
+      allEdges: effectiveEdges,
+      testedConceptIds: recallSession.testedConceptIds,
+      reviewConceptIds: recallSession.reviewConceptIds,
+      recalledConceptIds: recallSession.recalledConceptIds,
+      practiceStates
+    });
+
+    if (nextId) {
+      focusNodeOnCanvas(nextId, true);
+    }
+  }, [selectedNodeId, effectiveNodes, effectiveEdges, recallSession, practiceStates, focusNodeOnCanvas]);
+
+  const nextRecallConceptName = useMemo(() => {
+    if (!selectedNodeId) return null;
+    const nextId = findNextRecallConceptId({
+      currentConceptId: selectedNodeId,
+      allNodes: effectiveNodes,
+      allEdges: effectiveEdges,
+      testedConceptIds: recallSession.testedConceptIds,
+      reviewConceptIds: recallSession.reviewConceptIds,
+      recalledConceptIds: recallSession.recalledConceptIds,
+      practiceStates
+    });
+    if (!nextId || nextId === selectedNodeId) return null;
+    return effectiveConceptDetails[nextId]?.label ||
+      effectiveNodes.find(n => n.id === nextId)?.data?.label ||
+      null;
+  }, [selectedNodeId, effectiveNodes, effectiveEdges, recallSession, practiceStates, effectiveConceptDetails]);
+
   const isStudyActive = Boolean(isInspectorOpen && (activeConceptData || selectedRelationship));
 
   return (
@@ -1134,10 +1235,13 @@ function FlowCanvas({
         onToggleFullscreen={() => handleToggleFullscreen()}
         isStudyPanelOpen={isInspectorOpen && Boolean(activeConceptData || selectedRelationship)}
         selectedConceptLabel={activeConceptData?.label || activeConceptData?.name || null}
-        onNextConcept={handleNextStudyConcept}
+        isTestMode={isTestMode}
+        onToggleTestMode={() => handleToggleTestMode()}
+        onNextConcept={isTestMode ? handleNextRecallConcept : handleNextStudyConcept}
         onToggleStudyPanel={() => {
           if (isInspectorOpen) {
             setIsInspectorOpen(false);
+            setIsTestMode(false);
             setSelectedRelationship(null);
             setSelectedNodeId(null);
             setNavHistory([]);
@@ -1321,6 +1425,7 @@ function FlowCanvas({
             onGoBack={handleGoBack}
             onClose={() => {
               setIsInspectorOpen(false);
+              setIsTestMode(false);
               setSelectedRelationship(null);
               setSelectedNodeId(null);
               setNavHistory([]);
@@ -1356,6 +1461,12 @@ function FlowCanvas({
                 return n;
               }));
             }}
+            isTestMode={isTestMode}
+            onToggleTestMode={handleToggleTestMode}
+            onRecordSessionRecalled={handleRecordSessionRecalled}
+            onRecordSessionReview={handleRecordSessionReview}
+            onNextConcept={handleNextRecallConcept}
+            nextConceptName={nextRecallConceptName}
           />
         )}
       </AnimatePresence>

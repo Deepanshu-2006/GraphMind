@@ -10,6 +10,8 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
   const visibilityState = concept.visibilityState || (isSelected ? 'focused' : 'visible');
 
   const practiceStatus = concept.practiceStatus || 'unseen';
+  const isSessionRecalled = Boolean(concept.isSessionRecalled);
+  const isSessionReview = Boolean(concept.isSessionReview);
 
   const isCore = Boolean(concept.isCoreConcept || concept.isPrerequisite || (concept as any).isCore);
 
@@ -19,6 +21,8 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
     `zoom-${zoomLevel}`,
     `state-${visibilityState}`,
     `practice-${practiceStatus}`,
+    isSessionRecalled ? 'session-recalled' : '',
+    isSessionReview ? 'session-review' : '',
     isSelected ? 'selected' : '',
     concept.highlighted ? 'highlighted' : '',
     concept.dimmed ? 'dimmed' : '',
@@ -32,13 +36,15 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
     }
   };
 
+  const sessionStatusText = isSessionRecalled ? ' Recalled in session.' : isSessionReview ? ' Marked for review.' : '';
+
   return (
     <div 
       className={nodeClasses}
       role="button"
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      aria-label={`Concept: ${concept.label}. ${concept.category}.${isSelected ? ' Selected.' : ''} Practice: ${practiceStatus}. ${concept.description || ''}`}
+      aria-label={`Concept: ${concept.label}. ${concept.category}.${isSelected ? ' Selected.' : ''} Practice: ${practiceStatus}.${sessionStatusText} ${concept.description || ''}`}
       aria-pressed={Boolean(isSelected)}
       aria-current={isSelected ? 'true' : undefined}
       data-concept-id={concept.id}
@@ -97,7 +103,15 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
       <div className="node-card-header">
         <span className="node-card-type">{concept.category || 'CONCEPT'}</span>
         <span 
-          className={`node-state-indicator ${practiceStatus !== 'unseen' ? `practice-${practiceStatus}` : ''}`} 
+          className={`node-state-indicator ${
+            isSessionReview
+              ? 'practice-needs-review'
+              : isSessionRecalled
+              ? 'practice-understood'
+              : practiceStatus !== 'unseen'
+              ? `practice-${practiceStatus}`
+              : ''
+          }`} 
           aria-hidden="true" 
         />
       </div>

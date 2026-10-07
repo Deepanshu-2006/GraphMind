@@ -83,3 +83,41 @@ export interface QuestionGenerationContext {
     description?: string;
   }>;
 }
+
+/**
+ * Phase 4: Active Recall Question Patterns
+ */
+export type ActiveRecallPattern =
+  | 'definition'
+  | 'explanation'
+  | 'relationship'
+  | 'connection';
+
+export interface ActiveRecallQuestion {
+  id: string;
+  conceptId: string;
+  conceptName: string;
+  pattern: ActiveRecallPattern;
+  question: string;
+  answer: string;
+  explanation?: string;
+  sourceName?: string;
+  page?: number;
+  passage?: string;
+  relatedConceptId?: string;
+  relatedConceptName?: string;
+  relationshipType?: string;
+}
+
+export type ActiveRecallPrompt = ActiveRecallQuestion;
+
+/**
+ * In-memory study session state for Active Recall (Phase 4 Section 12)
+ */
+export interface ActiveRecallSessionState {
+  testedConceptIds: string[];
+  recalledConceptIds: string[];
+  reviewConceptIds: string[];
+  currentConceptId: string | null;
+}
+
