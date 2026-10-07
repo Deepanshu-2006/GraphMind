@@ -13,6 +13,24 @@
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
+  transition: height 300ms cubic-bezier(0.22, 1, 0.36, 1),
+              width 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 1 & 3. True Immersive Full-Screen Graph Mode (Sections 1, 3, 4, 8, 15) */
+.freeform-graph-container.is-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 1000 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background-color: #0A0A0A !important;
 }
 
 .freeform-canvas-hero {
@@ -62,11 +80,11 @@
   transition: none !important;
 }
 
-/* Base Node Card (Sections 4 & 6: 210-240px width, #111111, 1px rgba(255,255,255,0.08), 8px radius, 16px padding) */
+/* Base Node Card (Sections 1, 4, 6, 8: Quiet concept object on canvas, no shadow, no glow) */
 .knowledge-node-card {
   width: 224px;
   background-color: #111111;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 8px;
   padding: 16px;
   display: flex;
@@ -77,21 +95,20 @@
   box-sizing: border-box;
   position: relative;
   z-index: 10;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  box-shadow: none !important;
   animation: node-card-enter 280ms cubic-bezier(0.16, 1, 0.3, 1);
-  transition: border-color 200ms ease-out, 
-              background-color 200ms ease-out, 
-              color 200ms ease-out, 
-              opacity 200ms ease-out, 
-              filter 200ms ease-out, 
-              box-shadow 200ms ease-out;
+  transition: border-color 180ms ease-out, 
+              background-color 180ms ease-out, 
+              color 180ms ease-out, 
+              opacity 180ms ease-out, 
+              filter 180ms ease-out;
 }
 
 .knowledge-node-card:active {
   cursor: grabbing;
 }
 
-/* Entrance Animation (Section 12: opacity 0 -> 1, translateY 4px -> 0, 250-350ms, restrained) */
+/* Entrance Animation (opacity 0 -> 1, translateY 4px -> 0, 250-350ms, restrained) */
 @keyframes node-card-enter {
   from {
     opacity: 0;
@@ -103,10 +120,10 @@
   }
 }
 
-/* Hover State (Section 7: 150-200ms ease-out, slightly brighter border & background, no scale, no glow) */
+/* Hover State (Section 10: 160-200ms ease-out, extremely subtle, no scale, no shadow, no glow, no movement) */
 .knowledge-node-card:hover {
-  border-color: rgba(255, 255, 255, 0.16);
-  background-color: #161616;
+  border-color: rgba(255, 255, 255, 0.13);
+  background-color: #131313;
   z-index: 18;
 }
 
@@ -119,7 +136,7 @@
   opacity: 1;
 }
 
-/* 1. Header Row: TYPE on left, state dot indicator on upper right (Section 1, 5, 14) */
+/* 1. Header Row: TYPE on left, state dot indicator on upper right (Section 4, 9) */
 .node-card-header {
   display: flex;
   align-items: center;
@@ -134,19 +151,19 @@
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #666666;
+  color: #777777;
   line-height: 1;
-  transition: color 200ms ease-out;
+  transition: color 180ms ease-out;
 }
 
-/* Node State Indicator Dot (Section 5: 4px dot, upper right, muted gray, green on hover/selected, no glow) */
+/* Node State Indicator Dot (Section 9: 3-4px dot, upper right, muted gray #555555, green on hover/selected, no glow/pulse) */
 .node-state-indicator {
-  width: 4px;
-  height: 4px;
+  width: 3.5px;
+  height: 3.5px;
   border-radius: 50%;
   background-color: #555555;
   flex-shrink: 0;
-  transition: background-color 200ms ease-out, opacity 200ms ease-out, transform 200ms ease-out;
+  transition: background-color 180ms ease-out, opacity 180ms ease-out;
 }
 
 /* Practice status indicators on dot */
@@ -162,7 +179,7 @@
   background-color: #888888;
 }
 
-/* 2. Middle Row: Concept Name (Section 2: 16-18px, 550-600, -0.015em, #F5F5F5, visual focal point) */
+/* 2. Middle Row: Concept Name (Section 5: 16-17px, 600, -0.015em, #F5F5F5, strongest element, max 2 lines) */
 .node-card-name-row {
   display: flex;
   align-items: flex-start;
@@ -172,7 +189,7 @@
 .node-card-name {
   font-family: inherit;
   font-size: 16.5px;
-  font-weight: 580;
+  font-weight: 600;
   color: #F5F5F5;
   line-height: 1.15;
   letter-spacing: -0.015em;
@@ -183,16 +200,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
   margin: 0;
-  transition: color 200ms ease-out;
+  transition: color 180ms ease-out;
 }
 
-/* 3. Bottom Row: Description (Section 3: 12-13px, 400, 1.45 line-height, #8A8A8A, max 2-3 lines clamped) */
+/* 3. Bottom Row: Description (Section 6: 12px, 400, 1.45 line-height, #7E7E7E, quieter, max 2-3 lines clamped) */
 .node-card-brief {
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 400;
   line-height: 1.45;
-  color: #8A8A8A;
+  color: #7E7E7E;
   margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -201,19 +218,19 @@
   text-overflow: ellipsis;
   white-space: normal;
   word-break: break-word;
-  transition: color 200ms ease-out;
+  transition: color 180ms ease-out;
 }
 
-/* 8. Selected Node (Section 8: 1px GraphMind green border, #161616 surface, #FFFFFF title, green type & dot, no glow) */
+/* 8. Selected Node (Section 2 & 3: 1px subtle GraphMind green border ~72% opacity, #141414 surface, #FFFFFF title, gray type #8A8A8A, 4px green dot, NO neon glow) */
 .knowledge-node-card.selected {
-  border: 1px solid #A3FF12 !important;
-  background-color: #161616 !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid rgba(163, 255, 18, 0.72) !important;
+  background-color: #141414 !important;
+  box-shadow: none !important;
   z-index: 30;
 }
 
 .knowledge-node-card.selected .node-card-type {
-  color: #A3FF12;
+  color: #8A8A8A;
 }
 
 .knowledge-node-card.selected .node-card-name {
@@ -222,18 +239,18 @@
 
 .knowledge-node-card.selected .node-state-indicator {
   background-color: #A3FF12;
-  width: 4.5px;
-  height: 4.5px;
+  width: 4px;
+  height: 4px;
 }
 
 .knowledge-node-card.selected .node-card-brief {
   color: #8A8A8A;
 }
 
-/* 9. Connected Highlighted Nodes (Section 9: Mostly normal, slightly increased border & text visibility, NOT green) */
+/* 9. Connected Highlighted Nodes (Section 12: Normal surface #121212, subtle border, readable title, NOT green) */
 .knowledge-node-card.highlighted {
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
-  background-color: #141414 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background-color: #121212 !important;
   opacity: 1 !important;
   z-index: 20;
 }
@@ -242,18 +259,22 @@
   color: #FFFFFF;
 }
 
-/* 10. Dimmed Unrelated Nodes (Section 10: 0.35-0.5 opacity, readable graph structure, quieter) */
+.knowledge-node-card.highlighted .node-card-brief {
+  color: #7E7E7E;
+}
+
+/* 10. Dimmed Unrelated Nodes (Section 13: 0.35-0.5 opacity, readable graph structure, quieter) */
 .knowledge-node-card.dimmed {
   opacity: 0.38 !important;
   filter: grayscale(35%) !important;
-  transition: opacity 220ms ease-out, filter 220ms ease-out;
+  transition: opacity 180ms ease-out, filter 180ms ease-out;
 }
 
-/* Connected Edges */
+/* Connected Edges (Section 14: green edge) */
 .react-flow__edge.highlighted path,
 .react-flow__edge.selected path {
   stroke: #A3FF12 !important;
-  stroke-width: 1.85px !important;
+  stroke-width: 1.8px !important;
   opacity: 1 !important;
 }
 
@@ -261,16 +282,16 @@
 .react-flow__edge.dimmed path {
   opacity: 0.12 !important;
   stroke: rgba(255, 255, 255, 0.08) !important;
-  transition: opacity 220ms ease-out, stroke 220ms ease-out;
+  transition: opacity 180ms ease-out, stroke 180ms ease-out;
 }
 
-/* Accessibility Focus Outline (Section 18) */
+/* Accessibility Focus Outline */
 .knowledge-node-card:focus-visible {
-  outline: 1px solid rgba(255, 255, 255, 0.4) !important;
+  outline: 1px solid rgba(255, 255, 255, 0.35) !important;
   outline-offset: 2px;
 }
 
-/* Progressive Zoom Disclosure: Simplified Zoomed-Out Nodes (Section 17) */
+/* Progressive Zoom Disclosure: Simplified Zoomed-Out Nodes */
 .knowledge-node-card.zoom-simplified {
   width: 180px;
   padding: 10px 12px;
@@ -288,8 +309,8 @@
 
 /* Zoomed-in detailed state maintains the clean 3-level hierarchy */
 .knowledge-node-card.zoom-detailed {
-  width: 236px;
-  padding: 18px;
+  width: 232px;
+  padding: 17px;
 }
 
 /* Discrete Handles on all 4 sides */
@@ -305,7 +326,7 @@
 
 .knowledge-node-card:hover .node-handle,
 .knowledge-node-card.selected .node-handle {
-  opacity: 0.7 !important;
+  opacity: 0.6 !important;
 }
 
 .knowledge-node-card.selected .node-handle {
@@ -328,7 +349,7 @@
 }
 
 /* ==================================================
-   6. RELATIONSHIPS & SEMANTIC EDGE LABELS (Section 11)
+   6. RELATIONSHIPS & SEMANTIC EDGE LABELS (Section 14 & 15)
    ================================================== */
 
 .edge-semantic-badge {
@@ -336,25 +357,25 @@
   font-size: 9.5px;
   font-weight: 500;
   letter-spacing: 0.02em;
-  background-color: #0E0F0E;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: rgba(10, 10, 10, 0.75);
+  border: 1px solid transparent;
   border-radius: 3px;
-  padding: 1.5px 5px;
+  padding: 1px 5px;
   color: #7E7E7E;
   user-select: none;
   white-space: nowrap;
   pointer-events: none;
-  transition: color 180ms ease-out, border-color 180ms ease-out, background-color 180ms ease-out;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  transition: color 180ms ease-out, background-color 180ms ease-out;
+  box-shadow: none;
   z-index: 15;
 }
 
 .edge-semantic-badge.active {
-  border-color: rgba(163, 255, 18, 0.4);
-  background-color: #11140E;
+  background-color: rgba(14, 20, 12, 0.85);
+  border-color: transparent;
   color: #A3FF12;
   font-weight: 500;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+  box-shadow: none;
   z-index: 25;
 }
 
@@ -735,8 +756,9 @@
 
 /* Section 13: Graph Response to Study Mode Activation (300-450ms synchronized transition) */
 .freeform-graph-container.in-study-mode .knowledge-node-card.selected {
-  box-shadow: 0 0 0 1px #A3FF12, 0 4px 16px rgba(163, 255, 18, 0.16), 0 2px 8px rgba(0, 0, 0, 0.6) !important;
-  transition: box-shadow 380ms cubic-bezier(0.22, 1, 0.36, 1);
+  border-color: rgba(163, 255, 18, 0.72) !important;
+  box-shadow: none !important;
+  transition: border-color 380ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .freeform-graph-container.in-study-mode .knowledge-node-card.dimmed {
@@ -1006,6 +1028,54 @@
   color: #E8E8E8;
   background-color: rgba(24, 24, 24, 0.95);
   border-color: rgba(255, 255, 255, 0.14);
+}
+
+.corner-control-btn.active {
+  color: #A3FF12;
+  border-color: rgba(163, 255, 18, 0.35);
+  background-color: rgba(16, 22, 14, 0.9);
+}
+
+.toolbar-fullscreen-btn {
+  color: #8A8A8A;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+
+.toolbar-fullscreen-btn:hover {
+  color: #E8E8E8;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.toolbar-fullscreen-btn.active {
+  color: #A3FF12;
+}
+
+.toolbar-fullscreen-btn.active:hover {
+  color: #B8FF36;
+}
+
+/* Fullscreen Control Repositioning (Section 6, 10) */
+.freeform-graph-container.is-fullscreen .canvas-floating-toolbar {
+  top: 28px;
+  left: 28px;
+  transition: top 300ms cubic-bezier(0.22, 1, 0.36, 1),
+              left 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.freeform-graph-container.is-fullscreen .canvas-corner-controls {
+  bottom: 28px;
+  right: 28px;
+  transition: bottom 300ms cubic-bezier(0.22, 1, 0.36, 1),
+              right 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.freeform-graph-container.is-fullscreen .floating-node-inspector,
+.freeform-graph-container.is-fullscreen .study-panel {
+  top: 28px;
+  right: 28px;
+  max-height: calc(100vh - 56px);
+  transition: top 300ms cubic-bezier(0.22, 1, 0.36, 1),
+              right 300ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Toast Message for Export Failure (Prompt 27 Section 5) */
@@ -2950,5 +3020,31 @@
 
   .inspector-desc {
     font-size: 12px;
+  }
+}
+
+/* Responsive Fullscreen Adaptations (Section 14) */
+@media (max-width: 768px) {
+  .freeform-graph-container.is-fullscreen .canvas-floating-toolbar {
+    top: 12px;
+    left: 12px;
+    max-width: calc(100vw - 24px);
+  }
+
+  .freeform-graph-container.is-fullscreen .canvas-corner-controls {
+    bottom: 14px;
+    right: 14px;
+  }
+}
+
+/* Reduced Motion Mode (Section 19) */
+@media (prefers-reduced-motion: reduce) {
+  .freeform-graph-container,
+  .freeform-graph-container.is-fullscreen .canvas-floating-toolbar,
+  .freeform-graph-container.is-fullscreen .canvas-corner-controls,
+  .freeform-graph-container.is-fullscreen .floating-node-inspector,
+  .freeform-graph-container.is-fullscreen .study-panel {
+    transition: none !important;
+    animation: none !important;
   }
 }
