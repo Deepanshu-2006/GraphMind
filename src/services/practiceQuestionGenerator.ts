@@ -1,8 +1,12 @@
 import type { 
   PracticeQuestion, 
   QuestionGenerationContext,
-  ActiveRecallQuestion
+  ActiveRecallQuestion,
+  ActiveRecallOption,
+  ActiveRecallTestSession,
+  MissedConceptSummary
 } from '../types/practice';
+import type { Concept, Relationship } from '../types';
 
 /**
  * Strips raw markdown artifacts and extracts clean sentences.
@@ -24,13 +28,27 @@ function extractSentences(text: string): string[] {
 /**
  * Determines whether the available material is sufficient to generate a trustworthy question.
  */
-export function hasSufficientMaterial(ctx: QuestionGenerationContext): boolean {
-  const hasDesc = Boolean(ctx.description && ctx.description.trim().length >= 20);
-  const hasEvidence = Boolean(ctx.evidence && ctx.evidence.trim().length >= 20);
-  const hasKeyIdeas = Boolean(ctx.keyIdeas && ctx.keyIdeas.length > 0);
-  const hasRelationships = Boolean(ctx.relationships && ctx.relationships.length > 0);
+export function hasSufficientMaterial(
+  ctxOrConcept: QuestionGenerationContext | Concept,
+  _allConcepts?: Concept[],
+  relationships?: Relationship[]
+): boolean {
+  if ('conceptName' in ctxOrConcept) {
+    const ctx = ctxOrConcept;
+    const hasDesc = Boolean(ctx.description && ctx.description.trim().length >= 20);
+    const hasEvidence = Boolean(ctx.evidence && ctx.evidence.trim().length >= 20);
+    const hasKeyIdeas = Boolean(ctx.keyIdeas && ctx.keyIdeas.length > 0);
+    const hasRelationships = Boolean(ctx.relationships && ctx.relationships.length > 0);
 
-  return hasDesc || hasEvidence || hasKeyIdeas || (hasRelationships && (hasDesc || hasEvidence));
+    return hasDesc || hasEvidence || hasKeyIdeas || (hasRelationships && (hasDesc || hasEvidence));
+  } else {
+    const concept = ctxOrConcept;
+    const hasDesc = Boolean(concept.description && concept.description.trim().length >= 20);
+    const hasEvidence = Boolean(concept.sourceEvidence && concept.sourceEvidence.trim().length >= 20);
+    const rels = relationships?.filter(r => r.sourceId === concept.id || r.targetId === concept.id) || [];
+
+    return hasDesc || hasEvidence || (rels.length > 0 && (hasDesc || hasEvidence));
+  }
 }
 
 /**
@@ -48,6 +66,108 @@ function shuffleOptions<T>(array: T[], seed = 42): T[] {
     copy[i] = t;
   }
   return copy;
+}
+
+/**
+ * Selects intelligent distractors from actual graph concepts.
+ * Prefers:
+ * 1. Concepts with the same category/type (e.g. Metric vs Metric)
+ * 2. Directly connected or neighboring concepts
+ * 3. Concepts from the same source
+ * Never invents fake concepts.
+ */
+export function getIntelligentDistractors(
+  targetIdOrConcept: string | Concept,
+  targetNameOrConcepts?: string | Concept[] | Array<{ id: string; name: string; category?: string; description?: string }>,
+  allGraphConceptsOrRels?: Array<{ id: string; name: string; category?: string; description?: string }> | Relationship[],
+  targetCategoryOrLimit?: string | number,
+  targetNeighbors?: Array<{ id: string; name: string }>,
+  limitArg = 3
+): Array<{ id: string; name: string }> {
+  let targetId = '';
+  let targetName = '';
+  let allGraphConcepts: Array<{ id: string; name: string; category?: string; description?: string }> = [];
+  let targetCategory: string | undefined = undefined;
+  let neighbors: Array<{ id: string; name: string }> = [];
+  let limit = 3;
+
+  if (typeof targetIdOrConcept === 'object' && targetIdOrConcept !== null) {
+    const concept = targetIdOrConcept as any;
+    targetId = concept.id;
+    targetName = concept.name || concept.label || '';
+    allGraphConcepts = ((targetNameOrConcepts as any[]) || []).map((c: any) => ({
+      id: c.id,
+      name: c.name || c.label || '',
+      category: c.category,
+      description: c.description
+    }));
+    targetCategory = concept.category;
+    const rels = (allGraphConceptsOrRels as any[]) || [];
+    neighbors = rels
+      .filter((r: any) => (r.sourceId === concept.id || r.source === concept.id || r.targetId === concept.id || r.target === concept.id))
+      .map((r: any) => {
+        const sId = r.sourceId || r.source;
+        const tId = r.targetId || r.target;
+        const neighborId = sId === concept.id ? tId : sId;
+        const neighborConcept = allGraphConcepts.find(c => c.id === neighborId);
+        return {
+          id: neighborId,
+          name: neighborConcept ? neighborConcept.name : 'Neighbor'
+        };
+      });
+    limit = typeof targetCategoryOrLimit === 'number' ? targetCategoryOrLimit : 3;
+  } else {
+    targetId = targetIdOrConcept;
+    targetName = (targetNameOrConcepts as string) || '';
+    allGraphConcepts = (allGraphConceptsOrRels as Array<{ id: string; name: string; category?: string; description?: string }>) || [];
+    targetCategory = typeof targetCategoryOrLimit === 'string' ? targetCategoryOrLimit : undefined;
+    neighbors = targetNeighbors || [];
+    limit = typeof limitArg === 'number' ? limitArg : 3;
+  }
+
+  const normalizedTarget = (targetName || '').toLowerCase().trim();
+  const others = (allGraphConcepts || []).filter(c => {
+    if (!c || !c.name) return false;
+    if (c.id === targetId) return false;
+    return c.name.toLowerCase().trim() !== normalizedTarget;
+  });
+
+  const neighborIdSet = new Set((neighbors || []).map(n => n.id));
+
+  const scored = others.map(cand => {
+    let score = 0;
+    if (targetCategory && cand.category && cand.category.toLowerCase() === targetCategory.toLowerCase()) {
+      score += 4;
+    }
+    if (neighborIdSet.has(cand.id)) {
+      score += 3;
+    }
+    if (cand.description && cand.description.length > 20) {
+      score += 1;
+    }
+    return { cand, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score || a.cand.name.localeCompare(b.cand.name));
+
+  const seen = new Set<string>();
+  const results: Array<{ id: string; name: string; category?: string; description?: string }> = [];
+
+  for (const item of scored) {
+    const key = item.cand.name.toLowerCase().trim();
+    if (!seen.has(key)) {
+      seen.add(key);
+      results.push({
+        id: item.cand.id,
+        name: item.cand.name,
+        category: item.cand.category,
+        description: item.cand.description
+      });
+      if (results.length >= limit) break;
+    }
+  }
+
+  return results;
 }
 
 /**
@@ -599,6 +719,472 @@ export function getActiveRecallQuestionForConcept(
 }
 
 /**
+ * Generates a complete, authentic 5-question Active Recall test session
+ * grounded strictly in the user's graph and source material.
+ * Covers:
+ * - Type A: Concept Understanding
+ * - Type B: Relationship Question
+ * - Type C: Connection Question
+ * - Type D: Fill the Connection (Signature Interaction with graph materialization)
+ * - Type E: Two-Concept Reasoning
+ * - Type F: Source-Based Question
+ */
+export function generateActiveRecallTestSession(
+  conceptOrCtx: QuestionGenerationContext | Concept,
+  allGraphConcepts?: Array<{ id: string; name: string; category?: string; description?: string }> | Concept[],
+  allEdgesOrRelationships?: Array<any>,
+  limit = 5
+): ActiveRecallTestSession | null {
+  let ctx: QuestionGenerationContext;
+  if ('conceptName' in conceptOrCtx) {
+    ctx = conceptOrCtx;
+  } else {
+    const concept = conceptOrCtx;
+    const allConceptsList = (allGraphConcepts || []) as any[];
+    const relsList = (allEdgesOrRelationships || []) as any[];
+
+    // Map relationships where this concept is source or target
+    const conceptRels: any[] = relsList
+      .filter(r => (r.sourceId === concept.id || r.source === concept.id || r.targetId === concept.id || r.target === concept.id))
+      .map(r => {
+        const sId = r.sourceId || r.source;
+        const tId = r.targetId || r.target;
+        const isOut = sId === concept.id;
+        const targetId = isOut ? tId : sId;
+        const targetConcept = allConceptsList.find((c: any) => c.id === targetId);
+        const targetName = targetConcept ? (targetConcept.name || targetConcept.label) : 'Target';
+
+        return {
+          id: r.id,
+          type: r.predicate || r.label || r.type || 'connects to',
+          targetId,
+          targetName,
+          direction: (isOut ? 'outgoing' : 'incoming') as 'outgoing' | 'incoming',
+          description: r.description,
+          sourceChunkIds: r.sourceChunkIds,
+          sourceNames: r.sourceIds
+        };
+      });
+
+    const neighbors = conceptRels.map(r => ({
+      id: r.targetId,
+      name: r.targetName
+    }));
+
+    ctx = {
+      conceptId: concept.id,
+      conceptName: concept.name || (concept as any).label || '',
+      category: concept.category,
+      description: concept.description,
+      evidence: concept.sourceEvidence,
+      sourceIds: concept.sourceIds,
+      sourceChunkIds: concept.sourceChunkIds,
+      relationships: conceptRels,
+      neighborConcepts: neighbors,
+      allGraphConcepts: allConceptsList.map((c: any) => ({
+        id: c.id,
+        name: c.name || c.label || '',
+        category: c.category,
+        description: c.description
+      }))
+    };
+  }
+
+  if (!hasSufficientMaterial(ctx)) {
+    return null;
+  }
+
+  const rawEvidence = ctx.evidence || ctx.description || '';
+  const sentences = extractSentences(rawEvidence);
+  const primarySentence = sentences[0] || ctx.description || '';
+  const definitionText = ctx.description?.trim() || primarySentence;
+  const conceptName = ctx.conceptName;
+  const sourceName = ctx.sourceName || 'Uploaded Material';
+  const page = ctx.page;
+
+  const candidateQuestions: ActiveRecallQuestion[] = [];
+  const relationships = ctx.relationships || [];
+  const effectiveGraphConcepts = ctx.allGraphConcepts || (allGraphConcepts as any) || [];
+
+  // 1. TYPE D — FILL THE CONNECTION (Signature Interaction: Concept -> rel -> [?])
+  if (relationships.length > 0) {
+    for (const rel of relationships) {
+      if (!rel.targetName) continue;
+      const isOutgoing = rel.direction !== 'incoming';
+      const source = isOutgoing ? conceptName : rel.targetName;
+      const target = isOutgoing ? rel.targetName : conceptName;
+      const targetId = isOutgoing ? rel.targetId : ctx.conceptId;
+      const cleanRel = (rel.type || 'connects to').replace(/-/g, ' ');
+
+      const distractors = getIntelligentDistractors(
+        targetId,
+        target,
+        effectiveGraphConcepts,
+        undefined,
+        ctx.neighborConcepts,
+        3
+      );
+
+      const correctOpt: ActiveRecallOption = {
+        id: `opt-${targetId}`,
+        label: target,
+        isCorrect: true,
+        conceptId: targetId,
+        conceptName: target
+      };
+
+      const distractorOpts: ActiveRecallOption[] = distractors.map(d => ({
+        id: `opt-${d.id}`,
+        label: d.name,
+        isCorrect: false,
+        conceptId: d.id,
+        conceptName: d.name
+      }));
+
+      const options = shuffleOptions([correctOpt, ...distractorOpts], target.length + 3);
+
+      candidateQuestions.push({
+        id: `test-fill-${ctx.conceptId}-${rel.targetId}`,
+        conceptId: ctx.conceptId,
+        conceptName,
+        pattern: 'fill-connection',
+        questionType: 'fill-connection',
+        question: `Complete the connection: which concept is ${cleanRel} ${source}?`,
+        answer: target,
+        explanation: rel.description 
+          ? `${rel.description}. In your study material, ${source} is ${cleanRel} ${target}.`
+          : `According to your study material, ${source} ${cleanRel} ${target}.`,
+        diagram: {
+          sourceName: source,
+          relationshipLabel: cleanRel,
+          targetPlaceholder: '?',
+          targetMystery: true
+        },
+        options,
+        correctOptionId: correctOpt.id,
+        relatedConceptId: rel.targetId,
+        relatedConceptName: rel.targetName,
+        relationshipType: rel.type,
+        relationshipDescription: rel.description,
+        concealedNodeId: targetId,
+        concealType: 'node',
+        sourceEvidence: rel.description || ctx.evidence || primarySentence,
+        sourceName,
+        page,
+        sourceIds: ctx.sourceIds,
+        sourceChunkIds: ctx.sourceChunkIds
+      });
+    }
+  }
+
+  // 2. TYPE B — RELATIONSHIP QUESTION
+  if (relationships.length > 0) {
+    for (const rel of relationships.slice(0, 2)) {
+      if (!rel.targetName) continue;
+      const cleanRel = (rel.type || 'relates to').replace(/-/g, ' ');
+      const distractors = getIntelligentDistractors(
+        rel.targetId,
+        rel.targetName,
+        effectiveGraphConcepts,
+        undefined,
+        ctx.neighborConcepts,
+        3
+      );
+
+      const correctOpt: ActiveRecallOption = {
+        id: `opt-rel-${rel.targetId}`,
+        label: rel.targetName,
+        isCorrect: true,
+        conceptId: rel.targetId,
+        conceptName: rel.targetName
+      };
+
+      const distractorOpts: ActiveRecallOption[] = distractors.map(d => ({
+        id: `opt-rel-${d.id}`,
+        label: d.name,
+        isCorrect: false,
+        conceptId: d.id,
+        conceptName: d.name
+      }));
+
+      const options = shuffleOptions([correctOpt, ...distractorOpts], rel.targetName.length + 5);
+
+      candidateQuestions.push({
+        id: `test-rel-diag-${ctx.conceptId}-${rel.targetId}`,
+        conceptId: ctx.conceptId,
+        conceptName,
+        pattern: 'relationship',
+        questionType: 'relationship',
+        question: `Which concept completes the relationship from ${conceptName} via '${cleanRel}'?`,
+        answer: rel.targetName,
+        explanation: `According to your material, ${conceptName} is connected to ${rel.targetName} via '${cleanRel}'.`,
+        diagram: {
+          sourceName: conceptName,
+          relationshipLabel: `${cleanRel} →`,
+          targetPlaceholder: '?',
+          targetMystery: true
+        },
+        options,
+        correctOptionId: correctOpt.id,
+        relatedConceptId: rel.targetId,
+        relatedConceptName: rel.targetName,
+        relationshipType: rel.type,
+        relationshipDescription: rel.description,
+        concealedNodeId: rel.targetId,
+        concealType: 'node',
+        sourceEvidence: rel.description || ctx.evidence || primarySentence,
+        sourceName,
+        page,
+        sourceIds: ctx.sourceIds,
+        sourceChunkIds: ctx.sourceChunkIds
+      });
+    }
+  }
+
+  // 3. TYPE A — CONCEPT UNDERSTANDING
+  if (definitionText && definitionText.length >= 20) {
+    const nameRegex = new RegExp(`\\b${conceptName}\\b`, 'gi');
+    let promptText = '';
+    if (nameRegex.test(definitionText)) {
+      promptText = `A concept in your study material is described as: "${definitionText.replace(nameRegex, '______')}". Which concept does this represent?`;
+    } else {
+      promptText = `According to your material: "${definitionText}". Which concept corresponds to this principle?`;
+    }
+
+    const distractors = getIntelligentDistractors(
+      ctx.conceptId,
+      conceptName,
+      effectiveGraphConcepts,
+      ctx.category,
+      ctx.neighborConcepts,
+      3
+    );
+
+    const correctOpt: ActiveRecallOption = {
+      id: `opt-under-${ctx.conceptId}`,
+      label: conceptName,
+      isCorrect: true,
+      conceptId: ctx.conceptId,
+      conceptName
+    };
+
+    const distractorOpts: ActiveRecallOption[] = distractors.map(d => ({
+      id: `opt-under-${d.id}`,
+      label: d.name,
+      isCorrect: false,
+      conceptId: d.id,
+      conceptName: d.name
+    }));
+
+    const options = shuffleOptions([correctOpt, ...distractorOpts], conceptName.length + 9);
+
+    candidateQuestions.push({
+      id: `test-concept-under-${ctx.conceptId}`,
+      conceptId: ctx.conceptId,
+      conceptName,
+      pattern: 'concept-understanding',
+      questionType: 'concept-understanding',
+      question: promptText,
+      answer: conceptName,
+      explanation: `${conceptName} is defined in your material: "${definitionText}".`,
+      options,
+      correctOptionId: correctOpt.id,
+      concealedNodeId: ctx.conceptId,
+      concealType: 'description',
+      sourceEvidence: ctx.evidence || definitionText,
+      sourceName,
+      page,
+      sourceIds: ctx.sourceIds,
+      sourceChunkIds: ctx.sourceChunkIds
+    });
+  }
+
+  // 4. TYPE C — CONNECTION QUESTION
+  if (relationships.length > 0) {
+    const rel = relationships[0];
+    if (rel.targetName) {
+      const cleanRel = (rel.type || 'connects to').replace(/-/g, ' ');
+      const distractors = getIntelligentDistractors(
+        rel.targetId,
+        rel.targetName,
+        effectiveGraphConcepts,
+        undefined,
+        ctx.neighborConcepts,
+        3
+      );
+
+      const correctOpt: ActiveRecallOption = {
+        id: `opt-conn-${rel.targetId}`,
+        label: rel.targetName,
+        isCorrect: true,
+        conceptId: rel.targetId,
+        conceptName: rel.targetName
+      };
+
+      const distractorOpts: ActiveRecallOption[] = distractors.map(d => ({
+        id: `opt-conn-${d.id}`,
+        label: d.name,
+        isCorrect: false,
+        conceptId: d.id,
+        conceptName: d.name
+      }));
+
+      const options = shuffleOptions([correctOpt, ...distractorOpts], rel.targetName.length + 11);
+
+      candidateQuestions.push({
+        id: `test-conn-q-${ctx.conceptId}-${rel.targetId}`,
+        conceptId: ctx.conceptId,
+        conceptName,
+        pattern: 'connection',
+        questionType: 'connection',
+        question: `Which concept is directly ${cleanRel} ${conceptName} in your knowledge graph?`,
+        answer: rel.targetName,
+        explanation: `${conceptName} is directly ${cleanRel} ${rel.targetName}.`,
+        options,
+        correctOptionId: correctOpt.id,
+        relatedConceptId: rel.targetId,
+        relatedConceptName: rel.targetName,
+        relationshipType: rel.type,
+        concealedNodeId: rel.targetId,
+        concealType: 'node',
+        sourceEvidence: rel.description || ctx.evidence || primarySentence,
+        sourceName,
+        page,
+        sourceIds: ctx.sourceIds,
+        sourceChunkIds: ctx.sourceChunkIds
+      });
+    }
+  }
+
+  // 5. TYPE E — TWO-CONCEPT REASONING
+  if (relationships.length >= 2) {
+    const relA = relationships[0];
+    const relB = relationships[1];
+    if (relA.targetName && relB.targetName) {
+      const distractors = getIntelligentDistractors(
+        ctx.conceptId,
+        conceptName,
+        effectiveGraphConcepts,
+        ctx.category,
+        ctx.neighborConcepts,
+        3
+      );
+
+      const correctOpt: ActiveRecallOption = {
+        id: `opt-two-${ctx.conceptId}`,
+        label: conceptName,
+        isCorrect: true,
+        conceptId: ctx.conceptId,
+        conceptName
+      };
+
+      const distractorOpts: ActiveRecallOption[] = distractors.map(d => ({
+        id: `opt-two-${d.id}`,
+        label: d.name,
+        isCorrect: false,
+        conceptId: d.id,
+        conceptName: d.name
+      }));
+
+      const options = shuffleOptions([correctOpt, ...distractorOpts], conceptName.length + 13);
+
+      candidateQuestions.push({
+        id: `test-two-concept-${ctx.conceptId}`,
+        conceptId: ctx.conceptId,
+        conceptName,
+        pattern: 'two-concept',
+        questionType: 'two-concept',
+        question: `Which concept connects ${relA.targetName} and ${relB.targetName} in your knowledge graph?`,
+        answer: conceptName,
+        explanation: `${conceptName} connects directly to both ${relA.targetName} and ${relB.targetName}.`,
+        options,
+        correctOptionId: correctOpt.id,
+        concealedNodeId: ctx.conceptId,
+        concealType: 'node',
+        sourceEvidence: ctx.evidence || primarySentence,
+        sourceName,
+        page,
+        sourceIds: ctx.sourceIds,
+        sourceChunkIds: ctx.sourceChunkIds
+      });
+    }
+  }
+
+  // 6. TYPE F — SOURCE-BASED QUESTION
+  if (definitionText && definitionText.length >= 20) {
+    const otherConceptsWithDesc = (effectiveGraphConcepts as any[]).filter(
+      (c: any) => c.id !== ctx.conceptId && c.description && c.description.trim().length >= 20
+    );
+
+    const distractorDescs = otherConceptsWithDesc.slice(0, 3).map((c: any) => c.description!.trim());
+
+    if (distractorDescs.length >= 1) {
+      const correctOpt: ActiveRecallOption = {
+        id: `opt-src-correct`,
+        label: definitionText,
+        isCorrect: true,
+        conceptId: ctx.conceptId,
+        conceptName
+      };
+
+      const distractorOpts: ActiveRecallOption[] = distractorDescs.map((desc: string, idx: number) => ({
+        id: `opt-src-dist-${idx}`,
+        label: desc,
+        isCorrect: false
+      }));
+
+      const options = shuffleOptions([correctOpt, ...distractorOpts], conceptName.length + 17);
+
+      candidateQuestions.push({
+        id: `test-src-based-${ctx.conceptId}`,
+        conceptId: ctx.conceptId,
+        conceptName,
+        pattern: 'source-based',
+        questionType: 'source-based',
+        question: `According to your study material, what does ${conceptName} describe?`,
+        answer: definitionText,
+        explanation: `From your material: "${definitionText}".`,
+        options,
+        correctOptionId: correctOpt.id,
+        concealedNodeId: ctx.conceptId,
+        concealType: 'description',
+        sourceEvidence: ctx.evidence || definitionText,
+        sourceName,
+        page,
+        sourceIds: ctx.sourceIds,
+        sourceChunkIds: ctx.sourceChunkIds
+      });
+    }
+  }
+
+  // Deduplicate candidate questions
+  const seenIds = new Set<string>();
+  const uniqueQuestions: ActiveRecallQuestion[] = [];
+  for (const q of candidateQuestions) {
+    if (!seenIds.has(q.id)) {
+      seenIds.add(q.id);
+      uniqueQuestions.push(q);
+    }
+  }
+
+  if (uniqueQuestions.length === 0) {
+    return null;
+  }
+
+  // Cap at limit (default 5) questions for the session
+  const sessionQuestions = uniqueQuestions.slice(0, limit || 5);
+
+  return {
+    focusConceptId: ctx.conceptId,
+    questions: sessionQuestions,
+    currentIndex: 0,
+    answers: {},
+    missedConcepts: [],
+    isCompleted: false
+  };
+}
+
+/**
  * Intelligent Next Concept Selection (Phase 4 Section 11)
  * Preference order:
  * 1. directly connected concepts
@@ -753,5 +1339,95 @@ export function findNextRecallConceptId(
   }
 
   return currentConceptId;
+}
+
+/**
+ * Evaluates an active recall test answer against the question's correct option or reveal state.
+ */
+export function evaluateTestAnswer(
+  question: ActiveRecallQuestion,
+  selectedOptionId?: string,
+  wasRevealed: boolean = false
+): {
+  isCorrect: boolean;
+  status: 'correct' | 'incorrect' | 'revealed';
+  feedbackText: string;
+} {
+  if (wasRevealed) {
+    return {
+      isCorrect: false,
+      status: 'revealed',
+      feedbackText: `Answer revealed: ${question.answer}`
+    };
+  }
+
+  const isCorrect = Boolean(selectedOptionId && selectedOptionId === question.correctOptionId);
+  if (isCorrect) {
+    return {
+      isCorrect: true,
+      status: 'correct',
+      feedbackText: "Connected. That's the relationship in your material."
+    };
+  } else {
+    return {
+      isCorrect: false,
+      status: 'incorrect',
+      feedbackText: "This connection doesn't match your material."
+    };
+  }
+}
+
+/**
+ * Generates an editorial active recall session summary upon test completion.
+ */
+export function generateTestSessionSummary(
+  session: ActiveRecallTestSession,
+  answers: Array<{ questionId: string; selectedOptionId?: string; isCorrect: boolean; wasRevealed?: boolean }>,
+  allConcepts: Concept[]
+): {
+  totalQuestions: number;
+  understoodCount: number;
+  strongCategories: string[];
+  missedConcepts: MissedConceptSummary[];
+} {
+  const totalQuestions = session.questions.length;
+  const understoodCount = answers.filter(a => a.isCorrect && !a.wasRevealed).length;
+
+  const conceptMap = new Map(allConcepts.map(c => [c.id, c]));
+  const missedConcepts: MissedConceptSummary[] = [];
+  const strongCategoriesSet = new Set<string>();
+
+  session.questions.forEach(q => {
+    const ans = answers.find(a => a.questionId === q.id);
+    const relatedConcept = (q.conceptIds && q.conceptIds[0]) ? conceptMap.get(q.conceptIds[0]) : null;
+
+    if (ans && ans.isCorrect && !ans.wasRevealed) {
+      if (relatedConcept?.category) {
+        strongCategoriesSet.add(relatedConcept.category);
+      }
+      if (q.questionType === 'relationship' || q.questionType === 'fill-connection') {
+        strongCategoriesSet.add('Relationships');
+      } else {
+        strongCategoriesSet.add('Concept understanding');
+      }
+    } else if (ans && (!ans.isCorrect || ans.wasRevealed)) {
+      const missedId = q.concealedNodeId || (q.conceptIds && q.conceptIds[0]) || session.focusConceptId;
+      if (missedId && !missedConcepts.some(m => m.conceptId === missedId)) {
+        const missedConcept = conceptMap.get(missedId);
+        missedConcepts.push({
+          conceptId: missedId,
+          conceptName: missedConcept?.name || q.answer || 'Missed Concept',
+          relationshipLabel: q.diagram?.relationshipLabel || q.relationshipType
+        });
+      }
+    }
+  });
+
+  return {
+    totalQuestions,
+    understoodCount,
+    strongCategories: Array.from(strongCategoriesSet),
+    missedConcepts
+  };
 }
 
