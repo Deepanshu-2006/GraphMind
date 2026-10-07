@@ -2364,6 +2364,367 @@
   color: #BAFF33;
 }
 
+/* =========================================================================
+   PHASE 4: ACTIVE RECALL / TEST YOURSELF STYLES
+   - Functional Test Yourself action directly inside knowledge graph
+   - Source-grounded question & hidden answer with restrained editorial reveal
+   - Self-assessment: [ YES ] / [ REVIEW AGAIN ]
+   - Intelligent Next Concept navigation
+   - Subtle graph visual feedback (no gamification)
+   ========================================================================= */
+
+/* Toolbar Test Mode Toggle (Sections 13 & 14) */
+.study-test-btn.active {
+  background-color: #171E14;
+  border-color: #384F25;
+  color: #A3FF12;
+}
+
+.study-test-btn.active:hover {
+  background-color: #1E2B1A;
+  border-color: #A3FF12;
+  color: #A3FF12;
+}
+
+/* Active Recall Panel Content */
+.recall-panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.recall-header-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.recall-header-tag {
+  color: #8E918C;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.recall-back-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+  color: #7E827D;
+  font-size: 11px;
+  cursor: pointer;
+  transition: color 150ms ease;
+  font-family: inherit;
+}
+
+.recall-back-link-btn:hover {
+  color: #F5F5F5;
+}
+
+.recall-back-link-btn:focus-visible {
+  outline: 1px solid #A3FF12;
+  border-radius: 4px;
+}
+
+/* Question & Reveal */
+.recall-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.recall-question-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recall-question-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #F5F5F5;
+  margin: 0;
+  user-select: text;
+  font-weight: 500;
+}
+
+.recall-reveal-wrap {
+  margin-top: 8px;
+}
+
+.recall-reveal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 10px 14px;
+  background-color: #121512;
+  border: 1px solid #25331E;
+  border-radius: 6px;
+  color: #A3FF12;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 160ms ease;
+  box-sizing: border-box;
+}
+
+.recall-reveal-btn:hover {
+  background-color: #182215;
+  border-color: #A3FF12;
+  color: #BAFF33;
+}
+
+.recall-reveal-btn:focus-visible {
+  outline: 2px solid #A3FF12;
+  outline-offset: 1px;
+}
+
+/* Revealed Answer Flow (Restrained Editorial Reveal) */
+.recall-revealed-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
+}
+
+.recall-answer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.recall-answer-text {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #E6E6E6;
+  margin: 0;
+  user-select: text;
+  background-color: #111111;
+  border-left: 2px solid #A3FF12;
+  border-top: 1px solid #202020;
+  border-right: 1px solid #202020;
+  border-bottom: 1px solid #202020;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.recall-source-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.recall-source-box {
+  display: flex;
+  align-items: center;
+}
+
+/* Self-Assessment: [ YES ] / [ REVIEW AGAIN ] */
+.recall-self-assess-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recall-self-assess-actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.recall-assess-btn {
+  flex: 1;
+  padding: 9px 12px;
+  background-color: #111111;
+  border: 1px solid #222222;
+  border-radius: 6px;
+  color: #A0A0A0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 150ms ease;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.recall-assess-btn:hover {
+  background-color: #161616;
+  color: #F5F5F5;
+  border-color: #333333;
+}
+
+.recall-assess-btn:focus-visible {
+  outline: 2px solid #A3FF12;
+  outline-offset: 1px;
+}
+
+.recall-btn-yes:hover,
+.recall-btn-yes.selected {
+  background-color: #121A11;
+  border-color: #A3FF12;
+  color: #A3FF12;
+}
+
+.recall-btn-review:hover,
+.recall-btn-review.selected {
+  background-color: #1A1512;
+  border-color: #D49A3D;
+  color: #D49A3D;
+}
+
+/* Post Self-Assessment Feedback & Next Action */
+.recall-post-assess-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recall-status-feedback {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background-color: #0E0E0E;
+  border-radius: 4px;
+}
+
+.recall-status-text {
+  font-size: 11.5px;
+  color: #B5B5B5;
+  font-weight: 500;
+}
+
+.recall-footer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.recall-next-concept-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 14px;
+  background-color: #151814;
+  border: 1px solid #2C3822;
+  border-radius: 6px;
+  color: #F5F5F5;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 150ms ease;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.recall-next-concept-btn:hover {
+  background-color: #1B2418;
+  border-color: #A3FF12;
+  color: #A3FF12;
+}
+
+.recall-next-concept-btn:focus-visible {
+  outline: 2px solid #A3FF12;
+  outline-offset: 1px;
+}
+
+.recall-next-name {
+  color: #A3FF12;
+  font-weight: 500;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recall-next-arrow {
+  color: #7A8077;
+  transition: transform 150ms ease, color 150ms ease;
+}
+
+.recall-next-concept-btn:hover .recall-next-arrow {
+  color: #A3FF12;
+  transform: translateX(2px);
+}
+
+/* Insufficient Material Safeguard (Section 17) */
+.recall-insufficient-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recall-insufficient-text {
+  color: #8E918C;
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.recall-insufficient-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.recall-continue-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 12px;
+  background-color: #151814;
+  border: 1px solid #2C3822;
+  border-radius: 6px;
+  color: #F5F5F5;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 150ms ease;
+  box-sizing: border-box;
+}
+
+.recall-continue-btn:hover {
+  background-color: #1B2418;
+  border-color: #A3FF12;
+  color: #A3FF12;
+}
+
+.recall-continue-btn:focus-visible {
+  outline: 2px solid #A3FF12;
+  outline-offset: 1px;
+}
+
+/* Subtle Graph Visual Feedback (Section 10) */
+.knowledge-node-card.dimmed.session-recalled {
+  opacity: 0.52 !important;
+  filter: grayscale(20%) !important;
+}
+
+.knowledge-node-card.session-recalled {
+  border-color: rgba(163, 255, 18, 0.22);
+}
+
+.knowledge-node-card.session-review {
+  border-color: rgba(212, 154, 61, 0.28);
+}
+
+
 /* ==================================================
    15. EMPTY, LOADING, & CRAFTING STATES (Prompt 8)
    ================================================== */
