@@ -1,6 +1,7 @@
 import type { 
   PracticeQuestion, 
-  QuestionGenerationContext 
+  QuestionGenerationContext,
+  ActiveRecallQuestion
 } from '../types/practice';
 
 /**
@@ -367,3 +368,322 @@ export function evaluateAnswer(
     feedback: isSemanticMatch ? 'Correct' : 'Not quite'
   };
 }
+
+/**
+ * =========================================================================
+ * PHASE 4: ACTIVE RECALL / TEST YOURSELF ENGINE
+ * =========================================================================
+ */
+
+/**
+ * Phase 4 Active Recall Question Patterns:
+ * A. Definition recall: "What is {Concept}?"
+ * B. Explanation recall: "Explain why {Concept} is important."
+ * C. Relationship recall: "What is the relationship between {Concept} and {Target}?"
+ * D. Connection recall: "Which concept is associated with {Concept} through '{relType}'?"
+ */
+export function generateActiveRecallQuestions(ctx: QuestionGenerationContext): ActiveRecallQuestion[] {
+  if (!hasSufficientMaterial(ctx)) {
+    return [];
+  }
+
+  const questions: ActiveRecallQuestion[] = [];
+  const conceptName = ctx.conceptName;
+  const sourceName = ctx.sourceName || 'Uploaded Material';
+  const page = ctx.page;
+
+  const rawEvidence = ctx.evidence || ctx.description || '';
+  const sentences = extractSentences(rawEvidence);
+  const primarySentence = sentences[0] || ctx.description || '';
+
+  // -------------------------------------------------------------------------
+  // A. DEFINITION RECALL ("What is Process?")
+  // -------------------------------------------------------------------------
+  const definitionText = ctx.description?.trim() || primarySentence;
+  if (definitionText && definitionText.length >= 15) {
+    questions.push({
+      id: `recall-def-${ctx.conceptId}`,
+      conceptId: ctx.conceptId,
+      conceptName,
+      pattern: 'definition',
+      question: `What is ${conceptName}?`,
+      answer: definitionText,
+      explanation: `${conceptName} is defined in your material as: "${definitionText}".`,
+      passage: primarySentence,
+      sourceName,
+      page
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // B. EXPLANATION RECALL ("Explain why CPU Scheduling is important.")
+  // -------------------------------------------------------------------------
+  if (definitionText && definitionText.length >= 25) {
+    const isWhyQuestion = /\b(important|critical|essential|allows|enables|serves|optimizes|manages|ensures|key)\b/i.test(definitionText);
+    const questionText = isWhyQuestion
+      ? `Explain why ${conceptName} is important.`
+      : `Explain the core role of ${conceptName} according to your material.`;
+
+    questions.push({
+      id: `recall-exp-${ctx.conceptId}`,
+      conceptId: ctx.conceptId,
+      conceptName,
+      pattern: 'explanation',
+      question: questionText,
+      answer: definitionText,
+      explanation: `From your study material: ${definitionText}`,
+      passage: primarySentence,
+      sourceName,
+      page
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // C. RELATIONSHIP RECALL ("What is the relationship between Process and CPU Scheduling?")
+  // -------------------------------------------------------------------------
+  if (ctx.relationships && ctx.relationships.length > 0) {
+    for (const rel of ctx.relationships.slice(0, 3)) {
+      const targetName = rel.targetName;
+      if (!targetName) continue;
+
+      const isOutgoing = rel.direction !== 'incoming';
+      const source = isOutgoing ? conceptName : targetName;
+      const target = isOutgoing ? targetName : conceptName;
+      const relationshipPhrase = formatRelationshipPhrase(rel.type, source, target);
+      const answerText = rel.description
+        ? `${rel.description}. According to your material, ${relationshipPhrase}.`
+        : `According to your material, ${relationshipPhrase}.`;
+
+      questions.push({
+        id: `recall-rel-${ctx.conceptId}-${rel.targetId}-${rel.type}`,
+        conceptId: ctx.conceptId,
+        conceptName,
+        pattern: 'relationship',
+        question: `What is the relationship between ${conceptName} and ${targetName}?`,
+        answer: answerText,
+        explanation: answerText,
+        passage: primarySentence,
+        sourceName,
+        page,
+        relatedConceptId: rel.targetId,
+        relatedConceptName: targetName,
+        relationshipType: rel.type
+      });
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // D. CONNECTION RECALL ("Which concept is associated with Process through 'depends on'?")
+  // -------------------------------------------------------------------------
+  if (ctx.relationships && ctx.relationships.length > 0) {
+    for (const rel of ctx.relationships.slice(0, 2)) {
+      const targetName = rel.targetName;
+      if (!targetName) continue;
+
+      const cleanType = rel.type.replace(/-/g, ' ').toLowerCase();
+      const answerText = rel.description
+        ? `${targetName} (${rel.description})`
+        : targetName;
+
+      questions.push({
+        id: `recall-conn-${ctx.conceptId}-${rel.targetId}-${rel.type}`,
+        conceptId: ctx.conceptId,
+        conceptName,
+        pattern: 'connection',
+        question: `Which concept is associated with ${conceptName} through '${cleanType}'?`,
+        answer: answerText,
+        explanation: `${conceptName} is connected to ${targetName} through '${cleanType}'.`,
+        passage: primarySentence,
+        sourceName,
+        page,
+        relatedConceptId: rel.targetId,
+        relatedConceptName: targetName,
+        relationshipType: rel.type
+      });
+    }
+  }
+
+  return questions;
+}
+
+/**
+ * Selects the optimal Active Recall prompt for a concept, cycling through candidates.
+ */
+export function getActiveRecallQuestionForConcept(
+  ctx: QuestionGenerationContext,
+  previouslyAnsweredQuestionIds?: Set<string> | string[]
+): ActiveRecallQuestion | null {
+  const candidates = generateActiveRecallQuestions(ctx);
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  const answeredSet = previouslyAnsweredQuestionIds instanceof Set
+    ? previouslyAnsweredQuestionIds
+    : new Set(previouslyAnsweredQuestionIds || []);
+
+  const unpracticed = candidates.filter(q => !answeredSet.has(q.id));
+  if (unpracticed.length > 0) {
+    return unpracticed[0];
+  }
+
+  return candidates[0];
+}
+
+/**
+ * Intelligent Next Concept Selection (Phase 4 Section 11)
+ * Preference order:
+ * 1. directly connected concepts
+ * 2. concepts related through active relationships
+ * 3. concepts not yet tested
+ * 4. concepts marked for review later
+ */
+export interface FindNextRecallConceptParams {
+  currentConceptId: string;
+  allNodes: Array<{ id: string; data?: { relationships?: Array<{ targetId: string }> } }>;
+  allEdges?: Array<{ source: string; target: string }>;
+  testedConceptIds?: Set<string> | string[];
+  reviewConceptIds?: Set<string> | string[];
+  recalledConceptIds?: Set<string> | string[];
+  practiceStates?: Record<string, { status?: string }>;
+}
+
+export function findNextRecallConceptId(
+  paramsOrCurrentId: FindNextRecallConceptParams | string,
+  maybeNodes?: Array<any>,
+  maybeSessionOrEdges?: any,
+  maybeEdges?: Array<any>,
+  maybePracticeStates?: Record<string, { status?: string }>
+): string | null {
+  let currentConceptId: string;
+  let allNodes: Array<any>;
+  let allEdges: Array<{ source: string; target: string }> = [];
+  let testedConceptIds: Set<string> | string[] | undefined;
+  let reviewConceptIds: Set<string> | string[] | undefined;
+  let practiceStates: Record<string, { status?: string }> = {};
+
+  if (typeof paramsOrCurrentId === 'object' && paramsOrCurrentId !== null) {
+    currentConceptId = paramsOrCurrentId.currentConceptId;
+    allNodes = paramsOrCurrentId.allNodes || [];
+    allEdges = paramsOrCurrentId.allEdges || [];
+    testedConceptIds = paramsOrCurrentId.testedConceptIds;
+    reviewConceptIds = paramsOrCurrentId.reviewConceptIds;
+    practiceStates = paramsOrCurrentId.practiceStates || {};
+  } else {
+    currentConceptId = paramsOrCurrentId;
+    allNodes = maybeNodes || [];
+    if (maybeSessionOrEdges && Array.isArray(maybeSessionOrEdges)) {
+      allEdges = maybeSessionOrEdges;
+      practiceStates = maybePracticeStates || {};
+    } else if (maybeSessionOrEdges && typeof maybeSessionOrEdges === 'object') {
+      testedConceptIds = maybeSessionOrEdges.testedConceptIds;
+      reviewConceptIds = maybeSessionOrEdges.reviewConceptIds;
+      allEdges = maybeEdges || [];
+      practiceStates = maybePracticeStates || {};
+    }
+  }
+
+  if (!allNodes || allNodes.length === 0) return null;
+  if (allNodes.length === 1) return allNodes[0].id;
+
+  const testedSet = testedConceptIds instanceof Set ? testedConceptIds : new Set(testedConceptIds || []);
+  const reviewSet = reviewConceptIds instanceof Set ? reviewConceptIds : new Set(reviewConceptIds || []);
+
+  // 1. Identify directly connected concept IDs
+  const directNeighborIds = new Set<string>();
+
+  // From edges
+  for (const edge of allEdges) {
+    if (edge.source === currentConceptId && edge.target !== currentConceptId) {
+      directNeighborIds.add(edge.target);
+    } else if (edge.target === currentConceptId && edge.source !== currentConceptId) {
+      directNeighborIds.add(edge.source);
+    }
+  }
+
+  // From node relationships or directConnections
+  const currentNode = allNodes.find(n => n.id === currentConceptId);
+  const nodeConnections = [
+    ...(currentNode?.directConnections || []),
+    ...(currentNode?.data?.directConnections || []),
+    ...(currentNode?.relationships || []),
+    ...(currentNode?.data?.relationships || [])
+  ];
+
+  for (const rel of nodeConnections) {
+    const target = rel.targetId || rel.target;
+    if (target && target !== currentConceptId) {
+      directNeighborIds.add(target);
+    }
+  }
+
+  // Also check reverse connections from other nodes
+  for (const n of allNodes) {
+    if (n.id === currentConceptId) continue;
+    const otherConnections = [
+      ...(n.directConnections || []),
+      ...(n.data?.directConnections || []),
+      ...(n.relationships || []),
+      ...(n.data?.relationships || [])
+    ];
+    for (const rel of otherConnections) {
+      const target = rel.targetId || rel.target;
+      if (target === currentConceptId) {
+        directNeighborIds.add(n.id);
+      }
+    }
+  }
+
+  // Filter to valid node IDs that exist in allNodes
+  const validNeighbors = Array.from(directNeighborIds).filter(id => allNodes.some(n => n.id === id));
+
+  // Step 1: Directly connected concepts not yet tested
+  const untestedNeighbors = validNeighbors.filter(id => !testedSet.has(id));
+  if (untestedNeighbors.length > 0) {
+    return untestedNeighbors[0];
+  }
+
+  // Step 2: Directly connected concepts marked for review
+  const reviewNeighbors = validNeighbors.filter(id => reviewSet.has(id));
+  if (reviewNeighbors.length > 0) {
+    return reviewNeighbors[0];
+  }
+
+  // Step 3: Directly connected concepts needing review from persistence
+  const persistentReviewNeighbors = validNeighbors.filter(id => practiceStates[id]?.status === 'needs-review');
+  if (persistentReviewNeighbors.length > 0) {
+    return persistentReviewNeighbors[0];
+  }
+
+  // Step 4: Other concepts in the graph not yet tested
+  const otherUntestedNodes = allNodes.filter(n => n.id !== currentConceptId && !testedSet.has(n.id));
+  if (otherUntestedNodes.length > 0) {
+    return otherUntestedNodes[0].id;
+  }
+
+  // Step 5: Other concepts in the graph marked for review in this session
+  const otherReviewNodes = allNodes.filter(n => n.id !== currentConceptId && reviewSet.has(n.id));
+  if (otherReviewNodes.length > 0) {
+    return otherReviewNodes[0].id;
+  }
+
+  // Step 6: Other concepts in the graph needing review from persistence
+  const otherPersistentReview = allNodes.filter(n => n.id !== currentConceptId && practiceStates[n.id]?.status === 'needs-review');
+  if (otherPersistentReview.length > 0) {
+    return otherPersistentReview[0].id;
+  }
+
+  // Step 7: Any valid neighbor
+  if (validNeighbors.length > 0) {
+    return validNeighbors[0];
+  }
+
+  // Step 8: Any other node in the graph
+  const remaining = allNodes.filter(n => n.id !== currentConceptId);
+  if (remaining.length > 0) {
+    return remaining[0].id;
+  }
+
+  return currentConceptId;
+}
+
