@@ -5,10 +5,13 @@ import type { GraphConceptData, SelectedRelationshipData } from '../../types/gra
 import type { 
   PracticeStatus, 
   QuestionGenerationContext,
-  ActiveRecallQuestion
+  ActiveRecallQuestion,
+  ActiveRecallOption,
+  ActiveRecallTestSession
 } from '../../types/practice';
 import { 
-  getActiveRecallQuestionForConcept
+  getActiveRecallQuestionForConcept,
+  generateActiveRecallTestSession
 } from '../../services/practiceQuestionGenerator';
 
 export interface NodeContextPanelProps {
@@ -29,6 +32,12 @@ export interface NodeContextPanelProps {
   onRecordSessionReview?: (conceptId: string) => void;
   onNextConcept?: () => void;
   nextConceptName?: string | null;
+  onTestStateUpdate?: (state: {
+    activeQuestion: ActiveRecallQuestion | null;
+    concealedNodeId: string | null;
+    isMaterializing: boolean;
+    progress: { current: number; total: number } | null;
+  }) => void;
   // Phase 5: Revision Mode
   isRevisionMode?: boolean;
   onToggleRevisionMode?: (active?: boolean) => void;
@@ -142,10 +151,11 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
   onUpdatePracticeState,
   isTestMode = false,
   onToggleTestMode,
+  onTestStateUpdate,
   onRecordSessionRecalled,
   onRecordSessionReview,
   onNextConcept,
-  nextConceptName,
+  nextConceptName: _nextConceptName,
   isRevisionMode = false,
   onToggleRevisionMode,
   revisionProgress,
@@ -174,23 +184,34 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
   }, [isTestMode, isRevisionMode]);
 
   // Active Recall interaction state
-  const [isAnswerRevealed, setIsAnswerRevealed] = useState<boolean>(false);
-  const [selfAssessed, setSelfAssessed] = useState<'yes' | 'review' | null>(null);
-  const [answeredQuestionIds, setAnsweredQuestionIds] = useState<Set<string>>(new Set());
+  const [sessionNonce, setSessionNonce] = useState<number>(0);
+  const [currentTestIndex, setCurrentTestIndex] = useState<number>(0);
+  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
+  const [questionFeedback, setQuestionFeedback] = useState<'unanswered' | 'correct' | 'incorrect' | 'revealed'>('unanswered');
+  const [sessionAnswers, setSessionAnswers] = useState<Record<string, { selectedOptionId: string; isCorrect: boolean; isRevealed: boolean }>>({});
+  const [sessionMissedConcepts, setSessionMissedConcepts] = useState<Array<{ conceptId: string; conceptName: string; relationshipLabel?: string }>>([]);
+  const [isTestSessionComplete, setIsTestSessionComplete] = useState<boolean>(false);
+
+  // Backward compatibility state
+  const [answeredQuestionIds] = useState<Set<string>>(new Set());
 
   const revealButtonRef = useRef<HTMLButtonElement>(null);
   const nextButtonRef = useRef<HTMLButtonElement>(null);
 
   // Reset interaction state when concept changes
   useEffect(() => {
-    setIsAnswerRevealed(false);
-    setSelfAssessed(null);
+    setCurrentTestIndex(0);
+    setSelectedOptionId(null);
+    setQuestionFeedback('unanswered');
+    setSessionAnswers({});
+    setSessionMissedConcepts([]);
+    setIsTestSessionComplete(false);
 
-    // Phase 3 Section 8: Meaningful study interaction transitions unseen -> learning
+    // Meaningful study interaction transitions unseen -> learning
     if (concept?.id && (!concept.practiceStatus || concept.practiceStatus === 'unseen')) {
       onUpdatePracticeState?.(concept.id, 'learning');
     }
-  }, [concept?.id]);
+  }, [concept?.id, sessionNonce]);
 
   // Build question context
   const questionContext: QuestionGenerationContext | null = useMemo(() => {
@@ -221,48 +242,133 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
     };
   }, [concept, allGraphConcepts]);
 
-  // Grounded Active Recall Prompt (Phase 4 Section 3 & 4)
+  // Grounded Active Recall Session (5-Question Test)
+  const testSession: ActiveRecallTestSession | null = useMemo(() => {
+    if (!questionContext) return null;
+    return generateActiveRecallTestSession(questionContext, allGraphConcepts);
+  }, [questionContext, allGraphConcepts, sessionNonce]);
+
+  // Fallback single question for legacy testing
   const activeRecallQuestion: ActiveRecallQuestion | null = useMemo(() => {
     if (!questionContext) return null;
     return getActiveRecallQuestionForConcept(questionContext, answeredQuestionIds);
   }, [questionContext, answeredQuestionIds]);
 
-  // Next connected concept fallback
-  const nextConnectedConcept = useMemo(() => {
-    if (!concept?.relationships || concept.relationships.length === 0) return null;
-    return concept.relationships[0];
-  }, [concept?.relationships]);
+  const currentQuestion: ActiveRecallQuestion | null = useMemo(() => {
+    if (testSession && testSession.questions.length > 0) {
+      return testSession.questions[currentTestIndex] || null;
+    }
+    return activeRecallQuestion;
+  }, [testSession, currentTestIndex, activeRecallQuestion]);
 
-  const nextConceptRecommendation = nextConceptName || nextConnectedConcept?.targetName;
+  // Sync test state with Workspace (highlighting, mystery placeholder concealment, materialization)
+  useEffect(() => {
+    if (panelMode === 'recall' && currentQuestion) {
+      const isMaterializing = questionFeedback === 'correct' || questionFeedback === 'revealed';
+      const concealedNodeId = isMaterializing ? null : (currentQuestion.concealedNodeId || null);
+      const total = testSession ? testSession.questions.length : 1;
+      onTestStateUpdate?.({
+        activeQuestion: currentQuestion,
+        concealedNodeId,
+        isMaterializing,
+        progress: { current: currentTestIndex + 1, total }
+      });
+    } else {
+      onTestStateUpdate?.({
+        activeQuestion: null,
+        concealedNodeId: null,
+        isMaterializing: false,
+        progress: null
+      });
+    }
+  }, [panelMode, currentQuestion, questionFeedback, currentTestIndex, testSession, onTestStateUpdate]);
 
   // Handlers for Active Recall (Phase 4 Sections 5-9, 15)
-  const handleRevealAnswer = useCallback(() => {
-    setIsAnswerRevealed(true);
-  }, []);
+  const handleSelectOption = useCallback((option: ActiveRecallOption) => {
+    if (questionFeedback === 'correct' || questionFeedback === 'revealed' || !concept?.id) return;
+    setSelectedOptionId(option.id);
 
-  const handleRecallSelfAssess = useCallback((assessment: 'yes' | 'review') => {
-    if (!concept?.id) return;
-    setSelfAssessed(assessment);
-    if (activeRecallQuestion?.id) {
-      setAnsweredQuestionIds(prev => new Set(prev).add(activeRecallQuestion.id));
-    }
-
-    if (assessment === 'yes') {
+    if (option.isCorrect) {
+      setQuestionFeedback('correct');
+      setSessionAnswers(prev => ({
+        ...prev,
+        [currentQuestion?.id || '']: { selectedOptionId: option.id, isCorrect: true, isRevealed: false }
+      }));
       onRecordSessionRecalled?.(concept.id);
       onUpdatePracticeState?.(concept.id, 'understood');
     } else {
+      setQuestionFeedback('incorrect');
+      setSessionAnswers(prev => ({
+        ...prev,
+        [currentQuestion?.id || '']: { selectedOptionId: option.id, isCorrect: false, isRevealed: false }
+      }));
+      if (concept && !sessionMissedConcepts.some(m => m.conceptId === concept.id)) {
+        setSessionMissedConcepts(prev => [
+          ...prev,
+          {
+            conceptId: concept.id,
+            conceptName: concept.name || concept.label,
+            relationshipLabel: currentQuestion?.relationshipType
+          }
+        ]);
+      }
       onRecordSessionReview?.(concept.id);
       onUpdatePracticeState?.(concept.id, 'needs-review');
     }
-  }, [concept?.id, activeRecallQuestion?.id, onRecordSessionRecalled, onRecordSessionReview, onUpdatePracticeState]);
+  }, [concept, currentQuestion, questionFeedback, onRecordSessionRecalled, onRecordSessionReview, onUpdatePracticeState, sessionMissedConcepts]);
 
-  const handleNextConceptClick = useCallback(() => {
-    if (onNextConcept) {
-      onNextConcept();
-    } else if (nextConnectedConcept) {
-      onSelectConcept(nextConnectedConcept.targetId);
+  const handleTryAgain = useCallback(() => {
+    setQuestionFeedback('unanswered');
+    setSelectedOptionId(null);
+  }, []);
+
+  const handleRevealAnswer = useCallback(() => {
+    setQuestionFeedback('revealed');
+    if (currentQuestion?.correctOptionId) {
+      setSelectedOptionId(currentQuestion.correctOptionId);
     }
-  }, [onNextConcept, nextConnectedConcept, onSelectConcept]);
+    setSessionAnswers(prev => ({
+      ...prev,
+      [currentQuestion?.id || '']: {
+        selectedOptionId: currentQuestion?.correctOptionId || '',
+        isCorrect: false,
+        isRevealed: true
+      }
+    }));
+    if (concept && !sessionMissedConcepts.some(m => m.conceptId === concept.id)) {
+      setSessionMissedConcepts(prev => [
+        ...prev,
+        {
+          conceptId: concept.id,
+          conceptName: concept.name || concept.label,
+          relationshipLabel: currentQuestion?.relationshipType
+        }
+      ]);
+    }
+    if (concept?.id) {
+      onRecordSessionReview?.(concept.id);
+      onUpdatePracticeState?.(concept.id, 'needs-review');
+    }
+  }, [concept, currentQuestion, onRecordSessionReview, onUpdatePracticeState, sessionMissedConcepts]);
+
+  const handleNextQuestion = useCallback(() => {
+    if (!testSession) {
+      if (onNextConcept) onNextConcept();
+      return;
+    }
+
+    if (currentTestIndex < testSession.questions.length - 1) {
+      setCurrentTestIndex(prev => prev + 1);
+      setSelectedOptionId(null);
+      setQuestionFeedback('unanswered');
+    } else {
+      setIsTestSessionComplete(true);
+    }
+  }, [testSession, currentTestIndex, onNextConcept]);
+
+  const handleRetestConcept = useCallback(() => {
+    setSessionNonce(prev => prev + 1);
+  }, []);
 
   const handleExitTest = useCallback(() => {
     if (isRevisionMode) {
@@ -324,35 +430,34 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
         return;
       }
 
-      // Space or Enter: Reveal answer if not revealed
-      if ((e.key === ' ' || e.key === 'Enter') && !isAnswerRevealed && activeRecallQuestion) {
-        if (document.activeElement !== revealButtonRef.current) {
+      // Number keys 1-4: Select options
+      if (['1', '2', '3', '4'].includes(e.key) && currentQuestion?.options) {
+        const idx = parseInt(e.key, 10) - 1;
+        if (currentQuestion.options[idx] && questionFeedback === 'unanswered') {
           e.preventDefault();
-          handleRevealAnswer();
+          handleSelectOption(currentQuestion.options[idx]);
+          return;
         }
+      }
+
+      // Enter or N: Next question if answered
+      if ((e.key === 'Enter' || e.key.toLowerCase() === 'n') && (questionFeedback === 'correct' || questionFeedback === 'revealed')) {
+        e.preventDefault();
+        handleNextQuestion();
         return;
       }
 
-      // Y: Yes, recalled (when revealed and not assessed)
-      if (isAnswerRevealed && !selfAssessed) {
-        if (e.key.toLowerCase() === 'y' || e.key === '1') {
-          e.preventDefault();
-          handleRecallSelfAssess('yes');
-          return;
-        }
-        if (e.key.toLowerCase() === 'r' || e.key === '2') {
-          e.preventDefault();
-          handleRecallSelfAssess('review');
-          return;
-        }
+      // R: Reveal answer if unanswered
+      if (e.key.toLowerCase() === 'r' && questionFeedback === 'unanswered') {
+        e.preventDefault();
+        handleRevealAnswer();
+        return;
       }
 
-      // Enter or N: Next concept (after self-assessed)
-      if (isAnswerRevealed && selfAssessed && (e.key === 'Enter' || e.key.toLowerCase() === 'n')) {
-        if (document.activeElement !== nextButtonRef.current) {
-          e.preventDefault();
-          handleNextConceptClick();
-        }
+      // Space or Enter: Reveal answer if not revealed (legacy)
+      if ((e.key === ' ' || e.key === 'Enter') && questionFeedback === 'unanswered') {
+        e.preventDefault();
+        handleRevealAnswer();
         return;
       }
     };
@@ -362,12 +467,11 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
   }, [
     panelMode,
     concept,
-    isAnswerRevealed,
-    selfAssessed,
-    activeRecallQuestion,
+    currentQuestion,
+    questionFeedback,
+    handleSelectOption,
+    handleNextQuestion,
     handleRevealAnswer,
-    handleRecallSelfAssess,
-    handleNextConceptClick,
     handleExitTest,
     onToggleRevisionMode,
     onMarkRevisionKnowIt,
@@ -1044,7 +1148,7 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
             </motion.div>
           ) : (
             /* ==========================================================
-               PHASE 4: ACTIVE RECALL / TEST YOURSELF
+               PHASE 4: ACTIVE RECALL / TEST YOURSELF (GRAPH-GROUNDED)
                ========================================================== */
             <motion.div
               key={`recall-${concept!.id}`}
@@ -1054,13 +1158,20 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
               transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
               className="study-panel-content recall-panel-content"
             >
-              {/* Header: TEST YOURSELF tag + canonical name + Back to concept + Close */}
+              {/* Header: TEST YOURSELF tag + session counter + Back to concept + Close */}
               <header className="inspector-header study-header">
                 <div className="inspector-title-wrap">
                   <div className="recall-header-meta">
-                    <span className="study-section-label study-category-tag recall-header-tag">
-                      TEST YOURSELF · {concept!.category || 'CONCEPT'}
-                    </span>
+                    <div className="recall-header-left-meta">
+                      <span className="study-section-label study-category-tag recall-header-tag">
+                        TEST YOURSELF
+                      </span>
+                      {testSession && !isTestSessionComplete && (
+                        <span className="recall-header-counter" aria-live="polite">
+                          {String(currentTestIndex + 1).padStart(2, '0')} / {String(testSession.questions.length).padStart(2, '0')}
+                        </span>
+                      )}
+                    </div>
                     <button
                       type="button"
                       className="recall-back-link-btn"
@@ -1087,23 +1198,14 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
                 </button>
               </header>
 
-              {!activeRecallQuestion ? (
-                /* INSUFFICIENT MATERIAL VIEW (Section 17) */
+              {!currentQuestion ? (
+                /* INSUFFICIENT MATERIAL VIEW (Section 22) */
                 <section className="study-section recall-insufficient-section">
                   <h3 className="study-section-label">TEST YOURSELF</h3>
                   <p className="study-explanation recall-insufficient-text">
-                    Not enough material to test this concept yet.
+                    Not enough connected material to test this concept yet.
                   </p>
                   <div className="recall-insufficient-actions">
-                    <button
-                      type="button"
-                      className="recall-continue-btn"
-                      onClick={handleNextConceptClick}
-                      title="Continue to next concept"
-                    >
-                      <span>CONTINUE</span>
-                      <ArrowRight size={12} />
-                    </button>
                     <button
                       type="button"
                       className="practice-back-to-learn-btn"
@@ -1113,154 +1215,345 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
                     </button>
                   </div>
                 </section>
-              ) : (
-                /* ACTIVE RECALL QUESTION VIEW */
-                <div className="recall-card">
-                  {/* QUESTION SECTION (Section 2, 4, 5) */}
-                  <section className="study-section recall-question-section">
-                    <h3 className="study-section-label">QUESTION</h3>
-                    <p className="recall-question-text">
-                      {activeRecallQuestion.question}
-                    </p>
+              ) : isTestSessionComplete ? (
+                /* TEST COMPLETE SUMMARY VIEW (Section 17 & 18) */
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                  className="recall-test-summary"
+                >
+                  <div className="recall-summary-header-block">
+                    <span className="recall-summary-sublabel">SESSION RESULTS</span>
+                    <h3 className="recall-summary-headline">TEST COMPLETE</h3>
+                    <div className="recall-summary-score-callout">
+                      <span className="recall-score-number">
+                        {Object.values(sessionAnswers).filter(a => a.isCorrect && !a.isRevealed).length}
+                      </span>
+                      <span className="recall-score-divider">/</span>
+                      <span className="recall-score-total">
+                        {testSession?.questions.length || 1}
+                      </span>
+                      <span className="recall-score-text">understood</span>
+                    </div>
+                  </div>
 
-                    {/* HIDE THE ANSWER: Before revealing, show only [ Reveal answer ] (Section 5) */}
-                    {!isAnswerRevealed && (
-                      <div className="recall-reveal-wrap">
-                        <button
-                          type="button"
-                          ref={revealButtonRef}
-                          className="recall-reveal-btn"
-                          onClick={handleRevealAnswer}
-                          aria-expanded={false}
-                          title="Reveal answer from source material (Space or Enter)"
-                        >
-                          <span>Reveal answer</span>
-                        </button>
+                  <div className="recall-summary-details">
+                    {/* Strong areas */}
+                    <div className="recall-summary-group">
+                      <span className="recall-summary-group-title">STRONG</span>
+                      <div className="recall-strong-tags">
+                        <span className="recall-strong-chip">
+                          <Check size={11} className="strong-check-icon" />
+                          <span>Relationships</span>
+                        </span>
+                        <span className="recall-strong-chip">
+                          <Check size={11} className="strong-check-icon" />
+                          <span>Concept understanding</span>
+                        </span>
                       </div>
-                    )}
-                  </section>
+                    </div>
 
-                  {/* REVEAL ANIMATION (Section 6: Question remains fixed, answer area expands vertically, opacity 0->1, translateY 6->0, 250-350ms) */}
-                  <AnimatePresence>
-                    {isAnswerRevealed && (
-                      <motion.div
-                        key={`reveal-${activeRecallQuestion.id}`}
-                        initial={{ opacity: 0, y: 6, height: 0 }}
-                        animate={{ opacity: 1, y: 0, height: 'auto' }}
-                        exit={{ opacity: 0, y: -6, height: 0 }}
-                        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                        className="recall-revealed-flow"
-                      >
-                        {/* ANSWER CONTENT */}
-                        <section className="study-section recall-answer-section">
-                          <h3 className="study-section-label">ANSWER</h3>
-                          <p className="recall-answer-text">
-                            {activeRecallQuestion.answer}
-                          </p>
-                        </section>
-
-                        {/* SOURCE PROVENANCE (Section 16: SOURCE Test.pdf ↗) */}
-                        {activeRecallQuestion.sourceName && (
-                          <section className="study-section recall-source-section">
-                            <h3 className="study-section-label">SOURCE</h3>
-                            <div className="recall-source-box">
+                    {/* Missed / To-review concepts */}
+                    {sessionMissedConcepts.length > 0 ? (
+                      <div className="recall-summary-group">
+                        <span className="recall-summary-group-title">MISSED CONCEPTS</span>
+                        <div className="recall-missed-list">
+                          {sessionMissedConcepts.map((item, idx) => (
+                            <div key={idx} className="recall-missed-row">
+                              <div className="missed-row-text">
+                                <span className="missed-concept-name">{item.conceptName}</span>
+                                {item.relationshipLabel && (
+                                  <span className="missed-rel-text"> · {item.relationshipLabel}</span>
+                                )}
+                              </div>
                               <button
                                 type="button"
-                                className="study-source-chip"
-                                onClick={() => onSelectSource?.(activeRecallQuestion.sourceName, activeRecallQuestion.page)}
-                                title={`View ${activeRecallQuestion.sourceName}${activeRecallQuestion.page ? ` (p. ${activeRecallQuestion.page})` : ''} in Sources`}
+                                className="missed-review-action-btn"
+                                onClick={() => {
+                                  onSelectConcept(item.conceptId);
+                                  setPanelMode('learn');
+                                }}
+                                title={`Review ${item.conceptName} on the graph`}
                               >
-                                <span className="study-source-chip-name">{activeRecallQuestion.sourceName}</span>
-                                {activeRecallQuestion.page && (
-                                  <span className="study-source-chip-page">· p. {activeRecallQuestion.page}</span>
-                                )}
-                                <ArrowUpRight size={10} className="study-source-link-icon" />
+                                <span>REVIEW CONCEPT</span>
+                                <ArrowRight size={10} />
                               </button>
                             </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="recall-flawless-text">
+                        All tested relationships and concepts were verified directly from memory.
+                      </p>
+                    )}
+                  </div>
 
-                            {/* Additional passage excerpt if available and distinct */}
-                            {activeRecallQuestion.passage && activeRecallQuestion.passage !== activeRecallQuestion.answer && (
-                              <blockquote className="study-passage-quote" style={{ marginTop: '10px' }}>
-                                “{activeRecallQuestion.passage}”
-                              </blockquote>
-                            )}
-                          </section>
-                        )}
+                  <div className="recall-summary-footer-actions">
+                    <button
+                      type="button"
+                      className="recall-retest-btn"
+                      onClick={handleRetestConcept}
+                    >
+                      <RotateCcw size={12} />
+                      <span>RETEST THIS CONCEPT</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="recall-summary-back-btn"
+                      onClick={handleExitTest}
+                    >
+                      <span>BACK TO CONCEPT</span>
+                    </button>
+                  </div>
+                </motion.div>
+              ) : (
+                /* ACTIVE RECALL QUESTION CARD VIEW (Section 5-10, 14, 16) */
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={`q-${currentQuestion.id}`}
+                    initial={{ opacity: 0, x: 12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -12 }}
+                    transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
+                    className="recall-card"
+                  >
+                    {/* QUESTION SECTION */}
+                    <section className="study-section recall-question-section">
+                      <div className="recall-question-meta">
+                        <span className="recall-question-type-badge">
+                          {currentQuestion.questionType === 'fill-connection'
+                            ? 'COMPLETE THE CONNECTION'
+                            : currentQuestion.questionType === 'relationship'
+                            ? 'RELATIONSHIP TEST'
+                            : currentQuestion.questionType === 'connection'
+                            ? 'CONNECTION TEST'
+                            : currentQuestion.questionType === 'concept-understanding'
+                            ? 'CONCEPT UNDERSTANDING'
+                            : currentQuestion.questionType === 'two-concept'
+                            ? 'TWO-CONCEPT REASONING'
+                            : currentQuestion.questionType === 'source-based'
+                            ? 'SOURCE-BASED TEST'
+                            : 'ACTIVE RECALL'}
+                        </span>
+                      </div>
 
-                        {/* SELF-ASSESSMENT (Section 7: Did you know this? [ YES ] [ REVIEW AGAIN ]) */}
-                        <section className="study-section recall-self-assess-section">
-                          <h3 className="study-section-label">DID YOU KNOW THIS?</h3>
-                          <div className="recall-self-assess-actions" role="group" aria-label="Self assessment">
-                            <button
-                              type="button"
-                              className={`recall-assess-btn recall-btn-yes ${selfAssessed === 'yes' ? 'selected' : ''}`}
-                              onClick={() => handleRecallSelfAssess('yes')}
-                              title="Yes, I recalled this (Press Y)"
-                              aria-pressed={selfAssessed === 'yes'}
-                            >
-                              <span>YES</span>
-                            </button>
-                            <button
-                              type="button"
-                              className={`recall-assess-btn recall-btn-review ${selfAssessed === 'review' ? 'selected' : ''}`}
-                              onClick={() => handleRecallSelfAssess('review')}
-                              title="Review again later (Press R)"
-                              aria-pressed={selfAssessed === 'review'}
-                            >
-                              <span>REVIEW AGAIN</span>
-                            </button>
+                      {/* DIAGRAM DISPLAY (Section 2 Types B & D, Section 16) */}
+                      {currentQuestion.diagram && (
+                        <div className="recall-diagram-container" aria-label="Connection diagram">
+                          <div className="recall-diagram-source">
+                            <span className="diagram-node-name">{currentQuestion.diagram.sourceName}</span>
                           </div>
-                        </section>
-
-                        {/* POST SELF-ASSESSMENT CONFIRMATION & NEXT CONCEPT (Section 8 & 9) */}
-                        {selfAssessed && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.22 }}
-                            className="recall-post-assess-wrap"
-                          >
-                            <div className="recall-status-feedback">
-                              <span
-                                className={`practice-status-pip ${selfAssessed === 'yes' ? 'practice-pip-understood' : 'practice-pip-needs-review'}`}
-                                aria-hidden="true"
-                              />
-                              <span className="recall-status-text">
-                                {selfAssessed === 'yes' ? 'Recalled for this session' : 'Marked for review'}
+                          <div className="recall-diagram-connection">
+                            <span className="diagram-pipe">│</span>
+                            <div className="diagram-branch-row">
+                              <span className="diagram-branch-char">└──</span>
+                              <span className="diagram-rel-text">{currentQuestion.diagram.relationshipLabel}</span>
+                              <span className="diagram-arrow-sign">──</span>
+                              <span className={`diagram-target-slot ${questionFeedback === 'correct' || questionFeedback === 'revealed' ? 'revealed' : 'concealed'}`}>
+                                {questionFeedback === 'correct' || questionFeedback === 'revealed' ? currentQuestion.answer : '[ ? ]'}
                               </span>
                             </div>
+                          </div>
+                        </div>
+                      )}
 
-                            <div className="recall-footer-actions">
-                              <button
-                                type="button"
-                                ref={nextButtonRef}
-                                className="recall-next-concept-btn"
-                                onClick={handleNextConceptClick}
-                                title={nextConceptRecommendation ? `Next concept: ${nextConceptRecommendation}` : "Next concept (Press N or Enter)"}
-                              >
-                                <span>NEXT CONCEPT</span>
-                                {nextConceptRecommendation && (
-                                  <span className="recall-next-name">→ {nextConceptRecommendation}</span>
-                                )}
-                                {!nextConceptRecommendation && (
-                                  <ArrowRight size={13} className="recall-next-arrow" />
-                                )}
-                              </button>
+                      <h3 className="recall-question-text">
+                        {currentQuestion.question}
+                      </h3>
+                    </section>
 
+                    {/* COMPACT EDITORIAL ANSWER OPTIONS STACK (Section 7) */}
+                    {currentQuestion.options && currentQuestion.options.length > 0 && (
+                      <section className="study-section recall-options-section">
+                        <div className="recall-editorial-options-stack" role="radiogroup" aria-label="Answer options">
+                          {currentQuestion.options.map((opt, idx) => {
+                            const isSelected = selectedOptionId === opt.id;
+                            const isCorrectOpt = opt.isCorrect;
+                            const showCorrect = (questionFeedback === 'correct' && isSelected) || (questionFeedback === 'revealed' && isCorrectOpt);
+                            const showIncorrect = questionFeedback === 'incorrect' && isSelected;
+
+                            const optionClasses = [
+                              'recall-editorial-option-row',
+                              isSelected ? 'selected' : '',
+                              showCorrect ? 'option-correct' : '',
+                              showIncorrect ? 'option-incorrect' : '',
+                              questionFeedback === 'correct' || questionFeedback === 'revealed' ? 'disabled' : ''
+                            ].filter(Boolean).join(' ');
+
+                            return (
                               <button
+                                key={opt.id}
                                 type="button"
-                                className="practice-back-to-learn-btn"
-                                onClick={handleExitTest}
+                                className={optionClasses}
+                                onClick={() => handleSelectOption(opt)}
+                                disabled={questionFeedback === 'correct' || questionFeedback === 'revealed'}
+                                aria-checked={isSelected}
+                                role="radio"
                               >
-                                ← BACK TO CONCEPT
+                                <div className="recall-option-left">
+                                  <span className="recall-option-num">{String(idx + 1).padStart(2, '0')}</span>
+                                  <span className="recall-option-title">{opt.label}</span>
+                                </div>
+                                <ArrowUpRight size={13} className="recall-option-arrow" aria-hidden="true" />
+                                <span className="recall-option-underline" aria-hidden="true" />
                               </button>
-                            </div>
-                          </motion.div>
-                        )}
-                      </motion.div>
+                            );
+                          })}
+                        </div>
+                      </section>
                     )}
-                  </AnimatePresence>
-                </div>
+
+                    {/* INTERACTION RESPONSES (Section 8, 9, 10, 19) */}
+                    <AnimatePresence>
+                      {questionFeedback === 'correct' && (
+                        <motion.div
+                          key="feedback-correct"
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          transition={{ duration: 0.24 }}
+                          className="recall-feedback-area feedback-correct"
+                        >
+                          <div className="recall-feedback-status">
+                            <span className="recall-feedback-dot correct-dot" aria-hidden="true" />
+                            <span className="recall-feedback-text">
+                              Connected. That's the relationship in your material.
+                            </span>
+                          </div>
+
+                          {/* SOURCE GROUNDING EXCERPT (Section 19) */}
+                          {currentQuestion.sourceEvidence && (
+                            <div className="recall-provenance-box">
+                              <span className="recall-provenance-label">FROM YOUR MATERIAL</span>
+                              <blockquote className="recall-provenance-quote">
+                                “{currentQuestion.sourceEvidence}”
+                              </blockquote>
+                              {currentQuestion.sourceName && (
+                                <button
+                                  type="button"
+                                  className="study-source-chip"
+                                  onClick={() => onSelectSource?.(currentQuestion.sourceName, currentQuestion.page)}
+                                  title={`View ${currentQuestion.sourceName}${currentQuestion.page ? ` (p. ${currentQuestion.page})` : ''} in Sources`}
+                                >
+                                  <span className="study-source-chip-name">{currentQuestion.sourceName}</span>
+                                  {currentQuestion.page && (
+                                    <span className="study-source-chip-page">· p. {currentQuestion.page}</span>
+                                  )}
+                                  <ArrowUpRight size={10} className="study-source-link-icon" />
+                                </button>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="recall-next-action-wrap">
+                            <button
+                              type="button"
+                              ref={nextButtonRef}
+                              className="recall-next-step-btn"
+                              onClick={handleNextQuestion}
+                              title="Advance to next question (Press Enter or N)"
+                            >
+                              <span>{currentTestIndex < (testSession?.questions.length || 1) - 1 ? 'NEXT' : 'COMPLETE TEST'}</span>
+                              <ArrowRight size={12} />
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {questionFeedback === 'incorrect' && (
+                        <motion.div
+                          key="feedback-incorrect"
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          transition={{ duration: 0.24 }}
+                          className="recall-feedback-area feedback-incorrect"
+                        >
+                          <div className="recall-feedback-status">
+                            <span className="recall-feedback-dot incorrect-dot" aria-hidden="true" />
+                            <span className="recall-feedback-text">
+                              This connection doesn't match your material.
+                            </span>
+                          </div>
+
+                          <div className="recall-incorrect-actions-row">
+                            <button
+                              type="button"
+                              className="recall-try-again-btn"
+                              onClick={handleTryAgain}
+                              title="Try selecting another option"
+                            >
+                              <RotateCcw size={11} />
+                              <span>TRY AGAIN</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="recall-reveal-alt-btn"
+                              onClick={handleRevealAnswer}
+                              title="Reveal the correct concept"
+                            >
+                              <span>REVEAL</span>
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {questionFeedback === 'revealed' && (
+                        <motion.div
+                          key="feedback-revealed"
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          transition={{ duration: 0.24 }}
+                          className="recall-feedback-area feedback-revealed"
+                        >
+                          <div className="recall-feedback-status">
+                            <span className="recall-feedback-dot revealed-dot" aria-hidden="true" />
+                            <span className="recall-feedback-text">
+                              Answer revealed: {currentQuestion.answer}
+                            </span>
+                          </div>
+
+                          {currentQuestion.sourceEvidence && (
+                            <div className="recall-provenance-box">
+                              <span className="recall-provenance-label">FROM YOUR MATERIAL</span>
+                              <blockquote className="recall-provenance-quote">
+                                “{currentQuestion.sourceEvidence}”
+                              </blockquote>
+                            </div>
+                          )}
+
+                          <div className="recall-next-action-wrap">
+                            <button
+                              type="button"
+                              className="recall-next-step-btn"
+                              onClick={handleNextQuestion}
+                            >
+                              <span>{currentTestIndex < (testSession?.questions.length || 1) - 1 ? 'NEXT' : 'COMPLETE TEST'}</span>
+                              <ArrowRight size={12} />
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {questionFeedback === 'unanswered' && (
+                        <div className="recall-unanswered-footer">
+                          <button
+                            type="button"
+                            ref={revealButtonRef}
+                            className="recall-reveal-subtle-link"
+                            onClick={handleRevealAnswer}
+                            title="Reveal answer from source material (Press R)"
+                          >
+                            <span>Reveal answer</span>
+                          </button>
+                        </div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                </AnimatePresence>
               )}
             </motion.div>
           )}
