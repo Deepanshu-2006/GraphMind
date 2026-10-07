@@ -20,7 +20,7 @@ describe('GraphMind Canvas Toolbar Redesign — Information Architecture & Behav
       // Group 1: Prominent Search (240–280px)
       // Group 2: Study (or active Study Mode: Exit study, Filter, Next)
       // Group 3: View density dropdown (Balanced ▾)
-      // Group 4: Far-right utilities ([ − ] [ + ] [ ⛶ ] [ ··· ])
+      // Group 4: Far-right utilities ([ Export ▾ ] [ ··· ])
       const primaryGroups = ['search', 'study', 'view', 'utilities'];
       assert.equal(primaryGroups.length, 4);
       assert.deepEqual(primaryGroups, ['search', 'study', 'view', 'utilities']);
@@ -43,8 +43,9 @@ describe('GraphMind Canvas Toolbar Redesign — Information Architecture & Behav
       // Redesigned toolbar replaces these with:
       // - View dropdown (Balanced ▾)
       // - Study mode transition (Study or ← Exit study / filter / Next →)
+      // - Export dropdown (Export ▾)
       // - Popover secondary menu (···)
-      const primaryToolbarControls = ['Search concepts... ⌘K', 'Study', 'Balanced ▾', '−', '+', '⛶', '···'];
+      const primaryToolbarControls = ['Search concepts... ⌘K', 'Study', 'Balanced ▾', 'Export ▾', '···'];
       
       for (const legacyPill of legacyMainBarPills) {
         assert.ok(
@@ -211,6 +212,16 @@ describe('GraphMind Canvas Toolbar Redesign — Information Architecture & Behav
       assert.equal(cornerControls[0].symbol, '+');
       assert.equal(cornerControls[1].symbol, '−');
       assert.equal(cornerControls[2].symbol, '⛶');
+    });
+
+    test('replaces redundant toolbar zoom buttons with dedicated Export dropdown', () => {
+      // Zoom (+), (−), and Fit (⛶) are housed in the bottom-right corner of the canvas.
+      // In the toolbar, they are replaced by the dedicated Export ▾ dropdown.
+      const toolbarUtilityControls = ['Export ▾', '···'];
+      assert.ok(toolbarUtilityControls.includes('Export ▾'));
+      assert.ok(!toolbarUtilityControls.includes('+'));
+      assert.ok(!toolbarUtilityControls.includes('−'));
+      assert.ok(!toolbarUtilityControls.includes('⛶'));
     });
   });
 

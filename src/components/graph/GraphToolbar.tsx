@@ -1,16 +1,13 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Search, 
-  Maximize, 
-  RotateCcw, 
-  Plus, 
-  Minus,
   ChevronDown,
   ArrowLeft,
   ArrowRight,
   MoreHorizontal,
   ImageIcon,
-  FileJson
+  FileJson,
+  Download
 } from 'lucide-react';
 import type { SearchResultItem, GraphDensityMode, StudyFilterMode } from '../../types/graph';
 
@@ -18,8 +15,8 @@ export interface GraphToolbarProps {
   onSearchSelect: (nodeId: string) => void;
   onFitView: () => void;
   onResetView: () => void;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
   availableNodes: SearchResultItem[];
   onExportImage: () => void;
   onExportJson: () => void;
@@ -40,8 +37,8 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   onSearchSelect,
   onFitView,
   onResetView,
-  onZoomIn,
-  onZoomOut,
+  onZoomIn: _onZoomIn,
+  onZoomOut: _onZoomOut,
   availableNodes,
   onExportImage,
   onExportJson,
@@ -61,6 +58,7 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isStudyFilterMenuOpen, setIsStudyFilterMenuOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -68,6 +66,7 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   const searchRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const viewMenuRef = useRef<HTMLDivElement>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const studyFilterRef = useRef<HTMLDivElement>(null);
 
@@ -100,6 +99,9 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
       }
       if (viewMenuRef.current && !viewMenuRef.current.contains(target)) {
         setIsViewMenuOpen(false);
+      }
+      if (exportMenuRef.current && !exportMenuRef.current.contains(target)) {
+        setIsExportMenuOpen(false);
       }
       if (moreMenuRef.current && !moreMenuRef.current.contains(target)) {
         setIsMoreMenuOpen(false);
@@ -327,6 +329,7 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
                 setIsStudyFilterMenuOpen(prev => !prev);
                 setIsViewMenuOpen(false);
                 setIsMoreMenuOpen(false);
+                setIsExportMenuOpen(false);
               }}
               title="Filter study concepts"
               aria-label="Study filter"
@@ -436,6 +439,7 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
             setIsViewMenuOpen(prev => !prev);
             setIsMoreMenuOpen(false);
             setIsStudyFilterMenuOpen(false);
+            setIsExportMenuOpen(false);
           }}
           title={`Graph density: ${viewModeLabel}`}
           aria-label="View mode"
@@ -473,39 +477,65 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
 
       <div className="toolbar-vertical-divider" />
 
-      {/* 4. UTILITY CONTROLS: [ − ] [ + ] [ ⛶ ] [ ··· ] (Section 1 & 5) */}
+      {/* 4. UTILITY & EXPORT CONTROLS: [ Export ▾ ] [ ··· ] */}
       <div className="toolbar-utility-group">
-        <button
-          type="button"
-          className="toolbar-icon-btn toolbar-zoom-btn"
-          onClick={onZoomOut}
-          title="Zoom out"
-          aria-label="Zoom out"
-        >
-          <Minus size={13} aria-hidden="true" />
-        </button>
+        {/* Export Dropdown (Replaces redundant - + ⛶ which are positioned in the bottom-right corner) */}
+        <div className="toolbar-dropdown-wrap" ref={exportMenuRef}>
+          <button
+            type="button"
+            className={`toolbar-text-btn toolbar-export-trigger ${isExportMenuOpen ? 'active' : ''}`}
+            onClick={() => {
+              setIsExportMenuOpen(prev => !prev);
+              setIsViewMenuOpen(false);
+              setIsStudyFilterMenuOpen(false);
+              setIsMoreMenuOpen(false);
+            }}
+            title="Export options"
+            aria-label="Export options"
+            aria-haspopup="menu"
+            aria-expanded={isExportMenuOpen}
+            disabled={isExporting}
+          >
+            <Download size={13} className="toolbar-export-icon" aria-hidden="true" />
+            <span className="toolbar-btn-text">{isExporting ? 'Exporting…' : 'Export'}</span>
+            <ChevronDown size={11} className={`toolbar-chevron ${isExportMenuOpen ? 'open' : ''}`} aria-hidden="true" />
+          </button>
 
-        <button
-          type="button"
-          className="toolbar-icon-btn toolbar-zoom-btn"
-          onClick={onZoomIn}
-          title="Zoom in"
-          aria-label="Zoom in"
-        >
-          <Plus size={13} aria-hidden="true" />
-        </button>
+          {isExportMenuOpen && (
+            <div className="toolbar-menu-popover export-menu-popover" role="menu">
+              <button
+                type="button"
+                className="toolbar-menu-item"
+                onClick={() => {
+                  setIsExportMenuOpen(false);
+                  onExportImage();
+                }}
+                role="menuitem"
+                disabled={isExporting}
+              >
+                <span className="menu-item-left">
+                  <ImageIcon size={12} className="menu-item-sub-icon" aria-hidden="true" />
+                  <span className="menu-item-label">{isExporting ? 'Exporting image…' : 'Export image (PNG)'}</span>
+                </span>
+              </button>
 
-        <button
-          type="button"
-          className="toolbar-icon-btn toolbar-zoom-btn"
-          onClick={onFitView}
-          title="Fit graph"
-          aria-label="Fit graph"
-        >
-          <Maximize size={13} aria-hidden="true" />
-        </button>
-
-        <div className="toolbar-vertical-divider toolbar-more-divider" />
+              <button
+                type="button"
+                className="toolbar-menu-item"
+                onClick={() => {
+                  setIsExportMenuOpen(false);
+                  onExportJson();
+                }}
+                role="menuitem"
+              >
+                <span className="menu-item-left">
+                  <FileJson size={12} className="menu-item-sub-icon" aria-hidden="true" />
+                  <span className="menu-item-label">Export JSON</span>
+                </span>
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* 5. SECONDARY MENU (Section 5: ··· opens minimal menu with View, Fit, Reset, Export) */}
         <div className="toolbar-dropdown-wrap" ref={moreMenuRef}>
@@ -516,6 +546,7 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
               setIsMoreMenuOpen(prev => !prev);
               setIsViewMenuOpen(false);
               setIsStudyFilterMenuOpen(false);
+              setIsExportMenuOpen(false);
             }}
             title="More canvas actions"
             aria-label="More actions"

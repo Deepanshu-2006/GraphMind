@@ -829,6 +829,32 @@
   margin: 0 4px;
 }
 
+/* Export Dropdown in Toolbar (Replacing redundant zoom controls) */
+.toolbar-export-trigger {
+  color: #8A8A8A;
+}
+
+.toolbar-export-trigger:hover,
+.toolbar-export-trigger.active {
+  color: #E8E8E8;
+}
+
+.toolbar-export-icon {
+  color: #5E5E5E;
+  transition: color 140ms ease;
+  flex-shrink: 0;
+}
+
+.toolbar-export-trigger:hover .toolbar-export-icon,
+.toolbar-export-trigger.active .toolbar-export-icon {
+  color: #E8E8E8;
+}
+
+.export-menu-popover {
+  left: 0;
+  min-width: 165px;
+}
+
 /* Section 7: Subtle Canvas Corner Navigation Controls (Bottom-Right) */
 .canvas-corner-controls {
   position: absolute;
