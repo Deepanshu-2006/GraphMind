@@ -1754,49 +1754,157 @@
    - Graph-grounded navigation
    ================================================== */
 
-/* Learn Panel: Secondary TEST YOURSELF CTA */
-.study-practice-cta-section {
-  border-top: 1px solid #1E1E1E;
-  padding-top: 14px;
-  margin-top: 2px;
+/* ==================================================
+   EDITORIAL CONCEPT PANEL LEARNING ACTIONS (POLISH)
+   - Dedicated action area at bottom of Learn panel
+   - Primary: TEST YOURSELF
+   - Secondary: REVIEW THIS CONCEPT
+   - Subtle divider, micro-interactions, underline draw
+   ================================================== */
+.concept-panel-actions-area {
+  margin-top: 18px;
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }
 
-.study-practice-cta-btn {
+.concept-panel-actions-divider {
+  width: 100%;
+  height: 1px;
+  background-color: #1A1D1A;
+  margin-bottom: 8px;
+}
+
+.concept-panel-actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+.editorial-action-row {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 9px 12px;
-  background-color: #111111;
-  border: 1px solid #202020;
-  border-radius: 6px;
-  color: #A0A0A0;
-  font-size: 11px;
+  padding: 9px 4px 9px 4px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+  outline: none;
+  user-select: none;
+}
+
+.editorial-action-row:focus-visible {
+  outline: 1px solid #A3FF12;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.action-row-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Primary Action: TEST YOURSELF */
+.editorial-action-row.action-primary .action-row-title {
+  color: #F0F2EE;
+  font-size: 12.5px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  cursor: pointer;
-  transition: all 160ms ease;
-  box-sizing: border-box;
+  transition: color 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.study-practice-cta-btn:hover {
-  background-color: #151814;
-  border-color: #2C3822;
-  color: #F5F5F5;
+.action-primary-indicator {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: rgba(163, 255, 18, 0.45);
+  transition: background-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
 }
 
-.study-practice-cta-btn:hover .practice-cta-arrow {
+.editorial-action-row.action-primary:hover .action-primary-indicator {
+  background-color: #A3FF12;
+  box-shadow: 0 0 6px rgba(163, 255, 18, 0.6);
+  transform: scale(1.25);
+}
+
+.editorial-action-row.action-primary:hover .action-row-title {
+  color: #FFFFFF;
+}
+
+/* Secondary Action: REVIEW THIS CONCEPT */
+.editorial-action-row.action-secondary {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.editorial-action-row.action-secondary .action-row-title {
+  color: #8E928C;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  transition: color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.editorial-action-row.action-secondary:hover .action-row-title {
+  color: #E2E5E0;
+}
+
+/* Directional Arrow: far right, shifts 3px right and 3px up on hover */
+.action-row-arrow {
+  color: #6C726A;
+  flex-shrink: 0;
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+              color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.editorial-action-row.action-primary:hover .action-row-arrow {
   color: #A3FF12;
-  transform: translateX(2px);
+  transform: translate(3px, -3px);
 }
 
-.practice-cta-text {
-  text-transform: uppercase;
+.editorial-action-row.action-secondary:hover .action-row-arrow {
+  color: #E2E5E0;
+  transform: translate(3px, -3px);
 }
 
-.practice-cta-arrow {
-  color: #7A8077;
-  transition: transform 160ms ease, color 160ms ease;
+/* Thin Animated Underline (Requirement 7 & 8) */
+.action-row-underline {
+  position: absolute;
+  bottom: 0;
+  left: 4px;
+  right: 4px;
+  height: 1px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.primary-underline {
+  background-color: #A3FF12;
+  opacity: 0.85;
+}
+
+.secondary-underline {
+  background-color: #383E36;
+  opacity: 0.9;
+}
+
+.editorial-action-row:hover .action-row-underline {
+  transform: scaleX(1);
 }
 
 /* Practice Panel Content */
@@ -3101,37 +3209,7 @@
   width: 100%;
 }
 
-.study-revise-cta-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  width: 100%;
-  padding: 8px 12px;
-  background-color: #111510;
-  border: 1px solid #222E1A;
-  border-radius: 6px;
-  color: #A3FF12;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  transition: all 150ms ease;
-  margin-top: 6px;
-  font-family: inherit;
-  box-sizing: border-box;
-}
 
-.study-revise-cta-btn:hover {
-  background-color: #172115;
-  border-color: #A3FF12;
-  color: #BAFF33;
-}
-
-.study-revise-cta-btn:focus-visible {
-  outline: 2px solid #A3FF12;
-  outline-offset: 1px;
-}
 
 /* ==================================================
    15. EMPTY, LOADING, & CRAFTING STATES (Prompt 8)

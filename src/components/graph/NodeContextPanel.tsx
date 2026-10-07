@@ -985,39 +985,62 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
                 </section>
               )}
 
-              {/* SECONDARY ACTION: TEST YOURSELF / REVIEW AGAIN → (Phase 4 Functional Active Recall) */}
-              <div className="study-practice-cta-section">
-                <button
-                  type="button"
-                  className="study-practice-cta-btn"
-                  onClick={() => {
-                    setPanelMode('recall');
-                    onToggleTestMode?.(true);
-                  }}
-                  title={concept!.practiceStatus === 'needs-review' ? `Review ${canonicalName} again` : `Test yourself on ${canonicalName}`}
-                  aria-label={concept!.practiceStatus === 'needs-review' ? `Review ${canonicalName} again` : `Test yourself on ${canonicalName}`}
-                >
-                  <span className="practice-cta-text">
-                    {concept!.practiceStatus === 'needs-review' ? 'REVIEW AGAIN' : 'TEST YOURSELF'}
-                  </span>
-                  <ArrowRight size={13} className="practice-cta-arrow" />
-                </button>
+              {/* EDITORIAL LEARNING ACTIONS AREA (Polish: Test Yourself & Review This Concept) */}
+              <motion.div
+                className="concept-panel-actions-area"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.26, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <div className="concept-panel-actions-divider" aria-hidden="true" />
 
-                {onToggleRevisionMode && (
-                  <button
+                <div className="concept-panel-actions-stack">
+                  {/* PRIMARY ACTION: TEST YOURSELF */}
+                  <motion.button
                     type="button"
-                    className="study-revise-cta-btn"
+                    className="editorial-action-row action-primary"
+                    whileTap={{ scale: 0.99 }}
+                    transition={{ duration: 0.12 }}
                     onClick={() => {
-                      onToggleRevisionMode(true);
-                      setPanelMode('revision');
+                      setPanelMode('recall');
+                      onToggleTestMode?.(true);
                     }}
-                    title="Enter exam revision mode"
+                    title={concept!.practiceStatus === 'needs-review' ? `Review ${canonicalName} again` : `Test yourself on ${canonicalName}`}
+                    aria-label={concept!.practiceStatus === 'needs-review' ? `Review ${canonicalName} again` : `Test yourself on ${canonicalName}`}
                   >
-                    <span>REVISION</span>
-                    <ArrowRight size={11} />
-                  </button>
-                )}
-              </div>
+                    <div className="action-row-content">
+                      <span className="action-primary-indicator" aria-hidden="true" />
+                      <span className="action-row-title">
+                        {concept!.practiceStatus === 'needs-review' ? 'REVIEW AGAIN' : 'TEST YOURSELF'}
+                      </span>
+                    </div>
+                    <ArrowUpRight size={13} className="action-row-arrow" aria-hidden="true" />
+                    <span className="action-row-underline primary-underline" aria-hidden="true" />
+                  </motion.button>
+
+                  {/* SECONDARY ACTION: REVIEW THIS CONCEPT */}
+                  {onToggleRevisionMode && (
+                    <motion.button
+                      type="button"
+                      className="editorial-action-row action-secondary"
+                      whileTap={{ scale: 0.99 }}
+                      transition={{ duration: 0.12 }}
+                      onClick={() => {
+                        onToggleRevisionMode(true);
+                        setPanelMode('revision');
+                      }}
+                      title={`Review connected curriculum around ${canonicalName}`}
+                      aria-label="Review this concept in revision mode"
+                    >
+                      <div className="action-row-content">
+                        <span className="action-row-title">REVIEW THIS CONCEPT</span>
+                      </div>
+                      <ArrowUpRight size={13} className="action-row-arrow" aria-hidden="true" />
+                      <span className="action-row-underline secondary-underline" aria-hidden="true" />
+                    </motion.button>
+                  )}
+                </div>
+              </motion.div>
             </motion.div>
           ) : (
             /* ==========================================================
