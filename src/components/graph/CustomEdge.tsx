@@ -27,11 +27,15 @@ export const CustomEdge = memo(({
 
   const [isHovered, setIsHovered] = useState(false);
   const edgeData = data as Record<string, unknown> | undefined;
-  const isHighlighted = Boolean(selected || edgeData?.isHighlighted || edgeData?.highlighted || edgeData?.selected);
+  const isTestConcealed = Boolean(edgeData?.isTestConcealed);
+  const isTestMaterializing = Boolean(edgeData?.isTestMaterializing);
+  const isTestActive = Boolean(edgeData?.isTestActive);
 
-  // Prevent text overlap: Only render edge label badges when actively selected/highlighted or hovered.
-  // Never render 40 unselected badges across the whole canvas.
-  const shouldRenderLabel = Boolean(label) && (isHighlighted || isHovered);
+  const isHighlighted = Boolean(selected || edgeData?.isHighlighted || edgeData?.highlighted || edgeData?.selected || isTestActive || isTestMaterializing);
+
+  // Prevent text overlap: Only render edge label badges when actively selected/highlighted, hovered, or active in test.
+  const displayLabel = isTestConcealed ? '[ ? ]' : label;
+  const shouldRenderLabel = Boolean(displayLabel) && (isHighlighted || isHovered || isTestConcealed);
 
   return (
     <>
@@ -40,11 +44,12 @@ export const CustomEdge = memo(({
         path={edgePath}
         markerEnd={markerEnd}
         interactionWidth={20}
+        className={isTestMaterializing ? 'test-edge-materializing' : undefined}
         style={{
           stroke: isHighlighted ? '#A3FF12' : 'rgba(255, 255, 255, 0.12)',
-          strokeWidth: isHighlighted ? 1.5 : 1,
+          strokeWidth: isTestMaterializing ? 2 : isHighlighted ? 1.5 : 1,
           opacity: isHighlighted ? 1 : 0.85,
-          transition: 'stroke 180ms ease, stroke-width 180ms ease, opacity 180ms ease',
+          transition: 'stroke 220ms ease, stroke-width 220ms ease, opacity 220ms ease',
           ...style,
         }}
       />
@@ -73,7 +78,7 @@ export const CustomEdge = memo(({
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
-            {label}
+            {displayLabel}
           </div>
         </EdgeLabelRenderer>
       )}

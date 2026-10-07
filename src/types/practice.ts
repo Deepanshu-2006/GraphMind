@@ -91,7 +91,34 @@ export type ActiveRecallPattern =
   | 'definition'
   | 'explanation'
   | 'relationship'
-  | 'connection';
+  | 'connection'
+  | 'concept-understanding'
+  | 'fill-connection'
+  | 'two-concept'
+  | 'source-based';
+
+export type ActiveRecallQuestionType =
+  | 'concept-understanding'
+  | 'relationship'
+  | 'connection'
+  | 'fill-connection'
+  | 'two-concept'
+  | 'source-based';
+
+export interface ActiveRecallOption {
+  id: string;
+  label: string;
+  isCorrect: boolean;
+  conceptId?: string;
+  conceptName?: string;
+}
+
+export interface ActiveRecallDiagram {
+  sourceName: string;
+  relationshipLabel: string;
+  targetPlaceholder: string;
+  targetMystery?: boolean;
+}
 
 export interface ActiveRecallQuestion {
   id: string;
@@ -107,9 +134,47 @@ export interface ActiveRecallQuestion {
   relatedConceptId?: string;
   relatedConceptName?: string;
   relationshipType?: string;
+  relationshipDescription?: string;
+
+  // Active Recall Test Mode Extensions
+  questionType?: ActiveRecallQuestionType;
+  conceptIds?: string[];
+  relationshipIds?: string[];
+  diagram?: ActiveRecallDiagram;
+  options?: ActiveRecallOption[];
+  correctOptionId?: string;
+  sourceEvidence?: string;
+  sourceIds?: string[];
+  sourceChunkIds?: string[];
+  concealedNodeId?: string;
+  concealedEdgeId?: string;
+  concealType?: 'node' | 'relationship-label' | 'description';
 }
 
 export type ActiveRecallPrompt = ActiveRecallQuestion;
+
+export interface ActiveRecallTestAnswer {
+  selectedOptionId: string;
+  isCorrect: boolean;
+  isRevealed: boolean;
+  attempts: number;
+}
+
+export interface MissedConceptSummary {
+  conceptId: string;
+  conceptName: string;
+  relationshipLabel?: string;
+  sourceName?: string;
+}
+
+export interface ActiveRecallTestSession {
+  focusConceptId?: string;
+  questions: ActiveRecallQuestion[];
+  currentIndex: number;
+  answers: Record<string, ActiveRecallTestAnswer>;
+  missedConcepts: MissedConceptSummary[];
+  isCompleted: boolean;
+}
 
 /**
  * In-memory study session state for Active Recall (Phase 4 Section 12)

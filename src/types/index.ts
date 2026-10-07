@@ -1,6 +1,33 @@
 import type { KnowledgeNode } from './knowledgeGraph';
 export * from './graph';
 
+export interface Concept {
+  id: string;
+  name: string;
+  category?: string;
+  description?: string;
+  sourceEvidence?: string;
+  sourceIds?: string[];
+  sourceChunkIds?: string[];
+  isCore?: boolean;
+  label?: string;
+}
+
+export interface Relationship {
+  id: string;
+  sourceId?: string;
+  targetId?: string;
+  source?: string;
+  target?: string;
+  type?: string;
+  predicate?: string;
+  label?: string;
+  description?: string;
+  sourceEvidence?: string;
+  sourceIds?: string[];
+  sourceChunkIds?: string[];
+}
+
 export type NavSection = 'overview' | 'graph' | 'paths' | 'sources' | 'settings';
 
 export interface ConceptConnection {

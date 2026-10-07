@@ -34,7 +34,7 @@ import type {
   GraphDensityMode, 
   ZoomDisclosureLevel 
 } from '../../types/graph';
-import type { PracticeStatus, ConceptPracticeState, StudyFilterMode, RevisionPathStep } from '../../types/practice';
+import type { PracticeStatus, ConceptPracticeState, StudyFilterMode, RevisionPathStep, ActiveRecallQuestion } from '../../types/practice';
 import { loadConceptPracticeStates, updateConceptPracticeState, recordConceptStudy } from '../../services/storage';
 import type { PipelineStage, PipelineProgressEvent } from '../../services/pipelineOrchestrator';
 import { exportKnowledgeGraphJson, exportKnowledgeGraphPng } from '../../services/graphExport';
@@ -323,6 +323,31 @@ function FlowCanvas({
   const [revisionIndex, setRevisionIndex] = useState<number>(0);
   const [revisionVisitedIds, setRevisionVisitedIds] = useState<Set<string>>(new Set());
 
+  // Active Recall Dynamic Graph Testing State (Phase 4 Polish)
+  const [testActiveQuestion, setTestActiveQuestion] = useState<ActiveRecallQuestion | null>(null);
+  const [testConcealedNodeId, setTestConcealedNodeId] = useState<string | null>(null);
+  const [testMaterializingNodeId, setTestMaterializingNodeId] = useState<string | null>(null);
+  const [testProgress, setTestProgress] = useState<{ current: number; total: number } | null>(null);
+
+  const handleTestStateUpdate = useCallback((state: {
+    activeQuestion: ActiveRecallQuestion | null;
+    concealedNodeId: string | null;
+    isMaterializing: boolean;
+    progress: { current: number; total: number } | null;
+  }) => {
+    setTestActiveQuestion(state.activeQuestion);
+    setTestConcealedNodeId(state.concealedNodeId);
+    setTestProgress(state.progress);
+    if (state.isMaterializing && state.activeQuestion?.concealedNodeId) {
+      setTestMaterializingNodeId(state.activeQuestion.concealedNodeId);
+      setTimeout(() => {
+        setTestMaterializingNodeId(null);
+      }, 700);
+    } else {
+      setTestMaterializingNodeId(null);
+    }
+  }, []);
+
   // Intelligent Graph Viewport Presentation: computes visible subset, visibility states & exploration depths
   const viewportResult = useMemo(() => {
     if (mode !== 'interactive') return null;
@@ -360,10 +385,70 @@ function FlowCanvas({
   // Sync state whenever viewport presentation changes in interactive mode
   useEffect(() => {
     if (mode === 'interactive' && viewportResult) {
-      setNodes(viewportResult.visibleNodes);
-      setEdges(viewportResult.visibleEdges);
+      if (!isTestMode) {
+        setNodes(viewportResult.visibleNodes);
+        setEdges(viewportResult.visibleEdges);
+        return;
+      }
+
+      // Test Mode Active: Conceal tested concept/relationship, dim unrelated nodes
+      const activeConceptId = testActiveQuestion?.conceptId || selectedNodeId;
+      const targetConceptId = testActiveQuestion?.relatedConceptId || testConcealedNodeId;
+
+      const styledNodes = viewportResult.visibleNodes.map(node => {
+        const isConcealed = Boolean(testConcealedNodeId && node.id === testConcealedNodeId);
+        const isMaterializing = Boolean(testMaterializingNodeId && node.id === testMaterializingNodeId);
+        const isFocus = node.id === activeConceptId || node.id === targetConceptId;
+        const isNeighbor = activeConceptId && (
+          (node.data as any)?.directConnections?.some((c: any) => c.targetId === activeConceptId) ||
+          (node.data as any)?.relationships?.some((r: any) => r.targetId === activeConceptId)
+        );
+
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            isTestConcealed: isConcealed,
+            isTestMaterializing: isMaterializing,
+            highlighted: isFocus || Boolean(isNeighbor),
+            dimmed: !isFocus && !isNeighbor
+          }
+        };
+      });
+
+      const styledEdges = viewportResult.visibleEdges.map(edge => {
+        const isIncident = (edge.source === activeConceptId && edge.target === targetConceptId) ||
+                           (edge.target === activeConceptId && edge.source === targetConceptId);
+        return {
+          ...edge,
+          data: {
+            ...edge.data,
+            isTestActive: isIncident,
+            isTestConcealed: isIncident && Boolean(testConcealedNodeId),
+            isTestMaterializing: isIncident && Boolean(testMaterializingNodeId)
+          },
+          style: {
+            ...edge.style,
+            opacity: isIncident ? 1 : 0.08,
+            stroke: isIncident ? '#A3FF12' : edge.style?.stroke
+          }
+        };
+      });
+
+      setNodes(styledNodes);
+      setEdges(styledEdges);
     }
-  }, [mode, viewportResult, setNodes, setEdges]);
+  }, [
+    mode,
+    viewportResult,
+    isTestMode,
+    testConcealedNodeId,
+    testMaterializingNodeId,
+    testActiveQuestion,
+    selectedNodeId,
+    setNodes,
+    setEdges
+  ]);
 
   // Viewport zoom tracker for progressive detail disclosure (simplified, standard, detailed)
   const handleViewportMove = useCallback((_: unknown, viewport: { zoom: number }) => {
@@ -1432,6 +1517,8 @@ function FlowCanvas({
         selectedConceptLabel={activeConceptData?.label || activeConceptData?.name || null}
         isTestMode={isTestMode}
         onToggleTestMode={() => handleToggleTestMode()}
+        testProgress={testProgress}
+        onNextTestQuestion={handleNextRecallConcept}
         isRevisionMode={isRevisionMode}
         onToggleRevisionMode={() => handleToggleRevisionMode()}
         revisionProgress={revisionProgress}
@@ -1667,6 +1754,7 @@ function FlowCanvas({
             }}
             isTestMode={isTestMode}
             onToggleTestMode={handleToggleTestMode}
+            onTestStateUpdate={handleTestStateUpdate}
             onRecordSessionRecalled={handleRecordSessionRecalled}
             onRecordSessionReview={handleRecordSessionReview}
             onNextConcept={isRevisionMode ? handleNextRevisionConcept : handleNextRecallConcept}

@@ -38,6 +38,8 @@ export interface GraphToolbarProps {
   onToggleFullscreen?: () => void;
   isTestMode?: boolean;
   onToggleTestMode?: () => void;
+  testProgress?: { current: number; total: number } | null;
+  onNextTestQuestion?: () => void;
   // Phase 5: Revision Mode
   isRevisionMode?: boolean;
   onToggleRevisionMode?: () => void;
@@ -72,6 +74,8 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   onToggleFullscreen,
   isTestMode = false,
   onToggleTestMode,
+  testProgress,
+  onNextTestQuestion,
   isRevisionMode = false,
   onToggleRevisionMode,
   revisionProgress,
@@ -695,7 +699,35 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
                 </>
               )}
 
-              {!isRevisionMode && (
+              {/* If Test Mode is active: subtle editorial progress (e.g. TEST 01 / 05 NEXT →) (Requirement 20) */}
+              {isTestMode && testProgress && (
+                <>
+                  <motion.div 
+                    className="toolbar-vertical-divider" 
+                    variants={shouldReduceMotion ? reducedDividerVariants : dividerVariants} 
+                  />
+                  <div className="toolbar-test-nav" aria-label="Test progression">
+                    <span className="toolbar-test-badge">TEST</span>
+                    <span className="toolbar-test-counter" aria-live="polite">
+                      {String(testProgress.current).padStart(2, '0')} / {String(testProgress.total).padStart(2, '0')}
+                    </span>
+                    {onNextTestQuestion && (
+                      <button
+                        type="button"
+                        className="toolbar-text-btn toolbar-test-next-btn"
+                        onClick={onNextTestQuestion}
+                        title="Next test question"
+                        aria-label="Next test question"
+                      >
+                        <span>NEXT</span>
+                        <ArrowRight size={11} />
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {!isRevisionMode && !isTestMode && (
                 <>
                   <motion.div 
                     className="toolbar-vertical-divider" 

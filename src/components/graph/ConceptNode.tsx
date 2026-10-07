@@ -18,6 +18,10 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
   const isRevisionPathVisited = Boolean(concept.isRevisionPathVisited);
   const isRevisionActive = Boolean(concept.isRevisionActive);
 
+  const isTestConcealed = Boolean((concept as any).isTestConcealed);
+  const isTestMaterializing = Boolean((concept as any).isTestMaterializing);
+  const isTestConcealDesc = Boolean((concept as any).isTestConcealDesc);
+
   const nodeClasses = [
     'knowledge-node-card',
     isCore ? 'core-concept' : 'supporting-concept',
@@ -29,6 +33,8 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
     isRevisionCurrent ? 'revision-current' : '',
     isRevisionPathVisited ? 'revision-visited' : '',
     isRevisionActive ? 'revision-active' : '',
+    isTestConcealed ? 'node-testing-concealed' : '',
+    isTestMaterializing ? 'test-node-materializing' : '',
     isSelected ? 'selected' : '',
     concept.highlighted ? 'highlighted' : '',
     concept.dimmed ? 'dimmed' : '',
@@ -123,16 +129,27 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
         />
       </div>
 
-      {/* 2. Concept name row: Visual focal point */}
-      <div className="node-card-name-row">
-        <span className="node-card-name" title={concept.label}>{concept.label}</span>
-      </div>
+      {/* 2. Concept name row: Visual focal point (or mystery placeholder if test concealed) */}
+      {isTestConcealed ? (
+        <div className="node-card-concealed-placeholder" aria-label="Mystery concept to be tested">
+          <div className="concealed-mystery-badge">
+            <span className="concealed-question-mark">?</span>
+          </div>
+          <span className="concealed-mystery-text">[ ? ]</span>
+        </div>
+      ) : (
+        <>
+          <div className="node-card-name-row">
+            <span className="node-card-name" title={concept.label}>{concept.label}</span>
+          </div>
 
-      {/* 3. Description: Supports concept without competing */}
-      {concept.description && (
-        <p className="node-card-brief" title={concept.description}>
-          {concept.description}
-        </p>
+          {/* 3. Description: Supports concept without competing */}
+          {concept.description && !isTestConcealDesc && (
+            <p className="node-card-brief" title={concept.description}>
+              {concept.description}
+            </p>
+          )}
+        </>
       )}
     </div>
   );
