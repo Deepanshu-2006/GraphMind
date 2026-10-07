@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { 
   Search, 
   ChevronDown,
@@ -62,6 +63,9 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isStudyFilterMenuOpen, setIsStudyFilterMenuOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isTransitionSettled, setIsTransitionSettled] = useState(true);
+
+  const shouldReduceMotion = useReducedMotion();
 
   const searchRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -69,6 +73,100 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const studyFilterRef = useRef<HTMLDivElement>(null);
+
+  // Transition settled tracking for unclipped dropdown popovers
+  useEffect(() => {
+    setIsTransitionSettled(false);
+    const timer = setTimeout(() => {
+      setIsTransitionSettled(true);
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [isStudyPanelOpen]);
+
+  // Spring transition: stiffness: 420, damping: 32, mass: 0.7 (Section 3 & 14: restrained, no bounce)
+  const toolbarSpringTransition = useMemo(() => {
+    if (shouldReduceMotion) return { duration: 0.1 };
+    return {
+      type: 'spring',
+      stiffness: 420,
+      damping: 32,
+      mass: 0.7
+    } as const;
+  }, [shouldReduceMotion]);
+
+  const stripVariants = useMemo(() => ({
+    hidden: {
+      opacity: 0,
+      transition: {
+        when: 'afterChildren',
+        staggerChildren: 0.045,
+        staggerDirection: -1
+      }
+    },
+    visible: {
+      opacity: 1,
+      transition: {
+        when: 'beforeChildren',
+        staggerChildren: 0.05,
+        staggerDirection: 1
+      }
+    }
+  }), []);
+
+  const itemVariants = useMemo(() => ({
+    hidden: {
+      opacity: 0,
+      x: -8,
+      scale: 0.97,
+      transition: {
+        duration: 0.24,
+        ease: [0.22, 1, 0.36, 1]
+      }
+    },
+    visible: {
+      opacity: 1,
+      x: 0,
+      scale: 1,
+      transition: {
+        duration: 0.3,
+        ease: [0.22, 1, 0.36, 1]
+      }
+    }
+  }), []);
+
+  const dividerVariants = useMemo(() => ({
+    hidden: {
+      opacity: 0,
+      scaleY: 0.5,
+      transition: {
+        duration: 0.18,
+        ease: [0.22, 1, 0.36, 1]
+      }
+    },
+    visible: {
+      opacity: 1,
+      scaleY: 1,
+      transition: {
+        duration: 0.22,
+        ease: [0.22, 1, 0.36, 1]
+      }
+    }
+  }), []);
+
+  const reducedStripVariants = useMemo(() => ({
+    hidden: { opacity: 0, transition: { duration: 0.1 } },
+    visible: { opacity: 1, transition: { duration: 0.1 } }
+  }), []);
+
+  const reducedItemVariants = useMemo(() => ({
+    hidden: { opacity: 0, transition: { duration: 0.1 } },
+    visible: { opacity: 1, transition: { duration: 0.1 } }
+  }), []);
+
+  const reducedDividerVariants = useMemo(() => ({
+    hidden: { opacity: 0, transition: { duration: 0.1 } },
+    visible: { opacity: 1, transition: { duration: 0.1 } }
+  }), []);
 
   const filteredSearchResults = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -176,7 +274,13 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
   };
 
   return (
-    <div className="canvas-floating-toolbar" role="toolbar" aria-label="Graph controls">
+    <motion.div 
+      layout="size"
+      transition={{ layout: toolbarSpringTransition }}
+      className={`canvas-floating-toolbar ${isStudyPanelOpen ? 'in-study-mode' : ''}`} 
+      role="toolbar" 
+      aria-label="Graph controls"
+    >
       {/* 1. PRIMARY SEARCH CONTROL (Same as topbar searchbar) */}
       <div 
         className={`topbar-search-control floating-search-wrap ${isSearchFocused ? 'focused' : ''} ${searchQuery.trim() ? 'has-query' : ''}`}
@@ -288,150 +392,208 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
 
       <div className="toolbar-vertical-divider" />
 
-      {/* 2. STUDY ACTION OR STUDY MODE (Section 3: Study as a mode, not a filter pill) */}
-      {!isStudyPanelOpen ? (
-        <button
+      {/* 2. STUDY ACTION OR STUDY MODE (Sections 1-7, 10, 12: Continuous Unfolding Transformation) */}
+      <div className="toolbar-study-transform-wrap" role="region" aria-label="Study mode controls">
+        {/* Subtle travelling green signal beam on activation (Section 7) */}
+        {isStudyPanelOpen && !shouldReduceMotion && (
+          <motion.div
+            key="study-signal-beam"
+            className="study-signal-beam"
+            initial={{ scaleX: 0, opacity: 0.85, originX: 0 }}
+            animate={{ scaleX: 1, opacity: [0.85, 0.85, 0] }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            aria-hidden="true"
+          />
+        )}
+
+        {/* Anchor button: Morphs between "Study" and "← Exit study" (Section 3) */}
+        <motion.button
+          layout="position"
           type="button"
-          className="toolbar-text-btn toolbar-study-trigger"
-          onClick={onToggleStudyPanel}
-          title={selectedConceptLabel ? `Study ${selectedConceptLabel}` : 'Enter study mode'}
-          aria-label="Study mode"
+          className={`toolbar-text-btn ${isStudyPanelOpen ? 'study-exit-btn active' : 'toolbar-study-trigger'}`}
+          onClick={() => {
+            setIsViewMenuOpen(false);
+            setIsMoreMenuOpen(false);
+            setIsStudyFilterMenuOpen(false);
+            setIsExportMenuOpen(false);
+            onToggleStudyPanel?.();
+          }}
+          title={isStudyPanelOpen ? "Exit study mode" : (selectedConceptLabel ? `Study ${selectedConceptLabel}` : 'Enter study mode')}
+          aria-label={isStudyPanelOpen ? "Exit study mode" : "Study mode"}
+          transition={shouldReduceMotion ? { duration: 0.1 } : { layout: toolbarSpringTransition }}
         >
-          <span className="toolbar-btn-text">Study</span>
-          {needsReviewCount > 0 && (
-            <span className="toolbar-review-counter" title={`${needsReviewCount} concepts need review`}>
-              {needsReviewCount}
-            </span>
-          )}
-        </button>
-      ) : (
-        /* Active Study Mode: ← Exit study | Filter selector | Next → */
-        <div className="toolbar-study-mode-container" role="region" aria-label="Study mode controls">
-          <button
-            type="button"
-            className="toolbar-text-btn study-exit-btn"
-            onClick={onToggleStudyPanel}
-            title="Exit study mode"
-            aria-label="Exit study mode"
-          >
-            <ArrowLeft size={12} className="study-exit-icon" aria-hidden="true" />
-            <span className="toolbar-btn-text">Exit study</span>
-          </button>
-
-          <div className="toolbar-vertical-divider" />
-
-          {/* Contextual Study Filter dropdown (Section 6) */}
-          <div className="toolbar-dropdown-wrap" ref={studyFilterRef}>
-            <button
-              type="button"
-              className={`toolbar-text-btn study-filter-trigger ${isStudyFilterMenuOpen ? 'active' : ''}`}
-              onClick={() => {
-                setIsStudyFilterMenuOpen(prev => !prev);
-                setIsViewMenuOpen(false);
-                setIsMoreMenuOpen(false);
-                setIsExportMenuOpen(false);
-              }}
-              title="Filter study concepts"
-              aria-label="Study filter"
-              aria-haspopup="menu"
-              aria-expanded={isStudyFilterMenuOpen}
-            >
-              <span className="toolbar-btn-text">{getStudyFilterLabel()}</span>
-              <ChevronDown size={11} className={`toolbar-chevron ${isStudyFilterMenuOpen ? 'open' : ''}`} aria-hidden="true" />
-            </button>
-
-            {isStudyFilterMenuOpen && (
-              <div className="toolbar-menu-popover study-filter-popover" role="menu">
-                <div className="menu-section-header">STUDY FILTER</div>
-                
-                <button
-                  type="button"
-                  className={`toolbar-menu-item ${studyFilterMode === 'all' ? 'active' : ''}`}
-                  onClick={() => {
-                    onStudyFilterChange?.('all');
-                    setIsStudyFilterMenuOpen(false);
-                  }}
-                  role="menuitem"
-                >
-                  <span className="menu-item-left">
-                    {studyFilterMode === 'all' && <span className="menu-active-dot" aria-hidden="true" />}
-                    <span className="menu-item-label">All</span>
+          <AnimatePresence mode="popLayout" initial={false}>
+            {isStudyPanelOpen ? (
+              <motion.span
+                key="exit-study-label"
+                className="study-btn-inner"
+                initial={shouldReduceMotion ? false : { opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={shouldReduceMotion ? undefined : { opacity: 0, x: -8 }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <ArrowLeft size={12} className="study-exit-icon" aria-hidden="true" />
+                <span className="toolbar-btn-text">Exit study</span>
+              </motion.span>
+            ) : (
+              <motion.span
+                key="normal-study-label"
+                className="study-btn-inner"
+                initial={shouldReduceMotion ? false : { opacity: 0, x: 6 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={shouldReduceMotion ? undefined : { opacity: 0, x: 6 }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <span className="toolbar-btn-text">Study</span>
+                {needsReviewCount > 0 && (
+                  <span className="toolbar-review-counter" title={`${needsReviewCount} concepts need review`}>
+                    {needsReviewCount}
                   </span>
-                  {totalConceptsCount > 0 && <span className="menu-item-count">{totalConceptsCount}</span>}
-                </button>
-
-                <button
-                  type="button"
-                  className={`toolbar-menu-item ${studyFilterMode === 'needs-review' ? 'active' : ''}`}
-                  onClick={() => {
-                    onStudyFilterChange?.('needs-review');
-                    setIsStudyFilterMenuOpen(false);
-                  }}
-                  role="menuitem"
-                >
-                  <span className="menu-item-left">
-                    {studyFilterMode === 'needs-review' && <span className="menu-active-dot" aria-hidden="true" />}
-                    <span className="practice-status-pip practice-pip-needs-review" aria-hidden="true" />
-                    <span className="menu-item-label">Needs review</span>
-                  </span>
-                  {needsReviewCount > 0 && <span className="menu-item-count review-count">{needsReviewCount}</span>}
-                </button>
-
-                <button
-                  type="button"
-                  className={`toolbar-menu-item ${studyFilterMode === 'in-progress' ? 'active' : ''}`}
-                  onClick={() => {
-                    onStudyFilterChange?.('in-progress');
-                    setIsStudyFilterMenuOpen(false);
-                  }}
-                  role="menuitem"
-                >
-                  <span className="menu-item-left">
-                    {studyFilterMode === 'in-progress' && <span className="menu-active-dot" aria-hidden="true" />}
-                    <span className="practice-status-pip practice-pip-learning" aria-hidden="true" />
-                    <span className="menu-item-label">In progress</span>
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  className={`toolbar-menu-item ${studyFilterMode === 'studied' ? 'active' : ''}`}
-                  onClick={() => {
-                    onStudyFilterChange?.('studied');
-                    setIsStudyFilterMenuOpen(false);
-                  }}
-                  role="menuitem"
-                >
-                  <span className="menu-item-left">
-                    {studyFilterMode === 'studied' && <span className="menu-active-dot" aria-hidden="true" />}
-                    <span className="practice-status-pip practice-pip-understood" aria-hidden="true" />
-                    <span className="menu-item-label">Studied</span>
-                  </span>
-                </button>
-              </div>
+                )}
+              </motion.span>
             )}
-          </div>
+          </AnimatePresence>
+        </motion.button>
 
-          <div className="toolbar-vertical-divider" />
+        {/* Emerging controls: Clipped masked reveal, staggered in, reverse out (Sections 4, 5, 6, 10) */}
+        <AnimatePresence>
+          {isStudyPanelOpen && (
+            <motion.div
+              key="study-emerging-strip"
+              className={`study-emerging-strip ${isStudyFilterMenuOpen || isTransitionSettled ? 'strip-overflow-visible' : 'strip-overflow-masked'}`}
+              initial={shouldReduceMotion ? false : "hidden"}
+              animate="visible"
+              exit="hidden"
+              variants={shouldReduceMotion ? reducedStripVariants : stripVariants}
+              onAnimationComplete={() => setIsTransitionSettled(true)}
+            >
+              <motion.div 
+                className="toolbar-vertical-divider" 
+                variants={shouldReduceMotion ? reducedDividerVariants : dividerVariants} 
+              />
 
-          {/* Next concept button */}
-          <button
-            type="button"
-            className="toolbar-text-btn study-next-btn"
-            onClick={onNextConcept}
-            title="Next concept to study"
-            aria-label="Next concept"
-          >
-            <span className="toolbar-btn-text">Next</span>
-            <ArrowRight size={12} className="study-next-icon" aria-hidden="true" />
-          </button>
-        </div>
-      )}
+              {/* Contextual Study Filter dropdown (Section 6) */}
+              <motion.div 
+                className="toolbar-dropdown-wrap" 
+                ref={studyFilterRef}
+                variants={shouldReduceMotion ? reducedItemVariants : itemVariants}
+              >
+                <button
+                  type="button"
+                  className={`toolbar-text-btn study-filter-trigger ${isStudyFilterMenuOpen ? 'active' : ''}`}
+                  onClick={() => {
+                    setIsStudyFilterMenuOpen(prev => !prev);
+                    setIsViewMenuOpen(false);
+                    setIsMoreMenuOpen(false);
+                    setIsExportMenuOpen(false);
+                  }}
+                  title="Filter study concepts"
+                  aria-label="Study filter"
+                  aria-haspopup="menu"
+                  aria-expanded={isStudyFilterMenuOpen}
+                >
+                  <span className="toolbar-btn-text">{getStudyFilterLabel()}</span>
+                  <ChevronDown size={11} className={`toolbar-chevron ${isStudyFilterMenuOpen ? 'open' : ''}`} aria-hidden="true" />
+                </button>
 
-      <div className="toolbar-vertical-divider" />
+                {isStudyFilterMenuOpen && (
+                  <div className="toolbar-menu-popover study-filter-popover" role="menu">
+                    <div className="menu-section-header">STUDY FILTER</div>
+                    
+                    <button
+                      type="button"
+                      className={`toolbar-menu-item ${studyFilterMode === 'all' ? 'active' : ''}`}
+                      onClick={() => {
+                        onStudyFilterChange?.('all');
+                        setIsStudyFilterMenuOpen(false);
+                      }}
+                      role="menuitem"
+                    >
+                      <span className="menu-item-left">
+                        {studyFilterMode === 'all' && <span className="menu-active-dot" aria-hidden="true" />}
+                        <span className="menu-item-label">All</span>
+                      </span>
+                      {totalConceptsCount > 0 && <span className="menu-item-count">{totalConceptsCount}</span>}
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`toolbar-menu-item ${studyFilterMode === 'needs-review' ? 'active' : ''}`}
+                      onClick={() => {
+                        onStudyFilterChange?.('needs-review');
+                        setIsStudyFilterMenuOpen(false);
+                      }}
+                      role="menuitem"
+                    >
+                      <span className="menu-item-left">
+                        {studyFilterMode === 'needs-review' && <span className="menu-active-dot" aria-hidden="true" />}
+                        <span className="practice-status-pip practice-pip-needs-review" aria-hidden="true" />
+                        <span className="menu-item-label">Needs review</span>
+                      </span>
+                      {needsReviewCount > 0 && <span className="menu-item-count review-count">{needsReviewCount}</span>}
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`toolbar-menu-item ${studyFilterMode === 'in-progress' ? 'active' : ''}`}
+                      onClick={() => {
+                        onStudyFilterChange?.('in-progress');
+                        setIsStudyFilterMenuOpen(false);
+                      }}
+                      role="menuitem"
+                    >
+                      <span className="menu-item-left">
+                        {studyFilterMode === 'in-progress' && <span className="menu-active-dot" aria-hidden="true" />}
+                        <span className="practice-status-pip practice-pip-learning" aria-hidden="true" />
+                        <span className="menu-item-label">In progress</span>
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`toolbar-menu-item ${studyFilterMode === 'studied' ? 'active' : ''}`}
+                      onClick={() => {
+                        onStudyFilterChange?.('studied');
+                        setIsStudyFilterMenuOpen(false);
+                      }}
+                      role="menuitem"
+                    >
+                      <span className="menu-item-left">
+                        {studyFilterMode === 'studied' && <span className="menu-active-dot" aria-hidden="true" />}
+                        <span className="practice-status-pip practice-pip-understood" aria-hidden="true" />
+                        <span className="menu-item-label">Studied</span>
+                      </span>
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+
+              <motion.div 
+                className="toolbar-vertical-divider" 
+                variants={shouldReduceMotion ? reducedDividerVariants : dividerVariants} 
+              />
+
+              {/* Next concept button */}
+              <motion.button
+                type="button"
+                className="toolbar-text-btn study-next-btn"
+                onClick={onNextConcept}
+                title="Next concept to study"
+                aria-label="Next concept"
+                variants={shouldReduceMotion ? reducedItemVariants : itemVariants}
+              >
+                <span className="toolbar-btn-text">Next</span>
+                <ArrowRight size={12} className="study-next-icon" aria-hidden="true" />
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <motion.div layout="position" className="toolbar-vertical-divider" />
 
       {/* 3. VIEW MODE DROPDOWN (Section 4: Replaces 3 pills with compact Balanced ▾) */}
-      <div className="toolbar-dropdown-wrap" ref={viewMenuRef}>
+      <motion.div layout="position" className="toolbar-dropdown-wrap" ref={viewMenuRef}>
         <button
           type="button"
           className={`toolbar-text-btn toolbar-view-trigger ${isViewMenuOpen ? 'active' : ''}`}
@@ -473,13 +635,13 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
             ))}
           </div>
         )}
-      </div>
+      </motion.div>
 
-      <div className="toolbar-vertical-divider" />
+      <motion.div layout="position" className="toolbar-vertical-divider" />
 
       {/* 4. UTILITY & EXPORT CONTROLS: [ Export ▾ ] [ ··· ] */}
-      <div className="toolbar-utility-group">
-        {/* Export Dropdown (Replaces redundant - + ⛶ which are positioned in the bottom-right corner) */}
+      <motion.div layout="position" className="toolbar-utility-group">
+        {/* Export Dropdown */}
         <div className="toolbar-dropdown-wrap" ref={exportMenuRef}>
           <button
             type="button"
@@ -640,7 +802,7 @@ export const GraphToolbar: React.FC<GraphToolbarProps> = ({
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
