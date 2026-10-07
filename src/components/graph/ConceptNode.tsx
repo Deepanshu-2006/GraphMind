@@ -66,57 +66,25 @@ export const ConceptNode = memo(({ data, selected }: NodeProps) => {
         className="node-handle"
       />
 
-      {/* 1. Header (Category type & status) */}
-      {zoomLevel !== 'simplified' && (
-        <div className="node-card-header">
-          <span className="node-card-type">{concept.category}</span>
-          {concept.craftingActive ? (
-            <span className="node-crafting-pip" title="Synthesizing concept">
-              <span className="crafting-pip-dot" />
-              <span className="crafting-pip-text">Extracting</span>
-            </span>
-          ) : zoomLevel === 'detailed' && concept.synapseCount > 0 ? (
-            <span className="node-synapse-badge" title={`${concept.synapseCount} connections`}>
-              {concept.synapseCount} rel
-            </span>
-          ) : null}
-        </div>
-      )}
-
-      {/* 2. Concept name row */}
-      <div className="node-card-name-row">
-        {zoomLevel === 'simplified' && (
-          <span 
-            className={`node-category-dot cat-${(concept.category || 'foundation').toLowerCase()}`} 
-            title={concept.category}
-          />
-        )}
-        <span className="node-card-name" title={concept.label}>{concept.label}</span>
-        {practiceStatus === 'understood' ? (
-          <span className="practice-status-pip practice-pip-understood" title="Understood" aria-hidden="true" />
-        ) : practiceStatus === 'needs-review' ? (
-          <span className="practice-status-pip practice-pip-needs-review" title="Needs review" aria-hidden="true" />
-        ) : practiceStatus === 'learning' ? (
-          <span className="practice-status-pip practice-pip-learning" title="Learning" aria-hidden="true" />
-        ) : isSelected ? (
-          <span className="node-accent-pip" aria-hidden="true" />
-        ) : null}
+      {/* 1. Header: TYPE metadata on left, state indicator dot on upper right */}
+      <div className="node-card-header">
+        <span className="node-card-type">{concept.category || 'CONCEPT'}</span>
+        <span 
+          className={`node-state-indicator ${practiceStatus !== 'unseen' ? `practice-${practiceStatus}` : ''}`} 
+          aria-hidden="true" 
+        />
       </div>
 
-      {/* 3. Description: Progressive disclosure based on zoom */}
-      {zoomLevel !== 'simplified' && concept.description && (
+      {/* 2. Concept name row: Visual focal point */}
+      <div className="node-card-name-row">
+        <span className="node-card-name" title={concept.label}>{concept.label}</span>
+      </div>
+
+      {/* 3. Description: Supports concept without competing */}
+      {concept.description && (
         <p className="node-card-brief" title={concept.description}>
           {concept.description}
         </p>
-      )}
-
-      {/* 4. Rich contextual meta (Zoomed In only) */}
-      {zoomLevel === 'detailed' && concept.source && (
-        <div className="node-card-footer">
-          <span className="node-source-preview" title={concept.source}>
-            {concept.source}
-          </span>
-        </div>
       )}
     </div>
   );
