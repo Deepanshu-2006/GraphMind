@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ArrowUpRight, ArrowLeft, ArrowRight } from 'lucide-react';
+import { X, ArrowUpRight, ArrowLeft, ArrowRight, Check, RotateCcw } from 'lucide-react';
 import type { GraphConceptData, SelectedRelationshipData } from '../../types/graph';
 import type { 
   PracticeStatus, 
@@ -29,6 +29,17 @@ export interface NodeContextPanelProps {
   onRecordSessionReview?: (conceptId: string) => void;
   onNextConcept?: () => void;
   nextConceptName?: string | null;
+  // Phase 5: Revision Mode
+  isRevisionMode?: boolean;
+  onToggleRevisionMode?: (active?: boolean) => void;
+  revisionProgress?: { current: number; total: number } | null;
+  onPrevRevisionConcept?: () => void;
+  onNextRevisionConcept?: () => void;
+  hasPrevRevisionConcept?: boolean;
+  hasNextRevisionConcept?: boolean;
+  onMarkRevisionKnowIt?: (conceptId: string) => void;
+  onMarkRevisionReviewAgain?: (conceptId: string) => void;
+  onStartCoreRevision?: () => void;
 }
 
 /**
@@ -134,19 +145,33 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
   onRecordSessionRecalled,
   onRecordSessionReview,
   onNextConcept,
-  nextConceptName
+  nextConceptName,
+  isRevisionMode = false,
+  onToggleRevisionMode,
+  revisionProgress,
+  onPrevRevisionConcept,
+  onNextRevisionConcept,
+  hasPrevRevisionConcept = false,
+  hasNextRevisionConcept = false,
+  onMarkRevisionKnowIt,
+  onMarkRevisionReviewAgain,
+  onStartCoreRevision
 }) => {
-  // Mode state: 'learn' | 'recall' (Phase 4 Active Recall)
-  const [panelMode, setPanelMode] = useState<'learn' | 'recall'>(isTestMode ? 'recall' : 'learn');
+  // Mode state: 'learn' | 'recall' | 'revision' (Phase 4 & Phase 5)
+  const [panelMode, setPanelMode] = useState<'learn' | 'recall' | 'revision'>(
+    isTestMode ? 'recall' : isRevisionMode ? 'revision' : 'learn'
+  );
 
-  // Synchronize panelMode with isTestMode external prop
+  // Synchronize panelMode with isTestMode & isRevisionMode external props
   useEffect(() => {
     if (isTestMode && panelMode !== 'recall') {
       setPanelMode('recall');
-    } else if (!isTestMode && panelMode === 'recall') {
+    } else if (isRevisionMode && panelMode !== 'recall' && panelMode !== 'revision') {
+      setPanelMode('revision');
+    } else if (!isTestMode && !isRevisionMode && panelMode !== 'learn') {
       setPanelMode('learn');
     }
-  }, [isTestMode]);
+  }, [isTestMode, isRevisionMode]);
 
   // Active Recall interaction state
   const [isAnswerRevealed, setIsAnswerRevealed] = useState<boolean>(false);
@@ -240,25 +265,62 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
   }, [onNextConcept, nextConnectedConcept, onSelectConcept]);
 
   const handleExitTest = useCallback(() => {
-    setPanelMode('learn');
-    onToggleTestMode?.(false);
-  }, [onToggleTestMode]);
+    if (isRevisionMode) {
+      setPanelMode('revision');
+    } else {
+      setPanelMode('learn');
+      onToggleTestMode?.(false);
+    }
+  }, [isRevisionMode, onToggleTestMode]);
 
-  // Keyboard navigation and shortcuts (Phase 4 Section 19)
+  // Keyboard navigation and shortcuts (Phase 4 & Phase 5)
   useEffect(() => {
-    if (panelMode !== 'recall') return;
+    if (panelMode !== 'recall' && panelMode !== 'revision') return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Escape: Return to concept view naturally
+      // Escape: Return to concept view or exit revision naturally
       if (e.key === 'Escape') {
         e.preventDefault();
-        handleExitTest();
+        if (panelMode === 'recall') {
+          handleExitTest();
+        } else if (panelMode === 'revision') {
+          onToggleRevisionMode?.(false);
+        }
         return;
       }
 
       // Ignore when typing in an input or textarea
       const target = e.target as HTMLElement;
       if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      if (panelMode === 'revision' && concept) {
+        if (e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          onMarkRevisionKnowIt?.(concept.id);
+          return;
+        }
+        if (e.key.toLowerCase() === 'r') {
+          e.preventDefault();
+          onMarkRevisionReviewAgain?.(concept.id);
+          return;
+        }
+        if (e.key.toLowerCase() === 'p' && hasPrevRevisionConcept) {
+          e.preventDefault();
+          onPrevRevisionConcept?.();
+          return;
+        }
+        if (e.key.toLowerCase() === 'n' && hasNextRevisionConcept) {
+          e.preventDefault();
+          onNextRevisionConcept?.();
+          return;
+        }
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          setPanelMode('recall');
+          return;
+        }
         return;
       }
 
@@ -297,10 +359,91 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [panelMode, isAnswerRevealed, selfAssessed, activeRecallQuestion, handleRevealAnswer, handleRecallSelfAssess, handleNextConceptClick, handleExitTest]);
+  }, [
+    panelMode,
+    concept,
+    isAnswerRevealed,
+    selfAssessed,
+    activeRecallQuestion,
+    handleRevealAnswer,
+    handleRecallSelfAssess,
+    handleNextConceptClick,
+    handleExitTest,
+    onToggleRevisionMode,
+    onMarkRevisionKnowIt,
+    onMarkRevisionReviewAgain,
+    onPrevRevisionConcept,
+    onNextRevisionConcept,
+    hasPrevRevisionConcept,
+    hasNextRevisionConcept
+  ]);
 
-  if (isCollapsed || (!concept && !selectedRelationship)) {
+  if (isCollapsed || (!concept && !selectedRelationship && !isRevisionMode)) {
     return null;
+  }
+
+  // Phase 5 Section 18: Empty Revision State (when revision mode is active but queue is empty or no concept)
+  if (isRevisionMode && (!concept || revisionProgress?.total === 0)) {
+    return (
+      <motion.aside
+        className="floating-node-inspector study-panel"
+        aria-label="Revision mode: Nothing needs review yet"
+        role="region"
+        initial={{ opacity: 0, x: 26 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: 26 }}
+        transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <div className="inspector-drag-handle" aria-hidden="true" />
+        <div className="study-panel-scroll-container">
+          <div className="study-panel-content revision-empty-workspace">
+            <header className="inspector-header study-header">
+              <div className="inspector-title-wrap">
+                <span className="study-section-label study-category-tag">
+                  REVISION
+                </span>
+                <h2 className="inspector-name study-concept-title">
+                  Nothing needs review yet.
+                </h2>
+                <span className="study-subtitle">
+                  No concepts are currently marked for review. You can explore the graph or start a guided study session.
+                </span>
+              </div>
+              <button
+                type="button"
+                className="inspector-close-btn"
+                onClick={() => onToggleRevisionMode?.(false)}
+                aria-label="Exit revision mode"
+                title="Exit revision"
+              >
+                <X size={14} />
+              </button>
+            </header>
+
+            <div className="revision-empty-actions">
+              {onStartCoreRevision && (
+                <button
+                  type="button"
+                  className="study-practice-cta-btn revision-empty-start-btn"
+                  onClick={onStartCoreRevision}
+                  title="Start guided study with core concepts"
+                >
+                  <span className="practice-cta-text">START STUDY</span>
+                  <ArrowRight size={13} className="practice-cta-arrow" />
+                </button>
+              )}
+              <button
+                type="button"
+                className="practice-back-to-learn-btn"
+                onClick={() => onToggleRevisionMode?.(false)}
+              >
+                ← EXPLORE THE GRAPH
+              </button>
+            </div>
+          </div>
+        </div>
+      </motion.aside>
+    );
   }
 
   // 1. Relationship Source Traceability View
@@ -468,7 +611,203 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
       {/* Scrollable container with editorial mode transition */}
       <div className="study-panel-scroll-container">
         <AnimatePresence mode="wait" initial={false}>
-          {panelMode === 'learn' ? (
+          {panelMode === 'revision' ? (
+            /* ==========================================================
+               PHASE 5: REVISION MODE WORKSPACE
+               ========================================================== */
+            <motion.div
+              key={`revision-${concept!.id}`}
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -14 }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              className="study-panel-content revision-panel-content"
+            >
+              {/* Header: Editorial Progress (e.g. REVISION · 04 OF 12) + Exit */}
+              <header className="inspector-header study-header revision-header">
+                <div className="inspector-title-wrap">
+                  <div className="revision-header-meta">
+                    <span className="study-section-label study-category-tag revision-progress-tag">
+                      {revisionProgress
+                        ? `REVISION · ${String(revisionProgress.current).padStart(2, '0')} OF ${String(revisionProgress.total).padStart(2, '0')}`
+                        : 'REVISION'}
+                    </span>
+                    <button
+                      type="button"
+                      className="recall-back-link-btn revision-exit-btn"
+                      onClick={() => {
+                        onToggleRevisionMode?.(false);
+                        setPanelMode('learn');
+                      }}
+                      title="Exit revision mode"
+                      aria-label="Exit revision"
+                    >
+                      <X size={11} />
+                      <span>Exit revision</span>
+                    </button>
+                  </div>
+                  <span className="revision-concept-meta-label">CONCEPT</span>
+                  <h2 className="inspector-name study-concept-title revision-concept-title">
+                    {canonicalName}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  className="inspector-close-btn"
+                  onClick={onClose}
+                  aria-label="Close revision panel"
+                  title="Close panel"
+                >
+                  <X size={14} />
+                </button>
+              </header>
+
+              {/* WHAT IT MEANS */}
+              <section className="study-section revision-section">
+                <h3 className="study-section-label">WHAT IT MEANS</h3>
+                <p className="study-explanation revision-explanation">
+                  {explanation}
+                </p>
+              </section>
+
+              {/* CONNECTED IDEAS */}
+              {relationships.length > 0 && (
+                <section className="study-section revision-section">
+                  <h3 className="study-section-label">CONNECTED IDEAS</h3>
+                  <div className="revision-connected-list">
+                    {relationships.map((rel, idx) => (
+                      <button
+                        key={`${rel.targetId}-${idx}`}
+                        type="button"
+                        className="revision-connected-chip"
+                        onClick={() => onSelectConcept(rel.targetId)}
+                        title={`Focus ${rel.targetName}${rel.type ? ` (${rel.type.replace(/-/g, ' ')})` : ''}`}
+                      >
+                        <span className="revision-connected-name">{rel.targetName}</span>
+                        {rel.type && (
+                          <span className="revision-connected-label">{rel.type.replace(/-/g, ' ')}</span>
+                        )}
+                        <ArrowRight size={10} className="revision-connected-arrow" />
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* FROM YOUR MATERIAL (Source provenance with excerpt and clickable source) */}
+              <section className="study-section revision-section">
+                <h3 className="study-section-label">FROM YOUR MATERIAL</h3>
+                {passage && (
+                  <blockquote className="study-passage-quote revision-quote">
+                    "{passage.text}"
+                  </blockquote>
+                )}
+                {concept!.sources && concept!.sources.length > 1 ? (
+                  <div className="inspector-sources-compact-list revision-sources-list">
+                    {concept!.sources.map((s, idx) => (
+                      <button
+                        key={`${s.id}-${idx}`}
+                        type="button"
+                        className="inspector-source-item clickable"
+                        onClick={() => onSelectSource?.(s.name, s.page)}
+                        title={`View ${s.name}${s.page ? ` (p. ${s.page})` : ''} in Sources`}
+                      >
+                        <span className="inspector-source-bullet">•</span>
+                        <span className="inspector-source-value">{s.name}</span>
+                        {s.page && <span className="study-source-page">· p. {s.page}</span>}
+                        <ArrowUpRight size={10} className="inspector-source-link-icon" />
+                      </button>
+                    ))}
+                  </div>
+                ) : primarySource ? (
+                  <button
+                    type="button"
+                    className="study-source-box revision-source-box"
+                    onClick={() => onSelectSource?.(primarySource, primaryPage)}
+                    title={`View ${primarySource}${primaryPage ? ` (p. ${primaryPage})` : ''} in Sources`}
+                  >
+                    <div className="study-source-box-meta">
+                      <span className="study-source-box-name">{primarySource}</span>
+                      {primaryPage && (
+                        <span className="study-source-page">Page {primaryPage}</span>
+                      )}
+                    </div>
+                    <ArrowUpRight size={12} className="study-source-icon" />
+                  </button>
+                ) : null}
+              </section>
+
+              {/* QUICK RECALL CTA: RECALL → (Reuses Phase 4 Active Recall!) */}
+              <div className="revision-recall-cta-wrap">
+                <button
+                  type="button"
+                  className="study-practice-cta-btn revision-recall-btn"
+                  onClick={() => {
+                    setPanelMode('recall');
+                  }}
+                  title={`Active recall for ${canonicalName}`}
+                >
+                  <span className="practice-cta-text">RECALL</span>
+                  <ArrowRight size={13} className="practice-cta-arrow" />
+                </button>
+              </div>
+
+              {/* KNOW IT / REVIEW AGAIN ASSESSMENT (Prompt Section 10) */}
+              <section className="revision-assess-section">
+                <div className="revision-assess-grid">
+                  <button
+                    type="button"
+                    className="revision-btn-know"
+                    onClick={() => onMarkRevisionKnowIt?.(concept!.id)}
+                    title="Mark as known and proceed (Press K)"
+                  >
+                    <Check size={13} />
+                    <span>KNOW IT</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="revision-btn-review"
+                    onClick={() => onMarkRevisionReviewAgain?.(concept!.id)}
+                    title="Mark for further review and keep in queue (Press R)"
+                  >
+                    <RotateCcw size={13} />
+                    <span>REVIEW AGAIN</span>
+                  </button>
+                </div>
+              </section>
+
+              {/* NAVIGATION: ← PREVIOUS / NEXT → (Prompt Section 8 & 9) */}
+              <footer className="revision-nav-bar">
+                <button
+                  type="button"
+                  className="revision-nav-btn revision-prev-btn"
+                  onClick={onPrevRevisionConcept}
+                  disabled={!hasPrevRevisionConcept}
+                  title="Previous revision concept (Press P)"
+                >
+                  <ArrowLeft size={12} />
+                  <span>PREVIOUS</span>
+                </button>
+
+                <span className="revision-nav-counter">
+                  {revisionProgress
+                    ? `${String(revisionProgress.current).padStart(2, '0')} OF ${String(revisionProgress.total).padStart(2, '0')}`
+                    : 'REVISION'}
+                </span>
+
+                <button
+                  type="button"
+                  className="revision-nav-btn revision-next-btn"
+                  onClick={onNextRevisionConcept}
+                  disabled={!hasNextRevisionConcept}
+                  title="Next revision concept (Press N)"
+                >
+                  <span>NEXT</span>
+                  <ArrowRight size={12} />
+                </button>
+              </footer>
+            </motion.div>
+          ) : panelMode === 'learn' ? (
             /* ==========================================================
                PHASE 1: LEARN MODE
                ========================================================== */
@@ -663,6 +1002,21 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
                   </span>
                   <ArrowRight size={13} className="practice-cta-arrow" />
                 </button>
+
+                {onToggleRevisionMode && (
+                  <button
+                    type="button"
+                    className="study-revise-cta-btn"
+                    onClick={() => {
+                      onToggleRevisionMode(true);
+                      setPanelMode('revision');
+                    }}
+                    title="Enter exam revision mode"
+                  >
+                    <span>REVISION</span>
+                    <ArrowRight size={11} />
+                  </button>
+                )}
               </div>
             </motion.div>
           ) : (
@@ -688,11 +1042,11 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
                       type="button"
                       className="recall-back-link-btn"
                       onClick={handleExitTest}
-                      title="Return to concept details"
-                      aria-label="Back to concept"
+                      title={isRevisionMode ? "Return to revision" : "Return to concept details"}
+                      aria-label={isRevisionMode ? "Back to revision" : "Back to concept"}
                     >
                       <ArrowLeft size={11} />
-                      <span>Back to concept</span>
+                      <span>{isRevisionMode ? "Back to revision" : "Back to concept"}</span>
                     </button>
                   </div>
                   <h2 className="inspector-name study-concept-title">
