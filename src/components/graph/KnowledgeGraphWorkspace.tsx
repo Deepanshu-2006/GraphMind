@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   ReactFlow,
   Background,
@@ -19,6 +19,7 @@ import { CustomEdge } from './CustomEdge';
 import { GraphToolbar } from './GraphToolbar';
 import { NodeContextPanel } from './NodeContextPanel';
 import { CanvasEmptyState } from './CanvasEmptyState';
+import { TestWorkspace } from '../test/TestWorkspace';
 
 import { 
   initialNodes, 
@@ -1266,7 +1267,7 @@ function FlowCanvas({
     setIsTestMode(nextMode);
 
     if (nextMode) {
-      setIsInspectorOpen(true);
+      setIsInspectorOpen(false);
       const targetId = (selectedNodeId && effectiveNodes.some(n => n.id === selectedNodeId))
         ? selectedNodeId
         : (effectiveNodes.length > 0 ? effectiveNodes[0].id : null);
@@ -1276,6 +1277,26 @@ function FlowCanvas({
       }
     }
   }, [isTestMode, selectedNodeId, effectiveNodes, focusNodeOnCanvas]);
+
+  const refreshPracticeStates = useCallback(() => {
+    const loaded = loadConceptPracticeStates(graph?.id);
+    setPracticeStates(loaded);
+    setNodes(prev => prev.map(n => {
+      const pState = loaded[n.id];
+      if (pState) {
+        return {
+          ...n,
+          data: {
+            ...n.data,
+            practiceStatus: pState.status,
+            practiceState: pState,
+            knowledgeState: pState
+          }
+        };
+      }
+      return n;
+    }));
+  }, [graph?.id, setNodes]);
 
   const handleRecordSessionRecalled = useCallback((conceptId: string) => {
     setRecallSession(prev => {
@@ -1522,53 +1543,66 @@ function FlowCanvas({
       )}
 
       {/* Floating Toolbar (Redesigned Editorial Canvas Toolbar) */}
-      <GraphToolbar
-        onSearchSelect={focusNodeOnCanvas}
-        onFitView={handleResetView}
-        onResetView={handleResetView}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        availableNodes={searchItems}
-        onExportImage={handleExportImage}
-        onExportJson={handleExportJson}
-        isExporting={isExporting}
-        densityMode={densityMode}
-        onDensityChange={setDensityMode}
-        studyFilterMode={studyFilterMode}
-        onStudyFilterChange={setStudyFilterMode}
-        needsReviewCount={needsReviewCount}
-        totalConceptsCount={totalConceptsCount}
-        isFullscreen={isGraphFullscreen}
-        onToggleFullscreen={() => handleToggleFullscreen()}
-        isStudyPanelOpen={isInspectorOpen && Boolean(activeConceptData || selectedRelationship || isRevisionMode || isTestMode)}
-        selectedConceptLabel={activeConceptData?.label || activeConceptData?.name || null}
-        isTestMode={isTestMode}
-        onToggleTestMode={() => handleToggleTestMode()}
-        testProgress={testProgress}
-        onNextTestQuestion={handleNextRecallConcept}
-        isRevisionMode={isRevisionMode}
-        onToggleRevisionMode={() => handleToggleRevisionMode()}
-        revisionProgress={revisionProgress}
-        onPrevRevisionConcept={handlePrevRevisionConcept}
-        onNextRevisionConcept={handleNextRevisionConcept}
-        hasPrevRevisionConcept={isRevisionMode && revisionIndex > 0}
-        hasNextRevisionConcept={isRevisionMode && revisionIndex < revisionPath.length - 1}
-        onNextConcept={isRevisionMode ? handleNextRevisionConcept : isTestMode ? handleNextRecallConcept : handleNextStudyConcept}
-        onToggleStudyPanel={() => {
-          if (isInspectorOpen) {
-            setIsInspectorOpen(false);
-            setIsTestMode(false);
-            setIsRevisionMode(false);
-            setSelectedRelationship(null);
-            setSelectedNodeId(null);
-            setNavHistory([]);
-          } else if (selectedNodeId) {
-            setIsInspectorOpen(true);
-          } else if (effectiveNodes.length > 0) {
-            focusNodeOnCanvas(effectiveNodes[0].id, true);
-          }
-        }}
-      />
+      <AnimatePresence>
+        {!isTestMode && (
+          <motion.div
+            key="graph-toolbar"
+            className="graph-toolbar-animated-wrapper"
+            initial={{ y: -80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -80, opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <GraphToolbar
+              onSearchSelect={focusNodeOnCanvas}
+              onFitView={handleResetView}
+              onResetView={handleResetView}
+              onZoomIn={handleZoomIn}
+              onZoomOut={handleZoomOut}
+              availableNodes={searchItems}
+              onExportImage={handleExportImage}
+              onExportJson={handleExportJson}
+              isExporting={isExporting}
+              densityMode={densityMode}
+              onDensityChange={setDensityMode}
+              studyFilterMode={studyFilterMode}
+              onStudyFilterChange={setStudyFilterMode}
+              needsReviewCount={needsReviewCount}
+              totalConceptsCount={totalConceptsCount}
+              isFullscreen={isGraphFullscreen}
+              onToggleFullscreen={() => handleToggleFullscreen()}
+              isStudyPanelOpen={isInspectorOpen && Boolean(activeConceptData || selectedRelationship || isRevisionMode || isTestMode)}
+              selectedConceptLabel={activeConceptData?.label || activeConceptData?.name || null}
+              isTestMode={isTestMode}
+              onToggleTestMode={() => handleToggleTestMode()}
+              testProgress={testProgress}
+              onNextTestQuestion={handleNextRecallConcept}
+              isRevisionMode={isRevisionMode}
+              onToggleRevisionMode={() => handleToggleRevisionMode()}
+              revisionProgress={revisionProgress}
+              onPrevRevisionConcept={handlePrevRevisionConcept}
+              onNextRevisionConcept={handleNextRevisionConcept}
+              hasPrevRevisionConcept={isRevisionMode && revisionIndex > 0}
+              hasNextRevisionConcept={isRevisionMode && revisionIndex < revisionPath.length - 1}
+              onNextConcept={isRevisionMode ? handleNextRevisionConcept : isTestMode ? handleNextRecallConcept : handleNextStudyConcept}
+              onToggleStudyPanel={() => {
+                if (isInspectorOpen) {
+                  setIsInspectorOpen(false);
+                  setIsTestMode(false);
+                  setIsRevisionMode(false);
+                  setSelectedRelationship(null);
+                  setSelectedNodeId(null);
+                  setNavHistory([]);
+                } else if (selectedNodeId) {
+                  setIsInspectorOpen(true);
+                } else if (effectiveNodes.length > 0) {
+                  focusNodeOnCanvas(effectiveNodes[0].id, true);
+                }
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Empty State Notice for Needs Review filter (Phase 3 Section 26) */}
       {mode === 'interactive' && studyFilterMode === 'needs-review' && needsReviewCount === 0 && (
@@ -1600,8 +1634,8 @@ function FlowCanvas({
         </div>
       )}
 
-      {/* Continuous ReactFlow Canvas with reduced opacity while loading orb is active */}
-      <div className={`freeform-canvas-wrapper ${effectiveCanvasDimmed ? 'dimmed-crafting' : ''}`}>
+      {/* Continuous ReactFlow Canvas with reduced opacity while loading orb is active or dedicated test mode */}
+      <div className={`freeform-canvas-wrapper ${effectiveCanvasDimmed ? 'dimmed-crafting' : ''} ${isTestMode ? 'graph-receded' : ''}`}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -1619,7 +1653,7 @@ function FlowCanvas({
           maxZoom={2.4}
           panOnScroll={false}
           zoomOnScroll={true}
-          panOnDrag={mode === 'interactive'}
+          panOnDrag={mode === 'interactive' && !isTestMode}
           preventScrolling={true}
           attributionPosition="bottom-left"
           fitView={false}
@@ -1635,7 +1669,7 @@ function FlowCanvas({
       </div>
 
       {/* Subtle Canvas Corner Navigation Controls (Section 7: Bottom-right, quiet 32px targets) */}
-      {mode === 'interactive' && (
+      {mode === 'interactive' && !isTestMode && (
         <div className="canvas-corner-controls" role="group" aria-label="Canvas zoom and fit controls">
           <button
             type="button"
@@ -1734,7 +1768,7 @@ function FlowCanvas({
 
       {/* 4. Study / Inspector Context Panel (Interactive mode only: Concept or Relationship or Revision) */}
       <AnimatePresence>
-        {mode === 'interactive' && isInspectorOpen && (activeConceptData || selectedRelationship || isRevisionMode || isTestMode) && (
+        {mode === 'interactive' && isInspectorOpen && !isTestMode && (activeConceptData || selectedRelationship || isRevisionMode) && (
           <NodeContextPanel
             concept={activeConceptData}
             selectedRelationship={selectedRelationship}
@@ -1791,6 +1825,25 @@ function FlowCanvas({
             onMarkRevisionKnowIt={handleRevisionKnowIt}
             onMarkRevisionReviewAgain={handleRevisionReviewAgain}
             onStartCoreRevision={handleStartCoreRevision}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 5. Dedicated Academic Examination Test Workspace */}
+      <AnimatePresence>
+        {mode === 'interactive' && isTestMode && (
+          <TestWorkspace
+            graph={graph}
+            onClose={() => {
+              setIsTestMode(false);
+            }}
+            onFocusConceptInGraph={(conceptId) => {
+              setIsTestMode(false);
+              setSelectedNodeId(conceptId);
+              setIsInspectorOpen(true);
+              focusNodeOnCanvas(conceptId, true);
+            }}
+            onPracticeStatesUpdated={refreshPracticeStates}
           />
         )}
       </AnimatePresence>

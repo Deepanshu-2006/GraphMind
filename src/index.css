@@ -8,6 +8,7 @@
 @import './styles/paths.css';
 @import './styles/uploadModal.css';
 @import './styles/settings.css';
+@import './styles/test.css';
 
 :root {
   /* Typography System */

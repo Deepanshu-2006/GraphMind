@@ -1149,7 +1149,6 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
                     whileTap={{ scale: 0.99 }}
                     transition={{ duration: 0.12 }}
                     onClick={() => {
-                      setPanelMode('recall');
                       onToggleTestMode?.(true);
                     }}
                     title={concept.practiceStatus === 'needs-review' ? `Review ${canonicalName} again` : `Test yourself on ${canonicalName}`}

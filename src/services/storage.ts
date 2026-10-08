@@ -1,5 +1,6 @@
 import type { KnowledgeSource, KnowledgeGraph, KnowledgeGraphMeta } from '../types/knowledgeGraph';
 import type { ConceptPracticeState, PracticeStatus } from '../types/practice';
+import type { KnowledgeTest, TestResultsSummary, MissedConceptItem } from '../types/test';
 
 export const DEFAULT_MIGRATION_GRAPH_ID = 'graph-neural-cognitive-default';
 export const DEFAULT_MIGRATION_GRAPH_NAME = 'Neural & Cognitive Architectures';
@@ -11,6 +12,7 @@ const STORAGE_KEYS = {
   COMPLETED_CONCEPTS_PREFIX: 'graphmind_completed_concepts_v1_',
   PRACTICE_STATE_PREFIX: 'graphmind_practice_state_v1_',
   GRAPH_SOURCE_TYPE_PREFIX: 'graphmind_graph_source_type_v1_',
+  TEST_HISTORY_PREFIX: 'graphmind_test_history_v1_',
   // Canonical user sources collection (contains sources for all graphs, keyed by graphId)
   USER_SOURCES: 'graphmind_user_sources_v1',
   // Legacy keys for backward compatibility and migration
@@ -732,6 +734,139 @@ export function updateConceptPracticeState(
 }
 
 /**
+ * Load completed tests history for a specific knowledge graph
+ */
+export function loadKnowledgeTests(graphId?: string): KnowledgeTest[] {
+  if (typeof localStorage === 'undefined') return [];
+
+  try {
+    const targetId = graphId || loadActiveGraphId() || DEFAULT_MIGRATION_GRAPH_ID;
+    const raw = localStorage.getItem(STORAGE_KEYS.TEST_HISTORY_PREFIX + targetId);
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed as KnowledgeTest[];
+    }
+    return [];
+  } catch (err) {
+    console.warn('[Storage] Failed to load knowledge tests:', err);
+    return [];
+  }
+}
+
+/**
+ * Save completed knowledge test to graph test history
+ */
+export function saveKnowledgeTest(test: KnowledgeTest): void {
+  if (typeof localStorage === 'undefined' || !test || !test.id) return;
+
+  try {
+    const targetId = test.graphId || loadActiveGraphId() || DEFAULT_MIGRATION_GRAPH_ID;
+    const existing = loadKnowledgeTests(targetId);
+    // Replace if exists, else append to front
+    const updated = [test, ...existing.filter(t => t.id !== test.id)];
+    localStorage.setItem(STORAGE_KEYS.TEST_HISTORY_PREFIX + targetId, JSON.stringify(updated));
+  } catch (err) {
+    console.warn('[Storage] Failed to save knowledge test:', err);
+  }
+}
+
+/**
+ * Load the most recent completed knowledge test for a graph
+ */
+export function loadLatestKnowledgeTest(graphId?: string): KnowledgeTest | null {
+  const tests = loadKnowledgeTests(graphId);
+  return tests.length > 0 ? tests[0] : null;
+}
+
+/**
+ * Finalize a test submission: calculate score, analyze concepts, update practice states, and persist.
+ */
+export function recordKnowledgeTestCompletion(
+  test: KnowledgeTest,
+  userAnswers: Record<string, string>,
+  timeSpentSeconds: number
+): TestResultsSummary {
+  const questions = test.questions || [];
+  let score = 0;
+  const missedItems: MissedConceptItem[] = [];
+  const strongConceptNamesSet = new Set<string>();
+  const graphId = test.graphId || loadActiveGraphId() || DEFAULT_MIGRATION_GRAPH_ID;
+
+  for (const q of questions) {
+    const selectedId = userAnswers[q.id];
+    const isCorrect = selectedId === q.correctOptionId;
+
+    const selectedOption = q.options.find(o => o.id === selectedId);
+    const correctOption = q.options.find(o => o.id === q.correctOptionId);
+
+    if (isCorrect) {
+      score += 1;
+      for (const name of q.conceptNames) {
+        strongConceptNamesSet.add(name);
+      }
+      // Update each concept state: increment practice count & mark understood/learning
+      for (const cId of q.conceptIds) {
+        const current = getConceptPracticeState(cId, graphId);
+        const nextStatus: PracticeStatus = current.status === 'unseen' ? 'learning' : current.status === 'needs-review' ? 'learning' : 'understood';
+        updateConceptPracticeState(cId, nextStatus, graphId);
+        recordConceptStudy(graphId, cId);
+      }
+    } else {
+      const primaryConceptId = q.conceptIds[0] || '';
+      const primaryConceptName = q.conceptNames[0] || 'Concept';
+
+      missedItems.push({
+        conceptId: primaryConceptId,
+        conceptName: primaryConceptName,
+        questionId: q.id,
+        questionText: q.question,
+        selectedOptionText: selectedOption?.text || 'Unanswered',
+        correctOptionText: correctOption?.text || '',
+        explanation: q.explanation,
+        sourceName: q.sourceName,
+        sourceEvidence: q.sourceEvidence,
+        page: q.page
+      });
+
+      // Mark missed concept as needs-review
+      for (const cId of q.conceptIds) {
+        updateConceptPracticeState(cId, 'needs-review', graphId);
+        recordConceptStudy(graphId, cId);
+      }
+    }
+  }
+
+  // Remove concepts that had any missed question from the strong list to prevent contradiction
+  for (const missed of missedItems) {
+    strongConceptNamesSet.delete(missed.conceptName);
+  }
+
+  const completedTest: KnowledgeTest = {
+    ...test,
+    submittedAt: new Date().toISOString(),
+    answers: userAnswers,
+    score,
+    timeSpentSeconds
+  };
+
+  saveKnowledgeTest(completedTest);
+
+  const percentage = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
+
+  return {
+    testId: test.id,
+    score,
+    totalQuestions: questions.length,
+    percentage,
+    timeSpentSeconds,
+    strongConceptNames: Array.from(strongConceptNamesSet),
+    reviewRecommendedConcepts: missedItems
+  };
+}
+
+/**
  * Clear all user data (for testing or reset)
  */
 export function clearAllUserData(): void {
@@ -745,6 +880,7 @@ export function clearAllUserData(): void {
       localStorage.removeItem(STORAGE_KEYS.COMPLETED_CONCEPTS_PREFIX + g.id);
       localStorage.removeItem(STORAGE_KEYS.PRACTICE_STATE_PREFIX + g.id);
       localStorage.removeItem(STORAGE_KEYS.GRAPH_SOURCE_TYPE_PREFIX + g.id);
+      localStorage.removeItem(STORAGE_KEYS.TEST_HISTORY_PREFIX + g.id);
     }
     localStorage.removeItem(STORAGE_KEYS.GRAPHS);
     localStorage.removeItem(STORAGE_KEYS.ACTIVE_GRAPH_ID);

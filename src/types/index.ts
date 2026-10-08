@@ -113,3 +113,4 @@ export interface LearningPath {
   status: 'NOT STARTED' | 'IN PROGRESS' | 'COMPLETE' | string;
 }
 
+export * from './test';
