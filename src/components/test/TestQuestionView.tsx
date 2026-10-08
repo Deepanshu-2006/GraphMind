@@ -251,6 +251,22 @@ export function TestQuestionView({
     }
   }, [question.id, selectedOptionId]);
 
+  // Tactical active state on Submit click before modal triggers (Section 9)
+  const [isSubmittingAction, setIsSubmittingAction] = useState(false);
+
+  useEffect(() => {
+    setIsSubmittingAction(false);
+  }, [currentIndex]);
+
+  const handleSubmitClick = useCallback(() => {
+    if (!canAdvance || isSubmittingAction) return;
+    setIsSubmittingAction(true);
+    setTimeout(() => {
+      setIsSubmittingAction(false);
+      onSubmit();
+    }, 140);
+  }, [canAdvance, isSubmittingAction, onSubmit]);
+
   // Keyboard support: ArrowUp, ArrowDown, Enter, Space (Section 9)
   const handleStackKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -381,41 +397,52 @@ export function TestQuestionView({
         </motion.div>
       </AnimatePresence>
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation (Section 1-12) */}
       <div className="test-question-bottom-nav">
         <button
           type="button"
-          className="test-nav-btn btn-prev"
+          className="test-nav-btn test-nav-editorial-btn btn-prev"
           onClick={onPrev}
           disabled={isFirst}
-          title="Previous question (ArrowLeft)"
+          aria-label="Previous question"
         >
-          <ArrowLeft size={13} aria-hidden="true" />
-          <span>PREVIOUS</span>
+          <span className="test-prev-arrow" aria-hidden="true">
+            <ArrowLeft size={13} strokeWidth={2} />
+          </span>
+          <span className="test-prev-label">PREVIOUS</span>
         </button>
 
         <div className="bottom-nav-right">
           {isLast ? (
             <button
               type="button"
-              className="test-nav-btn btn-submit"
-              onClick={onSubmit}
+              className={`test-nav-btn test-nav-editorial-btn btn-submit btn-submit-editorial ${isSubmittingAction ? 'is-active-submit' : ''}`}
+              onClick={handleSubmitClick}
               disabled={!canAdvance}
-              title="Submit test"
+              aria-label="Submit test"
             >
-              <span>SUBMIT TEST</span>
-              <ArrowRight size={13} aria-hidden="true" />
+              <div className="test-submit-label-row">
+                <span className="test-submit-text">SUBMIT TEST</span>
+                <span className="test-submit-arrow" aria-hidden="true">
+                  →
+                </span>
+              </div>
+              <div className="test-submit-underline-track" aria-hidden="true">
+                <div className="test-submit-underline-fill" />
+              </div>
             </button>
           ) : (
             <button
               type="button"
-              className="test-nav-btn btn-next"
+              className="test-nav-btn test-nav-editorial-btn btn-next"
               onClick={onNext}
               disabled={!canAdvance}
-              title={canAdvance ? "Next question (Enter / ArrowRight)" : "Select an answer to proceed"}
+              aria-label="Next question"
             >
-              <span>NEXT</span>
-              <ArrowRight size={13} aria-hidden="true" />
+              <span className="test-next-label">NEXT</span>
+              <span className="test-next-arrow" aria-hidden="true">
+                <ArrowRight size={13} strokeWidth={2} />
+              </span>
             </button>
           )}
         </div>
