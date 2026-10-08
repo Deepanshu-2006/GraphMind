@@ -1233,28 +1233,231 @@
   flex-direction: column;
 }
 
-/* Background faint living graph topology (Section 22) */
-.results-faint-graph-backdrop {
-  position: absolute;
-  top: 20px;
-  right: -20px;
-  width: 520px;
-  height: 420px;
-  pointer-events: none;
-  opacity: 0.06;
-  z-index: 1;
+/* Two-Column Hero Composition (Section 12 & 17) */
+.results-hero-two-column-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  column-gap: 56px;
+  row-gap: 40px;
+  align-items: center;
+  margin-bottom: 48px;
+  position: relative;
+  z-index: 2;
+}
+
+.results-hero-left-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.results-hero-right-column {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+}
+
+/* ==========================================================================
+   CIRCULAR KNOWLEDGE PERFORMANCE VISUALIZATION (Sections 1–12)
+   Segmented questions, SVG geometry, mathematical assembly, interactive
+   ========================================================================== */
+.circular-performance-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
   user-select: none;
-  transition: opacity 350ms ease, transform 350ms ease;
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto;
+  transition: transform 280ms ease, opacity 280ms ease;
 }
 
-.results-faint-graph-backdrop.exiting-to-graph {
-  opacity: 0.12;
-  transform: scale(1.03);
+.circular-visual-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #8A8A8A;
+  margin-bottom: 12px;
 }
 
-.results-faint-graph-backdrop.exiting-to-review {
-  opacity: 0.1;
-  transform: translateX(-16px);
+.circular-header-marker {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: var(--accent, #A3FF12);
+  flex-shrink: 0;
+}
+
+.circular-visual-stage {
+  position: relative;
+  width: 280px;
+  height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.circular-performance-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transform-origin: center;
+  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.circular-performance-svg.settled {
+  transform: scale(1);
+}
+
+.circular-segment-path {
+  transition: stroke 200ms ease, stroke-width 200ms ease, opacity 220ms ease;
+}
+
+.circular-segment-path.hovered {
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.25));
+}
+
+.circular-scanner-dot {
+  filter: drop-shadow(0 0 4px var(--accent, #A3FF12));
+}
+
+/* Center Content inside circle (Section 5) */
+.circular-center-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.circular-center-score-row {
+  display: flex;
+  align-items: baseline;
+  line-height: 0.88;
+}
+
+.circular-center-number {
+  font-family: var(--font-display, 'Inter', sans-serif);
+  font-size: clamp(52px, 5.5vw, 68px);
+  font-weight: 500;
+  letter-spacing: -0.06em;
+  color: #F5F5F5;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.88;
+}
+
+.circular-center-total {
+  font-family: var(--font-display, 'Inter', sans-serif);
+  font-size: 19px;
+  font-weight: 450;
+  color: #777777;
+  letter-spacing: -0.02em;
+  margin-left: 2px;
+}
+
+.circular-center-percentage {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 11.5px;
+  font-weight: 450;
+  color: #8A8A8A;
+  letter-spacing: 0.04em;
+  margin-top: 6px;
+}
+
+/* Interactive contextual tooltip (Section 10 & 11) */
+.circular-interactive-tooltip {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #141414;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm, 4px);
+  padding: 6px 12px;
+  pointer-events: none;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+}
+
+.tooltip-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.tooltip-q-num {
+  color: #8A8A8A;
+  font-family: var(--font-mono, monospace);
+}
+
+.tooltip-q-status.status-correct {
+  color: var(--accent, #A3FF12);
+}
+
+.tooltip-q-status.status-review {
+  color: #E5A93C;
+}
+
+.tooltip-concept-name {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 12px;
+  font-weight: 450;
+  color: #F5F5F5;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Footer Subtitle */
+.circular-summary-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 12px;
+  color: #8A8A8A;
+  margin-top: 14px;
+  letter-spacing: 0.02em;
+}
+
+.summary-footer-dot {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+/* Exit animation states (Section 18) */
+.circular-performance-container.exiting-missed .segment-correct {
+  opacity: 0.22;
+  transform: scale(0.94);
+}
+
+.circular-performance-container.exiting-missed .segment-review {
+  stroke: #E5A93C !important;
+  opacity: 1;
+  stroke-width: 13px !important;
+}
+
+.circular-performance-container.exiting-graph {
+  transform: scale(0.88);
+  opacity: 0;
 }
 
 /* Eyebrow: • TEST / RESULTS */
@@ -1733,11 +1936,18 @@
   border-radius: 2px;
 }
 
-/* Responsive (Section 25) */
+/* Responsive (Section 17 & 25) */
 @media (max-width: 960px) {
   .test-results-editorial-wrap {
     width: calc(100% - 48px);
     padding: 32px 0 48px;
+  }
+  .results-hero-two-column-grid {
+    grid-template-columns: 1fr;
+    row-gap: 48px;
+  }
+  .results-hero-right-column {
+    padding-top: 0;
   }
   .results-knowledge-columns-grid {
     column-gap: 40px;
@@ -1755,6 +1965,10 @@
   }
   .results-hero-number {
     font-size: clamp(68px, 16vw, 100px);
+  }
+  .circular-visual-stage {
+    width: 250px;
+    height: 250px;
   }
   .results-knowledge-columns-grid {
     grid-template-columns: 1fr;

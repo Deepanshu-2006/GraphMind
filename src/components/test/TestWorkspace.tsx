@@ -315,6 +315,7 @@ export function TestWorkspace({
             <TestResultsView
               key="results"
               results={resultsSummary}
+              test={test}
               onReviewAnswers={() => setMode('review-answers')}
               onReviewMissedConcepts={() => setMode('review-missed')}
               onBackToGraph={onClose}

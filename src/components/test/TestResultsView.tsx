@@ -1,10 +1,15 @@
 import { useState, useEffect, useMemo, memo } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
-import type { TestResultsSummary } from '../../types/test';
+import type { TestResultsSummary, KnowledgeTest } from '../../types/test';
+import {
+  CircularPerformanceVisual,
+  type QuestionResultItem
+} from './CircularPerformanceVisual';
 
 interface TestResultsViewProps {
   results: TestResultsSummary;
+  test?: KnowledgeTest | null;
   onReviewAnswers: () => void;
   onReviewMissedConcepts: () => void;
   onBackToGraph: () => void;
@@ -45,71 +50,18 @@ function getScoreInterpretation(percentage: number): ScoreInterpretation {
   };
 }
 
-/**
- * Editorial background topology SVG element with slow breathing animation.
- * Features 8 nodes and hairline relationship edges at 0.06 opacity.
- */
-const DecorativeResultsTopology = memo(function DecorativeResultsTopology({
-  isExiting,
-  exitTarget
-}: {
-  isExiting: boolean;
-  exitTarget: 'missed' | 'graph' | null;
-}) {
-  return (
-    <div
-      className={`results-faint-graph-backdrop ${
-        isExiting && exitTarget === 'graph'
-          ? 'exiting-to-graph'
-          : isExiting && exitTarget === 'missed'
-          ? 'exiting-to-review'
-          : ''
-      }`}
-      aria-hidden="true"
-    >
-      <svg
-        viewBox="0 0 520 420"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="test-topology-svg"
-      >
-        {/* Hairline relationship edges */}
-        <line x1="100" y1="80" x2="260" y2="70" stroke="#FFFFFF" strokeWidth="1" strokeDasharray="2 3" opacity="0.35" />
-        <line x1="260" y1="70" x2="420" y2="120" stroke="#FFFFFF" strokeWidth="1" opacity="0.45" />
-        <line x1="100" y1="80" x2="180" y2="200" stroke="#FFFFFF" strokeWidth="1" opacity="0.4" />
-        <line x1="180" y1="200" x2="350" y2="240" stroke="#FFFFFF" strokeWidth="1" opacity="0.3" />
-        <line x1="420" y1="120" x2="350" y2="240" stroke="#FFFFFF" strokeWidth="1" strokeDasharray="3 3" opacity="0.4" />
-        <line x1="350" y1="240" x2="480" y2="310" stroke="#FFFFFF" strokeWidth="1" opacity="0.5" />
-        <line x1="180" y1="200" x2="120" y2="340" stroke="#FFFFFF" strokeWidth="1" opacity="0.35" />
-        <line x1="350" y1="240" x2="280" y2="380" stroke="#FFFFFF" strokeWidth="1" opacity="0.4" />
-        <line x1="120" y1="340" x2="280" y2="380" stroke="#FFFFFF" strokeWidth="1" strokeDasharray="2 2" opacity="0.3" />
-
-        {/* Breathing nodes */}
-        <circle cx="100" cy="80" r="3" fill="#A1A1A1" className="topology-node node-1" />
-        <circle cx="260" cy="70" r="3.5" fill="#A3FF12" className="topology-node node-2" />
-        <circle cx="260" cy="70" r="7" stroke="#A3FF12" strokeWidth="0.75" opacity="0.35" className="topology-halo halo-2" />
-        <circle cx="420" cy="120" r="3" fill="#D4D4D4" className="topology-node node-3" />
-        <circle cx="180" cy="200" r="2.5" fill="#8A8A8A" className="topology-node node-4" />
-        <circle cx="350" cy="240" r="3" fill="#A1A1A1" className="topology-node node-5" />
-        <circle cx="480" cy="310" r="2.5" fill="#8A8A8A" className="topology-node node-6" />
-        <circle cx="120" cy="340" r="3" fill="#D4D4D4" className="topology-node node-3" />
-        <circle cx="280" cy="380" r="3.5" fill="#A3FF12" className="topology-node node-2" />
-      </svg>
-    </div>
-  );
-});
-
 export const TestResultsView = memo(function TestResultsView({
   results,
+  test,
   onReviewAnswers,
   onReviewMissedConcepts,
   onBackToGraph
 }: TestResultsViewProps) {
-  // Exit transition states (Section 20 & 21)
+  // Exit transition states (Section 18)
   const [isExiting, setIsExiting] = useState(false);
   const [exitTarget, setExitTarget] = useState<'missed' | 'graph' | null>(null);
 
-  // Score count-up numerical reveal (Section 8)
+  // Score count-up numerical reveal
   const [displayScore, setDisplayScore] = useState(0);
   const [hasSettled, setHasSettled] = useState(false);
 
@@ -127,7 +79,6 @@ export const TestResultsView = memo(function TestResultsView({
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(1, elapsed / duration);
-      // Ease-out cubic
       const eased = 1 - Math.pow(1 - progress, 3);
       const currentVal = Math.round(eased * target);
       setDisplayScore(currentVal);
@@ -158,7 +109,50 @@ export const TestResultsView = memo(function TestResultsView({
     return getScoreInterpretation(results.percentage);
   }, [results.percentage]);
 
-  // Deduplicated concept lists
+  // Derive per-question results for circular performance visualization
+  const questionItems: QuestionResultItem[] = useMemo(() => {
+    if (test?.questions && test.questions.length > 0) {
+      return test.questions.map((q, idx) => {
+        const isMissed = results.reviewRecommendedConcepts.some(m => m.questionId === q.id);
+        return {
+          questionNumber: idx + 1,
+          questionId: q.id,
+          isCorrect: !isMissed,
+          conceptName: q.conceptNames?.[0] || 'Concept',
+          questionText: q.question
+        };
+      });
+    }
+
+    // High-fidelity fallback based on results summary
+    const total = results.totalQuestions;
+    const correctCount = results.score;
+    const missedConcepts = results.reviewRecommendedConcepts;
+    const strongConcepts = results.strongConceptNames;
+
+    return Array.from({ length: total }, (_, idx) => {
+      const isCorrect = idx < correctCount;
+      const conceptName = isCorrect
+        ? strongConcepts[idx % Math.max(1, strongConcepts.length)] || 'Core Concept'
+        : missedConcepts[(idx - correctCount) % Math.max(1, missedConcepts.length)]?.conceptName ||
+          'Review Concept';
+
+      return {
+        questionNumber: idx + 1,
+        questionId: `q-${idx + 1}`,
+        isCorrect,
+        conceptName
+      };
+    });
+  }, [
+    test?.questions,
+    results.reviewRecommendedConcepts,
+    results.totalQuestions,
+    results.score,
+    results.strongConceptNames
+  ]);
+
+  // Deduplicated concept lists for knowledge report
   const uniqueStrongConcepts = useMemo(() => {
     return Array.from(new Set(results.strongConceptNames));
   }, [results.strongConceptNames]);
@@ -177,7 +171,7 @@ export const TestResultsView = memo(function TestResultsView({
 
   const hasMissed = uniqueReviewConcepts.length > 0;
 
-  // Choreographed transitions
+  // Choreographed transitions (Section 18)
   const handleReviewMissed = () => {
     if (isExiting) return;
     setIsExiting(true);
@@ -198,103 +192,131 @@ export const TestResultsView = memo(function TestResultsView({
 
   return (
     <div className={`test-results-editorial-wrap ${isExiting ? 'results-exiting' : ''}`}>
-      {/* 1. Quiet Eyebrow (Section 3) */}
-      <motion.div
-        className="results-eyebrow"
-        initial={{ opacity: 0, y: -8 }}
-        animate={isExiting ? { opacity: 0, y: -4 } : { opacity: 1, y: 0 }}
-        transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <span className="results-eyebrow-marker" aria-hidden="true" />
-        <span>TEST / RESULTS</span>
-      </motion.div>
+      {/* ==============================================================
+          TWO-COLUMN HERO COMPOSITION (Section 12 & 17)
+          Left: Narrative, Title, Score, Interpretation (55-60%)
+          Right: Circular Knowledge Performance Visualization (40-45%)
+          ============================================================== */}
+      <div className="results-hero-two-column-grid">
+        {/* LEFT COLUMN: Narrative & Core Metric */}
+        <div className="results-hero-left-column">
+          {/* Eyebrow */}
+          <motion.div
+            className="results-eyebrow"
+            initial={{ opacity: 0, y: -8 }}
+            animate={isExiting ? { opacity: 0, y: -4 } : { opacity: 1, y: 0 }}
+            transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <span className="results-eyebrow-marker" aria-hidden="true" />
+            <span>TEST / RESULTS</span>
+          </motion.div>
 
-      {/* 2. Dominant Editorial Title with Masked Reveal (Section 4) */}
-      <h1 className="results-hero-title">
-        <span className="results-title-line-mask">
-          <motion.span
-            className="results-title-line"
-            initial={{ y: '110%', clipPath: 'inset(0 0 100% 0)' }}
-            animate={
-              isExiting
-                ? { y: '-28px', opacity: 0, clipPath: 'inset(100% 0 0% 0)' }
-                : { y: '0%', opacity: 1, clipPath: 'inset(0 0 0% 0)' }
-            }
-            transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
-          >
-            TEST
-          </motion.span>
-        </span>
-        <span className="results-title-line-mask">
-          <motion.span
-            className="results-title-line"
-            initial={{ y: '110%', clipPath: 'inset(0 0 100% 0)' }}
-            animate={
-              isExiting
-                ? { y: '-28px', opacity: 0, clipPath: 'inset(100% 0 0% 0)' }
-                : { y: '0%', opacity: 1, clipPath: 'inset(0 0 0% 0)' }
-            }
-            transition={{ duration: 0.65, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
-          >
-            COMPLETE
-          </motion.span>
-        </span>
-      </h1>
+          {/* Title */}
+          <h1 className="results-hero-title">
+            <span className="results-title-line-mask">
+              <motion.span
+                className="results-title-line"
+                initial={{ y: '110%', clipPath: 'inset(0 0 100% 0)' }}
+                animate={
+                  isExiting
+                    ? { y: '-28px', opacity: 0, clipPath: 'inset(100% 0 0% 0)' }
+                    : { y: '0%', opacity: 1, clipPath: 'inset(0 0 0% 0)' }
+                }
+                transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+              >
+                TEST
+              </motion.span>
+            </span>
+            <span className="results-title-line-mask">
+              <motion.span
+                className="results-title-line"
+                initial={{ y: '110%', clipPath: 'inset(0 0 100% 0)' }}
+                animate={
+                  isExiting
+                    ? { y: '-28px', opacity: 0, clipPath: 'inset(100% 0 0% 0)' }
+                    : { y: '0%', opacity: 1, clipPath: 'inset(0 0 0% 0)' }
+                }
+                transition={{ duration: 0.65, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+              >
+                COMPLETE
+              </motion.span>
+            </span>
+          </h1>
 
-      {/* 3. Hero Score Composition (Section 5 & 8) */}
-      <div className="results-score-hero-block">
-        <div className="results-score-primary-row">
-          <motion.span
-            className={`results-hero-number ${hasSettled ? 'settled' : ''}`}
-            initial={{ y: 24, opacity: 0 }}
-            animate={isExiting ? { y: -24, opacity: 0 } : { y: 0, opacity: 1 }}
-            transition={{ duration: 0.48, delay: 0.16, ease: [0.16, 1, 0.3, 1] }}
+          {/* Hero Score Row */}
+          <div className="results-score-hero-block">
+            <div className="results-score-primary-row">
+              <motion.span
+                className={`results-hero-number ${hasSettled ? 'settled' : ''}`}
+                initial={{ y: 24, opacity: 0 }}
+                animate={isExiting ? { y: -24, opacity: 0 } : { y: 0, opacity: 1 }}
+                transition={{ duration: 0.48, delay: 0.16, ease: [0.16, 1, 0.3, 1] }}
+              >
+                {scoreFormatted}
+              </motion.span>
+              <motion.span
+                className="results-total-denominator"
+                initial={{ y: 16, opacity: 0 }}
+                animate={isExiting ? { y: -16, opacity: 0 } : { y: 0, opacity: 1 }}
+                transition={{ duration: 0.45, delay: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              >
+                / {totalFormatted}
+              </motion.span>
+            </div>
+
+            <motion.div
+              className="results-secondary-meta"
+              initial={{ opacity: 0, y: 8 }}
+              animate={isExiting ? { opacity: 0 } : { opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <span>{results.percentage}% correct</span>
+              <span className="results-meta-separator" aria-hidden="true">·</span>
+              <span>{timeFormatted} elapsed</span>
+            </motion.div>
+          </div>
+
+          {/* Score Interpretation */}
+          <motion.div
+            className="results-interpretation-block"
+            initial={{ opacity: 0, y: 12 }}
+            animate={isExiting ? { opacity: 0, y: -8 } : { opacity: 1, y: 0 }}
+            transition={{ duration: 0.42, delay: 0.36, ease: [0.16, 1, 0.3, 1] }}
           >
-            {scoreFormatted}
-          </motion.span>
-          <motion.span
-            className="results-total-denominator"
-            initial={{ y: 16, opacity: 0 }}
-            animate={isExiting ? { y: -16, opacity: 0 } : { y: 0, opacity: 1 }}
-            transition={{ duration: 0.45, delay: 0.22, ease: [0.16, 1, 0.3, 1] }}
-          >
-            / {totalFormatted}
-          </motion.span>
+            <div className={`results-interpretation-heading ${interpretation.tone}`}>
+              <span className="interpretation-marker" aria-hidden="true" />
+              <span>{interpretation.headline}</span>
+            </div>
+            <p className="results-interpretation-text">
+              {interpretation.narrative}
+            </p>
+          </motion.div>
         </div>
 
-        {/* Secondary quiet metric (Section 7) */}
-        <motion.div
-          className="results-secondary-meta"
-          initial={{ opacity: 0, y: 8 }}
-          animate={isExiting ? { opacity: 0 } : { opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <span>{results.percentage}% correct</span>
-          <span className="results-meta-separator" aria-hidden="true">·</span>
-          <span>{timeFormatted} elapsed</span>
-        </motion.div>
+        {/* RIGHT COLUMN: Circular Knowledge Performance Visualization */}
+        <div className="results-hero-right-column">
+          <CircularPerformanceVisual
+            score={results.score}
+            totalQuestions={results.totalQuestions}
+            percentage={results.percentage}
+            questionItems={questionItems}
+            isExiting={isExiting}
+            exitTarget={exitTarget}
+            onSelectQuestion={(item) => {
+              if (!item.isCorrect && hasMissed) {
+                handleReviewMissed();
+              }
+            }}
+          />
+        </div>
       </div>
-
-      {/* 4. Score Interpretation (Section 6) */}
-      <motion.div
-        className="results-interpretation-block"
-        initial={{ opacity: 0, y: 12 }}
-        animate={isExiting ? { opacity: 0, y: -8 } : { opacity: 1, y: 0 }}
-        transition={{ duration: 0.42, delay: 0.36, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <div className={`results-interpretation-heading ${interpretation.tone}`}>
-          <span className="interpretation-marker" aria-hidden="true" />
-          <span>{interpretation.headline}</span>
-        </div>
-        <p className="results-interpretation-text">
-          {interpretation.narrative}
-        </p>
-      </motion.div>
 
       {/* Major Divider */}
       <div className="results-major-divider" aria-hidden="true" />
 
-      {/* 5. Editorial Knowledge Report (Section 10, 13, 14) */}
+      {/* ==============================================================
+          EDITORIAL KNOWLEDGE REPORT (Section 10, 13, 14)
+          ============================================================== */}
       <motion.div
         className="results-knowledge-report-section"
         initial={{ opacity: 0, y: 14 }}
@@ -387,14 +409,16 @@ export const TestResultsView = memo(function TestResultsView({
       {/* Major Divider */}
       <div className="results-major-divider" aria-hidden="true" />
 
-      {/* 6. Editorial Next Actions (Section 16, 17, 18, 19) */}
+      {/* ==============================================================
+          EDITORIAL NEXT ACTIONS (Section 16, 17, 18, 19)
+          ============================================================== */}
       <motion.div
         className="results-actions-group"
         initial={{ opacity: 0, y: 12 }}
         animate={isExiting ? { opacity: 0, y: 16 } : { opacity: 1, y: 0 }}
         transition={{ duration: 0.38, delay: 0.54, ease: [0.16, 1, 0.3, 1] }}
       >
-        {/* Primary Action (Section 16) */}
+        {/* Primary Action */}
         {hasMissed ? (
           <button
             type="button"
@@ -429,7 +453,7 @@ export const TestResultsView = memo(function TestResultsView({
           </button>
         )}
 
-        {/* Secondary Action: plain text (Section 17) */}
+        {/* Secondary Action */}
         <button
           type="button"
           className="results-secondary-text-btn"
@@ -442,7 +466,7 @@ export const TestResultsView = memo(function TestResultsView({
           </span>
         </button>
 
-        {/* Quiet Back to Graph Link (Section 18) */}
+        {/* Quiet Back to Graph Link */}
         <button
           type="button"
           className="results-quiet-back-btn"
@@ -456,9 +480,6 @@ export const TestResultsView = memo(function TestResultsView({
           <span>BACK TO GRAPH</span>
         </button>
       </motion.div>
-
-      {/* Decorative Faint Graph Topology Behind Results (Section 22) */}
-      <DecorativeResultsTopology isExiting={isExiting} exitTarget={exitTarget} />
     </div>
   );
 });
