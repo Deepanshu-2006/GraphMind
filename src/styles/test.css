@@ -1338,6 +1338,251 @@
 }
 
 /* ==========================================================================
+   SUBMIT ASSESSMENT CONFIRMATION MODAL & TRANSITION (Sections 1-21)
+   - Centered overlay with restrained 6px blur and dark #111111 surface
+   - Eyebrow: • ASSESSMENT COMPLETE with GraphMind green marker
+   - Editorial headline: READY TO SEE HOW YOU DID?
+   - Segmented 10-segment circular completion ring with sequential drawing
+   - Minimal SUBMIT TEST → button with directional arrow, underline & sweep line
+   - Coordinated 600–800ms transition into results
+   ========================================================================== */
+.submit-assessment-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.submit-assessment-card {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  background: #111111;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 38px 40px 32px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  outline: none;
+}
+
+.submit-modal-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent, #A3FF12);
+  margin-bottom: 18px;
+}
+
+.submit-eyebrow-marker {
+  color: var(--accent, #A3FF12);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.submit-modal-heading {
+  font-family: var(--font-display, sans-serif);
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  color: var(--text-primary, #F5F5F5);
+  margin: 0 0 14px;
+  text-align: center;
+}
+
+.submit-modal-supporting {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-secondary, #A1A1A1);
+  max-width: 420px;
+  margin: 0 0 28px;
+  text-align: center;
+}
+
+/* Completion visual block (Section 4 & 5) */
+.submit-completion-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 32px;
+  padding: 6px 0;
+  position: relative;
+}
+
+.submit-ring-wrapper {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.submit-completion-fraction {
+  font-family: var(--font-mono, monospace);
+  font-size: 20px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--text-primary, #F5F5F5);
+  margin-top: 4px;
+}
+
+.submit-completion-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8A8A8A);
+}
+
+/* Actions footer (Section 9, 10, 11, 13) */
+.submit-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.submit-action-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--text-muted, #8A8A8A);
+  cursor: pointer;
+  padding: 10px 14px;
+  transition: color 180ms ease;
+  outline: none;
+  border-radius: 4px;
+}
+
+.submit-action-back-btn:hover {
+  color: #FFFFFF;
+}
+
+.submit-action-back-btn:focus-visible {
+  color: #FFFFFF;
+  box-shadow: 0 0 0 1px var(--accent, #A3FF12);
+}
+
+.submit-action-back-btn .back-arrow {
+  font-size: 13px;
+  opacity: 0;
+  transform: translateX(4px);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.submit-action-back-btn:hover .back-arrow,
+.submit-action-back-btn:focus-visible .back-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.submit-action-confirm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--accent, #A3FF12);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: color 180ms ease, background 180ms ease;
+  outline: none;
+}
+
+.submit-action-confirm-btn:hover {
+  background: transparent;
+  color: #FFFFFF;
+}
+
+.submit-action-confirm-btn:focus-visible {
+  color: #FFFFFF;
+  outline: none;
+  box-shadow: none;
+}
+
+.confirm-btn-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  z-index: 2;
+  transition: transform 180ms ease;
+}
+
+.submit-action-confirm-btn:hover .confirm-btn-arrow {
+  transform: translateX(5px);
+}
+
+.confirm-btn-arrow {
+  display: inline-block;
+  font-size: 13px;
+  transition: transform 180ms ease;
+}
+
+.confirm-btn-underline {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  background: var(--accent, #A3FF12);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 180ms ease;
+}
+
+.submit-action-confirm-btn:hover .confirm-btn-underline {
+  transform: scaleX(1);
+}
+
+.confirm-btn-sweep-line {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(163, 255, 18, 0.35), transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.submit-action-confirm-btn.is-submitting {
+  border: none;
+  color: #FFFFFF;
+  pointer-events: none;
+}
+
+/* ==========================================================================
    TIME'S UP SCREEN
    ========================================================================== */
 .test-timeup-container {
@@ -2565,6 +2810,29 @@
     left: 20px;
     right: 20px;
     width: auto;
+  }
+
+  .submit-assessment-card {
+    padding: 28px 20px 24px;
+    max-width: calc(100vw - 32px);
+  }
+
+  .submit-modal-heading {
+    font-size: 28px;
+  }
+
+  .submit-modal-actions {
+    flex-direction: column-reverse;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .submit-action-confirm-btn {
+    width: 100%;
+  }
+
+  .submit-action-back-btn {
+    justify-content: center;
   }
 }
 
