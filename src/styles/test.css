@@ -833,93 +833,254 @@
   margin-bottom: 32px;
 }
 
-/* Options Stack */
+/* ==========================================================================
+   Editorial MCQ Option Selection Architecture (Sections 1-19)
+   - Composed single object with top and bottom boundary
+   - Hairline single dividers between options (rgba(255, 255, 255, 0.08))
+   - Monospace tabular option numbers (01, 02, 03, 04)
+   - Medium weight answer typography (16–18px, not bold)
+   - Left green sliding hover marker (•)
+   - Left green edge rule on selection
+   - Subtle right selection indicator (○ unselected, ● selected)
+   - Correct/Incorrect feedback states (amber for error, green for correct)
+   ========================================================================== */
+
+/* Composed Answer List Stack (Section 2, 14, 19) */
 .test-options-stack {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
+  margin-top: 36px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  position: relative;
+  width: 100%;
 }
 
+/* Individual Option Row (Section 2, 4, 14, 18) */
 .test-option-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 16px 20px;
+  min-height: 64px;
+  padding: 18px 22px;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-btn, 6px);
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0;
+  box-shadow: none;
   color: var(--text-primary, #F5F5F5);
   cursor: pointer;
   position: relative;
   overflow: hidden;
   text-align: left;
-  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+  outline: none;
+  transition: background 180ms ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
+.test-option-row:last-child {
+  border-bottom: none;
+}
+
+/* Hover Interaction (Section 5) */
 .test-option-row:hover {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.18);
-  transform: translateX(3px);
+  background: rgba(255, 255, 255, 0.02);
 }
 
-.test-option-row:hover .option-hover-arrow {
+/* Keyboard Focus State (Section 9) */
+.test-option-row.is-focused,
+.test-option-row:focus-visible {
+  background: rgba(255, 255, 255, 0.02);
+  outline: none;
+}
+
+/* Selected State (Section 6) */
+.test-option-row.selected {
+  background: rgba(163, 255, 18, 0.02);
+}
+
+/* Thin Left Rule on Selection (Section 6 & 7) */
+.option-edge-rule {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: var(--accent, #A3FF12);
+  transform-origin: top;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.option-edge-rule.edge-amber {
+  background: rgba(212, 155, 85, 0.85);
+}
+
+/* Column Left: Option Number & Hover Dot (Section 3, 5, 15) */
+.option-row-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 44px;
+  min-width: 44px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.option-hover-marker {
+  color: var(--accent, #A3FF12);
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0;
+  transform: translateX(-5px);
+  transition: opacity 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.test-option-row:hover .option-hover-marker,
+.test-option-row.is-focused .option-hover-marker,
+.test-option-row:focus-visible .option-hover-marker,
+.test-option-row.selected .option-hover-marker {
   opacity: 1;
   transform: translateX(0);
 }
 
-.test-option-row.selected {
-  border-color: rgba(163, 255, 18, 0.4);
-  background: rgba(163, 255, 18, 0.04);
+.option-slot-badge {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted, #8A8A8A);
+  transition: color 180ms ease;
+}
+
+.test-option-row:hover .option-slot-badge,
+.test-option-row.is-focused .option-slot-badge,
+.test-option-row:focus-visible .option-slot-badge {
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .test-option-row.selected .option-slot-badge {
   color: var(--accent, #A3FF12);
 }
 
-.option-row-left {
-  display: flex;
-  align-items: baseline;
-  gap: 16px;
+/* Column Center: Answer Text (Section 3, 5, 16) */
+.option-row-center {
   flex: 1;
-}
-
-.option-slot-badge {
-  font-family: var(--font-mono, monospace);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-muted, #8A8A8A);
-  transition: color 180ms ease;
+  min-width: 0;
+  padding-right: 18px;
 }
 
 .option-slot-text {
-  font-size: 15px;
-  line-height: 1.5;
+  display: block;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif);
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.45;
   color: var(--text-primary, #F5F5F5);
+  word-break: break-word;
+  transition: color 180ms ease;
 }
 
+.test-option-row.selected .option-slot-text {
+  color: #FFFFFF;
+}
+
+/* Column Right: Selection Indicator (Section 2, 7) */
 .option-row-right {
   display: flex;
   align-items: center;
-  position: relative;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 64px;
+  flex-shrink: 0;
 }
 
-.option-hover-arrow {
+.option-indicator-svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  overflow: visible;
+}
+
+.option-indicator-ring {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 1.25;
+  transition: stroke 180ms ease;
+}
+
+.test-option-row:hover .option-indicator-ring,
+.test-option-row.is-focused .option-indicator-ring,
+.test-option-row:focus-visible .option-indicator-ring {
+  stroke: rgba(255, 255, 255, 0.35);
+}
+
+.test-option-row.selected .option-indicator-ring {
+  stroke: var(--accent, #A3FF12);
+}
+
+.option-indicator-dot {
+  fill: var(--accent, #A3FF12);
+  transform-origin: center;
+}
+
+.option-indicator-dot.dot-amber {
+  fill: #D49B55;
+}
+
+/* Feedback State: Correct / Incorrect (Section 10 & 11) */
+.test-option-row.state-correct {
+  background: rgba(163, 255, 18, 0.02);
+}
+
+.test-option-row.state-correct .option-slot-badge {
   color: var(--accent, #A3FF12);
-  font-size: 14px;
-  opacity: 0;
-  transform: translateX(-4px);
-  transition: all 180ms ease;
 }
 
-.option-active-accent-line {
-  position: absolute;
-  bottom: -16px;
-  left: -20px;
-  right: -20px;
-  height: 2px;
-  background-color: var(--accent, #A3FF12);
-  transform-origin: left;
+.test-option-row.state-correct .option-slot-text {
+  color: #FFFFFF;
+}
+
+.test-option-row.state-correct .option-indicator-ring {
+  stroke: var(--accent, #A3FF12);
+}
+
+.test-option-row.state-correct .option-hover-marker {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.test-option-row.state-incorrect {
+  background: rgba(212, 155, 85, 0.02);
+}
+
+.test-option-row.state-incorrect .option-slot-badge {
+  color: #D49B55;
+}
+
+.test-option-row.state-incorrect .option-slot-text {
+  color: var(--text-muted, #8A8A8A);
+}
+
+.test-option-row.state-incorrect .option-indicator-ring {
+  stroke: rgba(212, 155, 85, 0.6);
+}
+
+.option-reveal-correct-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent, #A3FF12);
 }
 
 /* Bottom Navigation Bar */
@@ -2370,6 +2531,20 @@
 
   .test-question-text {
     font-size: 20px;
+  }
+
+  .test-option-row {
+    padding: 14px 16px;
+    min-height: 56px;
+  }
+
+  .option-row-left {
+    width: 36px;
+    min-width: 36px;
+  }
+
+  .option-slot-text {
+    font-size: 15px;
   }
 
   .results-score-hero {

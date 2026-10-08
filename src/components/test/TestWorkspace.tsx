@@ -287,7 +287,7 @@ export function TestWorkspace({
 
           {mode === 'testing' && test && currentQuestion && (
             <TestQuestionView
-              key={`q-${currentQuestion.id}`}
+              key="active-test-question-workspace"
               question={currentQuestion}
               currentIndex={currentIndex}
               totalQuestions={test.questions.length}
