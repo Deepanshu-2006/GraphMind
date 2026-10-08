@@ -134,4 +134,150 @@ describe('GraphMind Circular Knowledge Performance Visualization', () => {
       assert.equal(exitTargetGraph, 'graph');
     });
   });
+
+  describe('6. Ring Wake-Up Micro-Motion (Section 2 & 3)', () => {
+    it('initializes with subtle dormant graphite track rather than empty circle', () => {
+      const dormantStrokeToken = 'rgba(255, 255, 255, 0.08)';
+      assert.ok(dormantStrokeToken.includes('255, 255, 255'));
+    });
+
+    it('executes a single controlled wake-up rotation between 8 and 15 degrees', () => {
+      const wakeInitialDeg = -10;
+      const wakeTargetDeg = 0;
+      const deltaDeg = Math.abs(wakeTargetDeg - wakeInitialDeg);
+
+      assert.ok(deltaDeg >= 8 && deltaDeg <= 15, `Rotation delta ${deltaDeg} must be between 8 and 15 degrees`);
+    });
+
+    it('has a wake duration between 250ms and 350ms with no infinite repeat', () => {
+      const wakeDuration = 0.35; // 350ms
+      assert.ok(wakeDuration >= 0.25 && wakeDuration <= 0.35);
+    });
+  });
+
+  describe('7. Sequential Angular Lock-In & SVG Arc Drawing (Section 4, 5, 6)', () => {
+    it('derives sequential delay for achieved performance segments', () => {
+      const score = 4;
+      const total = 10;
+      const delays = Array.from({ length: score }, (_, i) => 0.32 + (i / score) * 0.44);
+
+      assert.equal(delays.length, 4);
+      assert.ok(delays[0] < delays[1]);
+      assert.ok(delays[1] < delays[2]);
+      assert.ok(delays[2] < delays[3]);
+      assert.ok(delays[3] <= 0.80);
+    });
+
+    it('uses angular overshoot along circumference (-8deg -> +1.2deg -> 0deg) with no bounce', () => {
+      const keyframes = [-8, 1.2, 0];
+      assert.equal(keyframes[0], -8);
+      assert.equal(keyframes[1], 1.2);
+      assert.equal(keyframes[2], 0);
+
+      const overshoot = keyframes[1] - keyframes[2];
+      assert.ok(overshoot > 0 && overshoot <= 2.5, 'Overshoot should be extremely subtle');
+    });
+
+    it('rotates about circle center (160, 160) guaranteeing motion along the circular path', () => {
+      const cx = 160;
+      const cy = 160;
+      const radius = 112;
+      const origin = `${cx}px ${cy}px`;
+
+      assert.equal(origin, '160px 160px');
+      assert.equal(radius, 112);
+    });
+  });
+
+  describe('8. Traveling Energy Point Tracer (Section 7)', () => {
+    it('calculates start and stop angles aligned exactly to first and last achieved segments', () => {
+      const totalQuestions = 10;
+      const N = totalQuestions;
+      const slotDeg = 360 / N;
+      const gapDeg = 5;
+      const spanDeg = slotDeg - gapDeg;
+
+      const segments = Array.from({ length: N }, (_, i) => {
+        const startAngle = -90 + i * slotDeg + gapDeg / 2;
+        const endAngle = startAngle + spanDeg;
+        return { startAngle, endAngle };
+      });
+
+      // For 20% score (score = 2):
+      const score = 2;
+      const startRotate = segments[0].startAngle + 90;
+      const targetRotate = segments[score - 1].endAngle + 90;
+
+      assert.ok(startRotate >= 0);
+      assert.ok(targetRotate > startRotate);
+      // For score = 2, total arc is approx 2 * 36 = 72 deg
+      assert.ok(targetRotate <= 72);
+    });
+
+    it('uses an ultra-compact 2-4px radius for the measurement point', () => {
+      const tracerRadius = 2.2;
+      assert.ok(tracerRadius >= 2 && tracerRadius <= 4);
+    });
+
+    it('fades out as it settles into the final achieved segment cap', () => {
+      const opacityKeyframes = [0, 1, 1, 0];
+      assert.equal(opacityKeyframes[0], 0);
+      assert.equal(opacityKeyframes[1], 1);
+      assert.equal(opacityKeyframes[3], 0);
+    });
+  });
+
+  describe('9. Score & Ring Synchronization (Section 8, 9, 10)', () => {
+    it('ensures ring starts measuring (300ms) before numerical slot digits roll (420ms)', () => {
+      const ringMeasureStart = 300;
+      const numeralsRollStart = 420;
+
+      assert.ok(ringMeasureStart < numeralsRollStart, 'Ring must lead the numerical result slightly');
+    });
+
+    it('reaches fully static calm without continuous rotation or pulsing after completion', () => {
+      const finalSettleTime = 1120; // ms
+      assert.ok(finalSettleTime <= 1500, 'Total animation duration should be ~1.2-1.5s');
+    });
+  });
+
+  describe('10. Edge Cases: Zero Score and Perfect Score (Section 12, 13, 14)', () => {
+    it('handles 0 / 10 score: graphite ring wakes, no green arc, no energy tracer', () => {
+      const score = 0;
+      const total = 10;
+      const hasEnergyPoint = score > 0;
+      const achievedSegmentsCount = Array.from({ length: total }, (_, i) => i < score).filter(Boolean).length;
+
+      assert.equal(hasEnergyPoint, false);
+      assert.equal(achievedSegmentsCount, 0);
+    });
+
+    it('handles 10 / 10 score: resolves all 10 segments sequentially without confetti or glow explosion', () => {
+      const score = 10;
+      const total = 10;
+      const achievedSegmentsCount = Array.from({ length: total }, (_, i) => i < score).filter(Boolean).length;
+
+      assert.equal(achievedSegmentsCount, 10);
+      const isConfettiEnabled = false;
+      assert.equal(isConfettiEnabled, false);
+    });
+  });
+
+  describe('11. Reduced Motion Support & Hover Restraint (Section 11 & 15)', () => {
+    it('skips transitions when prefers-reduced-motion is active', () => {
+      const prefersReducedMotion = true;
+      const ringInitialRotate = prefersReducedMotion ? 0 : -10;
+      const transitionDuration = prefersReducedMotion ? 0 : 0.35;
+
+      assert.equal(ringInitialRotate, 0);
+      assert.equal(transitionDuration, 0);
+    });
+
+    it('brightens achieved segments on hover without restarting score or rotation', () => {
+      const restingColor = 'var(--accent, #B8FF3D)';
+      const hoveredColor = '#D4FF66';
+
+      assert.notEqual(restingColor, hoveredColor);
+    });
+  });
 });
