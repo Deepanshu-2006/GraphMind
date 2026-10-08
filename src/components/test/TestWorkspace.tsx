@@ -71,8 +71,17 @@ export function TestWorkspace({
 
   const [resultsSummary, setResultsSummary] = useState<TestResultsSummary | null>(null);
 
-  // Time tracker ref
+  // Ref for root container to manage scroll position
+  const workspaceRootRef = useRef<HTMLDivElement>(null);
   const startTimeRef = useRef<number>(Date.now());
+
+  // Ensure workspace is always scrolled to the top when mode changes (especially to 'results')
+  useEffect(() => {
+    if (workspaceRootRef.current) {
+      workspaceRootRef.current.scrollTop = 0;
+    }
+    window.scrollTo(0, 0);
+  }, [mode]);
 
   // Timer Tick
   useEffect(() => {
@@ -232,6 +241,7 @@ export function TestWorkspace({
 
   return (
     <motion.div
+      ref={workspaceRootRef}
       className="test-workspace-root"
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -316,9 +326,14 @@ export function TestWorkspace({
               key="results"
               results={resultsSummary}
               test={test}
+              graph={graph}
               onReviewAnswers={() => setMode('review-answers')}
               onReviewMissedConcepts={() => setMode('review-missed')}
               onBackToGraph={onClose}
+              onSelectConceptToReview={(conceptId) => {
+                onClose();
+                onFocusConceptInGraph?.(conceptId);
+              }}
             />
           )}
 
