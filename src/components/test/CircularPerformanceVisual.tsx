@@ -14,6 +14,7 @@ export interface CircularPerformanceVisualProps {
   score: number;
   totalQuestions: number;
   percentage: number;
+  timeFormatted?: string;
   questionItems: QuestionResultItem[];
   isExiting: boolean;
   exitTarget: 'missed' | 'graph' | null;
@@ -74,6 +75,7 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
   score,
   totalQuestions,
   percentage,
+  timeFormatted,
   questionItems,
   isExiting,
   exitTarget,
@@ -82,13 +84,14 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
-  // Animation sequence states (Section 4 & 5)
-  // 01 -> correct segment activates
-  // 02 -> remaining segments resolve
-  // 03 -> center score settles
-  // 04 -> supporting text appears
+  // Animation sequence states (Section 4, 5 & 11)
+  // Step 1 -> circular track draws in and correct segments activate
+  // Step 2 -> remaining segments resolve around the circle
+  // Step 3 -> center score settles & percentage resolves
+  // Step 4 -> supporting metadata appears
   const [animationStep, setAnimationStep] = useState<number>(0);
   const [isSettled, setIsSettled] = useState<boolean>(false);
+  const [displayPercentage, setDisplayPercentage] = useState<number>(0);
 
   const safeTotal = Math.max(1, totalQuestions);
 
@@ -101,38 +104,63 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
     ) {
       setAnimationStep(4);
       setIsSettled(true);
+      setDisplayPercentage(percentage);
       return;
     }
 
-    // Sequenced editorial reveal: 500–800ms total
-    // Step 1: correct segments activate (180ms)
+    // Step 1: circular track draws & correct segments activate (160ms)
     const t1 = setTimeout(() => {
       setAnimationStep(1);
-    }, 180);
+    }, 160);
 
-    // Step 2: remaining segments resolve (360ms)
+    // Step 2: remaining segments resolve around the circle (340ms)
     const t2 = setTimeout(() => {
       setAnimationStep(2);
-    }, 360);
+    }, 340);
 
     // Step 3: center score settles (520ms)
     const t3 = setTimeout(() => {
       setAnimationStep(3);
     }, 520);
 
-    // Step 4: supporting text appears (680ms)
+    // Step 4: supporting text appears after score settles (800ms)
     const t4 = setTimeout(() => {
       setAnimationStep(4);
       setIsSettled(true);
-    }, 680);
+    }, 800);
+
+    // Progressive percentage count-up: resolves 0% -> target% between 360ms and 740ms
+    const startTime = Date.now() + 360;
+    const duration = 380;
+    let animId: number;
+
+    const updatePercentage = () => {
+      const now = Date.now();
+      if (now < startTime) {
+        animId = requestAnimationFrame(updatePercentage);
+        return;
+      }
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      // Easing: cubic out
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayPercentage(Math.round(eased * percentage));
+
+      if (progress < 1) {
+        animId = requestAnimationFrame(updatePercentage);
+      }
+    };
+
+    animId = requestAnimationFrame(updatePercentage);
 
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
       clearTimeout(t4);
+      cancelAnimationFrame(animId);
     };
-  }, [safeTotal, score]);
+  }, [safeTotal, score, percentage]);
 
   // Geometry dimensions: spatially stable circle, no full rotation
   const viewBoxSize = 320;
@@ -206,13 +234,16 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
           aria-hidden="true"
         >
           {/* Subtle background guide track */}
-          <circle
+          <motion.circle
             cx={cx}
             cy={cy}
             r={radius}
             fill="none"
-            stroke="rgba(255, 255, 255, 0.03)"
+            stroke="rgba(255, 255, 255, 0.05)"
             strokeWidth={1}
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={{ pathLength: 1, opacity: 1 }}
+            transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
           />
 
           {/* Question arc segments */}
@@ -222,16 +253,15 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
             const isHovered = hoveredIndex === seg.index;
             const isSelected = selectedIndex === seg.index;
 
-            // Step 1: correct segments activate first
-            // Step 2: remaining segments resolve into inactive state
+            // Controlled radial progressive reveal around the circle (Section 11)
             const isVisible = isItemCorrect
               ? animationStep >= 1
               : animationStep >= 2;
 
-            let strokeColor = 'rgba(255, 255, 255, 0.02)';
+            let strokeColor = 'rgba(255, 255, 255, 0.09)';
             if (isVisible) {
               if (isItemCorrect) {
-                strokeColor = 'var(--accent, #A3FF12)';
+                strokeColor = 'var(--accent, #B8FF3D)';
               } else if (isUnanswered) {
                 strokeColor = isHovered
                   ? 'rgba(255, 255, 255, 0.18)'
@@ -243,12 +273,12 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
               }
             }
 
-            // Variable stroke presence: correct segments have a confident 10px presence, inactive 8.5px
+            // Variable stroke presence: correct segments have confident 10px presence, inactive 8.5px
             const baseStroke = isItemCorrect ? 10 : 8.5;
             const currentStrokeWidth = isHovered || isSelected ? baseStroke + 2.5 : baseStroke;
 
             return (
-              <path
+              <motion.path
                 key={seg.questionId || seg.index}
                 d={seg.pathD}
                 fill="none"
@@ -258,6 +288,13 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
                 className={`circular-segment-path ${
                   isItemCorrect ? 'segment-correct' : isUnanswered ? 'segment-unanswered' : 'segment-review'
                 } ${isHovered ? 'hovered' : ''} ${isSelected ? 'selected' : ''}`}
+                initial={{ pathLength: 0, opacity: 0 }}
+                animate={{ pathLength: 1, opacity: isVisible ? 1 : 0.15 }}
+                transition={{
+                  duration: 0.42,
+                  delay: 0.14 + (seg.index / safeTotal) * 0.34,
+                  ease: [0.16, 1, 0.3, 1]
+                }}
                 onMouseEnter={() => setHoveredIndex(seg.index)}
                 onMouseLeave={() => setHoveredIndex(null)}
                 onClick={() => {
@@ -266,8 +303,7 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
                 }}
                 style={{
                   cursor: 'pointer',
-                  opacity: isVisible ? 1 : 0.15,
-                  transition: 'stroke-width 220ms ease, stroke 240ms ease, opacity 260ms ease'
+                  transition: 'stroke-width 220ms ease, stroke 240ms ease'
                 }}
               />
             );
@@ -290,7 +326,7 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
             animate={animationStep >= 3 ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
             transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
           >
-            {percentage}% CORRECT
+            {displayPercentage}% CORRECT
           </motion.span>
         </div>
 
@@ -328,16 +364,23 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
         </AnimatePresence>
       </div>
 
-      {/* Footer Subtitle: e.g. 1 correct · 9 to revisit (Section 12) */}
+      {/* Footer Subtitle: e.g. 2 correct · 8 to revisit + quiet 00:53 elapsed (Section 1 & 3) */}
       <motion.div
         className="circular-summary-footer"
-        initial={{ opacity: 0 }}
-        animate={animationStep >= 4 ? { opacity: 1 } : { opacity: 0 }}
+        initial={{ opacity: 0, y: 6 }}
+        animate={animationStep >= 4 ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
         transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       >
-        <span>{score} correct</span>
-        <span className="summary-footer-dot" aria-hidden="true">·</span>
-        <span>{reviewCount} to revisit</span>
+        <div className="circular-summary-counts">
+          <span>{score} correct</span>
+          <span className="summary-footer-dot" aria-hidden="true">·</span>
+          <span>{reviewCount} to revisit</span>
+        </div>
+        {timeFormatted && (
+          <div className="circular-summary-elapsed">
+            <span>{timeFormatted} elapsed</span>
+          </div>
+        )}
       </motion.div>
     </motion.div>
   );

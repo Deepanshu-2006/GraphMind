@@ -60,44 +60,9 @@ export function getScoreInterpretation(percentage: number): ScoreInterpretation 
   return {
     headline: 'NEEDS REVIEW',
     statement: 'Several foundational concepts need reinforcement.',
-    narrative: 'Several foundational concepts need reinforcement. A focused review of the highlighted material will help close the gaps.',
+    narrative: 'Several foundational concepts need reinforcement. A focused review of the concepts you missed will help strengthen the connections in your knowledge graph.',
     tone: 'warning'
   };
-}
-
-/**
- * SlotDigit: Rolling numeral transition that rolls from 0 to targetDigit
- * Smooth, mechanical, intentional motion with cubic-bezier easing
- */
-function SlotDigit({
-  targetDigit,
-  delay = 0.22,
-  duration = 0.58
-}: {
-  targetDigit: number;
-  delay?: number;
-  duration?: number;
-}) {
-  return (
-    <span className="editorial-slot-digit" aria-hidden="true">
-      <motion.span
-        className="editorial-slot-column"
-        initial={{ y: '0%' }}
-        animate={{ y: `-${targetDigit * 10}%` }}
-        transition={{
-          duration,
-          delay,
-          ease: [0.16, 1, 0.3, 1]
-        }}
-      >
-        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => (
-          <span key={d} className="editorial-slot-numeral">
-            {d}
-          </span>
-        ))}
-      </motion.span>
-    </span>
-  );
 }
 
 export const TestResultsView = memo(function TestResultsView({
@@ -132,12 +97,6 @@ export const TestResultsView = memo(function TestResultsView({
     }, 40);
     return () => clearTimeout(timer);
   }, []);
-
-  // Formatted numerical strings
-  const scoreFormatted = results.score.toString().padStart(2, '0');
-  const totalFormatted = results.totalQuestions.toString().padStart(2, '0');
-  const tensDigit = Math.floor(results.score / 10) % 10;
-  const unitsDigit = results.score % 10;
 
   // Elapsed time format (MM:SS)
   const mins = Math.floor(results.timeSpentSeconds / 60);
@@ -276,24 +235,44 @@ export const TestResultsView = memo(function TestResultsView({
   return (
     <div className={`test-results-editorial-wrap ${isExiting ? 'results-exiting' : ''}`}>
       {/* ==============================================================
-          HERO COMPOSITION (Section 1, 2, 3, 4, 18)
-          Left: Eyebrow, TEST COMPLETE, Dominant Score, Interpretation
-          Right: Circular Knowledge Performance Visualization
+          TOP CONTEXTUAL NAVIGATION (Section 4)
+          Left: Eyebrow • TEST / RESULTS
+          Right: ← BACK TO GRAPH
+          ============================================================== */}
+      <div className="results-top-nav-row">
+        <motion.div
+          className="results-eyebrow"
+          initial={{ opacity: 0, y: -6 }}
+          animate={isExiting ? { opacity: 0, y: -4 } : { opacity: 1, y: 0 }}
+          transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <span className="results-eyebrow-marker" aria-hidden="true" />
+          <span>TEST / RESULTS</span>
+        </motion.div>
+
+        <motion.button
+          type="button"
+          className="results-quiet-back-btn results-top-back-btn"
+          onClick={handleBackToGraph}
+          disabled={isExiting}
+          title="Return to knowledge graph"
+          initial={{ opacity: 0, y: -6 }}
+          animate={isExiting ? { opacity: 0, y: -4 } : { opacity: 1, y: 0 }}
+          transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <span className="back-arrow" aria-hidden="true">←</span>
+          <span>BACK TO GRAPH</span>
+        </motion.button>
+      </div>
+
+      {/* ==============================================================
+          HERO COMPOSITION (Section 1, 2, 5, 6, 7, 10, 15)
+          Left: TEST COMPLETE + Concise Qualitative Interpretation
+          Right: Circular Performance Hero Score + Directly Attached Review Actions
           ============================================================== */}
       <div className="results-hero-two-column-grid">
-        {/* LEFT COLUMN: Narrative & Core Metric */}
+        {/* LEFT COLUMN: Narrative & Qualitative Interpretation (Section 2) */}
         <div className="results-hero-left-column">
-          {/* Eyebrow: • TEST / RESULTS */}
-          <motion.div
-            className="results-eyebrow"
-            initial={{ opacity: 0, y: -8 }}
-            animate={isExiting ? { opacity: 0, y: -4 } : { opacity: 1, y: 0 }}
-            transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <span className="results-eyebrow-marker" aria-hidden="true" />
-            <span>TEST / RESULTS</span>
-          </motion.div>
-
           {/* Heading: TEST COMPLETE */}
           <h1 className="results-hero-title">
             <span className="results-title-line-mask">
@@ -334,61 +313,14 @@ export const TestResultsView = memo(function TestResultsView({
             </span>
           </h1>
 
-          {/* Dominant Score Hero Row (Section 2 & 16) */}
-          <div className="results-score-hero-block">
-            <div className="results-score-primary-row">
-              <motion.span
-                className="results-hero-number"
-                aria-label={`${scoreFormatted} of ${totalFormatted}`}
-                initial={{ y: 20, opacity: 0 }}
-                animate={
-                  isExiting
-                    ? { y: -20, opacity: 0, transition: { duration: 0.24, delay: 0.18, ease: [0.16, 1, 0.3, 1] } }
-                    : { y: 0, opacity: 1, transition: { duration: 0.45, delay: 0.18, ease: [0.16, 1, 0.3, 1] } }
-                }
-              >
-                <SlotDigit targetDigit={tensDigit} delay={0.2} duration={0.52} />
-                <SlotDigit targetDigit={unitsDigit} delay={0.24} duration={0.58} />
-              </motion.span>
-
-              {/* Denominator: smaller, lighter, vertically aligned toward lower portion */}
-              <motion.span
-                className="results-total-denominator"
-                initial={{ y: 14, opacity: 0 }}
-                animate={
-                  isExiting
-                    ? { y: -14, opacity: 0, transition: { duration: 0.22, delay: 0.18, ease: [0.16, 1, 0.3, 1] } }
-                    : { y: 0, opacity: 1, transition: { duration: 0.42, delay: 0.26, ease: [0.16, 1, 0.3, 1] } }
-                }
-              >
-                / {totalFormatted}
-              </motion.span>
-            </div>
-
-            {/* Muted secondary meta: 10% correct · 00:20 elapsed (NO badge) */}
-            <motion.div
-              className="results-secondary-meta"
-              initial={{ opacity: 0, y: 8 }}
-              animate={
-                isExiting
-                  ? { opacity: 0, transition: { duration: 0.2 } }
-                  : { opacity: 1, y: 0, transition: { duration: 0.35, delay: 0.32, ease: [0.16, 1, 0.3, 1] } }
-              }
-            >
-              <span>{results.percentage}% correct</span>
-              <span className="results-meta-separator" aria-hidden="true">·</span>
-              <span>{timeFormatted} elapsed</span>
-            </motion.div>
-          </div>
-
-          {/* Interpretation Section (Section 7 & 8) */}
+          {/* Performance Interpretation Block (Section 2) */}
           <motion.div
             className="results-interpretation-block"
             initial={{ opacity: 0, y: 14 }}
             animate={
               isExiting
                 ? { opacity: 0, y: -10, transition: { duration: 0.22, delay: 0.06, ease: [0.16, 1, 0.3, 1] } }
-                : { opacity: 1, y: 0, transition: { duration: 0.45, delay: 0.38, ease: [0.16, 1, 0.3, 1] } }
+                : { opacity: 1, y: 0, transition: { duration: 0.45, delay: 0.26, ease: [0.16, 1, 0.3, 1] } }
             }
           >
             <div className={`results-interpretation-heading ${interpretation.tone}`}>
@@ -401,21 +333,96 @@ export const TestResultsView = memo(function TestResultsView({
           </motion.div>
         </div>
 
-        {/* RIGHT COLUMN: Circular Knowledge Performance Visualization (Section 3 & 4) */}
+        {/* RIGHT COLUMN: Circular Performance Visualization & Primary Actions (Section 1, 3, 5, 6, 7) */}
         <div className="results-hero-right-column">
-          <CircularPerformanceVisual
-            score={results.score}
-            totalQuestions={results.totalQuestions}
-            percentage={results.percentage}
-            questionItems={questionItems}
-            isExiting={isExiting}
-            exitTarget={exitTarget}
-            onSelectQuestion={(item) => {
-              if (!item.isCorrect && hasMissed) {
-                handleReviewMissed();
-              }
-            }}
-          />
+          <div className="results-hero-right-inner">
+            <CircularPerformanceVisual
+              score={results.score}
+              totalQuestions={results.totalQuestions}
+              percentage={results.percentage}
+              timeFormatted={timeFormatted}
+              questionItems={questionItems}
+              isExiting={isExiting}
+              exitTarget={exitTarget}
+              onSelectQuestion={(item) => {
+                if (!item.isCorrect && hasMissed) {
+                  handleReviewMissed();
+                }
+              }}
+            />
+
+            {/* Review actions directly below the circle (Section 6, 7 & 12) */}
+            <div className="results-circle-actions">
+              {hasMissed ? (
+                <motion.button
+                  type="button"
+                  className="results-primary-action-btn results-editorial-primary-action"
+                  onClick={handleReviewMissed}
+                  disabled={isExiting}
+                  autoFocus
+                  initial={{ opacity: 0, x: -8, clipPath: 'inset(0 100% 0 0)' }}
+                  animate={
+                    isExiting
+                      ? { opacity: 0, x: -6 }
+                      : { opacity: 1, x: 0, clipPath: 'inset(0 0% 0 0)' }
+                  }
+                  transition={{
+                    duration: 0.42,
+                    delay: isExiting ? 0.05 : 0.95,
+                    ease: [0.16, 1, 0.3, 1]
+                  }}
+                >
+                  <span className="editorial-action-text">REVIEW MISSED CONCEPTS</span>
+                  <ArrowRight size={14} className="editorial-action-arrow" aria-hidden="true" />
+                  <span className="editorial-action-underline" aria-hidden="true" />
+                </motion.button>
+              ) : (
+                <motion.button
+                  type="button"
+                  className="results-primary-action-btn results-editorial-primary-action"
+                  onClick={handleBackToGraph}
+                  disabled={isExiting}
+                  autoFocus
+                  initial={{ opacity: 0, x: -8, clipPath: 'inset(0 100% 0 0)' }}
+                  animate={
+                    isExiting
+                      ? { opacity: 0, x: -6 }
+                      : { opacity: 1, x: 0, clipPath: 'inset(0 0% 0 0)' }
+                  }
+                  transition={{
+                    duration: 0.42,
+                    delay: isExiting ? 0.05 : 0.95,
+                    ease: [0.16, 1, 0.3, 1]
+                  }}
+                >
+                  <span className="editorial-action-text">RETURN TO GRAPH</span>
+                  <ArrowRight size={14} className="editorial-action-arrow" aria-hidden="true" />
+                  <span className="editorial-action-underline" aria-hidden="true" />
+                </motion.button>
+              )}
+
+              <motion.button
+                type="button"
+                className="results-secondary-text-btn results-editorial-secondary-action"
+                onClick={onReviewAnswers}
+                disabled={isExiting}
+                initial={{ opacity: 0, x: -6, clipPath: 'inset(0 100% 0 0)' }}
+                animate={
+                  isExiting
+                    ? { opacity: 0, x: -4 }
+                    : { opacity: 1, x: 0, clipPath: 'inset(0 0% 0 0)' }
+                }
+                transition={{
+                  duration: 0.38,
+                  delay: isExiting ? 0.02 : 1.08,
+                  ease: [0.16, 1, 0.3, 1]
+                }}
+              >
+                <span className="editorial-secondary-text">REVIEW ALL ANSWERS</span>
+                <span className="editorial-secondary-arrow" aria-hidden="true">→</span>
+              </motion.button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -423,7 +430,7 @@ export const TestResultsView = memo(function TestResultsView({
       <div className="results-major-divider" aria-hidden="true" />
 
       {/* ==============================================================
-          EDITORIAL KNOWLEDGE INDEX (Section 10, 11, 12)
+          EDITORIAL KNOWLEDGE INDEX (Section 9, 10, 13)
           Two-column index: WHAT YOU KNOW | WORTH REVISITING
           Simple rows with subtle dividers (no cards)
           ============================================================== */}
@@ -453,11 +460,12 @@ export const TestResultsView = memo(function TestResultsView({
                     key={item.id || item.name}
                     className="knowledge-concept-row-wrap"
                     role="listitem"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: '-20px' }}
                     transition={{
-                      duration: 0.32,
-                      delay: 0.52 + idx * 0.04,
+                      duration: 0.28,
+                      delay: Math.min(0.24, idx * 0.035),
                       ease: [0.16, 1, 0.3, 1]
                     }}
                   >
@@ -490,7 +498,7 @@ export const TestResultsView = memo(function TestResultsView({
             </div>
           </div>
 
-          {/* Column 2: WORTH REVISITING (Actionable - Section 12) */}
+          {/* Column 2: WORTH REVISITING */}
           <div className="knowledge-column">
             <div className="knowledge-column-header">
               <span className="knowledge-header-title">WORTH REVISITING</span>
@@ -506,11 +514,12 @@ export const TestResultsView = memo(function TestResultsView({
                     key={item.id || item.name}
                     className="knowledge-concept-row-wrap"
                     role="listitem"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: '-20px' }}
                     transition={{
-                      duration: 0.32,
-                      delay: 0.54 + idx * 0.04,
+                      duration: 0.28,
+                      delay: Math.min(0.24, idx * 0.035),
                       ease: [0.16, 1, 0.3, 1]
                     }}
                   >
@@ -543,84 +552,6 @@ export const TestResultsView = memo(function TestResultsView({
             </div>
           </div>
         </div>
-      </motion.div>
-
-      {/* Major Divider */}
-      <div className="results-major-divider" aria-hidden="true" />
-
-      {/* ==============================================================
-          EDITORIAL ACTIONS HIERARCHY (Section 13 & 14)
-          Primary: REVIEW MISSED CONCEPTS → (Green outline treatment)
-          Secondary: REVIEW ALL ANSWERS (Neutral)
-          Tertiary: ← BACK TO GRAPH (Text-only)
-          ============================================================== */}
-      <motion.div
-        className="results-actions-group"
-        initial={{ opacity: 0, y: 12 }}
-        animate={isExiting ? { opacity: 0, y: 12 } : { opacity: 1, y: 0 }}
-        transition={{ duration: 0.36, delay: 0.62, ease: [0.16, 1, 0.3, 1] }}
-      >
-        {/* Primary Action */}
-        {hasMissed ? (
-          <button
-            type="button"
-            className="results-primary-action-btn"
-            onClick={handleReviewMissed}
-            disabled={isExiting}
-            autoFocus
-          >
-            <div className="action-btn-label">
-              <span>REVIEW MISSED CONCEPTS</span>
-              <ArrowRight size={14} className="action-arrow-icon" aria-hidden="true" />
-            </div>
-            <div className="action-underline-track" aria-hidden="true">
-              <div className="action-underline-fill" />
-            </div>
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="results-primary-action-btn"
-            onClick={handleBackToGraph}
-            disabled={isExiting}
-            autoFocus
-          >
-            <div className="action-btn-label">
-              <span>RETURN TO GRAPH</span>
-              <ArrowRight size={14} className="action-arrow-icon" aria-hidden="true" />
-            </div>
-            <div className="action-underline-track" aria-hidden="true">
-              <div className="action-underline-fill" />
-            </div>
-          </button>
-        )}
-
-        {/* Secondary Action */}
-        <button
-          type="button"
-          className="results-secondary-text-btn"
-          onClick={onReviewAnswers}
-          disabled={isExiting}
-        >
-          <span>REVIEW ALL ANSWERS</span>
-          <span className="secondary-arrow" aria-hidden="true">
-            →
-          </span>
-        </button>
-
-        {/* Tertiary Action: Text-only back link */}
-        <button
-          type="button"
-          className="results-quiet-back-btn"
-          onClick={handleBackToGraph}
-          disabled={isExiting}
-          title="Return to knowledge graph"
-        >
-          <span className="back-arrow" aria-hidden="true">
-            ←
-          </span>
-          <span>BACK TO GRAPH</span>
-        </button>
       </motion.div>
     </div>
   );
