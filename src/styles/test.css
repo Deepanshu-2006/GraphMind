@@ -1301,114 +1301,207 @@
 }
 
 /* ==========================================================================
-   MODALS: SUBMIT & LEAVE CONFIRMATION
+   EXIT TEST CONFIRMATION MODAL — PREMIUM GRAPHMIND INTERRUPTION
+   - Compact 420–460px surface (#111111) with subtle 1px border [rgba(255,255,255,0.10)]
+   - Restrained backdrop [rgba(0,0,0,0.68)] with 6px blur preserving underlying test
+   - Status marker: ●  EXITING TEST with GraphMind green dot (#B8FF3D)
+   - Title: Leave this test? (28px Inter display, -0.03em letter-spacing)
+   - Copy: progress and remaining time lost, start new assessment on return
+   - Live test context line: TEST 01 · 7 / 10 ANSWERED · 09:48 REMAINING (#5F5F5F)
+   - Action hierarchy: CONTINUE TEST → (anchoring safe action) vs EXIT TEST (quiet text, red hover)
+   - Staggered 3-group entrance and reverse retract exit
    ========================================================================== */
+.leave-modal-backdrop,
 .test-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 60;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(4px);
+  z-index: 70;
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
 }
 
+.leave-modal-card,
 .test-modal-card {
   width: 100%;
   max-width: 440px;
-  background: #141414;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-panel, 8px);
-  padding: 28px;
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6);
-}
-
-.test-modal-kicker {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  color: var(--accent, #A3FF12);
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
-.test-modal-title {
-  font-family: var(--font-display, sans-serif);
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--text-primary, #F5F5F5);
-  margin-bottom: 12px;
-}
-
-.test-modal-body {
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--text-secondary, #A1A1A1);
-  margin-bottom: 24px;
-}
-
-.test-modal-actions {
+  background: #111111;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 8px;
+  padding: 32px;
+  box-sizing: border-box;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
 }
 
-.test-editorial-action-btn {
+/* Staggered Content Groups */
+.leave-modal-group {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.leave-modal-group-status {
+  margin-bottom: 0;
+}
+
+.leave-modal-group-content {
+  margin-bottom: 0;
+}
+
+.leave-modal-group-footer {
+  margin-top: 0;
+}
+
+/* Status Marker: ●  EXITING TEST (Section 4) */
+.leave-modal-status-marker {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 16px;
-  border-radius: var(--radius-btn, 6px);
+  user-select: none;
+}
+
+.leave-status-dot {
+  color: #B8FF3D;
+  font-size: 8px;
+  line-height: 1;
+  display: inline-block;
+  transform: translateY(-0.5px);
+}
+
+.leave-status-text {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8A8A8A;
+  line-height: 1;
+}
+
+/* Main Title: Leave this test? (Section 5) */
+.leave-modal-title {
+  font-family: var(--font-display, 'Inter', sans-serif);
+  font-size: 28px;
+  font-weight: 550;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: #F5F5F5;
+  margin: 14px 0 12px 0;
+}
+
+/* Body Copy (Section 6) */
+.leave-modal-body {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 14px;
+  line-height: 1.6;
+  color: #8A8A8A;
+  max-width: 340px;
+  margin: 0;
+}
+
+/* Live Context Line: TEST 01 · 7 / 10 ANSWERED · 09:48 REMAINING (Section 7) */
+.leave-modal-context-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 10.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #5F5F5F;
+  margin: 22px 0 30px 0;
+  user-select: none;
+}
+
+.leave-context-sep {
+  color: #3F3F3F;
+}
+
+/* Actions Row: CONTINUE TEST →  ...  EXIT TEST (Section 8 & 9) */
+.leave-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+/* Primary Safe Action: CONTINUE TEST → */
+.leave-action-continue-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: transparent;
+  border: 1px solid rgba(184, 255, 61, 0.35);
+  border-radius: 6px;
+  font-family: var(--font-body, 'Inter', sans-serif);
   font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
+  color: #F5F5F5;
   cursor: pointer;
-  transition: all 180ms ease;
+  transition: all 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+  user-select: none;
+}
+
+.leave-continue-arrow {
+  display: inline-block;
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  line-height: 1;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.leave-action-continue-btn:hover {
+  border-color: #B8FF3D;
+  color: #B8FF3D;
+  background: rgba(184, 255, 61, 0.04);
+}
+
+.leave-action-continue-btn:hover .leave-continue-arrow {
+  transform: translateX(3px);
+}
+
+.leave-action-continue-btn:focus-visible {
+  outline: 2px solid #B8FF3D;
+  outline-offset: 3px;
+}
+
+/* Secondary Destructive Action: EXIT TEST (Section 8) */
+.leave-action-exit-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 8px;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: var(--text-secondary, #A1A1A1);
+  border: none;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: #777777;
+  cursor: pointer;
+  transition: color 180ms ease;
+  outline: none;
+  user-select: none;
 }
 
-.test-editorial-action-btn.action-primary {
-  border-color: rgba(163, 255, 18, 0.35);
-  color: var(--accent, #A3FF12);
+.leave-action-exit-btn:hover {
+  color: #E06A6A;
 }
 
-.test-editorial-action-btn.action-primary:hover {
-  background: rgba(163, 255, 18, 0.12);
-  border-color: var(--accent, #A3FF12);
-  color: #FFFFFF;
-}
-
-.test-editorial-action-btn.action-secondary:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.18);
-  color: var(--text-primary, #F5F5F5);
-}
-
-.test-editorial-action-btn.action-danger {
-  border-color: rgba(255, 90, 90, 0.35);
-  color: #FF5A5A;
-}
-
-.test-editorial-action-btn.action-danger:hover {
-  background: rgba(255, 90, 90, 0.12);
-  border-color: #FF5A5A;
-  color: #FFFFFF;
-}
-
-.test-editorial-action-btn.action-ghost {
-  border-color: transparent;
-  color: var(--text-muted, #8A8A8A);
-}
-
-.test-editorial-action-btn.action-ghost:hover {
-  color: var(--text-secondary, #A1A1A1);
-  background: rgba(255, 255, 255, 0.03);
+.leave-action-exit-btn:focus-visible {
+  outline: 1px solid rgba(224, 106, 106, 0.4);
+  outline-offset: 3px;
 }
 
 /* ==========================================================================

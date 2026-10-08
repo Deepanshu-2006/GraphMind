@@ -386,9 +386,13 @@ export function TestWorkspace({
         onCancel={() => setIsSubmitModalOpen(false)}
       />
 
-      {/* Leave Confirmation Dialog */}
+      {/* Leave Confirmation Dialog (Section 7: Live Test Context) */}
       <LeaveConfirmationModal
         isOpen={isLeaveModalOpen}
+        answeredCount={Object.keys(answers).length}
+        totalCount={test?.questions.length || 0}
+        remainingSeconds={remainingSeconds}
+        testLabel="TEST 01"
         onConfirm={() => {
           setIsLeaveModalOpen(false);
           setIsTimerActive(false);
