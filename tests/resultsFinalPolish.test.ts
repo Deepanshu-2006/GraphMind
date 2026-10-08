@@ -89,14 +89,14 @@ describe('GRAPHMIND — FINAL POLISH FOR TEST RESULTS / PERFORMANCE PAGE', () =>
       assert.equal(`${scoreNum} / ${totalNum}`, '01 / 10');
     });
 
-    it('formats elapsed time and percentage without badges in muted gray', () => {
+    it('formats elapsed time as secondary metadata without score duplication', () => {
       const mins = Math.floor(mock10PercentResults.timeSpentSeconds / 60);
       const secs = mock10PercentResults.timeSpentSeconds % 60;
       const timeFormatted = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-      const metaString = `${mock10PercentResults.percentage}% correct · ${timeFormatted} elapsed`;
+      const elapsedText = `${timeFormatted} elapsed`;
 
       assert.equal(timeFormatted, '00:20');
-      assert.equal(metaString, '10% correct · 00:20 elapsed');
+      assert.equal(elapsedText, '00:20 elapsed');
     });
   });
 
@@ -107,7 +107,7 @@ describe('GRAPHMIND — FINAL POLISH FOR TEST RESULTS / PERFORMANCE PAGE', () =>
       assert.equal(interp.statement, 'Several foundational concepts need reinforcement.');
       assert.equal(
         interp.narrative,
-        'Several foundational concepts need reinforcement. A focused review of the highlighted material will help close the gaps.'
+        'Several foundational concepts need reinforcement. A focused review of the concepts you missed will help strengthen the connections in your knowledge graph.'
       );
       assert.equal(interp.tone, 'warning');
     });
