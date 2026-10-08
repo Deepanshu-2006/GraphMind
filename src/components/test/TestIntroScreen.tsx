@@ -1,4 +1,4 @@
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, ArrowLeft } from 'lucide-react';
 import type { KnowledgeTest } from '../../types/test';
@@ -13,54 +13,6 @@ interface TestIntroScreenProps {
 
 const MAX_DISPLAYED_CONCEPTS = 6;
 
-/**
- * Editorial background topology SVG element with slow breathing animation.
- * Features 5 nodes and hairline relationship edges at 0.08 opacity.
- */
-const DecorativeGraphTopology = memo(function DecorativeGraphTopology({
-  isTransitioningOut
-}: {
-  isTransitioningOut: boolean;
-}) {
-  return (
-    <div
-      className={`test-faint-graph-backdrop ${isTransitioningOut ? 'receding' : ''}`}
-      aria-hidden="true"
-    >
-      <svg
-        viewBox="0 0 460 360"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="test-topology-svg"
-      >
-        {/* Hairline relationship edges */}
-        <line x1="80" y1="80" x2="260" y2="60" stroke="#FFFFFF" strokeWidth="1" strokeDasharray="2 3" opacity="0.4" />
-        <line x1="80" y1="80" x2="160" y2="190" stroke="#FFFFFF" strokeWidth="1" opacity="0.5" />
-        <line x1="260" y1="60" x2="380" y2="130" stroke="#FFFFFF" strokeWidth="1" opacity="0.6" />
-        <line x1="260" y1="60" x2="160" y2="190" stroke="#FFFFFF" strokeWidth="1" opacity="0.3" />
-        <line x1="380" y1="130" x2="340" y2="280" stroke="#FFFFFF" strokeWidth="1" opacity="0.5" />
-        <line x1="160" y1="190" x2="340" y2="280" stroke="#FFFFFF" strokeWidth="1" strokeDasharray="3 3" opacity="0.35" />
-        <line x1="160" y1="190" x2="70" y2="290" stroke="#FFFFFF" strokeWidth="1" opacity="0.45" />
-
-        {/* Dynamic breathing nodes */}
-        {/* Node 1 */}
-        <circle cx="80" cy="80" r="3" fill="#A1A1A1" className="topology-node node-1" />
-        {/* Node 2 — Subtle active GraphMind green accent */}
-        <circle cx="260" cy="60" r="3.5" fill="#A3FF12" className="topology-node node-2" />
-        <circle cx="260" cy="60" r="7" stroke="#A3FF12" strokeWidth="0.75" opacity="0.4" className="topology-halo halo-2" />
-        {/* Node 3 */}
-        <circle cx="380" cy="130" r="3" fill="#D4D4D4" className="topology-node node-3" />
-        {/* Node 4 */}
-        <circle cx="160" cy="190" r="2.5" fill="#8A8A8A" className="topology-node node-4" />
-        {/* Node 5 */}
-        <circle cx="340" cy="280" r="3" fill="#A1A1A1" className="topology-node node-5" />
-        {/* Node 6 */}
-        <circle cx="70" cy="290" r="2.5" fill="#8A8A8A" className="topology-node node-6" />
-      </svg>
-    </div>
-  );
-});
-
 export function TestIntroScreen({
   test,
   conceptsCovered,
@@ -68,10 +20,14 @@ export function TestIntroScreen({
   onStartTest,
   onExitTest
 }: TestIntroScreenProps) {
-  // State for coordinated assessment transition (Section 21)
+  // State for coordinated assessment transition (Section 14)
   const [isTransitioningOut, setIsTransitioningOut] = useState(false);
 
-  // Intentional line wrapping for dominant hero title (Section 4 & 17)
+  // Intentional line wrapping for dominant hero title (Section 1 & 2)
+  // Keeps desktop composition strictly as:
+  // Knowledge
+  // Graph
+  // Assessment.
   const titleLines = useMemo(() => {
     if (!test?.title) {
       return ['Knowledge', 'Graph', 'Assessment.'];
@@ -132,13 +88,20 @@ export function TestIntroScreen({
       >
         <div className="test-intro-left-zone">
           <div className="test-intro-eyebrow">
-            <span className="test-eyebrow-marker" aria-hidden="true" />
-            <span>TEST / 01</span>
+            <div className="test-eyebrow-graph-datum">
+              <span className="test-eyebrow-marker" aria-hidden="true" />
+              <span className="test-eyebrow-datum-rule" aria-hidden="true" />
+            </div>
+            <span className="test-eyebrow-text">TEST / 01</span>
           </div>
 
           <h1 className="test-editorial-hero-title">
-            <span className="test-hero-title-line">Insufficient</span>
-            <span className="test-hero-title-line">Material.</span>
+            <span className="test-hero-title-line-mask">
+              <span className="test-hero-title-line">Insufficient</span>
+            </span>
+            <span className="test-hero-title-line-mask">
+              <span className="test-hero-title-line">Material.</span>
+            </span>
           </h1>
 
           <p className="test-editorial-description">
@@ -151,8 +114,15 @@ export function TestIntroScreen({
             onClick={onExitTest}
             autoFocus
           >
-            <span className="test-back-arrow" aria-hidden="true">←</span>
-            <span>Back to graph</span>
+            <div className="test-back-content">
+              <span className="test-back-arrow" aria-hidden="true">
+                <ArrowLeft size={13} />
+              </span>
+              <span className="test-back-label">Back to graph</span>
+            </div>
+            <div className="test-back-underline-track" aria-hidden="true">
+              <div className="test-back-underline-fill" />
+            </div>
           </button>
         </div>
       </motion.div>
@@ -162,10 +132,26 @@ export function TestIntroScreen({
   const questionCount = test.questions.length;
   const minutes = Math.round(test.timeLimitSeconds / 60);
 
-  const metadataItems = [
-    { value: questionCount.toString(), label: 'QUESTIONS' },
-    { value: `${minutes} MIN`, label: 'TIME LIMIT' },
-    { value: 'MCQ', label: 'FORMAT' }
+  // Three equal-width editorial columns (Section 4 & 6)
+  const assessmentMetrics = [
+    {
+      index: '01',
+      value: questionCount.toString().padStart(2, '0'),
+      label: 'QUESTIONS',
+      isAccent: true
+    },
+    {
+      index: '02',
+      value: `${minutes} MIN`,
+      label: 'TIME LIMIT',
+      isAccent: false
+    },
+    {
+      index: '03',
+      value: 'MCQ',
+      label: 'FORMAT',
+      isAccent: false
+    }
   ];
 
   return (
@@ -176,60 +162,107 @@ export function TestIntroScreen({
             LEFT ZONE: Eyebrow, Hero Title, Description, Primary Action
             ============================================================== */}
         <div className="test-intro-left-zone">
-          {/* STEP 1: Quiet Eyebrow */}
+          {/* STEP 1: Eyebrow Detail: ●──────────── TEST / 01 (Section 14: A, B, C) */}
           <motion.div
             className="test-intro-eyebrow"
-            initial={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0, y: -6 }}
             animate={isTransitioningOut ? { opacity: 0, y: -4 } : { opacity: 1, y: 0 }}
             transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
           >
-            <span className="test-eyebrow-marker" aria-hidden="true" />
-            <span>TEST / 01</span>
+            <div className="test-eyebrow-graph-datum">
+              <motion.span
+                className="test-eyebrow-marker"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 0.28, delay: 0.02, ease: [0.16, 1, 0.3, 1] }}
+                aria-hidden="true"
+              />
+              <motion.span
+                className="test-eyebrow-datum-rule"
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 0.36, delay: 0.06, ease: [0.16, 1, 0.3, 1] }}
+                aria-hidden="true"
+              />
+            </div>
+            <span className="test-eyebrow-text">TEST / 01</span>
           </motion.div>
 
-          {/* STEP 2: Line-Level Masked Dominant Hero Title */}
+          {/* STEP 2: Mask-Revealed Dominant Hero Title with Knowledge Mapping Marker (Section 1, 2, 14: D, 15) */}
           <h1
             className="test-editorial-hero-title"
             aria-label={test.title || 'Knowledge Graph Assessment'}
           >
-            {titleLines.map((line, idx) => (
-              <span key={idx} className="test-hero-title-line-mask">
-                <motion.span
-                  className="test-hero-title-line"
-                  initial={{ y: '110%', clipPath: 'inset(0 0 100% 0)' }}
-                  animate={
-                    isTransitioningOut
-                      ? { y: '-28px', opacity: 0, clipPath: 'inset(100% 0 0% 0)' }
-                      : { y: '0%', opacity: 1, clipPath: 'inset(0 0 0% 0)' }
-                  }
-                  transition={{
-                    duration: isTransitioningOut ? 0.3 : 0.72,
-                    delay: isTransitioningOut ? 0 : 0.08 + idx * 0.085,
-                    ease: [0.16, 1, 0.3, 1]
-                  }}
-                >
-                  {line}
-                </motion.span>
-              </span>
-            ))}
+            {titleLines.map((line, idx) => {
+              const isGraphLine = line.toLowerCase().trim() === 'graph' || (titleLines.length === 3 && idx === 1);
+              return (
+                <span key={idx} className="test-hero-title-line-mask">
+                  <motion.span
+                    className="test-hero-title-line"
+                    initial={{ y: '110%' }}
+                    animate={
+                      isTransitioningOut
+                        ? { y: '-100%', opacity: 0 }
+                        : { y: '0%', opacity: 1 }
+                    }
+                    transition={{
+                      duration: isTransitioningOut ? 0.25 : 0.48,
+                      delay: isTransitioningOut
+                        ? 0
+                        : 0.12 + idx * 0.07,
+                      ease: [0.16, 1, 0.3, 1]
+                    }}
+                  >
+                    <span className="test-hero-title-text">{line}</span>
+
+                    {/* Subtle Knowledge Mapping Marker: •──── aligned near "Graph" (Section 1) */}
+                    {isGraphLine && (
+                      <span className="test-hero-mapping-marker" aria-hidden="true">
+                        <motion.span
+                          className="test-mapping-node"
+                          initial={{ scale: 0 }}
+                          animate={isTransitioningOut ? { scale: 0 } : { scale: 1 }}
+                          transition={{ duration: 0.24, delay: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                        />
+                        <motion.span
+                          className="test-mapping-connector"
+                          initial={{ scaleX: 0 }}
+                          animate={isTransitioningOut ? { scaleX: 0 } : { scaleX: 1 }}
+                          transition={{ duration: 0.3, delay: 0.32, ease: [0.16, 1, 0.3, 1] }}
+                        />
+                      </span>
+                    )}
+                  </motion.span>
+                </span>
+              );
+            })}
           </h1>
 
-          {/* STEP 3: Supporting Description */}
+          {/* STEP 3: Editorial Description */}
           <motion.p
             className="test-editorial-description"
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 14 }}
             animate={isTransitioningOut ? { opacity: 0, y: -10 } : { opacity: 1, y: 0 }}
             transition={{
-              duration: isTransitioningOut ? 0.25 : 0.48,
-              delay: isTransitioningOut ? 0 : 0.24,
+              duration: isTransitioningOut ? 0.25 : 0.45,
+              delay: isTransitioningOut ? 0 : 0.36,
               ease: [0.16, 1, 0.3, 1]
             }}
           >
             Measure how well you've understood the material behind this graph.
           </motion.p>
 
-          {/* STEP 6 & Primary Action: Start Test with Tactile Underline Micro-Animation */}
-          <div className="test-editorial-action-container">
+          {/* STEP 4 & Primary Action: Start Test Text-Link with Thin Rule Micro-Interaction (Section 10 & 14: H) */}
+          <motion.div
+            className="test-editorial-action-container"
+            initial={{ opacity: 0, y: 12 }}
+            animate={isTransitioningOut ? { opacity: 0, y: -6 } : { opacity: 1, y: 0 }}
+            transition={{
+              duration: isTransitioningOut ? 0.2 : 0.42,
+              delay: isTransitioningOut ? 0 : 0.54,
+              ease: [0.16, 1, 0.3, 1]
+            }}
+          >
             <button
               type="button"
               className="test-start-editorial-btn"
@@ -248,69 +281,80 @@ export function TestIntroScreen({
                 <div
                   className={`test-start-underline-fill ${isTransitioningOut ? 'active-transition' : ''}`}
                 />
-                <div className="test-start-underline-accent" />
               </div>
             </button>
-          </div>
+          </motion.div>
         </div>
 
         {/* ==============================================================
-            RIGHT ZONE: Metadata Row, Editorial Concept Index, Back Link
+            RIGHT ZONE: Editorial Assessment Index & Concepts (Section 4, 5, 8, 9, 13)
             ============================================================== */}
         <div className="test-intro-right-zone">
-          {/* STEP 4: Editorial Test Metadata Row */}
-          <motion.div
-            className="test-editorial-metadata-row"
-            role="region"
-            aria-label="Test specifications"
-            initial={{ opacity: 0, y: 12 }}
-            animate={
-              isTransitioningOut
-                ? { opacity: 0, scale: 0.96, y: -8 }
-                : { opacity: 1, scale: 1, y: 0 }
-            }
-            transition={{
-              duration: isTransitioningOut ? 0.25 : 0.45,
-              delay: isTransitioningOut ? 0 : 0.2,
-              ease: [0.16, 1, 0.3, 1]
-            }}
-          >
-            {metadataItems.map((item, idx) => (
-              <div key={item.label} className="test-meta-col">
-                <div className="test-meta-num-wrap">
-                  <motion.span
-                    className="test-meta-number"
-                    initial={{ y: 16, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{
-                      duration: 0.46,
-                      delay: 0.28 + idx * 0.07,
-                      ease: [0.16, 1, 0.3, 1]
-                    }}
-                  >
-                    {item.value}
-                  </motion.span>
-                </div>
-                <span className="test-meta-label">{item.label}</span>
-              </div>
-            ))}
-          </motion.div>
+          {/* STEP 5: Editorial Assessment Statistics Index with 3 Columns & Vertical Dividers (Section 4, 5, 6, 14: E, 16) */}
+          <div className="test-editorial-assessment-block" role="region" aria-label="Assessment specifications">
+            <div className="test-assessment-header">
+              <span>ASSESSMENT</span>
+            </div>
 
-          {/* STEP 5: Editorial Numbered Concept Index (No Pills, 2 Columns) */}
-          <motion.div
-            className="test-editorial-concepts-section"
-            initial={{ opacity: 0 }}
-            animate={
-              isTransitioningOut
-                ? { opacity: 0, x: 20 }
-                : { opacity: 1, x: 0 }
-            }
-            transition={{
-              duration: isTransitioningOut ? 0.25 : 0.45,
-              delay: isTransitioningOut ? 0 : 0.32,
-              ease: [0.16, 1, 0.3, 1]
-            }}
-          >
+            <div className="test-editorial-stats-row">
+              {assessmentMetrics.map((item, idx) => (
+                <div key={item.label} className="test-stats-col-cell">
+                  {/* Subtle vertical divider between statistics (Section 5) */}
+                  {idx > 0 && (
+                    <motion.div
+                      className="test-stats-divider-line"
+                      initial={{ scaleY: 0 }}
+                      animate={isTransitioningOut ? { scaleY: 0 } : { scaleY: 1 }}
+                      transition={{
+                        duration: 0.38,
+                        delay: isTransitioningOut ? 0 : 0.24 + idx * 0.05,
+                        ease: [0.16, 1, 0.3, 1]
+                      }}
+                      aria-hidden="true"
+                    />
+                  )}
+
+                  <div className="test-stats-col-content">
+                    {/* Index number: 01 in green accent, 02 and 03 in muted gray (Section 4 & 6) */}
+                    <div className="test-stats-index-num">
+                      <span className={item.isAccent ? 'test-index-accent-green' : 'test-index-muted'}>
+                        {item.index}
+                      </span>
+                    </div>
+
+                    {/* Metric Value: Unclipped 42-54px typography (Section 4 & 16) */}
+                    <div className="test-stats-value-wrap">
+                      <motion.span
+                        className="test-stats-value"
+                        initial={{ y: 18, opacity: 0 }}
+                        animate={
+                          isTransitioningOut
+                            ? { y: -12, opacity: 0 }
+                            : { y: 0, opacity: 1 }
+                        }
+                        transition={{
+                          duration: 0.42,
+                          delay: isTransitioningOut ? 0 : 0.28 + idx * 0.06,
+                          ease: [0.16, 1, 0.3, 1]
+                        }}
+                      >
+                        {item.value}
+                      </motion.span>
+                    </div>
+
+                    {/* Metric Label: 9-10px uppercase #777777 */}
+                    <span className="test-stats-label">{item.label}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Horizontal divider rule separating Assessment metrics from Concepts (Section 9) */}
+            <div className="test-assessment-horizontal-divider" />
+          </div>
+
+          {/* STEP 6: Editorial Numbered Concept Index (Section 8 & 9) */}
+          <div className="test-editorial-concepts-section">
             <div className="test-concepts-header">CONCEPTS COVERED</div>
 
             <div className="test-concept-index-grid" role="list">
@@ -320,74 +364,81 @@ export function TestIntroScreen({
                   <div key={conceptName} className="test-concept-row-wrap" role="listitem">
                     <div className="test-concept-row">
                       <div className="test-concept-left">
-                        <motion.span
-                          className="test-concept-num"
-                          initial={{ opacity: 0, x: -6 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{
-                            duration: 0.35,
-                            delay: 0.36 + idx * 0.045,
-                            ease: [0.16, 1, 0.3, 1]
-                          }}
-                        >
+                        <span className="test-concept-num">
                           {rowNum}
-                        </motion.span>
-                        <span className="test-concept-name" title={conceptName}>
-                          {conceptName}
+                        </span>
+                        <span className="test-concept-name-mask">
+                          <motion.span
+                            className="test-concept-name"
+                            initial={{ y: '100%', opacity: 0 }}
+                            animate={
+                              isTransitioningOut
+                                ? { y: '-100%', opacity: 0 }
+                                : { y: '0%', opacity: 1 }
+                            }
+                            transition={{
+                              duration: 0.36,
+                              delay: isTransitioningOut ? 0 : 0.36 + idx * 0.03,
+                              ease: [0.16, 1, 0.3, 1]
+                            }}
+                          >
+                            {conceptName}
+                          </motion.span>
                         </span>
                       </div>
-                      <span className="test-concept-arrow" aria-hidden="true">
-                        ↗
-                      </span>
                     </div>
 
-                    {/* Divider that grows from left to right */}
                     <motion.div
                       className="test-concept-row-divider"
                       initial={{ scaleX: 0 }}
-                      animate={{ scaleX: 1 }}
+                      animate={isTransitioningOut ? { scaleX: 0 } : { scaleX: 1 }}
                       transition={{
-                        duration: 0.4,
-                        delay: 0.34 + idx * 0.045,
+                        duration: 0.32,
+                        delay: isTransitioningOut ? 0 : 0.32 + idx * 0.03,
                         ease: [0.16, 1, 0.3, 1]
                       }}
-                    />
+                      style={{ transformOrigin: 'left' }}
+                    >
+                      <div className="test-concept-row-divider-accent" aria-hidden="true" />
+                    </motion.div>
                   </div>
                 );
               })}
             </div>
 
-            {/* Remainder indicator if > 6 concepts */}
+            {/* Remainder indicator: + 6 MORE CONCEPTS (Section 8 & 9) */}
             {remainingConceptsCount > 0 && (
               <motion.div
                 className="test-concepts-more-indicator"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.4, delay: 0.65 }}
+                transition={{ duration: 0.35, delay: 0.5 }}
               >
-                + {remainingConceptsCount} more concepts
+                + {remainingConceptsCount} MORE CONCEPTS
               </motion.div>
             )}
-          </motion.div>
+          </div>
 
-          {/* Section 13: Quiet Back to Graph Link */}
+          {/* Section 9: Quiet Back to Graph Link with Arrow & Underline */}
           <button
             type="button"
             className="test-editorial-back-link"
             onClick={onExitTest}
             disabled={isTransitioningOut}
-            title="Return to knowledge graph"
+            aria-label="Return to knowledge graph"
           >
-            <span className="test-back-arrow" aria-hidden="true">
-              <ArrowLeft size={13} />
-            </span>
-            <span>Back to graph</span>
+            <div className="test-back-content">
+              <span className="test-back-arrow" aria-hidden="true">
+                <ArrowLeft size={13} />
+              </span>
+              <span className="test-back-label">Back to graph</span>
+            </div>
+            <div className="test-back-underline-track" aria-hidden="true">
+              <div className="test-back-underline-fill" />
+            </div>
           </button>
         </div>
       </div>
-
-      {/* Section 14 & 15: Decorative Living Graph Topology Behind Right Zone */}
-      <DecorativeGraphTopology isTransitioningOut={isTransitioningOut} />
     </div>
   );
 }
