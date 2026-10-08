@@ -240,9 +240,15 @@ export function TestWorkspace({
       role="region"
       aria-label="GraphMind Dedicated Test Workspace"
     >
-      {/* Top persistent control bar for testing mode */}
+      {/* Top persistent control bar for testing mode — emerges from top (Section 21) */}
       {mode === 'testing' && test && (
-        <div className="test-workspace-topbar">
+        <motion.div
+          className="test-workspace-topbar"
+          initial={{ opacity: 0, y: -14 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -14 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        >
           <div className="topbar-timer-anchor">
             <BigTimer
               remainingSeconds={remainingSeconds}
@@ -262,7 +268,7 @@ export function TestWorkspace({
               <span>EXIT TEST</span>
             </button>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Main Mode View */}
