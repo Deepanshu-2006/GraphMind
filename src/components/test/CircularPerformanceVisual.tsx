@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, memo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 export interface QuestionResultItem {
   questionNumber: number;
@@ -71,6 +71,52 @@ function SlotDigit({
   );
 }
 
+/**
+ * Isolated Percentage Counter to avoid re-rendering SVG during animation
+ */
+const PercentageCounter = memo(function PercentageCounter({
+  target,
+  delay = 420,
+  duration = 580
+}: {
+  target: number;
+  delay?: number;
+  duration?: number;
+}) {
+  const [count, setCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setCount(target);
+      return;
+    }
+
+    let animId: number;
+    const startTime = Date.now() + delay;
+
+    const tick = () => {
+      const now = Date.now();
+      if (now < startTime) {
+        animId = requestAnimationFrame(tick);
+        return;
+      }
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.round(eased * target));
+
+      if (progress < 1) {
+        animId = requestAnimationFrame(tick);
+      }
+    };
+
+    animId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animId);
+  }, [target, delay, duration]);
+
+  return <>{count}% CORRECT</>;
+});
+
 export const CircularPerformanceVisual = memo(function CircularPerformanceVisual({
   score,
   totalQuestions,
@@ -81,100 +127,26 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
   exitTarget,
   onSelectQuestion
 }: CircularPerformanceVisualProps) {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-
-  // Animation sequence states (Section 4, 5 & 11)
-  // Step 1 -> circular track draws in and correct segments activate
-  // Step 2 -> remaining segments resolve around the circle
-  // Step 3 -> center score settles & percentage resolves
-  // Step 4 -> supporting metadata appears
-  const [animationStep, setAnimationStep] = useState<number>(0);
-  const [isSettled, setIsSettled] = useState<boolean>(false);
-  const [displayPercentage, setDisplayPercentage] = useState<number>(0);
+  // Synchronous detection of reduced motion (zero re-renders)
+  const prefersReducedMotion = useMemo(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }, []);
 
   const safeTotal = Math.max(1, totalQuestions);
 
-  useEffect(() => {
-    // Respect prefers-reduced-motion
-    if (
-      typeof window !== 'undefined' &&
-      window.matchMedia &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    ) {
-      setAnimationStep(4);
-      setIsSettled(true);
-      setDisplayPercentage(percentage);
-      return;
-    }
-
-    // Step 1: circular track draws & correct segments activate (160ms)
-    const t1 = setTimeout(() => {
-      setAnimationStep(1);
-    }, 160);
-
-    // Step 2: remaining segments resolve around the circle (340ms)
-    const t2 = setTimeout(() => {
-      setAnimationStep(2);
-    }, 340);
-
-    // Step 3: center score settles (520ms)
-    const t3 = setTimeout(() => {
-      setAnimationStep(3);
-    }, 520);
-
-    // Step 4: supporting text appears after score settles (800ms)
-    const t4 = setTimeout(() => {
-      setAnimationStep(4);
-      setIsSettled(true);
-    }, 800);
-
-    // Progressive percentage count-up: resolves 0% -> target% between 360ms and 740ms
-    const startTime = Date.now() + 360;
-    const duration = 380;
-    let animId: number;
-
-    const updatePercentage = () => {
-      const now = Date.now();
-      if (now < startTime) {
-        animId = requestAnimationFrame(updatePercentage);
-        return;
-      }
-      const elapsed = now - startTime;
-      const progress = Math.min(1, elapsed / duration);
-      // Easing: cubic out
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplayPercentage(Math.round(eased * percentage));
-
-      if (progress < 1) {
-        animId = requestAnimationFrame(updatePercentage);
-      }
-    };
-
-    animId = requestAnimationFrame(updatePercentage);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
-      cancelAnimationFrame(animId);
-    };
-  }, [safeTotal, score, percentage]);
-
-  // Geometry dimensions: spatially stable circle, no full rotation
+  // Geometry dimensions: spatially stable circle
   const viewBoxSize = 320;
   const cx = 160;
   const cy = 160;
   const radius = 112;
 
-  // Arc calculations per segment with subtle variable length/gap treatment (Section 3)
+  // Arc calculations per segment with subtle variable length/gap treatment
   const segments = useMemo(() => {
     const N = safeTotal;
     const slotDeg = 360 / N;
 
     return questionItems.map((item, i) => {
-      // Subtle variable gap treatment: alternating 4.8° and 5.8° to avoid cookie-cutter look
       const gapDeg = i % 2 === 0 ? 5.6 : 4.6;
       const spanDeg = Math.max(2, slotDeg - gapDeg);
       const startAngle = -90 + i * slotDeg + gapDeg / 2;
@@ -197,10 +169,30 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
   const totalFormatted = safeTotal.toString().padStart(2, '0');
   const scoreFormatted = score.toString().padStart(2, '0');
 
-  const hoveredItem = hoveredIndex !== null ? questionItems[hoveredIndex] : null;
-
   const tensDigit = Math.floor(score / 10) % 10;
   const unitsDigit = score % 10;
+
+  // Energy Point Geometry (Section 7)
+  // Calculates exact angle start and target on the circumference
+  const energyPointData = useMemo(() => {
+    if (score <= 0 || segments.length === 0) return null;
+    const firstSeg = segments[0];
+    const lastAchievedIndex = Math.min(score, segments.length) - 1;
+    const lastSeg = segments[lastAchievedIndex];
+
+    const startRotate = firstSeg.startAngle + 90;
+    const targetRotate = lastSeg.endAngle + 90;
+    const duration = Math.min(
+      0.82,
+      Math.max(0.48, 0.36 + (score / safeTotal) * 0.44)
+    );
+
+    return {
+      startRotate,
+      targetRotate,
+      duration
+    };
+  }, [score, segments, safeTotal]);
 
   return (
     <motion.div
@@ -213,14 +205,14 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
       }`}
       role="region"
       aria-label="Knowledge Performance Circular Visualization"
-      initial={{ scale: 0.94, opacity: 0 }}
+      initial={false}
       animate={
         isExiting && exitTarget === 'graph'
           ? { scale: 0.85, opacity: 0, transition: { duration: 0.28, delay: 0.12, ease: [0.16, 1, 0.3, 1] } }
-          : { scale: 1, opacity: 1, transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] } }
+          : { scale: 1, opacity: 1 }
       }
     >
-      {/* Label above: • KNOWLEDGE PERFORMANCE (Section 6) */}
+      {/* Label above: • KNOWLEDGE PERFORMANCE (Section 1) */}
       <div className="circular-visual-header">
         <span className="circular-header-marker" aria-hidden="true" />
         <span className="circular-header-label">KNOWLEDGE PERFORMANCE</span>
@@ -230,92 +222,160 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
       <div className="circular-visual-stage">
         <svg
           viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
-          className={`circular-performance-svg ${isSettled ? 'settled' : ''}`}
+          className="circular-performance-svg"
           aria-hidden="true"
         >
           {/* Subtle background guide track */}
-          <motion.circle
+          <circle
             cx={cx}
             cy={cy}
             r={radius}
             fill="none"
-            stroke="rgba(255, 255, 255, 0.05)"
+            stroke="rgba(255, 255, 255, 0.04)"
             strokeWidth={1}
-            initial={{ pathLength: 0, opacity: 0 }}
-            animate={{ pathLength: 1, opacity: 1 }}
-            transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
           />
 
-          {/* Question arc segments */}
-          {segments.map((seg) => {
-            const isItemCorrect = seg.isCorrect;
-            const isUnanswered = seg.status === 'unanswered';
-            const isHovered = hoveredIndex === seg.index;
-            const isSelected = selectedIndex === seg.index;
+          {/* Micro-motion Group: Ring "Wakes Up" (Section 3) */}
+          {/* Controlled 10-degree rotational movement once upon entry, then stops completely */}
+          <motion.g
+            className="circular-ring-wake-group"
+            initial={prefersReducedMotion ? { rotate: 0 } : { rotate: -10 }}
+            animate={{ rotate: 0 }}
+            transition={{
+              duration: 0.35,
+              ease: [0.16, 1, 0.3, 1]
+            }}
+            style={{ transformOrigin: `${cx}px ${cy}px` }}
+          >
+            {/* STEP 1: Resting Track — Entire circular track is visible initially in dormant dark graphite (Section 2) */}
+            {segments.map((seg) => {
+              const isUnanswered = seg.status === 'unanswered';
+              return (
+                <path
+                  key={`track-${seg.questionId || seg.index}`}
+                  d={seg.pathD}
+                  fill="none"
+                  stroke={
+                    isUnanswered
+                      ? 'rgba(255, 255, 255, 0.04)'
+                      : 'rgba(255, 255, 255, 0.08)'
+                  }
+                  strokeWidth={8.5}
+                  strokeLinecap="round"
+                  className="circular-segment-track"
+                />
+              );
+            })}
 
-            // Controlled radial progressive reveal around the circle (Section 11)
-            const isVisible = isItemCorrect
-              ? animationStep >= 1
-              : animationStep >= 2;
+            {/* STEP 2: Green Performance Segments "Lock In" sequentially with angular motion (Section 4 & 5) */}
+            {segments.map((seg) => {
+              if (!seg.isCorrect) return null;
 
-            let strokeColor = 'rgba(255, 255, 255, 0.09)';
-            if (isVisible) {
-              if (isItemCorrect) {
-                strokeColor = 'var(--accent, #B8FF3D)';
-              } else if (isUnanswered) {
-                strokeColor = isHovered
-                  ? 'rgba(255, 255, 255, 0.18)'
-                  : 'rgba(255, 255, 255, 0.04)';
-              } else {
-                strokeColor = isHovered
-                  ? 'rgba(255, 255, 255, 0.22)'
-                  : 'rgba(255, 255, 255, 0.09)';
-              }
-            }
+              // Sequential angular delay per achieved segment
+              const correctTotal = Math.max(1, score);
+              const segmentDelay = prefersReducedMotion
+                ? 0
+                : 0.32 + (seg.index / correctTotal) * 0.44;
 
-            // Variable stroke presence: correct segments have confident 10px presence, inactive 8.5px
-            const baseStroke = isItemCorrect ? 10 : 8.5;
-            const currentStrokeWidth = isHovered || isSelected ? baseStroke + 2.5 : baseStroke;
+              return (
+                <motion.path
+                  key={`achieved-${seg.questionId || seg.index}`}
+                  d={seg.pathD}
+                  fill="none"
+                  stroke="var(--accent, #B8FF3D)"
+                  strokeWidth={10}
+                  strokeLinecap="round"
+                  className="circular-segment-achieved"
+                  initial={
+                    prefersReducedMotion
+                      ? { pathLength: 1, rotate: 0, opacity: 1 }
+                      : { pathLength: 0, rotate: -8, opacity: 0 }
+                  }
+                  animate={{
+                    pathLength: 1,
+                    rotate: [-8, 1.2, 0],
+                    opacity: 1
+                  }}
+                  transition={
+                    prefersReducedMotion
+                      ? { duration: 0 }
+                      : {
+                          pathLength: {
+                            duration: 0.34,
+                            delay: segmentDelay,
+                            ease: [0.16, 1, 0.3, 1]
+                          },
+                          rotate: {
+                            duration: 0.46,
+                            delay: segmentDelay,
+                            times: [0, 0.74, 1],
+                            ease: [0.16, 1, 0.3, 1]
+                          },
+                          opacity: {
+                            duration: 0.16,
+                            delay: segmentDelay
+                          }
+                        }
+                  }
+                  onClick={() => onSelectQuestion?.(seg)}
+                  style={{
+                    cursor: 'pointer',
+                    transformOrigin: `${cx}px ${cy}px`,
+                    transition: 'stroke 200ms ease'
+                  }}
+                />
+              );
+            })}
 
-            return (
-              <motion.path
-                key={seg.questionId || seg.index}
-                d={seg.pathD}
-                fill="none"
-                stroke={strokeColor}
-                strokeWidth={currentStrokeWidth}
-                strokeLinecap="round"
-                className={`circular-segment-path ${
-                  isItemCorrect ? 'segment-correct' : isUnanswered ? 'segment-unanswered' : 'segment-review'
-                } ${isHovered ? 'hovered' : ''} ${isSelected ? 'selected' : ''}`}
-                initial={{ pathLength: 0, opacity: 0 }}
-                animate={{ pathLength: 1, opacity: isVisible ? 1 : 0.15 }}
+            {/* STEP 3: Traveling Energy Point at leading edge of animating arc (Section 7) */}
+            {energyPointData && !prefersReducedMotion && (
+              <motion.g
+                className="circular-energy-point-group"
+                initial={{
+                  rotate: energyPointData.startRotate,
+                  opacity: 0
+                }}
+                animate={{
+                  rotate: [
+                    energyPointData.startRotate,
+                    energyPointData.targetRotate + 1.2,
+                    energyPointData.targetRotate
+                  ],
+                  opacity: [0, 1, 1, 0]
+                }}
                 transition={{
-                  duration: 0.42,
-                  delay: 0.14 + (seg.index / safeTotal) * 0.34,
+                  duration: energyPointData.duration,
+                  delay: 0.30,
+                  times: [0, 0.82, 1],
+                  opacity: {
+                    duration: energyPointData.duration + 0.05,
+                    delay: 0.30,
+                    times: [0, 0.08, 0.82, 1]
+                  },
                   ease: [0.16, 1, 0.3, 1]
                 }}
-                onMouseEnter={() => setHoveredIndex(seg.index)}
-                onMouseLeave={() => setHoveredIndex(null)}
-                onClick={() => {
-                  setSelectedIndex(seg.index);
-                  onSelectQuestion?.(seg);
-                }}
-                style={{
-                  cursor: 'pointer',
-                  transition: 'stroke-width 220ms ease, stroke 240ms ease'
-                }}
-              />
-            );
-          })}
+                style={{ transformOrigin: `${cx}px ${cy}px` }}
+              >
+                {/* 2.2px tiny green measurement tracer */}
+                <circle
+                  cx={cx}
+                  cy={cy - radius}
+                  r={2.2}
+                  fill="#B8FF3D"
+                  className="circular-energy-dot"
+                />
+              </motion.g>
+            )}
+          </motion.g>
         </svg>
 
-        {/* Center Typography (Section 3, 4, 5) */}
+        {/* Center Typography (Section 1 & 8) */}
+        {/* Synchronized: Number counts up as ring measures, confirms the score */}
         <div className="circular-center-content">
           <div className="circular-center-score-row" aria-label={`${scoreFormatted} of ${totalFormatted}`}>
             <span className="circular-center-number">
-              <SlotDigit targetDigit={tensDigit} delay={0.24} duration={0.52} />
-              <SlotDigit targetDigit={unitsDigit} delay={0.28} duration={0.56} />
+              <SlotDigit targetDigit={tensDigit} delay={0.42} duration={0.68} />
+              <SlotDigit targetDigit={unitsDigit} delay={0.46} duration={0.72} />
             </span>
             <span className="circular-center-total">/{totalFormatted}</span>
           </div>
@@ -323,53 +383,20 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
           <motion.span
             className="circular-center-percentage"
             initial={{ opacity: 0, y: 4 }}
-            animate={animationStep >= 3 ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
-            transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.32, delay: 0.42, ease: [0.16, 1, 0.3, 1] }}
           >
-            {displayPercentage}% CORRECT
+            <PercentageCounter target={percentage} delay={420} duration={580} />
           </motion.span>
         </div>
-
-        {/* Contextual Interactive Tooltip */}
-        <AnimatePresence>
-          {hoveredItem && (
-            <motion.div
-              className="circular-interactive-tooltip"
-              initial={{ opacity: 0, y: -4, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -4, scale: 0.96 }}
-              transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-            >
-              <div className="tooltip-header-row">
-                <span className="tooltip-q-num">
-                  QUESTION {hoveredItem.questionNumber.toString().padStart(2, '0')}
-                </span>
-                <span
-                  className={`tooltip-q-status ${
-                    hoveredItem.isCorrect
-                      ? 'status-correct'
-                      : hoveredItem.status === 'unanswered'
-                      ? 'status-unanswered'
-                      : 'status-review'
-                  }`}
-                >
-                  {hoveredItem.isCorrect ? 'CORRECT' : hoveredItem.status === 'unanswered' ? 'UNANSWERED' : 'REVIEW'}
-                </span>
-              </div>
-              <div className="tooltip-concept-name" title={hoveredItem.conceptName}>
-                {hoveredItem.conceptName}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
-      {/* Footer Subtitle: e.g. 2 correct · 8 to revisit + quiet 00:53 elapsed (Section 1 & 3) */}
+      {/* Footer Subtitle: e.g. 2 correct · 8 to revisit + quiet 00:53 elapsed (Section 1 & 8) */}
       <motion.div
         className="circular-summary-footer"
         initial={{ opacity: 0, y: 6 }}
-        animate={animationStep >= 4 ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay: 0.98, ease: [0.16, 1, 0.3, 1] }}
       >
         <div className="circular-summary-counts">
           <span>{score} correct</span>

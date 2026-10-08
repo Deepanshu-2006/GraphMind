@@ -2074,7 +2074,6 @@
   width: 100%;
   max-width: 340px;
   margin: 0 auto;
-  transition: transform 280ms ease, opacity 280ms ease;
 }
 
 /* Label above: • KNOWLEDGE PERFORMANCE (Section 6) */
@@ -2115,12 +2114,40 @@
   transform-origin: center;
 }
 
-.circular-segment-path {
-  transition: stroke 240ms ease, stroke-width 220ms ease, opacity 260ms ease;
+.circular-ring-wake-group {
+  transform-origin: 160px 160px;
 }
 
-.circular-segment-path.hovered {
-  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.25));
+.circular-segment-track {
+  pointer-events: none;
+  stroke: rgba(255, 255, 255, 0.08);
+  transition: stroke 240ms ease, opacity 240ms ease;
+}
+
+.circular-segment-achieved {
+  pointer-events: auto;
+  stroke: var(--accent, #B8FF3D);
+  transition: stroke 200ms ease, filter 200ms ease;
+  transform-origin: 160px 160px;
+}
+
+/* Hover interaction (Section 11): subtle brightening of green achieved segments */
+.circular-performance-container:hover .circular-segment-achieved {
+  filter: brightness(1.15);
+}
+
+.circular-energy-point-group {
+  transform-origin: 160px 160px;
+  pointer-events: none;
+}
+
+.circular-energy-dot {
+  pointer-events: none;
+  fill: var(--accent, #B8FF3D);
+}
+
+.circular-performance-svg.settled {
+  animation: none !important;
 }
 
 /* Center Content inside circle (Section 3 & 4) */
