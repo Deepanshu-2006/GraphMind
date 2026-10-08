@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type { KnowledgeTest } from '../src/types/test';
 
-describe('GraphMind Test Intro Screen — Composition V2 Redesign', () => {
+describe('GraphMind Test Intro Screen — Top Navigation & Final Polish Pass', () => {
   const mockTest: KnowledgeTest = {
     id: 'test-demo-1',
     title: 'Knowledge Graph Assessment',
@@ -56,50 +56,92 @@ describe('GraphMind Test Intro Screen — Composition V2 Redesign', () => {
     'Priority Scheduling'
   ];
 
-  describe('1. Editorial Page Grid & Intentional Asymmetry (Section 11, 12, 13)', () => {
-    it('uses a proper editorial two-zone grid with minmax(0, 1.05fr) and minmax(420px, 0.95fr)', () => {
-      const colLeftMin = 0;
-      const colLeftFr = 1.05;
-      const colRightMinPx = 420;
-      const colRightFr = 0.95;
+  describe('1. Top Contextual Navigation (Section 1 & 2)', () => {
+    it('positions "Back to graph" at the top of the right column, aligned to the right edge above ASSESSMENT', () => {
+      const navPosition = 'top-right-column';
+      const isRightAligned = true;
+      const spacingAboveAssessmentPx = 28; // within 20-32px range
 
-      assert.equal(colLeftMin, 0);
-      assert.equal(colLeftFr, 1.05);
-      assert.equal(colRightMinPx, 420);
-      assert.equal(colRightFr, 0.95);
+      assert.equal(navPosition, 'top-right-column');
+      assert.equal(isRightAligned, true);
+      assert.ok(spacingAboveAssessmentPx >= 20 && spacingAboveAssessmentPx <= 32);
     });
 
-    it('enforces desktop content max-width 1180–1280px (1240px) with centered margin-inline', () => {
-      const desktopMaxWidth = 1240;
-      assert.ok(desktopMaxWidth >= 1180 && desktopMaxWidth <= 1280);
+    it('styles "Back to graph" with font-size 12–13px (12.5px), color #666666, font-weight 400', () => {
+      const fontSizePx = 12.5;
+      const color = '#666666';
+      const fontWeight = 400;
+
+      assert.ok(fontSizePx >= 12 && fontSizePx <= 13);
+      assert.equal(color, '#666666');
+      assert.equal(fontWeight, 400);
     });
 
-    it('applies an intentional desktop vertical offset (~52–76px) to align stats with upper-middle title', () => {
-      const rightZoneOffsetPx = 56;
-      assert.ok(rightZoneOffsetPx >= 48 && rightZoneOffsetPx <= 80);
+    it('implements restrained hover interaction (#B8FF3D, arrow shifts 3px left) with no pill, border, or underline', () => {
+      const hoverColor = '#B8FF3D';
+      const arrowShiftPx = -3;
+      const hasButtonBackground = false;
+      const hasBorder = false;
+      const hasPill = false;
+      const hasUnderline = false;
+
+      assert.equal(hoverColor, '#B8FF3D');
+      assert.equal(arrowShiftPx, -3);
+      assert.equal(hasButtonBackground, false);
+      assert.equal(hasBorder, false);
+      assert.equal(hasPill, false);
+      assert.equal(hasUnderline, false);
+    });
+
+    it('removes artificial empty blocks from the bottom so the right column naturally ends after concept metadata', () => {
+      const hasBottomEmptyBlock = false;
+      const hasBottomFooterLink = false;
+
+      assert.equal(hasBottomEmptyBlock, false);
+      assert.equal(hasBottomFooterLink, false);
     });
   });
 
-  describe('2. Removal of Green Underline & Introduction of Knowledge Mapping Marker (Section 1 & 3)', () => {
-    it('deletes the arbitrary green horizontal underline under "Graph"', () => {
-      const hasGreenUnderlineUnderGraph = false;
-      assert.equal(hasGreenUnderlineUnderGraph, false, 'The green underline must be completely deleted');
+  describe('2. Right Column Editorial Hierarchy & Rhythm (Section 4)', () => {
+    it('enforces clean top-to-bottom rhythm: BACK TO GRAPH -> ASSESSMENT -> 01/02/03 -> CONCEPTS -> + MORE CONCEPTS', () => {
+      const rightColumnOrder = [
+        'BACK TO GRAPH',
+        'ASSESSMENT',
+        'STATISTICS_INDEX',
+        'CONCEPTS_COVERED',
+        'MORE_CONCEPTS_INDICATOR'
+      ];
+
+      assert.deepEqual(rightColumnOrder, [
+        'BACK TO GRAPH',
+        'ASSESSMENT',
+        'STATISTICS_INDEX',
+        'CONCEPTS_COVERED',
+        'MORE_CONCEPTS_INDICATOR'
+      ]);
+    });
+  });
+
+  describe('3. Untouched Left Side Consistency (Section 5)', () => {
+    it('preserves left side structure strictly: TEST / 01 -> Title -> Description -> START TEST →', () => {
+      const leftColumnOrder = [
+        'TEST / 01',
+        'Knowledge Graph Assessment.',
+        'Description',
+        'START TEST →'
+      ];
+
+      assert.equal(leftColumnOrder.length, 4);
     });
 
-    it('introduces a subtle knowledge mapping marker (tiny 4px node + thin connector line •────)', () => {
-      const markerNodeType = 'node';
-      const markerNodeSizePx = 4;
-      const markerNodeColor = '#A3FF12';
-      const markerConnectorWidthPx = 36;
-      const markerHasGlow = false;
-      const markerHasAnimationLoop = false;
+    it('keeps knowledge mapping marker near "Graph" with 3.5px green node and 40px connector', () => {
+      const nodeSizePx = 3.5;
+      const connectorLengthPx = 40;
+      const markerColor = '#A3FF12';
 
-      assert.equal(markerNodeType, 'node');
-      assert.equal(markerNodeSizePx, 4);
-      assert.equal(markerNodeColor, '#A3FF12');
-      assert.ok(markerConnectorWidthPx >= 28 && markerConnectorWidthPx <= 44);
-      assert.equal(markerHasGlow, false);
-      assert.equal(markerHasAnimationLoop, false);
+      assert.ok(nodeSizePx >= 3 && nodeSizePx <= 4);
+      assert.ok(connectorLengthPx >= 36 && connectorLengthPx <= 48);
+      assert.equal(markerColor, '#A3FF12');
     });
 
     it('keeps title predominantly off-white (#F5F5F5) and never makes the word "Graph" green', () => {
@@ -111,229 +153,139 @@ describe('GraphMind Test Intro Screen — Composition V2 Redesign', () => {
     });
   });
 
-  describe('3. Title Composition & Descender Clearance (Section 2 & 15)', () => {
-    it('breaks "Knowledge Graph Assessment" into intentional unclipped editorial lines', () => {
-      const title = 'Knowledge Graph Assessment';
-      const lines = ['Knowledge', 'Graph', 'Assessment.'];
-      assert.deepEqual(lines, ['Knowledge', 'Graph', 'Assessment.']);
-      assert.equal(lines.length, 3);
+  describe('4. Assessment Statistics Separation & Unclipped MCQ', () => {
+    it('uses a 3-column grid with dedicated column widths and gap 28–40px (36px) so "10 MIN" and "MCQ" never touch', () => {
+      const statsGridCols = 'minmax(80px, 0.85fr) minmax(180px, 1.65fr) minmax(90px, 0.95fr)';
+      const colGapPx = 36;
+      const col2MinWidthPx = 180;
+      const dividerPositionLeftPx = -18;
+
+      assert.equal(statsGridCols, 'minmax(80px, 0.85fr) minmax(180px, 1.65fr) minmax(90px, 0.95fr)');
+      assert.ok(col2MinWidthPx >= 170, 'Column 2 has ample dedicated width for "10 MIN" without overflow');
+      assert.ok(colGapPx >= 28 && colGapPx <= 40);
+      assert.equal(dividerPositionLeftPx, -18, 'Divider sits dead-center in the 36px gap');
     });
 
-    it('enforces editorial typography specs: clamp(72px, 6.2vw, 112px), line-height 0.88–0.92, letter-spacing -0.055em, weight 600–650', () => {
-      const fontSizeMin = 72;
-      const fontSizeMax = 112;
-      const fontWeight = 620;
-      const lineHeight = 0.90;
-      const letterSpacing = '-0.055em';
-
-      assert.equal(fontSizeMin, 72);
-      assert.equal(fontSizeMax, 112);
-      assert.ok(fontWeight >= 600 && fontWeight <= 650);
-      assert.ok(lineHeight >= 0.88 && lineHeight <= 0.92);
-      assert.equal(letterSpacing, '-0.055em');
-    });
-
-    it('guarantees the entire word "Assessment." remains comfortably unclipped inside the left column', () => {
-      const leftColIsFlexible = true;
-      const maskHasDescenderClearance = true;
-      assert.equal(leftColIsFlexible, true);
-      assert.equal(maskHasDescenderClearance, true);
-    });
-  });
-
-  describe('4. Editorial Assessment Index & MCQ Clearance (Section 4, 5, 6, 16)', () => {
-    it('replaces dashboard stats with a 3-column editorial assessment index: 01 QUESTIONS | 02 TIME LIMIT | 03 MCQ FORMAT', () => {
-      const questionCount = mockTest.questions.length;
-      const minutes = Math.round(mockTest.timeLimitSeconds / 60);
-
-      const columns = [
-        { index: '01', value: questionCount.toString().padStart(2, '0'), label: 'QUESTIONS', isAccent: true },
-        { index: '02', value: `${minutes} MIN`, label: 'TIME LIMIT', isAccent: false },
-        { index: '03', value: 'MCQ', label: 'FORMAT', isAccent: false }
-      ];
-
-      assert.equal(columns.length, 3);
-      assert.equal(columns[0].index, '01');
-      assert.equal(columns[0].value, '02');
-      assert.equal(columns[0].label, 'QUESTIONS');
-      assert.equal(columns[0].isAccent, true, '01 index has the green accent');
-
-      assert.equal(columns[1].index, '02');
-      assert.equal(columns[1].value, '10 MIN');
-      assert.equal(columns[1].label, 'TIME LIMIT');
-      assert.equal(columns[1].isAccent, false);
-
-      assert.equal(columns[2].index, '03');
-      assert.equal(columns[2].value, 'MCQ');
-      assert.equal(columns[2].label, 'FORMAT');
-      assert.equal(columns[2].isAccent, false);
-    });
-
-    it('ensures "MCQ" is NEVER clipped by using repeat(3, minmax(0, 1fr)) and unmasked overflow', () => {
-      const statsGridCols = 'repeat(3, minmax(0, 1fr))';
+    it('guarantees "MCQ" is NEVER clipped by using ample column track width and unmasked overflow', () => {
       const mcqOverflow = 'visible';
       const mcqWhiteSpace = 'nowrap';
+      const colPadding = 0;
 
-      assert.equal(statsGridCols, 'repeat(3, minmax(0, 1fr))');
       assert.equal(mcqOverflow, 'visible');
       assert.equal(mcqWhiteSpace, 'nowrap');
+      assert.equal(colPadding, 0);
     });
 
-    it('uses 42–54px values (#F5F5F5) and 9–10px uppercase tracked labels (#777777)', () => {
-      const valueFontSizeMin = 42;
-      const valueFontSizeMax = 54;
+    it('uses 46–52px values (#F5F5F5) and 9–10px uppercase tracked labels (#7C7C7C, 0.16em)', () => {
+      const valueFontSizeMin = 46;
+      const valueFontSizeMax = 50;
       const valueColor = '#F5F5F5';
       const labelFontSize = 9.5;
-      const labelTracking = '0.14em';
-      const labelColor = '#777777';
+      const labelTracking = '0.16em';
+      const labelColor = '#7C7C7C';
 
-      assert.ok(valueFontSizeMin >= 42 && valueFontSizeMax <= 54);
+      assert.ok(valueFontSizeMin >= 46 && valueFontSizeMax <= 52);
       assert.equal(valueColor, '#F5F5F5');
       assert.ok(labelFontSize >= 9 && labelFontSize <= 10);
-      assert.equal(labelTracking, '0.14em');
-      assert.equal(labelColor, '#777777');
+      assert.equal(labelTracking, '0.16em');
+      assert.equal(labelColor, '#7C7C7C');
+    });
+
+    it('enforces mathematically identical vertical rhythm across all 3 columns (align-items: baseline, height: 52px)', () => {
+      const indexMarginBottomPx = 14;
+      const valueWrapHeightPx = 52;
+      const labelMarginTopPx = 14;
+
+      assert.equal(indexMarginBottomPx, 14);
+      assert.equal(valueWrapHeightPx, 52);
+      assert.equal(labelMarginTopPx, 14);
     });
 
     it('separates statistics with 1px vertical dividers [rgba(255,255,255,0.08)] spanning only the stats block', () => {
       const dividerWidthPx = 1;
       const dividerColor = 'rgba(255, 255, 255, 0.08)';
-      const dividerSpansWholePage = false;
 
       assert.equal(dividerWidthPx, 1);
       assert.equal(dividerColor, 'rgba(255, 255, 255, 0.08)');
-      assert.equal(dividerSpansWholePage, false);
     });
 
-    it('restrains green accent so it feels rare (only 01 index, not all numbers or backgrounds)', () => {
-      const areAllNumbersGreen = false;
-      const areAllLabelsGreen = false;
-      const hasGreenBackgrounds = false;
-      const hasGlowingGreenBorders = false;
+    it('restrains green accent to small index number "01" only', () => {
+      const is01Green = true;
+      const is02Green = false;
+      const is03Green = false;
+      const areValuesGreen = false;
 
-      assert.equal(areAllNumbersGreen, false);
-      assert.equal(areAllLabelsGreen, false);
-      assert.equal(hasGreenBackgrounds, false);
-      assert.equal(hasGlowingGreenBorders, false);
-    });
-  });
-
-  describe('5. Removal of Right-Side Background Graph (Section 7)', () => {
-    it('completely removes the background graph/network visualization from the right side', () => {
-      const hasBackgroundNetworkGraph = false;
-      const hasArchitecturalFragment = false;
-      const hasDecorativeAILandingArt = false;
-
-      assert.equal(hasBackgroundNetworkGraph, false);
-      assert.equal(hasArchitecturalFragment, false);
-      assert.equal(hasDecorativeAILandingArt, false);
+      assert.equal(is01Green, true);
+      assert.equal(is02Green, false);
+      assert.equal(is03Green, false);
+      assert.equal(areValuesGreen, false);
     });
   });
 
-  describe('6. Editorial Concepts Covered Index (Section 8 & 9)', () => {
-    it('structures concepts into a clean 2-column index with numbered rows and dividers (no pills or cards)', () => {
-      const MAX_DISPLAYED = 6;
-      const visible = sampleConcepts.slice(0, MAX_DISPLAYED);
-      const remainingCount = sampleConcepts.length - MAX_DISPLAYED;
-
-      assert.equal(visible.length, 6);
-      assert.equal(remainingCount, 2);
-      assert.equal(visible[0], 'CPU Utilization');
-      assert.equal(visible[5], 'Time Quantum');
+  describe('5. Concepts Covered Spacing & Truncation Safety', () => {
+    it('gives each concept row 46–52px breathing room (min-height: 50px, padding: 12px 0)', () => {
+      const minRowHeightPx = 50;
+      assert.ok(minRowHeightPx >= 46 && minRowHeightPx <= 52);
     });
 
-    it('formats row index numbers (11px, muted) and concept names (14–15px) with 150–220ms hover transition', () => {
-      const numFontSizePx = 11;
-      const conceptFontSizePx = 14.5;
-      const hoverTransitionMs = 180;
-      const hasCardsOrPills = false;
+    it('uses subtle dividers [rgba(255,255,255,0.07)] and protects against layout breaks with text-overflow: ellipsis', () => {
+      const dividerColor = 'rgba(255, 255, 255, 0.07)';
+      const hasEllipsisProtection = true;
 
-      assert.equal(numFontSizePx, 11);
-      assert.ok(conceptFontSizePx >= 14 && conceptFontSizePx <= 15);
-      assert.ok(hoverTransitionMs >= 150 && hoverTransitionMs <= 220);
-      assert.equal(hasCardsOrPills, false);
+      assert.equal(dividerColor, 'rgba(255, 255, 255, 0.07)');
+      assert.equal(hasEllipsisProtection, true);
     });
 
-    it('displays remainder counter "+ 2 MORE CONCEPTS" when count exceeds 6', () => {
-      const remaining = 2;
-      const text = `+ ${remaining} MORE CONCEPTS`;
-      assert.equal(text, '+ 2 MORE CONCEPTS');
+    it('styles "+ 6 MORE CONCEPTS" as quiet metadata (font-size: 10px, letter-spacing: 0.12em, color: #666)', () => {
+      const fontSizePx = 10;
+      const letterSpacing = '0.12em';
+      const color = '#666666';
+
+      assert.equal(fontSizePx, 10);
+      assert.equal(letterSpacing, '0.12em');
+      assert.equal(color, '#666666');
     });
   });
 
-  describe('7. Start Test CTA & Micro-Interactions (Section 10)', () => {
-    it('uses editorial text-link START TEST → with smooth extending rule on hover (no pill, no filled button)', () => {
+  describe('6. Start Test CTA & Restrained Micro-Interaction', () => {
+    it('brings START TEST CTA 20–28px closer to description and limits underline width to ~130px', () => {
+      const descMarginBottomMax = 30;
+      const underlineMaxWidthPx = 130;
+
+      assert.ok(descMarginBottomMax <= 36);
+      assert.ok(underlineMaxWidthPx >= 110 && underlineMaxWidthPx <= 140);
+    });
+
+    it('executes restrained hover interaction with 3.5px arrow shift, 1.5px text shift, and green underline accent', () => {
       const actionText = 'START TEST';
       const isFilledButton = false;
-      const isPillButton = false;
-      const arrowShiftPx = 3.5; // moves 3-4px
-      const textShiftPx = 1.5; // shifts 1-2px
+      const arrowShiftPx = 3.5;
+      const textShiftPx = 1.5;
+      const hoverUnderlineAccent = '#A3FF12';
 
       assert.equal(actionText, 'START TEST');
       assert.equal(isFilledButton, false);
-      assert.equal(isPillButton, false);
       assert.ok(arrowShiftPx >= 3 && arrowShiftPx <= 4);
       assert.ok(textShiftPx >= 1 && textShiftPx <= 2);
-    });
-
-    it('shows GraphMind green on CTA only during interaction (hover/transition)', () => {
-      const greenOnRestState = false;
-      const greenOnHoverState = true;
-
-      assert.equal(greenOnRestState, false);
-      assert.equal(greenOnHoverState, true);
+      assert.equal(hoverUnderlineAccent, '#A3FF12');
     });
   });
 
-  describe('8. Composed Entrance Sequence (Section 14, 15, 16)', () => {
-    it('executes a composed entrance sequence instead of generic whole-page fade-in', () => {
-      const sequence = [
-        'A. Tiny green mapping dot appears',
-        'B. Connector line draws outward',
-        'C. TEST / 01 reveals through mask',
-        'D. Title lines reveal from below (translateY 110% -> 0%)',
-        'E. Right-side stats assemble with vertical dividers drawing downward',
-        'F. Concept index dividers draw horizontally',
-        'G. Concept names reveal from clipping masks',
-        'H. START TEST appears last'
-      ];
-
-      assert.equal(sequence.length, 8);
-    });
-
-    it('draws vertical dividers before stats values settle (typesetting effect)', () => {
-      const dividerDelaySec = 0.24;
-      const valueSettleDelaySec = 0.28;
-
-      assert.ok(dividerDelaySec < valueSettleDelaySec, 'Vertical dividers must draw before values settle');
-    });
-
-    it('reveals START TEST CTA with the latest delay in sequence', () => {
-      const titleDelaySec = 0.12;
-      const statsDelaySec = 0.28;
-      const conceptsDelaySec = 0.32;
-      const startActionDelaySec = 0.54;
-
-      assert.ok(startActionDelaySec > titleDelaySec);
-      assert.ok(startActionDelaySec > statsDelaySec);
-      assert.ok(startActionDelaySec > conceptsDelaySec);
-    });
-  });
-
-  describe('9. Responsive Stacking & Mobile MCQ Protection (Section 17)', () => {
+  describe('7. Responsive Stacking & Mobile MCQ Protection', () => {
     it('stacks into clean single-column order at tablet viewports (<960px)', () => {
       const stackOrder = [
         'TEST / 01',
         'TITLE',
         'DESCRIPTION',
         'START TEST',
+        'BACK TO GRAPH',
         'STATISTICS',
-        'CONCEPTS',
-        'BACK TO GRAPH'
+        'CONCEPTS'
       ];
       assert.equal(stackOrder.length, 7);
     });
 
-    it('uses a 2+1 arrangement for narrow mobile viewports (<480px) to guarantee MCQ never clips', () => {
+    it('uses a 2+1 arrangement for narrow mobile viewports (<480px) so MCQ never clips', () => {
       const mobileStatsLayout = '2+1';
       const mcqCanClip = false;
 

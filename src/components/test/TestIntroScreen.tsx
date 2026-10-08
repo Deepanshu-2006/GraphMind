@@ -110,19 +110,14 @@ export function TestIntroScreen({
 
           <button
             type="button"
-            className="test-editorial-back-link"
+            className="test-editorial-back-link test-insufficient-back"
             onClick={onExitTest}
             autoFocus
           >
-            <div className="test-back-content">
-              <span className="test-back-arrow" aria-hidden="true">
-                <ArrowLeft size={13} />
-              </span>
-              <span className="test-back-label">Back to graph</span>
-            </div>
-            <div className="test-back-underline-track" aria-hidden="true">
-              <div className="test-back-underline-fill" />
-            </div>
+            <span className="test-back-arrow" aria-hidden="true">
+              <ArrowLeft size={13} />
+            </span>
+            <span className="test-back-label">Back to graph</span>
           </button>
         </div>
       </motion.div>
@@ -290,6 +285,20 @@ export function TestIntroScreen({
             RIGHT ZONE: Editorial Assessment Index & Concepts (Section 4, 5, 8, 9, 13)
             ============================================================== */}
         <div className="test-intro-right-zone">
+          {/* Top Contextual Navigation (Section 1 & 2): ← Back to graph */}
+          <button
+            type="button"
+            className="test-editorial-back-link"
+            onClick={onExitTest}
+            disabled={isTransitioningOut}
+            aria-label="Return to knowledge graph"
+          >
+            <span className="test-back-arrow" aria-hidden="true">
+              <ArrowLeft size={13} />
+            </span>
+            <span className="test-back-label">Back to graph</span>
+          </button>
+
           {/* STEP 5: Editorial Assessment Statistics Index with 3 Columns & Vertical Dividers (Section 4, 5, 6, 14: E, 16) */}
           <div className="test-editorial-assessment-block" role="region" aria-label="Assessment specifications">
             <div className="test-assessment-header">
@@ -418,25 +427,6 @@ export function TestIntroScreen({
               </motion.div>
             )}
           </div>
-
-          {/* Section 9: Quiet Back to Graph Link with Arrow & Underline */}
-          <button
-            type="button"
-            className="test-editorial-back-link"
-            onClick={onExitTest}
-            disabled={isTransitioningOut}
-            aria-label="Return to knowledge graph"
-          >
-            <div className="test-back-content">
-              <span className="test-back-arrow" aria-hidden="true">
-                <ArrowLeft size={13} />
-              </span>
-              <span className="test-back-label">Back to graph</span>
-            </div>
-            <div className="test-back-underline-track" aria-hidden="true">
-              <div className="test-back-underline-fill" />
-            </div>
-          </button>
         </div>
       </div>
     </div>
