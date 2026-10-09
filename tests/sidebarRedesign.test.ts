@@ -45,7 +45,7 @@ describe('Redesigned GraphMind Sidebar Architecture', () => {
     const expectedPrimaryNav = [
       { id: 'overview', label: 'Overview' },
       { id: 'graph', label: 'Knowledge Graph' },
-      { id: 'paths', label: 'Learning Paths' },
+      { id: 'study', label: 'Study Space' },
       { id: 'sources', label: 'Sources' }
     ];
 
