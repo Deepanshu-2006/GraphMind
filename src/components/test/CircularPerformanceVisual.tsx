@@ -17,7 +17,7 @@ export interface CircularPerformanceVisualProps {
   timeFormatted?: string;
   questionItems: QuestionResultItem[];
   isExiting: boolean;
-  exitTarget: 'missed' | 'graph' | null;
+  exitTarget: 'missed' | 'answers' | 'graph' | null;
   onSelectQuestion?: (questionItem: QuestionResultItem) => void;
 }
 
@@ -197,7 +197,7 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
   return (
     <motion.div
       className={`circular-performance-container ${
-        isExiting && exitTarget === 'missed'
+        isExiting && (exitTarget === 'missed' || exitTarget === 'answers')
           ? 'exiting-missed'
           : isExiting && exitTarget === 'graph'
           ? 'exiting-graph'
@@ -207,7 +207,7 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
       aria-label="Knowledge Performance Circular Visualization"
       initial={false}
       animate={
-        isExiting && exitTarget === 'missed'
+        isExiting && (exitTarget === 'missed' || exitTarget === 'answers')
           ? { scale: 0.86, opacity: 0, transition: { duration: 0.36, delay: 0.24, ease: [0.16, 1, 0.3, 1] } }
           : isExiting && exitTarget === 'graph'
           ? { scale: 0.85, opacity: 0, transition: { duration: 0.28, delay: 0.12, ease: [0.16, 1, 0.3, 1] } }
@@ -376,15 +376,15 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
         <motion.div
           className="circular-center-content"
           animate={
-            isExiting && exitTarget === 'missed'
+            isExiting && (exitTarget === 'missed' || exitTarget === 'answers')
               ? { scale: 0.90, opacity: 0, transition: { duration: 0.24, delay: 0.06, ease: [0.16, 1, 0.3, 1] } }
               : { scale: 1, opacity: 1 }
           }
         >
           <div className="circular-center-score-row" aria-label={`${scoreFormatted} of ${totalFormatted}`}>
             <span className="circular-center-number">
-              <SlotDigit targetDigit={tensDigit} delay={0.42} duration={0.68} />
-              <SlotDigit targetDigit={unitsDigit} delay={0.46} duration={0.72} />
+              <SlotDigit targetDigit={tensDigit} delay={0.42} duration={1.12} />
+              <SlotDigit targetDigit={unitsDigit} delay={0.46} duration={1.24} />
             </span>
             <span className="circular-center-total">/{totalFormatted}</span>
           </div>
@@ -395,7 +395,7 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.32, delay: 0.42, ease: [0.16, 1, 0.3, 1] }}
           >
-            <PercentageCounter target={percentage} delay={420} duration={580} />
+            <PercentageCounter target={percentage} delay={420} duration={1180} />
           </motion.span>
         </motion.div>
       </div>
@@ -407,7 +407,7 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
         animate={
           isExiting
             ? { opacity: 0, y: -6, transition: { duration: 0.20, delay: 0.04, ease: [0.16, 1, 0.3, 1] } }
-            : { opacity: 1, y: 0, transition: { duration: 0.35, delay: 0.98, ease: [0.16, 1, 0.3, 1] } }
+            : { opacity: 1, y: 0, transition: { duration: 0.35, delay: 1.25, ease: [0.16, 1, 0.3, 1] } }
         }
       >
         <div className="circular-summary-counts">

@@ -76,7 +76,7 @@ export const TestResultsView = memo(function TestResultsView({
 }: TestResultsViewProps) {
   // Exit transition states (Section 22)
   const [isExiting, setIsExiting] = useState(false);
-  const [exitTarget, setExitTarget] = useState<'missed' | 'graph' | null>(null);
+  const [exitTarget, setExitTarget] = useState<'missed' | 'answers' | 'graph' | null>(null);
 
   // SCROLL FIX: Ensure results page always opens scrolled to the very top (0, 0)
   useLayoutEffect(() => {
@@ -223,6 +223,15 @@ export const TestResultsView = memo(function TestResultsView({
     }, 620);
   };
 
+  const handleReviewAnswers = () => {
+    if (isExiting) return;
+    setIsExiting(true);
+    setExitTarget('answers');
+    setTimeout(() => {
+      onReviewAnswers();
+    }, 620);
+  };
+
   const handleBackToGraph = () => {
     if (isExiting) return;
     setIsExiting(true);
@@ -286,7 +295,7 @@ export const TestResultsView = memo(function TestResultsView({
                 }
                 transition={{
                   duration: isExiting ? 0.38 : 0.65,
-                  delay: isExiting ? (exitTarget === 'missed' ? 0.14 : 0.24) : 0.08,
+                  delay: isExiting ? (exitTarget === 'missed' || exitTarget === 'answers' ? 0.14 : 0.24) : 0.08,
                   ease: [0.16, 1, 0.3, 1]
                 }}
               >
@@ -304,7 +313,7 @@ export const TestResultsView = memo(function TestResultsView({
                 }
                 transition={{
                   duration: isExiting ? 0.38 : 0.65,
-                  delay: isExiting ? (exitTarget === 'missed' ? 0.18 : 0.24) : 0.16,
+                  delay: isExiting ? (exitTarget === 'missed' || exitTarget === 'answers' ? 0.18 : 0.24) : 0.16,
                   ease: [0.16, 1, 0.3, 1]
                 }}
               >
@@ -319,7 +328,7 @@ export const TestResultsView = memo(function TestResultsView({
             initial={{ opacity: 0, y: 14 }}
             animate={
               isExiting
-                ? { opacity: 0, y: -12, transition: { duration: 0.26, delay: exitTarget === 'missed' ? 0.10 : 0.06, ease: [0.16, 1, 0.3, 1] } }
+                ? { opacity: 0, y: -12, transition: { duration: 0.26, delay: exitTarget === 'missed' || exitTarget === 'answers' ? 0.10 : 0.06, ease: [0.16, 1, 0.3, 1] } }
                 : { opacity: 1, y: 0, transition: { duration: 0.45, delay: 0.26, ease: [0.16, 1, 0.3, 1] } }
             }
           >
@@ -404,7 +413,7 @@ export const TestResultsView = memo(function TestResultsView({
               <motion.button
                 type="button"
                 className="results-secondary-text-btn results-editorial-secondary-action"
-                onClick={onReviewAnswers}
+                onClick={handleReviewAnswers}
                 disabled={isExiting}
                 initial={{ opacity: 0, x: -6, clipPath: 'inset(0 100% 0 0)' }}
                 animate={
