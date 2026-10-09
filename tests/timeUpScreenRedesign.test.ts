@@ -55,7 +55,7 @@ describe('GraphMind Assessment TIME\'S UP Screen — Editorial Redesign Architec
       );
     });
 
-    it('renders B. MAIN HEADING: "TIME\'S \\n UP." on two lines with selective lime-green period', () => {
+    it('renders B. MAIN HEADING: "TIME\'S \\n UP." on two lines with tightened line-height and connected lime-green period', () => {
       assert.ok(
         timeUpContent.includes("TIME'S") &&
         timeUpContent.includes('UP') &&
@@ -65,15 +65,17 @@ describe('GraphMind Assessment TIME\'S UP Screen — Editorial Redesign Architec
       assert.ok(
         testCssContent.includes('.test-timeup-title') &&
         testCssContent.includes('clamp(64px, 8vw, 112px)') &&
-        testCssContent.includes('line-height: 0.88;') &&
+        testCssContent.includes('line-height: 0.84;') &&
         testCssContent.includes('letter-spacing: -0.05em;') &&
         testCssContent.includes('color: #F5F5F5;'),
-        'Heading typography must use clamp(64px, 8vw, 112px), tight line-height 0.88, negative tracking, and off-white color'
+        'Heading typography must use clamp(64px, 8vw, 112px), tightened line-height 0.84, negative tracking, and off-white color'
       );
       assert.ok(
         testCssContent.includes('.test-timeup-period') &&
-        testCssContent.includes('color: var(--accent, #B8FF3D);'),
-        'Period must selectively use lime green accent #B8FF3D'
+        testCssContent.includes('color: var(--accent, #B8FF3D);') &&
+        testCssContent.includes('vertical-align: baseline;') &&
+        testCssContent.includes('margin-left: -0.035em;'),
+        'Period must selectively use lime green accent #B8FF3D, connect with negative margin, and align with baseline'
       );
     });
 
@@ -111,8 +113,9 @@ describe('GraphMind Assessment TIME\'S UP Screen — Editorial Redesign Architec
         testCssContent.includes('.test-timeup-context-row') &&
         testCssContent.includes('font-size: 11px;') &&
         testCssContent.includes('letter-spacing: 0.12em;') &&
-        testCssContent.includes('color: #6E6E6E;'),
-        'Context row must use 11px uppercase muted styling'
+        testCssContent.includes('color: #6E6E6E;') &&
+        testCssContent.includes('margin-bottom: 44px;'),
+        'Context row must use 11px uppercase muted styling with 44px bottom separation'
       );
     });
 
@@ -168,10 +171,11 @@ describe('GraphMind Assessment TIME\'S UP Screen — Editorial Redesign Architec
       );
       assert.ok(
         testCssContent.includes('.test-timeup-bg-numeral') &&
-        testCssContent.includes('color: rgba(255, 255, 255, 0.022);') &&
+        testCssContent.includes('color: rgba(255, 255, 255, 0.012);') &&
+        testCssContent.includes('font-weight: 500;') &&
         testCssContent.includes('pointer-events: none;') &&
         testCssContent.includes('z-index: 0;'),
-        'Numeral must sit behind content at 0.022 low contrast with pointer-events none'
+        'Numeral must sit behind content at 0.012 low contrast with medium 500 weight and pointer-events none'
       );
     });
   });
