@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 
 interface BigTimerProps {
   remainingSeconds: number;
@@ -8,19 +8,32 @@ interface BigTimerProps {
 }
 
 /**
- * Animated single digit that translates vertically on change.
+ * Animated single digit column that rolls vertically when changed.
+ * Outgoing digit moves downward (+100%) out of the slot window,
+ * while incoming digit slides downward into place from above (-100% to 0%).
+ * Uses cubic-bezier(0.22, 1, 0.36, 1) over 400ms without fade or scale.
  */
 const AnimatedDigit = memo(function AnimatedDigit({ digit }: { digit: string }) {
+  const shouldReduceMotion = useReducedMotion();
+
+  if (shouldReduceMotion) {
+    return (
+      <span className="big-timer-digit-slot">
+        <span className="big-timer-digit">{digit}</span>
+      </span>
+    );
+  }
+
   return (
     <span className="big-timer-digit-slot">
       <AnimatePresence mode="popLayout" initial={false}>
         <motion.span
           key={digit}
           className="big-timer-digit"
-          initial={{ y: 8, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: -8, opacity: 0 }}
-          transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+          initial={{ y: '-100%' }}
+          animate={{ y: '0%' }}
+          exit={{ y: '100%' }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         >
           {digit}
         </motion.span>
@@ -71,7 +84,7 @@ export const BigTimer = memo(function BigTimer({
       <div className="big-timer-digits">
         <AnimatedDigit digit={minutesStr[0]} />
         <AnimatedDigit digit={minutesStr[1]} />
-        <span className="big-timer-separator">:</span>
+        <span className="big-timer-separator" aria-hidden="true">:</span>
         <AnimatedDigit digit={secondsStr[0]} />
         <AnimatedDigit digit={secondsStr[1]} />
       </div>

@@ -83,25 +83,6 @@ export function TestWorkspace({
     window.scrollTo(0, 0);
   }, [mode]);
 
-  // Timer Tick
-  useEffect(() => {
-    if (!isTimerActive || mode !== 'testing') return;
-
-    const timer = setInterval(() => {
-      setRemainingSeconds(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setIsTimerActive(false);
-          handleTimeExpired();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [isTimerActive, mode]);
-
   // Handle Time Expired (Section 19)
   const handleTimeExpired = useCallback(() => {
     if (!test) return;
@@ -111,6 +92,42 @@ export function TestWorkspace({
     onPracticeStatesUpdated?.();
     setMode('timeup');
   }, [test, answers, onPracticeStatesUpdated]);
+
+  // Timer Tick & Wall-Clock Synchronization (remains accurate across background tab throttling)
+  useEffect(() => {
+    if (!isTimerActive || mode !== 'testing' || !test) return;
+
+    const syncCountdown = () => {
+      const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+      const remaining = Math.max(0, test.timeLimitSeconds - elapsed);
+      setRemainingSeconds(remaining);
+
+      if (remaining <= 0) {
+        setIsTimerActive(false);
+        handleTimeExpired();
+      }
+    };
+
+    const timer = setInterval(syncCountdown, 1000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncCountdown();
+      }
+    };
+    const handleFocus = () => {
+      syncCountdown();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [isTimerActive, mode, test, handleTimeExpired]);
 
   // Start Test Action
   const handleStartTest = useCallback(() => {

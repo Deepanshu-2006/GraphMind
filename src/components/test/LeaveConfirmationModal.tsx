@@ -202,8 +202,9 @@ export const LeaveConfirmationModal = memo(function LeaveConfirmationModal({
                   onClick={handleSafeCancel}
                   autoFocus
                 >
-                  <span>CONTINUE TEST</span>
+                  <span className="leave-continue-text">CONTINUE TEST</span>
                   <span className="leave-continue-arrow" aria-hidden="true">→</span>
+                  <span className="leave-continue-underline" aria-hidden="true" />
                 </button>
 
                 <button

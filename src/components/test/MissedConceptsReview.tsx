@@ -130,20 +130,7 @@ export function MissedConceptsReview({
                   : { y: '0%', opacity: 1, transition: { duration: 0.55, delay: 0.1, ease: [0.16, 1, 0.3, 1] } }
               }
             >
-              MISSED
-            </motion.span>
-          </span>
-          <span className="missed-title-line-mask">
-            <motion.span
-              className="missed-title-line"
-              initial={{ y: '110%', opacity: 0 }}
-              animate={
-                isExiting && exitDirection === 'back'
-                  ? { y: '-100%', opacity: 0, transition: { duration: 0.32, delay: 0.16, ease: [0.16, 1, 0.3, 1] } }
-                  : { y: '0%', opacity: 1, transition: { duration: 0.55, delay: 0.16, ease: [0.16, 1, 0.3, 1] } }
-              }
-            >
-              CONCEPTS
+              MISSED CONCEPTS
             </motion.span>
           </span>
         </h1>
