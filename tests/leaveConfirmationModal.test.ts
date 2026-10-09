@@ -167,27 +167,41 @@ describe('GRAPHMIND — EXIT TEST CONFIRMATION REDESIGN ARCHITECTURE', () => {
   });
 
   describe('6. Button Hierarchy & Space-Between Arrangement (Section 8 & 9)', () => {
-    it('makes CONTINUE TEST → the visually dominant safe action with subtle green border', () => {
+    it('makes CONTINUE TEST a simple unbordered action with signature underline animation and arrow animated on hover', () => {
       assert.ok(
         tsxContent.includes('CONTINUE TEST') &&
-        tsxContent.includes('leave-continue-arrow'),
-        'Safe action must be CONTINUE TEST with directional arrow'
+        tsxContent.includes('leave-continue-arrow') &&
+        tsxContent.includes('leave-continue-underline'),
+        'Safe action must be CONTINUE TEST with directional arrow and underline element'
       );
       assert.ok(
         cssContent.includes('.leave-action-continue-btn') &&
-        cssContent.includes('border: 1px solid rgba(184, 255, 61, 0.35);') &&
-        cssContent.includes('color: #F5F5F5;'),
-        'Continue button must have subtle green border and white text'
+        cssContent.includes('background: transparent;') &&
+        cssContent.includes('border: none;') &&
+        cssContent.includes('gap: 10px;'),
+        'Continue button must have transparent background, no border, and 10px gap'
       );
       assert.ok(
-        cssContent.includes('.leave-action-continue-btn:hover') &&
-        cssContent.includes('color: #B8FF3D;') &&
+        cssContent.includes('.leave-continue-underline') &&
+        cssContent.includes('background: #B8FF3D;') &&
+        cssContent.includes('height: 1px;') &&
+        cssContent.includes('transform: scaleX(0);') &&
+        cssContent.includes('transform-origin: left;'),
+        'Underline must have height 1px, #B8FF3D, scaleX(0), and transform-origin: left'
+      );
+      assert.ok(
+        cssContent.includes('.leave-action-continue-btn:hover .leave-continue-underline') &&
+        cssContent.includes('transform: scaleX(1);'),
+        'Underline must animate to scaleX(1) on hover'
+      );
+      assert.ok(
+        cssContent.includes('.leave-action-continue-btn:hover .leave-continue-arrow') &&
         cssContent.includes('transform: translateX(3px);'),
-        'Hover state must shift text to green and shift arrow 3px right'
+        'Hover state must shift arrow rightwards via translateX(3px)'
       );
     });
 
-    it('makes EXIT TEST a quiet secondary text action without red background', () => {
+    it('makes EXIT TEST a quiet secondary text action vertically aligned with continue button', () => {
       assert.ok(
         tsxContent.includes('leave-action-exit-btn') &&
         tsxContent.includes('EXIT TEST'),

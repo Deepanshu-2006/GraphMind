@@ -161,7 +161,7 @@ describe('GraphMind Missed Concepts Experience & Results Exit Transition Redesig
       assert.match(cssFile, /\.missed-editorial-eyebrow\s*\{[^}]*letter-spacing:\s*0\.18em/);
     });
 
-    it('renders large editorial title MISSED CONCEPTS with clamp(64px, 7vw, 112px) and tight line-height', () => {
+    it('renders focused editorial title MISSED CONCEPTS with clamp(48px, 4.5vw, 68px) and tight line-height', () => {
       const componentFile = fs.readFileSync(
         path.join(process.cwd(), 'src/components/test/MissedConceptsReview.tsx'),
         'utf-8'
@@ -171,10 +171,9 @@ describe('GraphMind Missed Concepts Experience & Results Exit Transition Redesig
         'utf-8'
       );
 
-      assert.match(componentFile, /MISSED/);
-      assert.match(componentFile, /CONCEPTS/);
-      assert.match(cssFile, /\.missed-editorial-title\s*\{[^}]*font-size:\s*clamp\(64px,\s*7vw,\s*112px\)/);
-      assert.match(cssFile, /\.missed-editorial-title\s*\{[^}]*line-height:\s*0\.91/);
+      assert.match(componentFile, /MISSED CONCEPTS/);
+      assert.match(cssFile, /\.missed-editorial-title\s*\{[^}]*font-size:\s*clamp\(48px,\s*4\.5vw,\s*68px\)/);
+      assert.match(cssFile, /\.missed-editorial-title\s*\{[^}]*line-height:\s*0\.98/);
       assert.match(cssFile, /\.missed-editorial-title\s*\{[^}]*font-weight:\s*700/);
     });
 
@@ -193,7 +192,9 @@ describe('GraphMind Missed Concepts Experience & Results Exit Transition Redesig
         /Strengthen the concepts you missed and reconnect them to the material behind your graph\./
       );
       assert.match(cssFile, /\.missed-editorial-intro\s*\{[^}]*max-width:\s*560px/);
-      assert.match(cssFile, /\.missed-editorial-intro\s*\{[^}]*font-size:\s*17px/);
+      assert.match(cssFile, /\.missed-editorial-intro\s*\{[^}]*font-size:\s*15\.5px/);
+      // Spacing between introduction and list in 32-48px range
+      assert.match(cssFile, /\.missed-editorial-header\s*\{[^}]*margin-bottom:\s*38px/);
     });
   });
 
@@ -223,14 +224,17 @@ describe('GraphMind Missed Concepts Experience & Results Exit Transition Redesig
       assert.match(componentFile, /String\(idx \+ 1\)\.padStart\(2,\s*['"]0['"]\)/);
     });
 
-    it('enforces row height 120–160px with generous vertical whitespace', () => {
+    it('enforces balanced vertical row padding with refined concept typography', () => {
       const cssFile = fs.readFileSync(
         path.join(process.cwd(), 'src/styles/test.css'),
         'utf-8'
       );
 
-      assert.match(cssFile, /\.missed-concept-row\s*\{[^}]*min-height:\s*130px/);
-      assert.match(cssFile, /\.missed-concept-row\s*\{[^}]*padding:\s*36px 0/);
+      assert.match(cssFile, /\.missed-concept-row\s*\{[^}]*padding:\s*26px 0/);
+      assert.match(cssFile, /\.missed-row-concept-title\s*\{[^}]*font-size:\s*19px/);
+      assert.match(cssFile, /\.missed-row-concept-title\s*\{[^}]*font-weight:\s*500/);
+      assert.match(cssFile, /\.missed-row-explanation\s*\{[^}]*font-size:\s*14\.5px/);
+      assert.match(cssFile, /\.missed-row-source-meta\s*\{[^}]*font-size:\s*10\.5px/);
     });
 
     it('provides typography-driven REVIEW → action with growing underline (no rectangular button)', () => {
@@ -398,7 +402,7 @@ describe('GraphMind Missed Concepts Experience & Results Exit Transition Redesig
 
       // Tablet < 900px
       assert.match(cssFile, /@media \(max-width:\s*900px\)/);
-      assert.match(cssFile, /\.missed-editorial-title\s*\{[^}]*font-size:\s*clamp\(48px,\s*6vw,\s*76px\)/);
+      assert.match(cssFile, /\.missed-editorial-title\s*\{[^}]*font-size:\s*clamp\(38px,\s*5\.5vw,\s*52px\)/);
 
       // Mobile < 640px: vertical stacking with no clipping
       assert.match(cssFile, /@media \(max-width:\s*640px\)/);
