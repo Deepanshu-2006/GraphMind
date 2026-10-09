@@ -5,7 +5,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { 
   formatAttemptDate, 
-  formatDuration 
+  formatDuration,
+  computeProgressComparison,
+  pad
 } from '../src/components/study/StudySpaceView';
 import {
   saveAssessmentAttempt,
@@ -286,3 +288,339 @@ describe('GRAPHMIND PHASE 1, PROMPT 2 — STUDY SPACE ARCHITECTURE', () => {
     });
   });
 });
+
+describe('GRAPHMIND STUDY SPACE PROMPT 3 — ASSESSMENT HISTORY & ATTEMPT ORGANIZATION', () => {
+  const studyViewPath = path.resolve(__dirname, '../src/components/study/StudySpaceView.tsx');
+  const studyViewSrc = fs.readFileSync(studyViewPath, 'utf8');
+
+  const studyCssPath = path.resolve(__dirname, '../src/styles/studySpace.css');
+  const studyCss = fs.readFileSync(studyCssPath, 'utf8');
+
+  beforeEach(() => {
+    storageMap.clear();
+    clearAllUserData();
+    clearAssessmentHistory();
+  });
+
+  describe('1. Organize Attempts By Graph & Preserve Individual Snapshots', () => {
+    it('groups multiple attempts belonging to the same knowledge graph', () => {
+      const testGen1 = generateKnowledgeTest(defaultKnowledgeGraph, { questionCount: 3 });
+      const testGen2 = generateKnowledgeTest(defaultKnowledgeGraph, { questionCount: 3 });
+      const testGen3 = generateKnowledgeTest(defaultKnowledgeGraph, { questionCount: 3 });
+
+      const t1 = testGen1.test!;
+      const t2 = { ...testGen2.test!, id: 'attempt-t2' };
+      const t3 = { ...testGen3.test!, id: 'attempt-t3' };
+
+      const s1 = recordKnowledgeTestCompletion(t1, {}, 40, { graphName: 'Operating Systems' });
+      const s2 = recordKnowledgeTestCompletion(t2, {}, 50, { graphName: 'Operating Systems' });
+      const s3 = recordKnowledgeTestCompletion(t3, {}, 60, { graphName: 'Operating Systems' });
+
+      const all = getAssessmentAttempts({ graphId: defaultKnowledgeGraph.id });
+      assert.strictEqual(all.length, 3, 'Must preserve all 3 attempts without dropping or overwriting');
+
+      // Check unique IDs preserved
+      assert.strictEqual(all[0].id, s3.attemptId);
+      assert.strictEqual(all[1].id, s2.attemptId);
+      assert.strictEqual(all[2].id, s1.attemptId);
+    });
+
+    it('separates attempts from different knowledge graphs', () => {
+      const graphA = {
+        ...defaultKnowledgeGraph,
+        id: 'graph-operating-systems',
+        name: 'Operating Systems'
+      };
+      const testGen1 = generateKnowledgeTest(graphA, { questionCount: 3 });
+      const t1 = testGen1.test!;
+
+      const graphB = {
+        ...defaultKnowledgeGraph,
+        id: 'graph-distributed-systems',
+        name: 'Distributed Systems'
+      };
+      const testGen2 = generateKnowledgeTest(graphB, { questionCount: 3 });
+      const t2 = testGen2.test!;
+
+      recordKnowledgeTestCompletion(t1, {}, 60, { graphName: 'Operating Systems' });
+      recordKnowledgeTestCompletion(t2, {}, 90, { graphName: 'Distributed Systems' });
+
+      const attemptsGraphA = getAssessmentAttempts({ graphId: 'graph-operating-systems' });
+      const attemptsGraphB = getAssessmentAttempts({ graphId: 'graph-distributed-systems' });
+
+      assert.strictEqual(attemptsGraphA.length, 1);
+      assert.strictEqual(attemptsGraphB.length, 1);
+      assert.notStrictEqual(attemptsGraphA[0].graphId, attemptsGraphB[0].graphId);
+    });
+
+    it('safely handles missing graph metadata by assigning fallback unassigned identity', () => {
+      assert.ok(
+        studyViewSrc.includes("const key = a.graphId || a.graphName || `unassigned-${a.id}`;"),
+        'Must handle missing graphId safely without merging into incorrect groups'
+      );
+    });
+  });
+
+  describe('2. Learning Progress Calculation (Normalized Percentage Points)', () => {
+    it('computes improvement in percentage points when score improves', () => {
+      const attempt1: AssessmentAttempt = {
+        id: 'att-1',
+        graphId: 'graph-1',
+        graphName: 'Algorithms',
+        completedAt: '2026-10-01T10:00:00Z',
+        createdAt: '2026-10-01T09:50:00Z',
+        scorePercentage: 60,
+        correctAnswers: 3,
+        totalQuestions: 5,
+        timeSpentSeconds: 300,
+        completionReason: 'submitted',
+        userAnswers: {},
+        questions: []
+      };
+
+      const attempt2: AssessmentAttempt = {
+        id: 'att-2',
+        graphId: 'graph-1',
+        graphName: 'Algorithms',
+        completedAt: '2026-10-05T10:00:00Z',
+        createdAt: '2026-10-05T09:50:00Z',
+        scorePercentage: 80,
+        correctAnswers: 8,
+        totalQuestions: 10,
+        timeSpentSeconds: 500,
+        completionReason: 'submitted',
+        userAnswers: {},
+        questions: []
+      };
+
+      const comparison = computeProgressComparison(attempt2, attempt1);
+      assert.strictEqual(comparison.status, 'improved');
+      assert.strictEqual(comparison.diffPoints, 20);
+      assert.strictEqual(comparison.previousScore, 60);
+      assert.strictEqual(comparison.latestScore, 80);
+      assert.strictEqual(comparison.message, 'Improved by 20 percentage points');
+    });
+
+    it('computes decline in percentage points when score decreases', () => {
+      const attempt1: AssessmentAttempt = {
+        id: 'att-1',
+        graphId: 'graph-1',
+        graphName: 'Algorithms',
+        completedAt: '2026-10-01T10:00:00Z',
+        createdAt: '2026-10-01T09:50:00Z',
+        scorePercentage: 85,
+        correctAnswers: 17,
+        totalQuestions: 20,
+        timeSpentSeconds: 600,
+        completionReason: 'submitted',
+        userAnswers: {},
+        questions: []
+      };
+
+      const attempt2: AssessmentAttempt = {
+        id: 'att-2',
+        graphId: 'graph-1',
+        graphName: 'Algorithms',
+        completedAt: '2026-10-05T10:00:00Z',
+        createdAt: '2026-10-05T09:50:00Z',
+        scorePercentage: 70,
+        correctAnswers: 7,
+        totalQuestions: 10,
+        timeSpentSeconds: 400,
+        completionReason: 'submitted',
+        userAnswers: {},
+        questions: []
+      };
+
+      const comparison = computeProgressComparison(attempt2, attempt1);
+      assert.strictEqual(comparison.status, 'declined');
+      assert.strictEqual(comparison.diffPoints, 15);
+      assert.strictEqual(comparison.message, 'Decreased by 15 percentage points');
+    });
+
+    it('computes unchanged status when scores are identical across attempts with different question counts', () => {
+      // 4/5 = 80% vs 8/10 = 80%
+      const attempt1: AssessmentAttempt = {
+        id: 'att-1',
+        graphId: 'graph-1',
+        graphName: 'Algorithms',
+        completedAt: '2026-10-01T10:00:00Z',
+        createdAt: '2026-10-01T09:50:00Z',
+        scorePercentage: 80,
+        correctAnswers: 4,
+        totalQuestions: 5,
+        timeSpentSeconds: 150,
+        completionReason: 'submitted',
+        userAnswers: {},
+        questions: []
+      };
+
+      const attempt2: AssessmentAttempt = {
+        id: 'att-2',
+        graphId: 'graph-1',
+        graphName: 'Algorithms',
+        completedAt: '2026-10-05T10:00:00Z',
+        createdAt: '2026-10-05T09:50:00Z',
+        scorePercentage: 80,
+        correctAnswers: 8,
+        totalQuestions: 10,
+        timeSpentSeconds: 300,
+        completionReason: 'submitted',
+        userAnswers: {},
+        questions: []
+      };
+
+      const comparison = computeProgressComparison(attempt2, attempt1);
+      assert.strictEqual(comparison.status, 'unchanged');
+      assert.strictEqual(comparison.diffPoints, 0);
+      assert.strictEqual(comparison.message, 'Unchanged (same score as previous attempt)');
+    });
+  });
+
+  describe('3. Latest Attempt Presentation & Hierarchy', () => {
+    it('presents latest attempt with clear score, correct answers, and date metadata', () => {
+      assert.ok(
+        studyViewSrc.includes('Latest attempt · Attempt'),
+        'Must display latest attempt label with attempt sequence number'
+      );
+      assert.ok(
+        studyViewSrc.includes('Correct answers'),
+        'Must include Correct answers label'
+      );
+      assert.ok(
+        studyViewSrc.includes('Score'),
+        'Must include Score label'
+      );
+      assert.ok(
+        studyViewSrc.includes('VIEW RESULTS'),
+        'Must include VIEW RESULTS action'
+      );
+    });
+
+    it('displays time expired badge if latest attempt expired', () => {
+      assert.ok(
+        studyViewSrc.includes("latest.completionReason === 'time_expired'"),
+        'Must check if latest attempt completed due to timer expiry'
+      );
+      assert.ok(
+        studyViewSrc.includes('study-badge-expired'),
+        'Must style time expired badge'
+      );
+    });
+  });
+
+  describe('4. Previous Attempts Disclosure & Accessibility', () => {
+    it('renders disclosure button with total previous attempts count', () => {
+      assert.ok(
+        studyViewSrc.includes('PREVIOUS ATTEMPTS · {group.previousAttempts.length}'),
+        'Must indicate previous attempts count on disclosure button'
+      );
+      assert.ok(
+        studyViewSrc.includes("aria-expanded={isExpanded}"),
+        'Must provide accessible aria-expanded attribute'
+      );
+      assert.ok(
+        studyViewSrc.includes("aria-controls={`prev-attempts-${group.graphId}`}"),
+        'Must connect disclosure button to panel via aria-controls'
+      );
+    });
+
+    it('toggles label between VIEW HISTORY and HIDE HISTORY with rotating arrow', () => {
+      assert.ok(
+        studyViewSrc.includes("{isExpanded ? 'HIDE HISTORY' : 'VIEW HISTORY'}"),
+        'Must toggle between VIEW HISTORY and HIDE HISTORY'
+      );
+      assert.ok(
+        studyViewSrc.includes("study-disclosure-arrow ${isExpanded ? 'open' : ''}"),
+        'Must toggle .open class on disclosure arrow'
+      );
+      assert.match(
+        studyCss,
+        /\.study-disclosure-arrow\.open\s*\{[\s\S]*?transform:\s*rotate\(180deg\);/,
+        'CSS must rotate arrow 180deg when open'
+      );
+    });
+
+    it('supports keyboard navigation on historical rows', () => {
+      assert.ok(
+        studyViewSrc.includes("tabIndex={0}"),
+        'Must enable keyboard focus on attempt rows'
+      );
+      assert.ok(
+        studyViewSrc.includes("e.key === 'Enter' || e.key === ' '"),
+        'Must support Enter and Space keys to open historical results'
+      );
+    });
+
+    it('does not render disclosure toggle if only 1 attempt exists for the graph', () => {
+      assert.ok(
+        studyViewSrc.includes('{group.previousAttempts.length > 0 && ('),
+        'Only render previous attempts section when older attempts actually exist'
+      );
+    });
+  });
+
+  describe('5. Search & Filter Functionality', () => {
+    it('provides search input and filter tabs for All and Needs Review', () => {
+      assert.ok(
+        studyViewSrc.includes('placeholder="Search by graph or concept…"'),
+        'Search input must have helpful placeholder'
+      );
+      assert.ok(
+        studyViewSrc.includes('All assessments'),
+        'Must have All assessments filter tab'
+      );
+      assert.ok(
+        studyViewSrc.includes('Needs review'),
+        'Must have Needs review filter tab'
+      );
+    });
+
+    it('provides clear search filters CTA when no matches are found', () => {
+      assert.ok(
+        studyViewSrc.includes('study-search-empty'),
+        'Must render search empty state container'
+      );
+      assert.ok(
+        studyViewSrc.includes('Clear search filters'),
+        'Must provide Clear search filters action'
+      );
+    });
+  });
+
+  describe('6. Design Tokens & Visual Fidelity', () => {
+    it('uses GraphMind design tokens: near-black background, surface, and lime green accent', () => {
+      assert.match(
+        studyCss,
+        /--bg-surface,\s*#101010/,
+        'Must use #101010 surface token'
+      );
+      assert.match(
+        studyCss,
+        /--border-default,\s*#242424/,
+        'Must use #242424 border token'
+      );
+      assert.match(
+        studyCss,
+        /--accent,\s*#A3FF12/,
+        'Must use #A3FF12 lime green accent'
+      );
+    });
+
+    it('styles progress comparison with restrained positive, warning, and unchanged tones', () => {
+      assert.match(
+        studyCss,
+        /\.study-progress-comparison\.improved\s*\{[\s\S]*?var\(--accent/
+      );
+      assert.match(
+        studyCss,
+        /\.study-progress-comparison\.declined\s*\{[\s\S]*?#F87171/
+      );
+      assert.match(
+        studyCss,
+        /\.study-progress-comparison\.unchanged\s*\{[\s\S]*?#A1A1A1/
+      );
+    });
+  });
+});
+
