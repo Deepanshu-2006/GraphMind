@@ -2,7 +2,13 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Search, X, ChevronDown } from 'lucide-react';
 import type { KnowledgeGraph } from '../../types/knowledgeGraph';
-import type { KnowledgeTest, AssessmentAttempt, TestResultsSummary, MissedConceptItem } from '../../types/test';
+import type { 
+  KnowledgeTest, 
+  AssessmentAttempt, 
+  TestResultsSummary, 
+  MissedConceptItem,
+  AssessmentCompletionReason
+} from '../../types/test';
 import { 
   getAssessmentAttempts, 
   getAssessmentAttemptById 
@@ -61,7 +67,7 @@ export interface ScoreComparison {
   latestScore: number;
   previousScore: number;
   diffPoints: number;
-  status: 'improved' | 'declined' | 'unchanged';
+  status: 'improved' | 'declined' | 'unchanged' | 'incompatible';
   message: string;
 }
 
@@ -75,6 +81,34 @@ export function computeProgressComparison(
 ): ScoreComparison {
   const latestScore = latest.scorePercentage;
   const previousScore = previous.scorePercentage;
+
+  if (
+    typeof latestScore !== 'number' ||
+    typeof previousScore !== 'number' ||
+    isNaN(latestScore) ||
+    isNaN(previousScore) ||
+    latestScore < 0 ||
+    previousScore < 0
+  ) {
+    return {
+      latestScore: typeof latestScore === 'number' && !isNaN(latestScore) ? latestScore : 0,
+      previousScore: typeof previousScore === 'number' && !isNaN(previousScore) ? previousScore : 0,
+      diffPoints: 0,
+      status: 'incompatible',
+      message: 'Score comparison unavailable (incompatible scoring)'
+    };
+  }
+
+  if (latest.graphId && previous.graphId && latest.graphId !== previous.graphId) {
+    return {
+      latestScore,
+      previousScore,
+      diffPoints: 0,
+      status: 'incompatible',
+      message: 'Comparison unavailable: attempts belong to different graphs'
+    };
+  }
+
   const diffPoints = latestScore - previousScore;
 
   if (diffPoints > 0) {
@@ -104,6 +138,283 @@ export function computeProgressComparison(
     status: 'unchanged',
     message: 'Unchanged (same score as previous attempt)'
   };
+}
+
+export interface ChronologicalScorePoint {
+  attemptId: string;
+  attemptNumber: string; // e.g. "Attempt 01"
+  scorePercentage: number;
+  completedAt: string;
+  dateStr: string;
+  timeStr: string;
+  totalQuestions: number;
+  correctAnswers: number;
+  completionReason?: AssessmentCompletionReason;
+}
+
+export interface GraphLearningProgress {
+  graphId: string;
+  graphName: string;
+  totalAttempts: number;
+  latestScore: number;
+  previousScore?: number;
+  diffPoints?: number;
+  scoreChangeFormatted?: string; // "+20 percentage points", "−15 percentage points", "0 percentage points"
+  comparisonStatus?: 'improved' | 'declined' | 'unchanged' | 'incompatible';
+  comparisonMessage?: string;
+  latestAttempt: AssessmentAttempt;
+  previousAttempt?: AssessmentAttempt;
+  chronologicalAttempts: ChronologicalScorePoint[];
+  hasComparison: boolean;
+}
+
+/**
+ * Computes chronological learning progress for a specific knowledge graph.
+ * Ensures strict grouping by graph ID, real timestamps, and percentage-point comparisons.
+ */
+export function computeGraphLearningProgress(
+  graphId: string,
+  attempts: AssessmentAttempt[]
+): GraphLearningProgress | null {
+  if (!graphId || !Array.isArray(attempts)) return null;
+
+  // Filter attempts strictly by stable graphId
+  const graphAttempts = attempts.filter(a => {
+    const gid = a.graphId || `unassigned-${a.id}`;
+    return gid === graphId;
+  });
+
+  if (graphAttempts.length === 0) return null;
+
+  // Sort ascending by completedAt date to establish strict chronological timeline
+  const sortedAsc = [...graphAttempts].sort((a, b) => {
+    const timeA = new Date(a.completedAt).getTime() || 0;
+    const timeB = new Date(b.completedAt).getTime() || 0;
+    return timeA - timeB;
+  });
+
+  const totalAttempts = sortedAsc.length;
+  const latestAttempt = sortedAsc[sortedAsc.length - 1];
+  const graphName = latestAttempt.graphName || 'Assessment';
+  const latestScore = latestAttempt.scorePercentage;
+
+  // Map chronological attempt points
+  const chronologicalAttempts: ChronologicalScorePoint[] = sortedAsc.map((a, idx) => {
+    const dateInfo = formatAttemptDate(a.completedAt);
+    return {
+      attemptId: a.id,
+      attemptNumber: `Attempt ${pad(idx + 1)}`,
+      scorePercentage: a.scorePercentage,
+      completedAt: a.completedAt,
+      dateStr: dateInfo.dateStr,
+      timeStr: dateInfo.timeStr,
+      totalQuestions: a.totalQuestions,
+      correctAnswers: a.correctAnswers,
+      completionReason: a.completionReason
+    };
+  });
+
+  if (totalAttempts === 1) {
+    return {
+      graphId,
+      graphName,
+      totalAttempts: 1,
+      latestScore,
+      latestAttempt,
+      chronologicalAttempts,
+      hasComparison: false,
+      comparisonMessage: 'Comparison unavailable: complete another assessment on this graph to track progress.'
+    };
+  }
+
+  // Two or more attempts: compare latest with immediately preceding attempt
+  const previousAttempt = sortedAsc[sortedAsc.length - 2];
+  const comparison = computeProgressComparison(latestAttempt, previousAttempt);
+
+  let scoreChangeFormatted = '0 percentage points';
+  if (comparison.status === 'improved') {
+    scoreChangeFormatted = `+${comparison.diffPoints} percentage points`;
+  } else if (comparison.status === 'declined') {
+    scoreChangeFormatted = `−${comparison.diffPoints} percentage points`;
+  }
+
+  return {
+    graphId,
+    graphName,
+    totalAttempts,
+    latestScore,
+    previousScore: previousAttempt.scorePercentage,
+    diffPoints: comparison.diffPoints,
+    scoreChangeFormatted,
+    comparisonStatus: comparison.status,
+    comparisonMessage: comparison.message,
+    latestAttempt,
+    previousAttempt,
+    chronologicalAttempts,
+    hasComparison: true
+  };
+}
+
+export interface ConceptRevisitItem {
+  conceptId: string;
+  conceptName: string;
+  graphId: string;
+  graphName: string;
+  totalTimesTested: number;
+  timesIncorrect: number;
+  timesUnanswered: number;
+  missedInLatest: boolean;
+  unansweredInLatest: boolean;
+  correctInLatest: boolean;
+  previouslyMissed: boolean;
+  statusMessage: string;
+  availableInGraph: boolean;
+}
+
+/**
+ * Derives concepts worth revisiting across historical assessment attempts.
+ * Preserves strict factual accuracy without inferring mastery.
+ */
+export function deriveConceptsWorthRevisiting(
+  attempts: AssessmentAttempt[],
+  activeGraph?: KnowledgeGraph | null
+): ConceptRevisitItem[] {
+  if (!Array.isArray(attempts) || attempts.length === 0) return [];
+
+  // Sort attempts chronological ascending (oldest first)
+  const sortedAttempts = [...attempts].sort((a, b) => {
+    const timeA = new Date(a.completedAt).getTime() || 0;
+    const timeB = new Date(b.completedAt).getTime() || 0;
+    return timeA - timeB;
+  });
+
+  // Track each concept's appearance across attempts
+  interface ConceptTracking {
+    conceptId: string;
+    conceptName: string;
+    graphId: string;
+    graphName: string;
+    totalTimesTested: number;
+    timesIncorrect: number;
+    timesUnanswered: number;
+    history: {
+      attemptId: string;
+      completedAt: string;
+      isCorrect: boolean;
+      isIncorrect: boolean;
+      isUnanswered: boolean;
+    }[];
+  }
+
+  const map = new Map<string, ConceptTracking>();
+
+  for (const att of sortedAttempts) {
+    const questions = att.questions || [];
+    for (const q of questions) {
+      const selectedId = att.userAnswers?.[q.id];
+      const isUnanswered = !selectedId || selectedId === '';
+      const isCorrect = Boolean(!isUnanswered && selectedId === q.correctOptionId);
+      const isIncorrect = Boolean(!isUnanswered && selectedId !== q.correctOptionId);
+
+      const conceptIds = q.conceptIds || [];
+      const conceptNames = q.conceptNames || [];
+
+      conceptIds.forEach((cId, idx) => {
+        if (!cId) return;
+        const cName = conceptNames[idx] || conceptNames[0] || 'Concept';
+        const key = cId;
+
+        if (!map.has(key)) {
+          map.set(key, {
+            conceptId: cId,
+            conceptName: cName,
+            graphId: att.graphId || '',
+            graphName: att.graphName || '',
+            totalTimesTested: 0,
+            timesIncorrect: 0,
+            timesUnanswered: 0,
+            history: []
+          });
+        }
+
+        const entry = map.get(key)!;
+        entry.totalTimesTested += 1;
+        if (isIncorrect) entry.timesIncorrect += 1;
+        if (isUnanswered) entry.timesUnanswered += 1;
+
+        entry.history.push({
+          attemptId: att.id,
+          completedAt: att.completedAt,
+          isCorrect,
+          isIncorrect,
+          isUnanswered
+        });
+      });
+    }
+  }
+
+  const results: ConceptRevisitItem[] = [];
+
+  for (const item of map.values()) {
+    // Only concepts with at least one incorrect or unanswered question qualify
+    if (item.timesIncorrect === 0 && item.timesUnanswered === 0) {
+      continue;
+    }
+
+    const history = item.history;
+    const latestEvent = history[history.length - 1];
+    const previousEvents = history.slice(0, history.length - 1);
+
+    const unansweredInLatest = latestEvent.isUnanswered;
+    const missedInLatest = latestEvent.isIncorrect || latestEvent.isUnanswered;
+    const correctInLatest = latestEvent.isCorrect;
+    const previouslyMissed = previousEvents.some(e => e.isIncorrect || e.isUnanswered);
+
+    let statusMessage: string;
+    if (unansweredInLatest) {
+      statusMessage = 'Unanswered in the latest assessment.';
+    } else if (missedInLatest && item.timesIncorrect > 1) {
+      statusMessage = `Answered incorrectly in ${item.timesIncorrect} assessments.`;
+    } else if (missedInLatest) {
+      statusMessage = 'Missed in the latest assessment.';
+    } else if (correctInLatest && previouslyMissed) {
+      statusMessage = 'Previously missed; answered correctly in the latest assessment.';
+    } else if (item.timesIncorrect > 1) {
+      statusMessage = `Answered incorrectly in ${item.timesIncorrect} assessments.`;
+    } else if (item.timesUnanswered > 0) {
+      statusMessage = `Unanswered in ${item.timesUnanswered} assessment${item.timesUnanswered === 1 ? '' : 's'}.`;
+    } else {
+      statusMessage = 'Missed in previous assessment.';
+    }
+
+    const availableInGraph = Boolean(
+      activeGraph?.nodes && Array.isArray(activeGraph.nodes) &&
+      activeGraph.nodes.some(node => node.id === item.conceptId || (node.name && node.name.toLowerCase() === item.conceptName.toLowerCase()))
+    );
+
+    results.push({
+      conceptId: item.conceptId,
+      conceptName: item.conceptName,
+      graphId: item.graphId,
+      graphName: item.graphName,
+      totalTimesTested: item.totalTimesTested,
+      timesIncorrect: item.timesIncorrect,
+      timesUnanswered: item.timesUnanswered,
+      missedInLatest,
+      unansweredInLatest,
+      correctInLatest,
+      previouslyMissed,
+      statusMessage,
+      availableInGraph
+    });
+  }
+
+  // Sort: missed in latest first, then by times incorrect descending
+  return results.sort((a, b) => {
+    if (a.missedInLatest && !b.missedInLatest) return -1;
+    if (!a.missedInLatest && b.missedInLatest) return 1;
+    return b.timesIncorrect - a.timesIncorrect;
+  });
 }
 
 /**
@@ -467,6 +778,39 @@ export function StudySpaceView({
   const latestDateInfo = latestAttempt ? formatAttemptDate(latestAttempt.completedAt) : null;
   const missedCount = latestAttempt?.resultsSummary?.reviewRecommendedConcepts?.length || 0;
 
+  // Compute learning progress across attempts grouped strictly by stable graphId (Prompt 5)
+  const allGraphProgress = useMemo<GraphLearningProgress[]>(() => {
+    const graphIds: string[] = [];
+    for (const a of attempts) {
+      const gid = a.graphId || `unassigned-${a.id}`;
+      if (!graphIds.includes(gid)) {
+        graphIds.push(gid);
+      }
+    }
+
+    const list: GraphLearningProgress[] = [];
+    for (const gid of graphIds) {
+      const prog = computeGraphLearningProgress(gid, attempts);
+      if (prog) {
+        list.push(prog);
+      }
+    }
+
+    // Sort: active graph first if matching, otherwise latest attempt completion descending
+    return list.sort((a, b) => {
+      if (activeGraph && a.graphId === activeGraph.id) return -1;
+      if (activeGraph && b.graphId === activeGraph.id) return 1;
+      const timeA = new Date(a.latestAttempt.completedAt).getTime() || 0;
+      const timeB = new Date(b.latestAttempt.completedAt).getTime() || 0;
+      return timeB - timeA;
+    });
+  }, [attempts, activeGraph]);
+
+  // Derive concepts worth revisiting across historical attempts (Prompt 5 Phase 5)
+  const conceptsWorthRevisiting = useMemo<ConceptRevisitItem[]>(() => {
+    return deriveConceptsWorthRevisiting(attempts, activeGraph);
+  }, [attempts, activeGraph]);
+
   // =========================================================================
   // SUB-VIEW: Historical Assessment Results, Answers Review, Missed Concepts
   // =========================================================================
@@ -660,6 +1004,209 @@ export function StudySpaceView({
                   </span>
                   <span className="study-btn-underline" aria-hidden="true" />
                 </button>
+              </div>
+            </motion.section>
+          )}
+
+          {/* 3. Learning Progress Section Across Assessment Attempts (Prompt 5) */}
+          {allGraphProgress.length > 0 && (
+            <motion.section 
+              className="study-progress-section" 
+              aria-label="Learning progress"
+              initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.42, delay: 0.08, ease: REVEAL_EASE }}
+            >
+              <div className="study-section-header-block">
+                <span className="study-eyebrow">PROGRESS OVER TIME</span>
+                <h2 className="study-section-title">Learning progress</h2>
+                <p className="study-section-desc">
+                  Track how your understanding of each knowledge graph evolves across attempts.
+                </p>
+              </div>
+
+              <div className="study-progress-cards-list">
+                {allGraphProgress.map((prog) => {
+                  const latestDate = formatAttemptDate(prog.latestAttempt.completedAt);
+                  const prevDate = prog.previousAttempt ? formatAttemptDate(prog.previousAttempt.completedAt) : null;
+
+                  return (
+                    <div key={prog.graphId} className="study-progress-card">
+                      <div className="study-progress-card-header">
+                        <div className="study-progress-card-title-wrap">
+                          <span className="study-progress-kicker">KNOWLEDGE GRAPH</span>
+                          <h3 className="study-progress-graph-name">{prog.graphName}</h3>
+                          <span className="study-progress-attempts-count">
+                            {prog.totalAttempts} completed {prog.totalAttempts === 1 ? 'attempt' : 'attempts'}
+                          </span>
+                        </div>
+
+                        {prog.hasComparison && prog.comparisonStatus && (
+                          <div 
+                            className={`study-progress-badge ${prog.comparisonStatus}`}
+                            title={prog.comparisonMessage}
+                          >
+                            <span className="study-progress-badge-symbol">
+                              {prog.comparisonStatus === 'improved' ? '+' : prog.comparisonStatus === 'declined' ? '−' : '·'}
+                            </span>
+                            <span>{prog.scoreChangeFormatted}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="study-progress-metrics">
+                        <div className="study-progress-metric">
+                          <span className="study-progress-metric-label">Latest score</span>
+                          <span className="study-progress-metric-val">{prog.latestScore}%</span>
+                          <span className="study-progress-metric-date">{latestDate.dateStr}</span>
+                        </div>
+
+                        {prog.hasComparison && prog.previousScore !== undefined && prevDate ? (
+                          <>
+                            <div className="study-progress-metric">
+                              <span className="study-progress-metric-label">Previous score</span>
+                              <span className="study-progress-metric-val">{prog.previousScore}%</span>
+                              <span className="study-progress-metric-date">{prevDate.dateStr}</span>
+                            </div>
+                            <div className="study-progress-metric">
+                              <span className="study-progress-metric-label">Change</span>
+                              <span className={`study-progress-metric-val study-progress-diff-${prog.comparisonStatus}`}>
+                                {prog.scoreChangeFormatted}
+                              </span>
+                              <span className="study-progress-metric-date">Normalized percentage points</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="study-progress-metric study-progress-single-note">
+                            <span className="study-progress-metric-label">Score comparison</span>
+                            <span className="study-progress-metric-val study-progress-note-text">
+                              Complete another assessment on this graph to track score changes.
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="study-progress-metric">
+                          <span className="study-progress-metric-label">Completed attempts</span>
+                          <span className="study-progress-metric-val">{prog.totalAttempts}</span>
+                          <span className="study-progress-metric-date">Total saved snapshots</span>
+                        </div>
+                      </div>
+
+                      {/* Chronological Score History Visualization */}
+                      <div className="study-progress-timeline-block">
+                        <div className="study-progress-timeline-header">
+                          <span className="study-progress-timeline-title">Score history</span>
+                          <span className="study-progress-timeline-hint">
+                            Select any attempt to review historical results
+                          </span>
+                        </div>
+
+                        {/* SVG Sparkline if >= 2 attempts */}
+                        {prog.chronologicalAttempts.length >= 2 && (
+                          <div className="study-progress-svg-wrap">
+                            <svg
+                              viewBox="0 0 500 72"
+                              className="study-progress-svg"
+                              preserveAspectRatio="none"
+                              aria-hidden="true"
+                            >
+                              <defs>
+                                <linearGradient id={`grad-${prog.graphId}`} x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="#A3FF12" stopOpacity="0.16" />
+                                  <stop offset="100%" stopColor="#A3FF12" stopOpacity="0.00" />
+                                </linearGradient>
+                              </defs>
+
+                              {/* Reference line 50% */}
+                              <line
+                                x1="36"
+                                y1="36"
+                                x2="464"
+                                y2="36"
+                                stroke="rgba(255,255,255,0.06)"
+                                strokeDasharray="4 4"
+                              />
+
+                              {/* Calculated polyline and area path */}
+                              {(() => {
+                                const pts = prog.chronologicalAttempts;
+                                const coords = pts.map((pt, i) => {
+                                  const x = 36 + (i / (pts.length - 1)) * (500 - 72);
+                                  const y = 14 + ((100 - pt.scorePercentage) / 100) * (72 - 28);
+                                  return { x, y, pt };
+                                });
+
+                                const pathD = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`).join(' ');
+                                const areaD = `${pathD} L ${coords[coords.length - 1].x.toFixed(1)} 66 L ${coords[0].x.toFixed(1)} 66 Z`;
+
+                                return (
+                                  <>
+                                    <path d={areaD} fill={`url(#grad-${prog.graphId})`} />
+                                    <path
+                                      d={pathD}
+                                      fill="none"
+                                      stroke="var(--accent, #A3FF12)"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                    {coords.map((c) => (
+                                      <g
+                                        key={c.pt.attemptId}
+                                        className="study-svg-point-node"
+                                        onClick={() => handleOpenAttempt(c.pt.attemptId)}
+                                      >
+                                        <circle
+                                          cx={c.x}
+                                          cy={c.y}
+                                          r="4.5"
+                                          fill="#101010"
+                                          stroke="var(--accent, #A3FF12)"
+                                          strokeWidth="2"
+                                        />
+                                        <text
+                                          x={c.x}
+                                          y={c.y - 7}
+                                          textAnchor="middle"
+                                          fill="#A1A1A1"
+                                          fontSize="10"
+                                          fontFamily="var(--font-mono, monospace)"
+                                        >
+                                          {c.pt.scorePercentage}%
+                                        </text>
+                                      </g>
+                                    ))}
+                                  </>
+                                );
+                              })()}
+                            </svg>
+                          </div>
+                        )}
+
+                        {/* Interactive Chronological Chips Strip */}
+                        <div className="study-progress-history-strip">
+                          <span className="study-progress-strip-label">Score history:</span>
+                          <div className="study-progress-chips-wrap">
+                            {prog.chronologicalAttempts.map((pt) => (
+                              <button
+                                key={pt.attemptId}
+                                type="button"
+                                className="study-progress-chip"
+                                onClick={() => handleOpenAttempt(pt.attemptId)}
+                                aria-label={`Open historical result for ${pt.attemptNumber}: ${pt.scorePercentage}% on ${pt.dateStr}`}
+                              >
+                                <span className="study-progress-chip-name">{pt.attemptNumber}</span>
+                                <span className="study-progress-chip-arrow" aria-hidden="true">→</span>
+                                <span className="study-progress-chip-score">{pt.scorePercentage}%</span>
+                                <span className="study-progress-chip-date">{pt.dateStr}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </motion.section>
           )}
@@ -969,6 +1516,64 @@ export function StudySpaceView({
               </div>
             )}
           </motion.section>
+
+          {/* 5. Concepts Worth Revisiting Section (Prompt 5 Phase 5) */}
+          {conceptsWorthRevisiting.length > 0 && (
+            <motion.section 
+              className="study-revisit-section" 
+              aria-label="Concepts worth revisiting"
+              initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: 0.16, ease: REVEAL_EASE }}
+            >
+              <div className="study-revisit-header-block">
+                <span className="study-eyebrow">WORTH ANOTHER LOOK</span>
+                <h2 className="study-section-title">Concepts worth revisiting</h2>
+                <p className="study-section-desc">
+                  Identified from questions answered incorrectly or left unanswered in your assessment history.
+                </p>
+              </div>
+
+              <div className="study-revisit-list">
+                {conceptsWorthRevisiting.map((item) => (
+                  <div key={`${item.graphId}-${item.conceptId}`} className="study-revisit-card">
+                    <div className="study-revisit-info">
+                      <div className="study-revisit-top">
+                        <h3 className="study-revisit-name">{item.conceptName}</h3>
+                        {item.graphName && (
+                          <span className="study-revisit-graph-tag">
+                            {item.graphName}
+                          </span>
+                        )}
+                      </div>
+                      <p className="study-revisit-status">{item.statusMessage}</p>
+                    </div>
+
+                    <div className="study-revisit-action-wrap">
+                      {item.availableInGraph ? (
+                        <button
+                          type="button"
+                          className="study-editorial-btn"
+                          onClick={() => onNavigateToConcept?.(item.conceptId)}
+                          aria-label={`Review ${item.conceptName} in knowledge graph`}
+                        >
+                          <span className="study-btn-content">
+                            <span>REVIEW IN GRAPH</span>
+                            <span className="study-btn-arrow" aria-hidden="true">→</span>
+                          </span>
+                          <span className="study-btn-underline" aria-hidden="true" />
+                        </button>
+                      ) : (
+                        <span className="study-revisit-unavailable-badge">
+                          Concept not in current graph
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.section>
+          )}
         </>
       )}
     </div>
