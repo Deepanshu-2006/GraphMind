@@ -189,7 +189,7 @@ describe('GraphMind "Review All Answers" Page & Results Exit Transition Redesign
       assert.match(reviewViewFile, /REVIEW\s*\/\s*EXAMINATION/);
     });
 
-    it('formats large stacked editorial title REVIEW ALL ANSWERS with fluid sizing clamp', () => {
+    it('formats compact editorial title Review all answers with clamp(48px, 4.5vw, 64px)', () => {
       const reviewViewFile = fs.readFileSync(
         path.join(process.cwd(), 'src/components/test/TestReviewView.tsx'),
         'utf-8'
@@ -199,18 +199,36 @@ describe('GraphMind "Review All Answers" Page & Results Exit Transition Redesign
         'utf-8'
       );
 
-      // Stacked lines in JSX
-      assert.match(reviewViewFile, /REVIEW/);
-      assert.match(reviewViewFile, /ALL/);
-      assert.match(reviewViewFile, /ANSWERS/);
+      // Stacked lines in JSX: "Review all" and "answers"
+      assert.match(reviewViewFile, /Review all/);
+      assert.match(reviewViewFile, /answers/);
 
-      // Fluid clamp typography in CSS
-      assert.match(cssFile, /clamp\(64px,\s*7vw,\s*112px\)/);
-      assert.match(cssFile, /line-height:\s*0\.(8[8-9]|9[0-4])/);
-      assert.match(cssFile, /letter-spacing:\s*-0\.0[4-6]em/);
+      // Compact fluid clamp typography in CSS (clamp(48px, 4.5vw, 64px), 0.98–1.05 line-height, -0.045em letter-spacing)
+      assert.match(cssFile, /clamp\(48px,\s*4\.5vw,\s*64px\)/);
+      assert.match(cssFile, /line-height:\s*1\.(0[0-5]|02)/);
+      assert.match(cssFile, /letter-spacing:\s*-0\.045em/);
     });
 
-    it('provides concise introductory copy with max-width around 520-600px', () => {
+    it('tightens vertical spacing across header sections to prioritize question visibility', () => {
+      const cssFile = fs.readFileSync(
+        path.join(process.cwd(), 'src/styles/test.css'),
+        'utf-8'
+      );
+
+      // Back nav to eyebrow: 32–40px
+      assert.match(cssFile, /\.review-top-nav-row\s*\{[^}]*margin-bottom:\s*(3[2-9]|40)px;/);
+
+      // Eyebrow to title: 16–22px
+      assert.match(cssFile, /\.review-editorial-eyebrow\s*\{[^}]*margin-bottom:\s*(1[6-9]|2[0-2])px;/);
+
+      // Title to description: 20–24px
+      assert.match(cssFile, /\.review-editorial-intro\s*\{[^}]*margin:\s*(2[0-4])px 0 0;/);
+
+      // Description to answer index: 48–64px
+      assert.match(cssFile, /\.review-editorial-header\s*\{[^}]*margin-bottom:\s*(4[8-9]|5[0-9]|6[0-4])px;/);
+    });
+
+    it('provides concise introductory copy with font-size 15-17px and max-width 580px', () => {
       const reviewViewFile = fs.readFileSync(
         path.join(process.cwd(), 'src/components/test/TestReviewView.tsx'),
         'utf-8'
@@ -225,8 +243,10 @@ describe('GraphMind "Review All Answers" Page & Results Exit Transition Redesign
         /Review every question,\s*understand why the answer was correct or incorrect,\s*and reconnect each concept to your knowledge graph\./
       );
 
-      // Max width restrained in CSS
-      assert.match(cssFile, /max-width:\s*5[2-9]0px|max-width:\s*600px/);
+      // Description styling (15-17px font, 1.55-1.7 line-height, max-width 580px)
+      assert.match(cssFile, /\.review-editorial-intro\s*\{[^}]*font-size:\s*(1[5-7])px;/);
+      assert.match(cssFile, /\.review-editorial-intro\s*\{[^}]*line-height:\s*1\.(5[5-9]|6[0-9]|70?)/);
+      assert.match(cssFile, /\.review-editorial-intro\s*\{[^}]*max-width:\s*580px;/);
     });
   });
 
@@ -260,7 +280,7 @@ describe('GraphMind "Review All Answers" Page & Results Exit Transition Redesign
       );
     });
 
-    it('uses editorial numbering (01, 02...) with tiny status dot indicators (green for correct, red for incorrect)', () => {
+    it('uses clean question numbering with fixed-width column and eliminates redundant colored dots', () => {
       const reviewViewFile = fs.readFileSync(
         path.join(process.cwd(), 'src/components/test/TestReviewView.tsx'),
         'utf-8'
@@ -273,26 +293,25 @@ describe('GraphMind "Review All Answers" Page & Results Exit Transition Redesign
       // Numbering formatting (String(index + 1).padStart(2, '0'))
       assert.match(reviewViewFile, /padStart\(2,\s*['"]0['"]\)/);
 
-      // Status indicator dot
-      assert.match(reviewViewFile, /review-status-dot/);
-      assert.match(reviewViewFile, /dot-correct/);
-      assert.match(reviewViewFile, /dot-incorrect/);
+      // Fixed width numbering column with muted gray (#666666)
+      assert.match(cssFile, /\.review-row-num\s*\{[^}]*width:\s*(4[0-9]|5[0-9])px;/);
+      assert.match(cssFile, /\.review-row-num\s*\{[^}]*color:\s*#666666;/);
 
-      // Tiny dot styling in CSS (4-6px diameter)
-      assert.match(cssFile, /\.review-status-dot\s*\{[^}]*width:\s*[4-6]px;/);
+      // Redundant colored dot beside number is removed from row header
+      assert.doesNotMatch(reviewViewFile, /review-status-dot/, 'Colored dot beside question number must be removed');
     });
 
-    it('renders question text at 18-22px with off-white primary text (#F5F5F5)', () => {
+    it('renders question text at 17-18px desktop with #EAEAEA color and uncolored neutral typography', () => {
       const cssFile = fs.readFileSync(
         path.join(process.cwd(), 'src/styles/test.css'),
         'utf-8'
       );
 
-      assert.match(cssFile, /\.review-row-question-text\s*\{[^}]*font-size:\s*(1[8-9]|2[0-2])px;/);
-      assert.match(cssFile, /\.review-row-question-text\s*\{[^}]*color:\s*#F5F5F5;/);
+      assert.match(cssFile, /\.review-row-question-text\s*\{[^}]*font-size:\s*17(\.5)?px;/);
+      assert.match(cssFile, /\.review-row-question-text\s*\{[^}]*color:\s*#EAEAEA;/);
     });
 
-    it('renders subordinate result state: green annotation for correct, muted red + correct for incorrect', () => {
+    it('renders reserved status column (10px uppercase, 0.08em letter spacing, green/red tokens)', () => {
       const reviewViewFile = fs.readFileSync(
         path.join(process.cwd(), 'src/components/test/TestReviewView.tsx'),
         'utf-8'
@@ -302,17 +321,38 @@ describe('GraphMind "Review All Answers" Page & Results Exit Transition Redesign
         'utf-8'
       );
 
-      // Correct display
-      assert.match(reviewViewFile, /summary-answer-text/);
+      // Status column presence
+      assert.match(reviewViewFile, /review-row-status-col/);
       assert.match(reviewViewFile, /CORRECT/);
+      assert.match(reviewViewFile, /INCORRECT/);
 
-      // Incorrect display
-      assert.match(reviewViewFile, /YOUR ANSWER/);
-      assert.match(reviewViewFile, /summary-wrong-text/);
+      // Reserved column width and typography in CSS
+      assert.match(cssFile, /\.review-row-status-col\s*\{[^}]*width:\s*(7[0-9]|8[0-9])px;/);
+      assert.match(cssFile, /\.review-row-status-col\s*\{[^}]*font-size:\s*10px;/);
+      assert.match(cssFile, /\.review-row-status-col\s*\{[^}]*letter-spacing:\s*0\.08em;/);
+      assert.match(cssFile, /\.status-correct\s*\{[^}]*color:\s*#B8FF3D;/);
+      assert.match(cssFile, /\.status-incorrect\s*\{[^}]*color:\s*#FF5A5A;/);
+    });
 
-      // Restrained colors in CSS
-      assert.match(cssFile, /#FF5A5A|#FF7070/); // Muted red
-      assert.match(cssFile, /#B8FF3D/); // GraphMind green
+    it('renders quiet answer summary inside expanded state without competing with question', () => {
+      const reviewViewFile = fs.readFileSync(
+        path.join(process.cwd(), 'src/components/test/TestReviewView.tsx'),
+        'utf-8'
+      );
+      const cssFile = fs.readFileSync(
+        path.join(process.cwd(), 'src/styles/test.css'),
+        'utf-8'
+      );
+
+      // Quiet labels in JSX
+      assert.match(reviewViewFile, /Your answer/);
+      assert.match(reviewViewFile, /Correct answer/);
+      assert.match(reviewViewFile, /review-answer-summary-block/);
+
+      // Values styling in CSS
+      assert.match(cssFile, /\.review-summary-val\s*\{[^}]*font-size:\s*14px;/);
+      assert.match(cssFile, /\.val-correct\s*\{[^}]*color:\s*#B8FF3D;/);
+      assert.match(cssFile, /\.val-incorrect\s*\{[^}]*color:\s*#FF7070;/);
     });
   });
 
@@ -325,18 +365,18 @@ describe('GraphMind "Review All Answers" Page & Results Exit Transition Redesign
 
       // Document flow expansion sections:
       assert.match(reviewViewFile, /review-row-expanded-flow/);
-      assert.match(reviewViewFile, /review-expanded-options-list/);
+      assert.match(reviewViewFile, /review-options-list/);
       assert.match(reviewViewFile, /review-expanded-section/);
       assert.match(reviewViewFile, /review-graph-editorial-link/);
     });
 
-    it('includes WHY explanation and FROM YOUR MATERIAL provenance quote', () => {
+    it('includes WHY THIS IS CORRECT explanation and FROM YOUR MATERIAL provenance quote', () => {
       const reviewViewFile = fs.readFileSync(
         path.join(process.cwd(), 'src/components/test/TestReviewView.tsx'),
         'utf-8'
       );
 
-      assert.match(reviewViewFile, /WHY/);
+      assert.match(reviewViewFile, /WHY THIS IS CORRECT/);
       assert.match(reviewViewFile, /FROM YOUR MATERIAL/);
     });
 

@@ -134,11 +134,11 @@ export function TestReviewView({
               initial={{ y: '110%', opacity: 0 }}
               animate={
                 isExiting && exitDirection === 'back'
-                  ? { y: '-100%', opacity: 0, transition: { duration: 0.32, delay: 0.10, ease: [0.16, 1, 0.3, 1] } }
-                  : { y: '0%', opacity: 1, transition: { duration: 0.55, delay: 0.10, ease: [0.16, 1, 0.3, 1] } }
+                  ? { y: '-100%', opacity: 0, transition: { duration: 0.28, delay: 0.08, ease: [0.16, 1, 0.3, 1] } }
+                  : { y: '0%', opacity: 1, transition: { duration: 0.48, delay: 0.08, ease: [0.16, 1, 0.3, 1] } }
               }
             >
-              REVIEW
+              Review all
             </motion.span>
           </span>
           <span className="review-title-line-mask">
@@ -147,24 +147,11 @@ export function TestReviewView({
               initial={{ y: '110%', opacity: 0 }}
               animate={
                 isExiting && exitDirection === 'back'
-                  ? { y: '-100%', opacity: 0, transition: { duration: 0.32, delay: 0.14, ease: [0.16, 1, 0.3, 1] } }
-                  : { y: '0%', opacity: 1, transition: { duration: 0.55, delay: 0.14, ease: [0.16, 1, 0.3, 1] } }
+                  ? { y: '-100%', opacity: 0, transition: { duration: 0.28, delay: 0.12, ease: [0.16, 1, 0.3, 1] } }
+                  : { y: '0%', opacity: 1, transition: { duration: 0.48, delay: 0.12, ease: [0.16, 1, 0.3, 1] } }
               }
             >
-              ALL
-            </motion.span>
-          </span>
-          <span className="review-title-line-mask">
-            <motion.span
-              className="review-title-line"
-              initial={{ y: '110%', opacity: 0 }}
-              animate={
-                isExiting && exitDirection === 'back'
-                  ? { y: '-100%', opacity: 0, transition: { duration: 0.32, delay: 0.18, ease: [0.16, 1, 0.3, 1] } }
-                  : { y: '0%', opacity: 1, transition: { duration: 0.55, delay: 0.18, ease: [0.16, 1, 0.3, 1] } }
-              }
-            >
-              ANSWERS
+              answers
             </motion.span>
           </span>
         </h1>
@@ -267,10 +254,7 @@ export function TestReviewView({
                     }
               }
             >
-              {/* Left Edge Green Accent Indicator on hover (Section 13) */}
-              <div className="review-row-edge-accent" aria-hidden="true" />
-
-              {/* Clickable Row Header (Question, Answer Summary, Status) */}
+              {/* Clickable Row Header: [01] [Question text] [STATUS] [Chevron] (Section 1) */}
               <button
                 type="button"
                 className="review-row-header-grid"
@@ -278,61 +262,28 @@ export function TestReviewView({
                 aria-expanded={isExpanded}
                 aria-label={`Question ${numStr}: ${q.question}`}
               >
-                {/* LEFT: 2-digit number + tiny status dot (Section 14 & 15) */}
-                <div className="review-row-index-group">
-                  <span className="review-row-num">{numStr}</span>
-                  <span
-                    className={`review-status-dot ${isCorrect ? 'dot-correct' : 'dot-incorrect'}`}
-                    aria-hidden="true"
-                  />
-                </div>
+                {/* 1. Question Number: 11-12px, muted #666666, fixed width, no dot */}
+                <span className="review-row-num">{numStr}</span>
 
-                {/* CENTER: Question text + answer state subordinate below (Section 8, 9, 10, 16, 17) */}
-                <div className="review-row-content-col">
-                  <div className="review-row-question-text">{q.question}</div>
+                {/* 2. Question Text: 17-18px desktop, #EAEAEA, primary visual focus */}
+                <div className="review-row-question-text">{q.question}</div>
 
-                  {isCorrect ? (
-                    <div className="review-row-result-summary correct">
-                      <span className="summary-symbol" aria-hidden="true">✓</span>
-                      <span className="summary-answer-text">{correctOption?.text}</span>
-                      <span className="summary-status-tag">CORRECT</span>
-                    </div>
-                  ) : (
-                    <div className="review-row-result-summary incorrect">
-                      <div className="summary-choice-group wrong">
-                        <span className="summary-choice-label">YOUR ANSWER</span>
-                        <span className="summary-symbol-wrong" aria-hidden="true">×</span>
-                        <span className="summary-wrong-text">
-                          {selectedOption?.text || 'Unanswered'}
-                        </span>
-                      </div>
-                      <div className="summary-choice-group correct">
-                        <span className="summary-choice-label">CORRECT</span>
-                        <span className="summary-symbol-correct" aria-hidden="true">✓</span>
-                        <span className="summary-correct-text">{correctOption?.text}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                {/* 3. Status Label: 10px uppercase, font-weight 600, reserved column */}
+                <span className={`review-row-status-col ${isCorrect ? 'status-correct' : 'status-incorrect'}`}>
+                  {isCorrect ? 'CORRECT' : 'INCORRECT'}
+                </span>
 
-                {/* RIGHT: Status Tag & Smooth Toggle Chevron (Section 8) */}
-                <div className="review-row-right-action">
-                  <span className={`review-row-badge ${isCorrect ? 'badge-correct' : 'badge-incorrect'}`}>
-                    {isCorrect ? 'CORRECT' : 'INCORRECT'}
-                  </span>
-                  <span
-                    className={`review-row-toggle-icon ${isExpanded ? 'is-expanded' : ''}`}
-                    aria-hidden="true"
-                  >
-                    ↓
-                  </span>
-                </div>
+                {/* 4. Chevron: Small, muted gray, rotates smoothly */}
+                <span
+                  className={`review-row-chevron ${isExpanded ? 'is-expanded' : ''}`}
+                  aria-hidden="true"
+                >
+                  ↓
+                </span>
               </button>
 
               {/* ==============================================================
-                  EXPANDED QUESTION DETAILS (Section 11 & 12)
-                  Sits naturally in the document flow with NO nested cards.
-                  Reveals answer lines, WHY section, material provenance, and graph review link.
+                  EXPANDED QUESTION DETAILS (Section 2, 3, 4)
                   ============================================================== */}
               <AnimatePresence initial={false}>
                 {isExpanded && (
@@ -341,54 +292,63 @@ export function TestReviewView({
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+                    transition={{ duration: 0.36, ease: [0.16, 1, 0.3, 1] }}
                   >
                     <div className="review-expanded-inner">
-                      {/* Editorial Options Breakdown (Section 11) */}
-                      <div className="review-expanded-options-list">
-                        {q.options.map((opt) => {
-                          const isThisCorrect = opt.id === q.correctOptionId;
-                          const isThisChosen = opt.id === selectedId;
-
-                          return (
-                            <div
-                              key={opt.id}
-                              className={`review-expanded-option-line ${
-                                isThisCorrect
-                                  ? 'opt-correct'
-                                  : isThisChosen
-                                  ? 'opt-chosen-incorrect'
-                                  : 'opt-normal'
-                              }`}
-                            >
-                              <span className="opt-letter">{opt.id}</span>
-                              <span className="opt-text">{opt.text}</span>
-                              {isThisCorrect && (
-                                <span className="opt-annotation-correct">
-                                  <span className="annotation-icon" aria-hidden="true">✓</span>
-                                  <span>CORRECT</span>
-                                </span>
-                              )}
-                              {isThisChosen && !isThisCorrect && (
-                                <span className="opt-annotation-incorrect">
-                                  <span className="annotation-icon" aria-hidden="true">×</span>
-                                  <span>YOUR ANSWER</span>
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })}
+                      {/* Quiet Answer Summary (Section 2) */}
+                      <div className="review-answer-summary-block">
+                        <div className="review-summary-row">
+                          <span className="review-summary-label">Your answer</span>
+                          <span className={`review-summary-val ${isCorrect ? 'val-correct' : 'val-incorrect'}`}>
+                            {selectedOption?.text || 'Unanswered'}
+                          </span>
+                        </div>
+                        {!isCorrect && (
+                          <div className="review-summary-row">
+                            <span className="review-summary-label">Correct answer</span>
+                            <span className="review-summary-val val-correct">
+                              {correctOption?.text}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
-                      {/* WHY: Explanation based strictly on source material (Section 11) */}
+                      {/* Section A: ANSWER OPTIONS (Section 3) */}
+                      <div className="review-expanded-section">
+                        <span className="review-section-kicker">ANSWER OPTIONS</span>
+                        <div className="review-options-list">
+                          {q.options.map((opt) => {
+                            const isThisCorrect = opt.id === q.correctOptionId;
+                            const isThisChosen = opt.id === selectedId;
+
+                            return (
+                              <div
+                                key={opt.id}
+                                className={`review-option-item ${
+                                  isThisCorrect
+                                    ? 'opt-is-correct'
+                                    : isThisChosen
+                                    ? 'opt-is-incorrect'
+                                    : 'opt-is-default'
+                                }`}
+                              >
+                                <span className="review-opt-letter">{opt.id}</span>
+                                <span className="review-opt-text">{opt.text}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Section B: WHY THIS IS CORRECT (Section 3) */}
                       {q.explanation && (
                         <div className="review-expanded-section">
-                          <span className="review-section-kicker">WHY</span>
+                          <span className="review-section-kicker">WHY THIS IS CORRECT</span>
                           <p className="review-why-paragraph">{q.explanation}</p>
                         </div>
                       )}
 
-                      {/* FROM YOUR MATERIAL: Provenance quote (Section 11 & 18) */}
+                      {/* Section C: FROM YOUR MATERIAL (Section 3) */}
                       {q.sourceEvidence && (
                         <div className="review-expanded-section">
                           <span className="review-section-kicker">
@@ -402,7 +362,7 @@ export function TestReviewView({
                         </div>
                       )}
 
-                      {/* REVIEW IN GRAPH Action: Editorial typography link (Section 19) */}
+                      {/* Section D: REVIEW IN GRAPH Action (Section 3) */}
                       {primaryConceptId && onSelectConceptToReview && (
                         <div className="review-expanded-footer-action">
                           <button
