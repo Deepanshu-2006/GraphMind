@@ -797,6 +797,7 @@ export interface RecordTestCompletionOptions {
   userId?: string | null;
   graphName?: string;
   attemptId?: string;
+  completedAt?: string;
 }
 
 /**
@@ -874,8 +875,7 @@ export function recordKnowledgeTestCompletion(
     percentage,
     timeSpentSeconds,
     strongConceptNames: Array.from(strongConceptNamesSet),
-    reviewRecommendedConcepts: missedItems,
-    persistenceStatus: 'saved'
+    reviewRecommendedConcepts: missedItems
   };
 
   // Collect aggregated metadata for permanent attempt record
@@ -896,7 +896,7 @@ export function recordKnowledgeTestCompletion(
     graphId,
     graphName: options?.graphName || test.title || DEFAULT_MIGRATION_GRAPH_NAME,
     createdAt: test.startedAt || new Date().toISOString(),
-    completedAt: new Date().toISOString(),
+    completedAt: options?.completedAt || new Date().toISOString(),
     totalQuestions: questions.length,
     correctAnswers: score,
     scorePercentage: percentage,
@@ -907,7 +907,10 @@ export function recordKnowledgeTestCompletion(
     conceptNames: Array.from(allConceptNamesSet),
     sourceIds: Array.from(allSourceIdsSet),
     completionReason: options?.completionReason || (timeSpentSeconds >= (test.timeLimitSeconds || 0) && (test.timeLimitSeconds || 0) > 0 ? 'time_expired' : 'submission'),
-    resultsSummary: summary
+    resultsSummary: {
+      ...summary,
+      persistenceStatus: 'saved'
+    }
   };
 
   // Save attempt to history

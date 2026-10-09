@@ -190,7 +190,9 @@ export function computeGraphLearningProgress(
   const sortedAsc = [...graphAttempts].sort((a, b) => {
     const timeA = new Date(a.completedAt).getTime() || 0;
     const timeB = new Date(b.completedAt).getTime() || 0;
-    return timeA - timeB;
+    if (timeA !== timeB) return timeA - timeB;
+    // Tie-breaker: preserve relative insertion order (items earlier in graphAttempts are newer)
+    return graphAttempts.indexOf(b) - graphAttempts.indexOf(a);
   });
 
   const totalAttempts = sortedAsc.length;

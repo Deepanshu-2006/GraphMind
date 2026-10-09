@@ -495,7 +495,7 @@ export function generateKnowledgeTest(
   }
 
   const testTitle = options.title || graph.name || 'Knowledge Graph Assessment';
-  const testId = `test-${graph.id || 'current'}-${Date.now()}`;
+  const testId = `test-${graph.id || 'current'}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
   const test: KnowledgeTest = {
     id: testId,
