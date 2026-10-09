@@ -42,6 +42,21 @@ export const TimeUpScreen = memo(function TimeUpScreen({
     }
   };
 
+  // Atmospheric background numeral appears subtly alongside the entrance
+  const bgNumeralVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: shouldReduceMotion
+        ? { duration: 0.01 }
+        : {
+            duration: 0.6,
+            ease: easeCurve,
+            delay: 0.02
+          }
+    }
+  };
+
   const itemVariants = {
     hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 16 },
     visible: {
@@ -54,14 +69,28 @@ export const TimeUpScreen = memo(function TimeUpScreen({
     }
   };
 
-  const headingLineVariants = {
-    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 20 },
+  // Coordinated two-line heading reveal with vertical clip/mask motion
+  const headingLine1Variants = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : '100%' },
     visible: {
       opacity: 1,
-      y: 0,
+      y: '0%',
       transition: {
-        duration: shouldReduceMotion ? 0.01 : 0.48,
+        duration: shouldReduceMotion ? 0.01 : 0.5,
         ease: easeCurve
+      }
+    }
+  };
+
+  const headingLine2Variants = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : '100%' },
+    visible: {
+      opacity: 1,
+      y: '0%',
+      transition: {
+        duration: shouldReduceMotion ? 0.01 : 0.5,
+        ease: easeCurve,
+        delay: shouldReduceMotion ? 0 : 0.08
       }
     }
   };
@@ -76,10 +105,14 @@ export const TimeUpScreen = memo(function TimeUpScreen({
       role="region"
       aria-label="Assessment time expired"
     >
-      {/* 2. RESTRAINED VISUAL DETAIL: Subtle oversized background numeral (00:00) */}
-      <div className="test-timeup-bg-numeral" aria-hidden="true">
+      {/* 1. ATMOSPHERIC BACKGROUND DETAIL: Extremely low-contrast 00:00 numeral */}
+      <motion.div
+        className="test-timeup-bg-numeral"
+        variants={bgNumeralVariants}
+        aria-hidden="true"
+      >
         00:00
-      </div>
+      </motion.div>
 
       <div className="test-timeup-content">
         {/* A. STATUS */}
@@ -92,12 +125,16 @@ export const TimeUpScreen = memo(function TimeUpScreen({
 
         {/* B. MAIN HEADING */}
         <motion.h1 className="test-timeup-title" aria-label="Time's Up.">
-          <motion.span className="test-timeup-title-line" variants={headingLineVariants}>
-            TIME'S
-          </motion.span>
-          <motion.span className="test-timeup-title-line" variants={headingLineVariants}>
-            UP<span className="test-timeup-period" aria-hidden="true">.</span>
-          </motion.span>
+          <span className="test-timeup-title-line-mask">
+            <motion.span className="test-timeup-title-line" variants={headingLine1Variants}>
+              TIME'S
+            </motion.span>
+          </span>
+          <span className="test-timeup-title-line-mask">
+            <motion.span className="test-timeup-title-line" variants={headingLine2Variants}>
+              UP<span className="test-timeup-period" aria-hidden="true">.</span>
+            </motion.span>
+          </span>
         </motion.h1>
 
         {/* C. SUPPORTING MESSAGE */}

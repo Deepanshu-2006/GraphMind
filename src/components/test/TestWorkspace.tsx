@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
 import type { KnowledgeGraph } from '../../types/knowledgeGraph';
 import type { 
@@ -36,6 +36,8 @@ type TestWorkspaceMode =
   | 'review-answers'
   | 'review-missed';
 
+export type TimeTransitionPhase = 'idle' | 'receding' | 'centering' | 'hold' | 'dissolve' | 'done';
+
 export function TestWorkspace({
   graph,
   onClose,
@@ -43,11 +45,12 @@ export function TestWorkspace({
   onPracticeStatesUpdated,
   targetQuestionCount = 10
 }: TestWorkspaceProps) {
-  // Test generation on mount or graph change
+  // Test generation on mount or graph change (10 seconds for testing purpose)
   const testGenResult = useMemo(() => {
     return generateKnowledgeTest(graph, {
       questionCount: targetQuestionCount,
-      title: graph?.name || 'Knowledge Graph Assessment'
+      title: graph?.name || 'Knowledge Graph Assessment',
+      timeLimitSeconds: 10 // testing purpose: 10 seconds (changed from 10 minutes)
     });
   }, [graph, targetQuestionCount]);
 
@@ -61,9 +64,18 @@ export function TestWorkspace({
   const [flaggedIds, setFlaggedIds] = useState<Set<string>>(new Set());
 
   const [remainingSeconds, setRemainingSeconds] = useState<number>(
-    testGenResult.test?.timeLimitSeconds || 600
+    testGenResult.test?.timeLimitSeconds || 10
   );
   const [isTimerActive, setIsTimerActive] = useState<boolean>(false);
+
+  // Cinematic timer-transition state & coordinate tracking
+  const [timeTransitionPhase, setTimeTransitionPhase] = useState<TimeTransitionPhase>('idle');
+  const [timerTargetDelta, setTimerTargetDelta] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const timerAnchorRef = useRef<HTMLDivElement>(null);
+  const hasSubmittedRef = useRef(false);
+  const isTransitionTriggeredRef = useRef(false);
+  const transitionTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const shouldReduceMotion = useReducedMotion();
 
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
@@ -75,6 +87,17 @@ export function TestWorkspace({
   const workspaceRootRef = useRef<HTMLDivElement>(null);
   const startTimeRef = useRef<number>(Date.now());
 
+  const clearTransitionTimeouts = useCallback(() => {
+    transitionTimeoutsRef.current.forEach(t => clearTimeout(t));
+    transitionTimeoutsRef.current = [];
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearTransitionTimeouts();
+    };
+  }, [clearTransitionTimeouts]);
+
   // Ensure workspace is always scrolled to the top when mode changes (especially to 'results')
   useEffect(() => {
     if (workspaceRootRef.current) {
@@ -83,15 +106,68 @@ export function TestWorkspace({
     window.scrollTo(0, 0);
   }, [mode]);
 
-  // Handle Time Expired (Section 19)
+  // Handle Time Expired with Cinematic Timer Transition
   const handleTimeExpired = useCallback(() => {
-    if (!test) return;
-    const timeSpent = Math.max(1, test.timeLimitSeconds - 0);
+    if (!test || hasSubmittedRef.current || isTransitionTriggeredRef.current) return;
+    hasSubmittedRef.current = true;
+    isTransitionTriggeredRef.current = true;
+
+    // Halt countdown and ensure 00:00 display
+    setIsTimerActive(false);
+    setRemainingSeconds(0);
+
+    // Functional correctness: submit once, save answers & score
+    const timeSpent = Math.max(1, test.timeLimitSeconds);
     const summary = recordKnowledgeTestCompletion(test, answers, timeSpent);
     setResultsSummary(summary);
     onPracticeStatesUpdated?.();
-    setMode('timeup');
-  }, [test, answers, onPracticeStatesUpdated]);
+
+    // If user prefers reduced motion, skip cinematic motion
+    if (shouldReduceMotion) {
+      setTimeTransitionPhase('done');
+      setMode('timeup');
+      return;
+    }
+
+    // Measure exact anchor center vs viewport center
+    const rect = timerAnchorRef.current?.getBoundingClientRect();
+    if (rect) {
+      const currentCenterX = rect.left + rect.width / 2;
+      const currentCenterY = rect.top + rect.height / 2;
+      const targetCenterX = window.innerWidth / 2;
+      const targetCenterY = window.innerHeight * 0.44;
+      setTimerTargetDelta({
+        x: targetCenterX - currentCenterX,
+        y: targetCenterY - currentCenterY
+      });
+    }
+
+    // PHASE 1 / 2A: 0ms: Interface recedes into darkness
+    setTimeTransitionPhase('receding');
+
+    // PHASE 2B: 200ms: Timer expands and moves toward visual center
+    const t1 = setTimeout(() => {
+      setTimeTransitionPhase('centering');
+    }, 200);
+
+    // PHASE 2C: 900ms: Holds at center, introducing restrained lime-green accent
+    const t2 = setTimeout(() => {
+      setTimeTransitionPhase('hold');
+    }, 900);
+
+    // PHASE 2D: 1100ms: Clock begins to dissolve (fade out + subtle upward drift)
+    const t3 = setTimeout(() => {
+      setTimeTransitionPhase('dissolve');
+    }, 1100);
+
+    // PHASE 3: 1450ms: Switch to TimeUpScreen for Phase 3 reveals
+    const t4 = setTimeout(() => {
+      setTimeTransitionPhase('done');
+      setMode('timeup');
+    }, 1450);
+
+    transitionTimeoutsRef.current = [t1, t2, t3, t4];
+  }, [test, answers, onPracticeStatesUpdated, shouldReduceMotion]);
 
   // Timer Tick & Wall-Clock Synchronization (remains accurate across background tab throttling)
   useEffect(() => {
@@ -133,14 +209,21 @@ export function TestWorkspace({
   const handleStartTest = useCallback(() => {
     if (!test) return;
     startTimeRef.current = Date.now();
+    hasSubmittedRef.current = false;
+    isTransitionTriggeredRef.current = false;
+    setTimeTransitionPhase('idle');
+    setTimerTargetDelta({ x: 0, y: 0 });
+    clearTransitionTimeouts();
     setIsTimerActive(true);
     setMode('testing');
     setCurrentIndex(0);
-  }, [test]);
+  }, [test, clearTransitionTimeouts]);
 
   // Submit Test Action
   const handleConfirmSubmit = useCallback(() => {
-    if (!test) return;
+    if (!test || hasSubmittedRef.current) return;
+    hasSubmittedRef.current = true;
+    clearTransitionTimeouts();
     setIsSubmitModalOpen(false);
     setIsTimerActive(false);
 
@@ -154,7 +237,7 @@ export function TestWorkspace({
     setResultsSummary(summary);
     onPracticeStatesUpdated?.();
     setMode('results');
-  }, [test, answers, onPracticeStatesUpdated]);
+  }, [test, answers, onPracticeStatesUpdated, clearTransitionTimeouts]);
 
   // Answer selection
   const handleSelectOption = useCallback((optionId: string) => {
@@ -268,7 +351,8 @@ export function TestWorkspace({
       aria-label="GraphMind Dedicated Test Workspace"
     >
       {/* Top persistent control bar for testing mode — emerges from top (Section 21) */}
-      {mode === 'testing' && test && (
+      {/* Top persistent control bar for testing mode & transition */}
+      {((mode === 'testing' && timeTransitionPhase !== 'done') || (timeTransitionPhase !== 'idle' && timeTransitionPhase !== 'done')) && test && (
         <motion.div
           className="test-workspace-topbar"
           initial={{ opacity: 0, y: -14 }}
@@ -276,15 +360,67 @@ export function TestWorkspace({
           exit={{ opacity: 0, y: -14 }}
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
         >
-          <div className="topbar-timer-anchor">
+          <motion.div
+            ref={timerAnchorRef}
+            className={`topbar-timer-anchor ${
+              timeTransitionPhase !== 'idle' ? 'is-transitioning-timer' : ''
+            }`}
+            animate={
+              timeTransitionPhase === 'centering' || timeTransitionPhase === 'hold'
+                ? {
+                    x: timerTargetDelta.x,
+                    y: timerTargetDelta.y,
+                    scale: typeof window !== 'undefined' && window.innerWidth < 600 ? 1.8 : 2.2,
+                    opacity: 1
+                  }
+                : timeTransitionPhase === 'dissolve'
+                ? {
+                    x: timerTargetDelta.x,
+                    y: timerTargetDelta.y - 18,
+                    scale: typeof window !== 'undefined' && window.innerWidth < 600 ? 1.8 : 2.2,
+                    opacity: 0
+                  }
+                : {
+                    x: 0,
+                    y: 0,
+                    scale: 1,
+                    opacity: 1
+                  }
+            }
+            transition={
+              timeTransitionPhase === 'centering'
+                ? {
+                    duration: 0.7,
+                    ease: [0.16, 1, 0.3, 1]
+                  }
+                : timeTransitionPhase === 'hold'
+                ? {
+                    duration: 0.2
+                  }
+                : timeTransitionPhase === 'dissolve'
+                ? {
+                    duration: 0.35,
+                    ease: [0.16, 1, 0.3, 1]
+                  }
+                : {
+                    duration: 0.2
+                  }
+            }
+          >
             <BigTimer
               remainingSeconds={remainingSeconds}
               totalSeconds={test.timeLimitSeconds}
               isPaused={!isTimerActive}
+              isTransitionAccent={timeTransitionPhase === 'hold' || timeTransitionPhase === 'dissolve'}
+              isTransitioning={timeTransitionPhase !== 'idle'}
             />
-          </div>
+          </motion.div>
 
-          <div className="topbar-exit-anchor">
+          <div
+            className={`topbar-exit-anchor ${
+              timeTransitionPhase !== 'idle' ? 'is-transition-receding' : ''
+            }`}
+          >
             <button
               type="button"
               className="test-exit-action-btn"
@@ -299,7 +435,13 @@ export function TestWorkspace({
       )}
 
       {/* Main Mode View */}
-      <div className="test-workspace-content-canvas">
+      <div
+        className={`test-workspace-content-canvas ${
+          timeTransitionPhase !== 'idle' && mode === 'testing'
+            ? 'is-transition-receding'
+            : ''
+        }`}
+      >
         <AnimatePresence mode="wait">
           {mode === 'intro' && (
             <TestIntroScreen

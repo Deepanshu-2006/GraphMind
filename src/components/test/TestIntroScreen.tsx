@@ -126,6 +126,9 @@ export function TestIntroScreen({
 
   const questionCount = test.questions.length;
   const minutes = Math.round(test.timeLimitSeconds / 60);
+  const timeLimitDisplay = test.timeLimitSeconds < 60
+    ? `${test.timeLimitSeconds} SEC`
+    : `${minutes} MIN`;
 
   // Three equal-width editorial columns (Section 4 & 6)
   const assessmentMetrics = [
@@ -137,7 +140,7 @@ export function TestIntroScreen({
     },
     {
       index: '02',
-      value: `${minutes} MIN`,
+      value: timeLimitDisplay,
       label: 'TIME LIMIT',
       isAccent: false
     },

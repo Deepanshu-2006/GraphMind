@@ -5,6 +5,8 @@ interface BigTimerProps {
   remainingSeconds: number;
   totalSeconds: number;
   isPaused?: boolean;
+  isTransitionAccent?: boolean;
+  isTransitioning?: boolean;
 }
 
 /**
@@ -45,7 +47,9 @@ const AnimatedDigit = memo(function AnimatedDigit({ digit }: { digit: string }) 
 export const BigTimer = memo(function BigTimer({
   remainingSeconds,
   totalSeconds,
-  isPaused = false
+  isPaused = false,
+  isTransitionAccent = false,
+  isTransitioning = false
 }: BigTimerProps) {
   const safeRemaining = Math.max(0, remainingSeconds);
 
@@ -76,7 +80,9 @@ export const BigTimer = memo(function BigTimer({
 
   return (
     <div 
-      className={`big-timer-container timer-urgency-${urgencyLevel} ${isPaused ? 'timer-paused' : ''}`}
+      className={`big-timer-container timer-urgency-${urgencyLevel} ${isPaused ? 'timer-paused' : ''} ${
+        isTransitionAccent ? 'timer-transition-accent' : ''
+      } ${isTransitioning ? 'is-transitioning' : ''}`}
       role="timer"
       aria-label={`Time remaining: ${minutesStr} minutes and ${secondsStr} seconds`}
       aria-live="off"
