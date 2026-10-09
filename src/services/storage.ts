@@ -1,6 +1,17 @@
 import type { KnowledgeSource, KnowledgeGraph, KnowledgeGraphMeta } from '../types/knowledgeGraph';
 import type { ConceptPracticeState, PracticeStatus } from '../types/practice';
-import type { KnowledgeTest, TestResultsSummary, MissedConceptItem } from '../types/test';
+import type {
+  KnowledgeTest,
+  TestResultsSummary,
+  MissedConceptItem,
+  AssessmentAttempt,
+  AssessmentCompletionReason
+} from '../types/test';
+import {
+  saveAssessmentAttempt,
+  ASSESSMENT_HISTORY_STORAGE_KEY
+} from './assessmentHistory';
+import { getCurrentUserId } from './auth';
 
 export const DEFAULT_MIGRATION_GRAPH_ID = 'graph-neural-cognitive-default';
 export const DEFAULT_MIGRATION_GRAPH_NAME = 'Neural & Cognitive Architectures';
@@ -13,6 +24,7 @@ const STORAGE_KEYS = {
   PRACTICE_STATE_PREFIX: 'graphmind_practice_state_v1_',
   GRAPH_SOURCE_TYPE_PREFIX: 'graphmind_graph_source_type_v1_',
   TEST_HISTORY_PREFIX: 'graphmind_test_history_v1_',
+  ASSESSMENT_ATTEMPTS: ASSESSMENT_HISTORY_STORAGE_KEY,
   // Canonical user sources collection (contains sources for all graphs, keyed by graphId)
   USER_SOURCES: 'graphmind_user_sources_v1',
   // Legacy keys for backward compatibility and migration
@@ -780,13 +792,21 @@ export function loadLatestKnowledgeTest(graphId?: string): KnowledgeTest | null 
   return tests.length > 0 ? tests[0] : null;
 }
 
+export interface RecordTestCompletionOptions {
+  completionReason?: AssessmentCompletionReason;
+  userId?: string | null;
+  graphName?: string;
+  attemptId?: string;
+}
+
 /**
- * Finalize a test submission: calculate score, analyze concepts, update practice states, and persist.
+ * Finalize a test submission: calculate score, analyze concepts, update practice states, and persist attempt history.
  */
 export function recordKnowledgeTestCompletion(
   test: KnowledgeTest,
   userAnswers: Record<string, string>,
-  timeSpentSeconds: number
+  timeSpentSeconds: number,
+  options?: RecordTestCompletionOptions
 ): TestResultsSummary {
   const questions = test.questions || [];
   let score = 0;
@@ -843,6 +863,63 @@ export function recordKnowledgeTestCompletion(
     strongConceptNamesSet.delete(missed.conceptName);
   }
 
+  const percentage = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
+  const attemptId = options?.attemptId || `attempt-${graphId}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+  const summary: TestResultsSummary = {
+    testId: test.id,
+    attemptId,
+    score,
+    totalQuestions: questions.length,
+    percentage,
+    timeSpentSeconds,
+    strongConceptNames: Array.from(strongConceptNamesSet),
+    reviewRecommendedConcepts: missedItems,
+    persistenceStatus: 'saved'
+  };
+
+  // Collect aggregated metadata for permanent attempt record
+  const allConceptIdsSet = new Set<string>();
+  const allConceptNamesSet = new Set<string>();
+  const allSourceIdsSet = new Set<string>();
+  for (const q of questions) {
+    for (const cId of q.conceptIds || []) allConceptIdsSet.add(cId);
+    for (const cName of q.conceptNames || []) allConceptNamesSet.add(cName);
+    for (const sId of q.sourceIds || []) allSourceIdsSet.add(sId);
+  }
+
+  // Build immutable historical attempt snapshot
+  const attemptRecord: AssessmentAttempt = {
+    id: attemptId,
+    testId: test.id,
+    userId: options?.userId !== undefined ? options.userId : getCurrentUserId(),
+    graphId,
+    graphName: options?.graphName || test.title || DEFAULT_MIGRATION_GRAPH_NAME,
+    createdAt: test.startedAt || new Date().toISOString(),
+    completedAt: new Date().toISOString(),
+    totalQuestions: questions.length,
+    correctAnswers: score,
+    scorePercentage: percentage,
+    timeSpentSeconds,
+    questions: test.questions,
+    userAnswers,
+    conceptIds: Array.from(allConceptIdsSet),
+    conceptNames: Array.from(allConceptNamesSet),
+    sourceIds: Array.from(allSourceIdsSet),
+    completionReason: options?.completionReason || (timeSpentSeconds >= (test.timeLimitSeconds || 0) && (test.timeLimitSeconds || 0) > 0 ? 'time_expired' : 'submission'),
+    resultsSummary: summary
+  };
+
+  // Save attempt to history
+  try {
+    saveAssessmentAttempt(attemptRecord);
+    summary.persistenceStatus = 'saved';
+  } catch (err) {
+    console.error('[Storage] Failed to persist assessment attempt:', err);
+    summary.persistenceStatus = 'failed';
+    summary.persistenceError = err instanceof Error ? err.message : String(err);
+  }
+
   const completedTest: KnowledgeTest = {
     ...test,
     submittedAt: new Date().toISOString(),
@@ -853,17 +930,7 @@ export function recordKnowledgeTestCompletion(
 
   saveKnowledgeTest(completedTest);
 
-  const percentage = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
-
-  return {
-    testId: test.id,
-    score,
-    totalQuestions: questions.length,
-    percentage,
-    timeSpentSeconds,
-    strongConceptNames: Array.from(strongConceptNamesSet),
-    reviewRecommendedConcepts: missedItems
-  };
+  return summary;
 }
 
 /**
@@ -888,7 +955,28 @@ export function clearAllUserData(): void {
     localStorage.removeItem(STORAGE_KEYS.LEGACY_USER_GRAPH);
     localStorage.removeItem(STORAGE_KEYS.LEGACY_GRAPH_SOURCE_TYPE);
     localStorage.removeItem(STORAGE_KEYS.LEGACY_USER_COMPLETED_CONCEPTS);
+    localStorage.removeItem(STORAGE_KEYS.ASSESSMENT_ATTEMPTS);
   } catch (err) {
     console.warn('[Storage] Failed to clear user data:', err);
   }
 }
+
+// Re-export assessment history and auth utilities
+export {
+  saveAssessmentAttempt,
+  getAssessmentAttempts,
+  getAssessmentAttemptById,
+  deleteAssessmentAttempt,
+  clearAssessmentHistory,
+  AssessmentPersistenceError,
+  AssessmentAccessDeniedError,
+  ASSESSMENT_HISTORY_STORAGE_KEY
+} from './assessmentHistory';
+export {
+  getCurrentUser,
+  getCurrentUserId,
+  setCurrentUser,
+  clearCurrentUser,
+  DEFAULT_LOCAL_USER_ID
+} from './auth';
+export type { AuthUser } from './auth';

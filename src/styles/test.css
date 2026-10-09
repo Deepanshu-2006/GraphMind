@@ -2424,6 +2424,53 @@
   border-radius: 2px;
 }
 
+/* Persistence Status & Recovery Bar */
+.results-persistence-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 12px 18px;
+  margin-bottom: 24px;
+  background-color: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 4px;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 3;
+}
+
+.results-persistence-warning-text {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 450;
+  color: #F87171;
+  letter-spacing: -0.01em;
+}
+
+.results-persistence-retry-btn {
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #FCA5A5;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 14px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 180ms ease;
+  white-space: nowrap;
+}
+
+.results-persistence-retry-btn:hover {
+  background-color: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.7);
+  color: #FFF;
+}
+
 /* Two-Column Hero Composition (Section 1 & 2) */
 .results-hero-two-column-grid {
   display: grid;

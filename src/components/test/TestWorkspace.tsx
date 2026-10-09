@@ -116,7 +116,7 @@ export function TestWorkspace({
     setIsTimerActive(false);
     setRemainingSeconds(0);
 
-    // Functional correctness: submit once, save answers & score
+    // Functional correctness: submit once, save answers & score, and persist attempt
     const timeSpent = Math.max(1, test.timeLimitSeconds);
     const summary = recordKnowledgeTestCompletion(test, answers, timeSpent);
     setResultsSummary(summary);
@@ -235,11 +235,30 @@ export function TestWorkspace({
     );
     const timeSpent = Math.min(test.timeLimitSeconds, elapsedSeconds);
 
-    const summary = recordKnowledgeTestCompletion(test, answers, timeSpent);
+    const summary = recordKnowledgeTestCompletion(test, answers, timeSpent, {
+      completionReason: 'submission',
+      graphName: graph?.name
+    });
     setResultsSummary(summary);
     onPracticeStatesUpdated?.();
     setMode('results');
-  }, [test, answers, onPracticeStatesUpdated, clearTransitionTimeouts]);
+  }, [test, answers, graph?.name, onPracticeStatesUpdated, clearTransitionTimeouts]);
+
+  // Retry saving assessment attempt if persistence failed
+  const handleRetrySaveAttempt = useCallback(() => {
+    if (!resultsSummary || !test) return;
+    const retrySummary = recordKnowledgeTestCompletion(
+      test,
+      answers,
+      resultsSummary.timeSpentSeconds,
+      {
+        completionReason: 'submission',
+        graphName: graph?.name,
+        attemptId: resultsSummary.attemptId
+      }
+    );
+    setResultsSummary(retrySummary);
+  }, [resultsSummary, test, answers, graph?.name]);
 
   // Answer selection
   const handleSelectOption = useCallback((optionId: string) => {
@@ -432,6 +451,7 @@ export function TestWorkspace({
                   onClose();
                   onFocusConceptInGraph?.(conceptId);
                 }}
+                onRetrySave={handleRetrySaveAttempt}
               />
             )}
 

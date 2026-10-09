@@ -16,6 +16,7 @@ export interface TestResultsViewProps {
   onReviewMissedConcepts: () => void;
   onBackToGraph: () => void;
   onSelectConceptToReview?: (conceptId: string) => void;
+  onRetrySave?: () => void;
 }
 
 export interface ScoreInterpretation {
@@ -72,7 +73,8 @@ export const TestResultsView = memo(function TestResultsView({
   onReviewAnswers,
   onReviewMissedConcepts,
   onBackToGraph,
-  onSelectConceptToReview
+  onSelectConceptToReview,
+  onRetrySave
 }: TestResultsViewProps) {
   // Exit transition states (Section 22)
   const [isExiting, setIsExiting] = useState(false);
@@ -273,6 +275,24 @@ export const TestResultsView = memo(function TestResultsView({
           <span>BACK TO GRAPH</span>
         </motion.button>
       </div>
+
+      {/* Persistence failure feedback & recovery */}
+      {results.persistenceStatus === 'failed' && (
+        <div className="results-persistence-status-bar" role="alert">
+          <span className="results-persistence-warning-text">
+            Assessment record could not be saved to persistent history.
+          </span>
+          {onRetrySave && (
+            <button
+              type="button"
+              className="results-persistence-retry-btn"
+              onClick={onRetrySave}
+            >
+              Retry Saving
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ==============================================================
           HERO COMPOSITION (Section 1, 2, 5, 6, 7, 10, 15)
