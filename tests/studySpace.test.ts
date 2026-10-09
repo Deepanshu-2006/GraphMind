@@ -8,7 +8,9 @@ import {
   formatDuration,
   computeProgressComparison,
   ensureResultsSummary,
-  pad
+  pad,
+  computeGraphLearningProgress,
+  deriveConceptsWorthRevisiting
 } from '../src/components/study/StudySpaceView';
 import {
   saveAssessmentAttempt,
@@ -882,4 +884,589 @@ describe('GRAPHMIND STUDY SPACE PROMPT 4 — HISTORICAL RESULTS & ANSWER REVIEW'
     });
   });
 });
+
+describe('GRAPHMIND STUDY SPACE PROMPT 5 — LEARNING PROGRESS ACROSS ASSESSMENT ATTEMPTS', () => {
+  const studyViewPath = path.resolve(__dirname, '../src/components/study/StudySpaceView.tsx');
+  const studyViewSrc = fs.readFileSync(studyViewPath, 'utf8');
+
+  const studyCssPath = path.resolve(__dirname, '../src/styles/studySpace.css');
+  const studyCss = fs.readFileSync(studyCssPath, 'utf8');
+
+  beforeEach(() => {
+    storageMap.clear();
+    clearAllUserData();
+    clearAssessmentHistory();
+  });
+
+  describe('1. Genuine Empty & Single Attempt States', () => {
+    it('handles zero attempts by returning null progress and rendering genuine empty state', () => {
+      const progress = computeGraphLearningProgress('any-graph', []);
+      assert.strictEqual(progress, null);
+      assert.ok(
+        studyViewSrc.includes('No assessments yet.'),
+        'Must display genuine empty state when no attempts exist'
+      );
+      assert.ok(
+        studyViewSrc.includes('Complete an assessment from your knowledge graph to build your learning history.'),
+        'Must explain completing an assessment creates history'
+      );
+    });
+
+    it('handles exactly one completed attempt without inventing a comparison', () => {
+      const singleAttempt: AssessmentAttempt = {
+        id: 'att-single-1',
+        testId: 't-1',
+        graphId: 'graph-neuro-1',
+        graphName: 'Neuroscience',
+        completedAt: '2026-10-01T10:00:00Z',
+        createdAt: '2026-10-01T09:50:00Z',
+        scorePercentage: 75,
+        correctAnswers: 3,
+        totalQuestions: 4,
+        timeSpentSeconds: 120,
+        completionReason: 'submission',
+        questions: [],
+        userAnswers: {},
+        conceptIds: [],
+        conceptNames: [],
+        sourceIds: [],
+        resultsSummary: undefined as any
+      };
+
+      const progress = computeGraphLearningProgress('graph-neuro-1', [singleAttempt]);
+      assert.ok(progress);
+      assert.strictEqual(progress.totalAttempts, 1);
+      assert.strictEqual(progress.latestScore, 75);
+      assert.strictEqual(progress.hasComparison, false);
+      assert.strictEqual(progress.previousScore, undefined);
+      assert.strictEqual(progress.chronologicalAttempts.length, 1);
+      assert.strictEqual(progress.chronologicalAttempts[0].scorePercentage, 75);
+      assert.strictEqual(progress.chronologicalAttempts[0].attemptNumber, 'Attempt 01');
+      assert.ok(
+        progress.comparisonMessage?.includes('Comparison unavailable'),
+        'Must explain that comparison is unavailable until another attempt is completed'
+      );
+    });
+  });
+
+  describe('2. Multi-Attempt Score Comparison & Progress Rules', () => {
+    it('computes improvement in percentage points across multiple attempts on same graph', () => {
+      const a1: AssessmentAttempt = {
+        id: 'att-1',
+        graphId: 'graph-ml',
+        graphName: 'Machine Learning',
+        completedAt: '2026-10-01T10:00:00Z',
+        createdAt: '2026-10-01T09:50:00Z',
+        scorePercentage: 45,
+        correctAnswers: 9,
+        totalQuestions: 20,
+        timeSpentSeconds: 400,
+        completionReason: 'submission',
+        questions: [],
+        userAnswers: {},
+        conceptIds: [],
+        conceptNames: [],
+        sourceIds: [],
+        resultsSummary: undefined as any
+      };
+      const a2: AssessmentAttempt = {
+        id: 'att-2',
+        graphId: 'graph-ml',
+        graphName: 'Machine Learning',
+        completedAt: '2026-10-03T10:00:00Z',
+        createdAt: '2026-10-03T09:50:00Z',
+        scorePercentage: 60,
+        correctAnswers: 12,
+        totalQuestions: 20,
+        timeSpentSeconds: 380,
+        completionReason: 'submission',
+        questions: [],
+        userAnswers: {},
+        conceptIds: [],
+        conceptNames: [],
+        sourceIds: [],
+        resultsSummary: undefined as any
+      };
+      const a3: AssessmentAttempt = {
+        id: 'att-3',
+        graphId: 'graph-ml',
+        graphName: 'Machine Learning',
+        completedAt: '2026-10-05T10:00:00Z',
+        createdAt: '2026-10-05T09:50:00Z',
+        scorePercentage: 80,
+        correctAnswers: 8,
+        totalQuestions: 10, // different question count (10 vs 20)
+        timeSpentSeconds: 320,
+        completionReason: 'submission',
+        questions: [],
+        userAnswers: {},
+        conceptIds: [],
+        conceptNames: [],
+        sourceIds: [],
+        resultsSummary: undefined as any
+      };
+
+      const progress = computeGraphLearningProgress('graph-ml', [a3, a1, a2]); // pass unordered
+      assert.ok(progress);
+      assert.strictEqual(progress.totalAttempts, 3);
+      assert.strictEqual(progress.latestScore, 80);
+      assert.strictEqual(progress.previousScore, 60);
+      assert.strictEqual(progress.diffPoints, 20);
+      assert.strictEqual(progress.scoreChangeFormatted, '+20 percentage points');
+      assert.strictEqual(progress.comparisonStatus, 'improved');
+      assert.strictEqual(progress.hasComparison, true);
+
+      // Verify chronological sorting (oldest to newest)
+      assert.strictEqual(progress.chronologicalAttempts[0].attemptId, 'att-1');
+      assert.strictEqual(progress.chronologicalAttempts[0].scorePercentage, 45);
+      assert.strictEqual(progress.chronologicalAttempts[1].attemptId, 'att-2');
+      assert.strictEqual(progress.chronologicalAttempts[1].scorePercentage, 60);
+      assert.strictEqual(progress.chronologicalAttempts[2].attemptId, 'att-3');
+      assert.strictEqual(progress.chronologicalAttempts[2].scorePercentage, 80);
+    });
+
+    it('computes decline in percentage points with warm warning status', () => {
+      const a1: AssessmentAttempt = {
+        id: 'att-1',
+        graphId: 'graph-os',
+        graphName: 'Operating Systems',
+        completedAt: '2026-10-01T10:00:00Z',
+        createdAt: '2026-10-01T09:50:00Z',
+        scorePercentage: 85,
+        correctAnswers: 17,
+        totalQuestions: 20,
+        timeSpentSeconds: 300,
+        completionReason: 'submission',
+        questions: [],
+        userAnswers: {},
+        conceptIds: [],
+        conceptNames: [],
+        sourceIds: [],
+        resultsSummary: undefined as any
+      };
+      const a2: AssessmentAttempt = {
+        id: 'att-2',
+        graphId: 'graph-os',
+        graphName: 'Operating Systems',
+        completedAt: '2026-10-05T10:00:00Z',
+        createdAt: '2026-10-05T09:50:00Z',
+        scorePercentage: 70,
+        correctAnswers: 7,
+        totalQuestions: 10,
+        timeSpentSeconds: 250,
+        completionReason: 'submission',
+        questions: [],
+        userAnswers: {},
+        conceptIds: [],
+        conceptNames: [],
+        sourceIds: [],
+        resultsSummary: undefined as any
+      };
+
+      const progress = computeGraphLearningProgress('graph-os', [a1, a2]);
+      assert.ok(progress);
+      assert.strictEqual(progress.diffPoints, 15);
+      assert.strictEqual(progress.scoreChangeFormatted, '−15 percentage points');
+      assert.strictEqual(progress.comparisonStatus, 'declined');
+    });
+
+    it('computes unchanged scores with neutral status', () => {
+      const a1: AssessmentAttempt = {
+        id: 'att-1',
+        graphId: 'graph-algo',
+        graphName: 'Algorithms',
+        completedAt: '2026-10-01T10:00:00Z',
+        createdAt: '2026-10-01T09:50:00Z',
+        scorePercentage: 75,
+        correctAnswers: 3,
+        totalQuestions: 4,
+        timeSpentSeconds: 100,
+        completionReason: 'submission',
+        questions: [],
+        userAnswers: {},
+        conceptIds: [],
+        conceptNames: [],
+        sourceIds: [],
+        resultsSummary: undefined as any
+      };
+      const a2: AssessmentAttempt = {
+        id: 'att-2',
+        graphId: 'graph-algo',
+        graphName: 'Algorithms',
+        completedAt: '2026-10-02T10:00:00Z',
+        createdAt: '2026-10-02T09:50:00Z',
+        scorePercentage: 75,
+        correctAnswers: 6,
+        totalQuestions: 8,
+        timeSpentSeconds: 200,
+        completionReason: 'submission',
+        questions: [],
+        userAnswers: {},
+        conceptIds: [],
+        conceptNames: [],
+        sourceIds: [],
+        resultsSummary: undefined as any
+      };
+
+      const progress = computeGraphLearningProgress('graph-algo', [a1, a2]);
+      assert.ok(progress);
+      assert.strictEqual(progress.diffPoints, 0);
+      assert.strictEqual(progress.scoreChangeFormatted, '0 percentage points');
+      assert.strictEqual(progress.comparisonStatus, 'unchanged');
+    });
+
+    it('safely handles incompatible scores without crashing', () => {
+      const a1: AssessmentAttempt = {
+        id: 'att-1',
+        graphId: 'graph-inc',
+        graphName: 'Incompatible Test',
+        completedAt: '2026-10-01T10:00:00Z',
+        createdAt: '2026-10-01T09:50:00Z',
+        scorePercentage: NaN as any,
+        correctAnswers: 0,
+        totalQuestions: 0,
+        timeSpentSeconds: 0,
+        completionReason: 'submission',
+        questions: [],
+        userAnswers: {},
+        conceptIds: [],
+        conceptNames: [],
+        sourceIds: [],
+        resultsSummary: undefined as any
+      };
+      const a2: AssessmentAttempt = {
+        id: 'att-2',
+        graphId: 'graph-inc',
+        graphName: 'Incompatible Test',
+        completedAt: '2026-10-02T10:00:00Z',
+        createdAt: '2026-10-02T09:50:00Z',
+        scorePercentage: 50,
+        correctAnswers: 1,
+        totalQuestions: 2,
+        timeSpentSeconds: 60,
+        completionReason: 'submission',
+        questions: [],
+        userAnswers: {},
+        conceptIds: [],
+        conceptNames: [],
+        sourceIds: [],
+        resultsSummary: undefined as any
+      };
+
+      const progress = computeGraphLearningProgress('graph-inc', [a1, a2]);
+      assert.ok(progress);
+      assert.strictEqual(progress.comparisonStatus, 'incompatible');
+      assert.ok(progress.comparisonMessage?.includes('incompatible'));
+    });
+  });
+
+  describe('3. Strict Graph ID Isolation (Different Graphs With Same Name)', () => {
+    it('isolates progress by stable graphId even when graph names are identical', () => {
+      const attGraph1: AssessmentAttempt = {
+        id: 'att-g1-1',
+        graphId: 'uuid-graph-1',
+        graphName: 'Linear Algebra',
+        completedAt: '2026-10-01T10:00:00Z',
+        createdAt: '2026-10-01T09:50:00Z',
+        scorePercentage: 60,
+        correctAnswers: 3,
+        totalQuestions: 5,
+        timeSpentSeconds: 150,
+        completionReason: 'submission',
+        questions: [],
+        userAnswers: {},
+        conceptIds: [],
+        conceptNames: [],
+        sourceIds: [],
+        resultsSummary: undefined as any
+      };
+      const attGraph2: AssessmentAttempt = {
+        id: 'att-g2-1',
+        graphId: 'uuid-graph-2', // distinct graph ID
+        graphName: 'Linear Algebra', // identical name!
+        completedAt: '2026-10-02T10:00:00Z',
+        createdAt: '2026-10-02T09:50:00Z',
+        scorePercentage: 90,
+        correctAnswers: 9,
+        totalQuestions: 10,
+        timeSpentSeconds: 300,
+        completionReason: 'submission',
+        questions: [],
+        userAnswers: {},
+        conceptIds: [],
+        conceptNames: [],
+        sourceIds: [],
+        resultsSummary: undefined as any
+      };
+
+      const all = [attGraph1, attGraph2];
+      const prog1 = computeGraphLearningProgress('uuid-graph-1', all);
+      const prog2 = computeGraphLearningProgress('uuid-graph-2', all);
+
+      assert.ok(prog1);
+      assert.ok(prog2);
+      assert.strictEqual(prog1.totalAttempts, 1);
+      assert.strictEqual(prog2.totalAttempts, 1);
+      assert.strictEqual(prog1.hasComparison, false);
+      assert.strictEqual(prog2.hasComparison, false);
+      assert.strictEqual(prog1.latestScore, 60);
+      assert.strictEqual(prog2.latestScore, 90);
+    });
+  });
+
+  describe('4. Concept-Level Progress & Factual Status Statements', () => {
+    it('identifies missed concepts in the latest assessment', () => {
+      const attempt: AssessmentAttempt = {
+        id: 'att-c-1',
+        graphId: 'graph-ai',
+        graphName: 'Artificial Intelligence',
+        completedAt: '2026-10-01T10:00:00Z',
+        createdAt: '2026-10-01T09:50:00Z',
+        scorePercentage: 50,
+        correctAnswers: 1,
+        totalQuestions: 2,
+        timeSpentSeconds: 120,
+        completionReason: 'submission',
+        questions: [
+          {
+            id: 'q1',
+            type: 'concept',
+            question: 'What is Backpropagation?',
+            options: [{ id: 'opt-1', text: 'Opt 1' }, { id: 'opt-2', text: 'Opt 2' }],
+            correctOptionId: 'opt-1',
+            explanation: '',
+            conceptIds: ['c-backprop'],
+            conceptNames: ['Backpropagation'],
+            sourceIds: []
+          },
+          {
+            id: 'q2',
+            type: 'concept',
+            question: 'What is Attention?',
+            options: [{ id: 'opt-1', text: 'Opt 1' }, { id: 'opt-2', text: 'Opt 2' }],
+            correctOptionId: 'opt-1',
+            explanation: '',
+            conceptIds: ['c-attention'],
+            conceptNames: ['Attention'],
+            sourceIds: []
+          }
+        ],
+        userAnswers: {
+          q1: 'opt-2', // incorrect
+          q2: 'opt-1'  // correct
+        },
+        conceptIds: ['c-backprop', 'c-attention'],
+        conceptNames: ['Backpropagation', 'Attention'],
+        sourceIds: [],
+        resultsSummary: undefined as any
+      };
+
+      const graph = {
+        ...defaultKnowledgeGraph,
+        id: 'graph-ai',
+        nodes: [{ id: 'c-backprop', name: 'Backpropagation', type: 'concept', description: '', sourceIds: [] }]
+      };
+
+      const revisited = deriveConceptsWorthRevisiting([attempt], graph);
+      assert.strictEqual(revisited.length, 1);
+      assert.strictEqual(revisited[0].conceptName, 'Backpropagation');
+      assert.strictEqual(revisited[0].statusMessage, 'Missed in the latest assessment.');
+      assert.strictEqual(revisited[0].availableInGraph, true);
+    });
+
+    it('tracks unanswered questions distinctly from incorrect answers', () => {
+      const attempt: AssessmentAttempt = {
+        id: 'att-c-unanswered',
+        graphId: 'graph-ai',
+        graphName: 'Artificial Intelligence',
+        completedAt: '2026-10-01T10:00:00Z',
+        createdAt: '2026-10-01T09:50:00Z',
+        scorePercentage: 0,
+        correctAnswers: 0,
+        totalQuestions: 1,
+        timeSpentSeconds: 60,
+        completionReason: 'time_expired',
+        questions: [
+          {
+            id: 'q-time',
+            type: 'concept',
+            question: 'What is Hebbian Learning?',
+            options: [{ id: 'opt-1', text: 'Opt 1' }, { id: 'opt-2', text: 'Opt 2' }],
+            correctOptionId: 'opt-1',
+            explanation: '',
+            conceptIds: ['c-hebb'],
+            conceptNames: ['Hebbian Learning'],
+            sourceIds: []
+          }
+        ],
+        userAnswers: {}, // unanswered
+        conceptIds: ['c-hebb'],
+        conceptNames: ['Hebbian Learning'],
+        sourceIds: [],
+        resultsSummary: undefined as any
+      };
+
+      const revisited = deriveConceptsWorthRevisiting([attempt], null);
+      assert.strictEqual(revisited.length, 1);
+      assert.strictEqual(revisited[0].conceptName, 'Hebbian Learning');
+      assert.strictEqual(revisited[0].unansweredInLatest, true);
+      assert.strictEqual(revisited[0].statusMessage, 'Unanswered in the latest assessment.');
+    });
+
+    it('reports previously missed but answered correctly in latest assessment', () => {
+      const a1: AssessmentAttempt = {
+        id: 'att-1',
+        graphId: 'graph-ai',
+        graphName: 'AI',
+        completedAt: '2026-10-01T10:00:00Z',
+        createdAt: '2026-10-01T09:50:00Z',
+        scorePercentage: 0,
+        correctAnswers: 0,
+        totalQuestions: 1,
+        timeSpentSeconds: 60,
+        completionReason: 'submission',
+        questions: [
+          {
+            id: 'q1',
+            type: 'concept',
+            question: 'Q',
+            options: [{ id: '1', text: '1' }, { id: '2', text: '2' }],
+            correctOptionId: '1',
+            explanation: '',
+            conceptIds: ['c-gradient'],
+            conceptNames: ['Gradient Descent'],
+            sourceIds: []
+          }
+        ],
+        userAnswers: { q1: '2' }, // incorrect
+        conceptIds: ['c-gradient'],
+        conceptNames: ['Gradient Descent'],
+        sourceIds: [],
+        resultsSummary: undefined as any
+      };
+
+      const a2: AssessmentAttempt = {
+        id: 'att-2',
+        graphId: 'graph-ai',
+        graphName: 'AI',
+        completedAt: '2026-10-03T10:00:00Z',
+        createdAt: '2026-10-03T09:50:00Z',
+        scorePercentage: 100,
+        correctAnswers: 1,
+        totalQuestions: 1,
+        timeSpentSeconds: 50,
+        completionReason: 'submission',
+        questions: [
+          {
+            id: 'q1-v2',
+            type: 'concept',
+            question: 'Q',
+            options: [{ id: '1', text: '1' }, { id: '2', text: '2' }],
+            correctOptionId: '1',
+            explanation: '',
+            conceptIds: ['c-gradient'],
+            conceptNames: ['Gradient Descent'],
+            sourceIds: []
+          }
+        ],
+        userAnswers: { 'q1-v2': '1' }, // correct!
+        conceptIds: ['c-gradient'],
+        conceptNames: ['Gradient Descent'],
+        sourceIds: [],
+        resultsSummary: undefined as any
+      };
+
+      const revisited = deriveConceptsWorthRevisiting([a1, a2], null);
+      assert.strictEqual(revisited.length, 1);
+      assert.strictEqual(revisited[0].conceptName, 'Gradient Descent');
+      assert.strictEqual(revisited[0].statusMessage, 'Previously missed; answered correctly in the latest assessment.');
+    });
+
+    it('gracefully handles concepts that no longer exist in the active graph', () => {
+      const attempt: AssessmentAttempt = {
+        id: 'att-del',
+        graphId: 'graph-del',
+        graphName: 'Deleted Subject',
+        completedAt: '2026-10-01T10:00:00Z',
+        createdAt: '2026-10-01T09:50:00Z',
+        scorePercentage: 0,
+        correctAnswers: 0,
+        totalQuestions: 1,
+        timeSpentSeconds: 60,
+        completionReason: 'submission',
+        questions: [
+          {
+            id: 'q-del',
+            type: 'concept',
+            question: 'Ancient Concept',
+            options: [{ id: '1', text: '1' }, { id: '2', text: '2' }],
+            correctOptionId: '1',
+            explanation: '',
+            conceptIds: ['c-deleted'],
+            conceptNames: ['Ancient Concept'],
+            sourceIds: []
+          }
+        ],
+        userAnswers: { 'q-del': '2' },
+        conceptIds: ['c-deleted'],
+        conceptNames: ['Ancient Concept'],
+        sourceIds: [],
+        resultsSummary: undefined as any
+      };
+
+      // Active graph does NOT contain 'c-deleted'
+      const graph = { ...defaultKnowledgeGraph, nodes: [] };
+      const revisited = deriveConceptsWorthRevisiting([attempt], graph);
+      assert.strictEqual(revisited.length, 1);
+      assert.strictEqual(revisited[0].availableInGraph, false);
+      assert.ok(
+        studyViewSrc.includes('Concept not in current graph'),
+        'Must render Concept not in current graph badge when node does not exist in graph'
+      );
+    });
+  });
+
+  describe('5. Study Space Editorial Architecture & Styling (Prompt 5)', () => {
+    it('integrates learning progress section between continue learning and assessment history', () => {
+      const continueIdx = studyViewSrc.indexOf('className="study-continue-section"');
+      const progressIdx = studyViewSrc.indexOf('className="study-progress-section"');
+      const historyIdx = studyViewSrc.indexOf('className="study-history-section"');
+      const revisitIdx = studyViewSrc.indexOf('className="study-revisit-section"');
+
+      assert.ok(continueIdx !== -1, 'Must have continue-learning section');
+      assert.ok(progressIdx !== -1, 'Must have progress section');
+      assert.ok(historyIdx !== -1, 'Must have history section');
+      assert.ok(revisitIdx !== -1, 'Must have concepts worth revisiting section');
+
+      assert.ok(continueIdx < progressIdx, 'Continue learning must precede learning progress');
+      assert.ok(progressIdx < historyIdx, 'Learning progress must precede assessment history');
+      assert.ok(historyIdx < revisitIdx, 'Assessment history must precede concepts worth revisiting');
+    });
+
+    it('renders chronological score history with click-to-open historical attempt interaction', () => {
+      assert.ok(
+        studyViewSrc.includes('Score history:'),
+        'Must display Score history label'
+      );
+      assert.ok(
+        studyViewSrc.includes('study-progress-chip'),
+        'Must render interactive study progress chips'
+      );
+      assert.ok(
+        studyViewSrc.includes('onClick={() => handleOpenAttempt(pt.attemptId)}'),
+        'Clicking chronological score chip must open historical attempt'
+      );
+    });
+
+    it('styles progress card, metric grid, sparkline, and chips using GraphMind tokens', () => {
+      assert.ok(studyCss.includes('.study-progress-card'), 'Must style .study-progress-card');
+      assert.ok(studyCss.includes('.study-progress-badge.improved'), 'Must style improved badge');
+      assert.ok(studyCss.includes('.study-progress-badge.declined'), 'Must style declined badge');
+      assert.ok(studyCss.includes('.study-progress-badge.unchanged'), 'Must style unchanged badge');
+      assert.ok(studyCss.includes('.study-progress-chip'), 'Must style .study-progress-chip');
+      assert.ok(studyCss.includes('.study-revisit-card'), 'Must style .study-revisit-card');
+    });
+  });
+});
+
 
