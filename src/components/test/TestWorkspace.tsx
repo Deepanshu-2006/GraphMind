@@ -335,6 +335,9 @@ export function TestWorkspace({
             <TimeUpScreen
               key="timeup"
               onViewResults={() => setMode('results')}
+              assessmentName={test?.title || graph?.name || 'ASSESSMENT'}
+              totalQuestions={test?.questions.length || 0}
+              answeredCount={Object.keys(answers).length}
             />
           )}
 
