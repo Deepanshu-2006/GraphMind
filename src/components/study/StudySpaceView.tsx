@@ -813,6 +813,20 @@ export function StudySpaceView({
     return deriveConceptsWorthRevisiting(attempts, activeGraph);
   }, [attempts, activeGraph]);
 
+  // Hovered attempt point for chart inspection
+  const [hoveredPointAttemptId, setHoveredPointAttemptId] = useState<string | null>(null);
+
+  // Show all concepts toggle for Concepts Worth Revisiting
+  const [isAllConceptsExpanded, setIsAllConceptsExpanded] = useState(false);
+
+  // Displayed concepts slice (first 5 by default if more than 5 exist)
+  const displayedConcepts = useMemo(() => {
+    if (isAllConceptsExpanded || conceptsWorthRevisiting.length <= 5) {
+      return conceptsWorthRevisiting;
+    }
+    return conceptsWorthRevisiting.slice(0, 5);
+  }, [conceptsWorthRevisiting, isAllConceptsExpanded]);
+
   // =========================================================================
   // SUB-VIEW: Historical Assessment Results, Answers Review, Missed Concepts
   // =========================================================================
@@ -987,30 +1001,41 @@ export function StudySpaceView({
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  className="study-editorial-btn study-continue-action-btn"
-                  onClick={() => handleOpenAttempt(
-                    latestAttempt.id, 
-                    missedCount > 0 ? 'review-missed' : 'historical-results'
-                  )}
-                  aria-label={
-                    missedCount > 0 
-                      ? `Review missed concepts for ${latestAttempt.graphName}` 
-                      : `Review results for ${latestAttempt.graphName}`
-                  }
-                >
-                  <span className="study-btn-content">
-                    <span>{missedCount > 0 ? 'Review missed concepts' : 'Review results'}</span>
-                    <span className="study-btn-arrow" aria-hidden="true">→</span>
-                  </span>
-                  <span className="study-btn-underline" aria-hidden="true" />
-                </button>
+                <div className="study-continue-action-wrap">
+                  <div className="study-continue-score-block">
+                    <span className="study-continue-score-counts">
+                      {pad(latestAttempt.correctAnswers)} / {pad(latestAttempt.totalQuestions)} correct
+                    </span>
+                    <span className="study-continue-score-pct">
+                      {latestAttempt.scorePercentage}%
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="study-editorial-btn study-continue-action-btn"
+                    onClick={() => handleOpenAttempt(
+                      latestAttempt.id, 
+                      missedCount > 0 ? 'review-missed' : 'historical-results'
+                    )}
+                    aria-label={
+                      missedCount > 0 
+                        ? `Review missed concepts for ${latestAttempt.graphName}` 
+                        : `Review results for ${latestAttempt.graphName}`
+                    }
+                  >
+                    <span className="study-btn-content">
+                      <span>{missedCount > 0 ? 'Review missed concepts' : 'Review results'}</span>
+                      <span className="study-btn-arrow" aria-hidden="true">→</span>
+                    </span>
+                    <span className="study-btn-underline" aria-hidden="true" />
+                  </button>
+                </div>
               </div>
             </motion.section>
           )}
 
-          {/* 3. Learning Progress Section Across Assessment Attempts (Prompt 5) */}
+          {/* 4. Learning Progress Section Across Assessment Attempts (Prompt 5) */}
           {allGraphProgress.length > 0 && (
             <motion.section 
               className="study-progress-section" 
@@ -1031,6 +1056,7 @@ export function StudySpaceView({
                 {allGraphProgress.map((prog) => {
                   const latestDate = formatAttemptDate(prog.latestAttempt.completedAt);
                   const prevDate = prog.previousAttempt ? formatAttemptDate(prog.previousAttempt.completedAt) : null;
+                  const isUnchangedOrZero = prog.comparisonStatus === 'unchanged' || (prog.hasComparison && prog.latestScore === 0 && prog.previousScore === 0);
 
                   return (
                     <div key={prog.graphId} className="study-progress-card">
@@ -1045,13 +1071,15 @@ export function StudySpaceView({
 
                         {prog.hasComparison && prog.comparisonStatus && (
                           <div 
-                            className={`study-progress-badge ${prog.comparisonStatus}`}
+                            className={`study-progress-badge ${isUnchangedOrZero ? 'unchanged' : prog.comparisonStatus}`}
                             title={prog.comparisonMessage}
                           >
                             <span className="study-progress-badge-symbol">
-                              {prog.comparisonStatus === 'improved' ? '+' : prog.comparisonStatus === 'declined' ? '−' : '·'}
+                              {prog.comparisonStatus === 'improved' && !isUnchangedOrZero ? '+' : prog.comparisonStatus === 'declined' ? '−' : '·'}
                             </span>
-                            <span>{prog.scoreChangeFormatted}</span>
+                            <span>
+                              {isUnchangedOrZero ? '0 percentage points' : prog.scoreChangeFormatted}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -1072,10 +1100,12 @@ export function StudySpaceView({
                             </div>
                             <div className="study-progress-metric">
                               <span className="study-progress-metric-label">Change</span>
-                              <span className={`study-progress-metric-val study-progress-diff-${prog.comparisonStatus}`}>
-                                {prog.scoreChangeFormatted}
+                              <span className={`study-progress-metric-val study-progress-diff-${isUnchangedOrZero ? 'unchanged' : prog.comparisonStatus}`}>
+                                {isUnchangedOrZero ? '0 percentage points' : prog.scoreChangeFormatted}
                               </span>
-                              <span className="study-progress-metric-date">Normalized percentage points</span>
+                              <span className="study-progress-metric-date">
+                                {isUnchangedOrZero ? 'Unchanged (same score as previous)' : 'Normalized percentage points'}
+                              </span>
                             </div>
                           </>
                         ) : (
@@ -1103,81 +1133,116 @@ export function StudySpaceView({
                           </span>
                         </div>
 
-                        {/* SVG Sparkline if >= 2 attempts */}
+                        {/* SVG Chart if >= 2 attempts */}
                         {prog.chronologicalAttempts.length >= 2 && (
                           <div className="study-progress-svg-wrap">
                             <svg
-                              viewBox="0 0 500 72"
+                              viewBox="0 0 540 80"
                               className="study-progress-svg"
                               preserveAspectRatio="none"
-                              aria-hidden="true"
+                              aria-label={`Score history chart for ${prog.graphName}`}
                             >
-                              <defs>
-                                <linearGradient id={`grad-${prog.graphId}`} x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="0%" stopColor="#A3FF12" stopOpacity="0.16" />
-                                  <stop offset="100%" stopColor="#A3FF12" stopOpacity="0.00" />
-                                </linearGradient>
-                              </defs>
-
-                              {/* Reference line 50% */}
+                              {/* Reference lines at 100%, 50%, 0% */}
                               <line
-                                x1="36"
-                                y1="36"
-                                x2="464"
-                                y2="36"
-                                stroke="rgba(255,255,255,0.06)"
-                                strokeDasharray="4 4"
+                                x1="38"
+                                y1="16"
+                                x2="510"
+                                y2="16"
+                                stroke="rgba(255,255,255,0.05)"
+                                strokeDasharray="3 3"
                               />
+                              <text x="30" y="19" textAnchor="end" fill="#555555" fontSize="9" fontFamily="var(--font-mono, monospace)">100%</text>
+
+                              <line
+                                x1="38"
+                                y1="40"
+                                x2="510"
+                                y2="40"
+                                stroke="rgba(255,255,255,0.04)"
+                                strokeDasharray="3 3"
+                              />
+                              <text x="30" y="43" textAnchor="end" fill="#444444" fontSize="9" fontFamily="var(--font-mono, monospace)">50%</text>
+
+                              <line
+                                x1="38"
+                                y1="64"
+                                x2="510"
+                                y2="64"
+                                stroke="rgba(255,255,255,0.05)"
+                                strokeDasharray="3 3"
+                              />
+                              <text x="30" y="67" textAnchor="end" fill="#555555" fontSize="9" fontFamily="var(--font-mono, monospace)">0%</text>
 
                               {/* Calculated polyline and area path */}
                               {(() => {
                                 const pts = prog.chronologicalAttempts;
                                 const coords = pts.map((pt, i) => {
-                                  const x = 36 + (i / (pts.length - 1)) * (500 - 72);
-                                  const y = 14 + ((100 - pt.scorePercentage) / 100) * (72 - 28);
+                                  const x = 44 + (i / (pts.length - 1)) * (510 - 44);
+                                  const y = 16 + ((100 - pt.scorePercentage) / 100) * (64 - 16);
                                   return { x, y, pt };
                                 });
 
                                 const pathD = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`).join(' ');
-                                const areaD = `${pathD} L ${coords[coords.length - 1].x.toFixed(1)} 66 L ${coords[0].x.toFixed(1)} 66 Z`;
+                                const isImproved = prog.comparisonStatus === 'improved' && !isUnchangedOrZero;
+                                const strokeColor = isImproved ? 'var(--accent, #A3FF12)' : 'rgba(255, 255, 255, 0.22)';
 
                                 return (
                                   <>
-                                    <path d={areaD} fill={`url(#grad-${prog.graphId})`} />
                                     <path
                                       d={pathD}
                                       fill="none"
-                                      stroke="var(--accent, #A3FF12)"
-                                      strokeWidth="2"
+                                      stroke={strokeColor}
+                                      strokeWidth="1.75"
                                       strokeLinecap="round"
                                       strokeLinejoin="round"
                                     />
-                                    {coords.map((c) => (
-                                      <g
-                                        key={c.pt.attemptId}
-                                        className="study-svg-point-node"
-                                        onClick={() => handleOpenAttempt(c.pt.attemptId)}
-                                      >
-                                        <circle
-                                          cx={c.x}
-                                          cy={c.y}
-                                          r="4.5"
-                                          fill="#101010"
-                                          stroke="var(--accent, #A3FF12)"
-                                          strokeWidth="2"
-                                        />
-                                        <text
-                                          x={c.x}
-                                          y={c.y - 7}
-                                          textAnchor="middle"
-                                          fill="#A1A1A1"
-                                          fontSize="10"
-                                          fontFamily="var(--font-mono, monospace)"
+                                    {coords.map((c, idx) => {
+                                      const isHovered = hoveredPointAttemptId === c.pt.attemptId;
+                                      const showLabel = pts.length <= 6 || idx === 0 || idx === pts.length - 1 || isHovered;
+
+                                      return (
+                                        <g
+                                          key={c.pt.attemptId}
+                                          className={`study-svg-point-node ${isHovered ? 'hovered' : ''}`}
+                                          tabIndex={0}
+                                          role="button"
+                                          aria-label={`${c.pt.attemptNumber}: ${c.pt.scorePercentage}% on ${c.pt.dateStr}`}
+                                          onClick={() => handleOpenAttempt(c.pt.attemptId)}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                              e.preventDefault();
+                                              handleOpenAttempt(c.pt.attemptId);
+                                            }
+                                          }}
+                                          onMouseEnter={() => setHoveredPointAttemptId(c.pt.attemptId)}
+                                          onMouseLeave={() => setHoveredPointAttemptId(null)}
+                                          onFocus={() => setHoveredPointAttemptId(c.pt.attemptId)}
+                                          onBlur={() => setHoveredPointAttemptId(null)}
                                         >
-                                          {c.pt.scorePercentage}%
-                                        </text>
-                                      </g>
-                                    ))}
+                                          <circle
+                                            cx={c.x}
+                                            cy={c.y}
+                                            r={isHovered ? 5.5 : 4}
+                                            fill="#101010"
+                                            stroke={isHovered ? 'var(--accent, #A3FF12)' : isImproved && idx === pts.length - 1 ? 'var(--accent, #A3FF12)' : 'rgba(255, 255, 255, 0.45)'}
+                                            strokeWidth={isHovered ? 2 : 1.5}
+                                          />
+                                          {showLabel && (
+                                            <text
+                                              x={c.x}
+                                              y={c.y < 28 ? c.y + 13 : c.y - 7}
+                                              textAnchor="middle"
+                                              fill={isHovered ? 'var(--text-primary, #F5F5F5)' : '#8A8A8A'}
+                                              fontSize="10"
+                                              fontWeight={isHovered ? '600' : '500'}
+                                              fontFamily="var(--font-mono, monospace)"
+                                            >
+                                              {c.pt.scorePercentage}%
+                                            </text>
+                                          )}
+                                        </g>
+                                      );
+                                    })}
                                   </>
                                 );
                               })()}
@@ -1193,8 +1258,10 @@ export function StudySpaceView({
                               <button
                                 key={pt.attemptId}
                                 type="button"
-                                className="study-progress-chip"
+                                className={`study-progress-chip ${hoveredPointAttemptId === pt.attemptId ? 'active' : ''}`}
                                 onClick={() => handleOpenAttempt(pt.attemptId)}
+                                onMouseEnter={() => setHoveredPointAttemptId(pt.attemptId)}
+                                onMouseLeave={() => setHoveredPointAttemptId(null)}
                                 aria-label={`Open historical result for ${pt.attemptNumber}: ${pt.scorePercentage}% on ${pt.dateStr}`}
                               >
                                 <span className="study-progress-chip-name">{pt.attemptNumber}</span>
@@ -1213,7 +1280,7 @@ export function StudySpaceView({
             </motion.section>
           )}
 
-          {/* 4. Assessment History Section Organized by Graph (Prompt 3) */}
+          {/* 5. Assessment History Section Organized by Graph (Prompt 3) */}
           <motion.section 
             className="study-history-section" 
             aria-label="Assessment history"
@@ -1519,7 +1586,7 @@ export function StudySpaceView({
             )}
           </motion.section>
 
-          {/* 5. Concepts Worth Revisiting Section (Prompt 5 Phase 5) */}
+          {/* 6. Concepts Worth Revisiting Section (Prompt 5 Phase 5) */}
           {conceptsWorthRevisiting.length > 0 && (
             <motion.section 
               className="study-revisit-section" 
@@ -1537,8 +1604,9 @@ export function StudySpaceView({
               </div>
 
               <div className="study-revisit-list">
-                {conceptsWorthRevisiting.map((item) => (
+                {displayedConcepts.map((item, idx) => (
                   <div key={`${item.graphId}-${item.conceptId}`} className="study-revisit-card">
+                    <span className="study-revisit-num" aria-hidden="true">{pad(idx + 1)}</span>
                     <div className="study-revisit-info">
                       <div className="study-revisit-top">
                         <h3 className="study-revisit-name">{item.conceptName}</h3>
@@ -1574,6 +1642,30 @@ export function StudySpaceView({
                   </div>
                 ))}
               </div>
+
+              {/* Show All / Show Less pagination toggle when > 5 concepts */}
+              {conceptsWorthRevisiting.length > 5 && (
+                <div className="study-concepts-toggle-wrap">
+                  <button
+                    type="button"
+                    className="study-editorial-btn study-concepts-expand-btn"
+                    onClick={() => setIsAllConceptsExpanded(prev => !prev)}
+                    aria-expanded={isAllConceptsExpanded}
+                  >
+                    <span className="study-btn-content">
+                      <span>
+                        {isAllConceptsExpanded 
+                          ? 'Show fewer concepts' 
+                          : `Show all ${conceptsWorthRevisiting.length} concepts worth revisiting`}
+                      </span>
+                      <span className="study-btn-arrow" aria-hidden="true">
+                        {isAllConceptsExpanded ? '↑' : '↓'}
+                      </span>
+                    </span>
+                    <span className="study-btn-underline" aria-hidden="true" />
+                  </button>
+                </div>
+              )}
             </motion.section>
           )}
         </>
