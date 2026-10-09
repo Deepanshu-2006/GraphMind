@@ -206,6 +206,27 @@
   transition: opacity 200ms ease;
 }
 
+/* 01 — Anticipation & Receding transition choreography */
+.test-workspace-root[data-transition-phase="anticipation"] .big-timer-digits,
+.test-workspace-root[data-transition-phase="receding"] .big-timer-digits {
+  color: #FF5A5A !important;
+  animation: none !important;
+}
+
+.test-workspace-root[data-transition-phase="anticipation"] .big-timer-label,
+.test-workspace-root[data-transition-phase="receding"] .big-timer-label {
+  opacity: 0 !important;
+  transition: opacity 300ms ease;
+}
+
+.test-workspace-root[data-transition-phase="receding"] .test-workspace-content-canvas,
+.test-workspace-root[data-transition-phase="receding"] .topbar-exit-anchor {
+  opacity: 0 !important;
+  filter: blur(4px) !important;
+  pointer-events: none !important;
+  transition: opacity 700ms cubic-bezier(0.16, 1, 0.3, 1), filter 700ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
 @keyframes timerUrgentPulse {
   0%, 100% {
     opacity: 1;
@@ -2013,19 +2034,33 @@
    - Primary Action: VIEW RESULTS → with signature reveal underline
    - Low-contrast background numeral: 00:00 watermark (0.022 opacity)
    ========================================================================== */
-.test-timeup-stage {
-  position: relative;
+/* ==========================================================================
+   TIME'S UP — DEDICATED CINEMATIC TRANSITION LAYER & EDITORIAL SCREEN
+   - Dedicated transition layer covering the main application content bounds
+   - Mathematically exact visual centering
+   - Transforming clock: clamp(72px, 10.5vw, 114px) display size
+   - Vertical clip mask reveal for TIME'S and UP.
+   - Restrained background numeral: 00:00 watermark (0.012 opacity)
+   - Supporting copy: 15.5px muted gray (#929292), max-width 420px
+   - Quiet metadata row: 11px uppercase, letter-spacing 0.12em, margin-bottom 44px
+   - Primary action: VIEW RESULTS → with signature reveal underline
+   ========================================================================== */
+.test-timeup-stage,
+.test-timeup-transition-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
   width: 100%;
-  max-width: 820px;
-  min-height: calc(100vh - 160px);
-  margin: 0 auto;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 24px;
+  background-color: var(--bg-app, #0A0A0A);
+  padding: 0;
+  margin: 0;
   box-sizing: border-box;
-  overflow: visible;
+  overflow: hidden;
   user-select: none;
 }
 
@@ -2051,19 +2086,23 @@
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 560px;
+  max-width: 600px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  text-align: center;
+  justify-content: center;
   box-sizing: border-box;
 }
 
 /* A. STATUS */
 .test-timeup-status-wrap {
+  position: absolute;
+  bottom: calc(100% + 24px);
+  left: 0;
+  right: 0;
   display: flex;
   justify-content: center;
-  margin-bottom: 24px;
+  pointer-events: none;
 }
 
 .test-timeup-status {
@@ -2087,6 +2126,62 @@
   color: #8A8A8A;
 }
 
+/* B. HERO ANCHOR: TRANSFORMING CLOCK & EMERGING HEADING */
+.test-timeup-hero-anchor {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 180px;
+  margin: 0;
+}
+
+/* Transforming clock: moves from topbar to center, enlarges, then separates and dissolves upward */
+.test-timeup-cinematic-clock {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  height: max-content;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: clamp(72px, 10.5vw, 114px);
+  font-weight: 550;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: #FF5A5A;
+  user-select: none;
+  pointer-events: none;
+  z-index: 5;
+  white-space: nowrap;
+}
+
+.test-timeup-clock-group {
+  display: inline-flex;
+  align-items: center;
+  will-change: transform, opacity;
+}
+
+.test-timeup-clock-digit {
+  display: inline-block;
+  line-height: 1;
+  text-align: center;
+  color: #FF5A5A;
+}
+
+.test-timeup-clock-sep {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #FF5A5A;
+  padding: 0 4px;
+  line-height: 1;
+  opacity: 0.85;
+}
+
 /* B. MAIN HEADING */
 .test-timeup-title {
   display: flex;
@@ -2098,22 +2193,26 @@
   line-height: 0.84;
   letter-spacing: -0.05em;
   color: #F5F5F5;
-  margin: 0 0 36px 0;
+  margin: 0;
   text-align: center;
   overflow: visible;
   user-select: none;
+  position: relative;
+  z-index: 6;
 }
 
 .test-timeup-title-line-mask {
   display: block;
   overflow: hidden;
   line-height: 0.84;
-  padding-bottom: 0.05em;
+  padding: 0.04em 0.22em 0.06em 0.22em;
 }
 
 .test-timeup-title-line {
   display: block;
   line-height: 0.84;
+  padding-right: 0.08em;
+  padding-left: 0.02em;
 }
 
 .test-timeup-period {
@@ -2121,6 +2220,18 @@
   display: inline;
   margin-left: -0.035em;
   vertical-align: baseline;
+}
+
+/* FOOTER GROUP: Positioned below the hero anchor */
+.test-timeup-footer-group {
+  position: absolute;
+  top: calc(100% + 32px);
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
 /* C. SUPPORTING MESSAGE */
@@ -2239,6 +2350,7 @@
 .test-timeup-action-btn:focus-visible .test-timeup-action-underline {
   transform: scaleX(1);
 }
+
 
 /* ==========================================================================
    TEST RESULTS VIEW
@@ -4258,11 +4370,6 @@
   }
 
   /* Time's Up Screen Tablet */
-  .test-timeup-stage {
-    min-height: calc(100vh - 120px);
-    padding: 36px 20px;
-  }
-
   .test-timeup-title {
     font-size: clamp(52px, 11vw, 76px);
     line-height: 0.92;
@@ -4286,11 +4393,6 @@
 }
 
 @media (max-width: 480px) {
-  .test-timeup-stage {
-    min-height: calc(100vh - 80px);
-    padding: 24px 16px;
-  }
-
   .test-timeup-status-wrap {
     margin-bottom: 18px;
   }
