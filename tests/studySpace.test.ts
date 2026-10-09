@@ -110,11 +110,11 @@ describe('GRAPHMIND PHASE 1, PROMPT 2 — STUDY SPACE ARCHITECTURE', () => {
       assert.ok(studyViewSrc.includes('study-header-divider'), 'Must include subtle header divider');
     });
 
-    it('uses GraphMind typography scale (~36px desktop title, no oversized hero)', () => {
+    it('uses GraphMind typography scale (editorial title matching sources page)', () => {
       assert.match(
         studyCss,
-        /\.study-title\s*\{[\s\S]*?font-size:\s*36px;/,
-        'Desktop title must be restrained ~36px'
+        /\.study-title\s*\{[\s\S]*?font-size:\s*clamp\(72px,\s*6vw,\s*104px\);/,
+        'Desktop title must match sources page typography scale'
       );
       assert.match(
         studyCss,

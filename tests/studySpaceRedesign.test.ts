@@ -49,7 +49,7 @@ describe('GRAPHMIND STUDY SPACE — COMPLETE UI/UX OVERHAUL VERIFICATION', () =>
       );
       assert.match(
         studyCss,
-        /\.study-title\s*\{[\s\S]*?font-size:\s*36px;/
+        /\.study-title\s*\{[\s\S]*?font-size:\s*clamp\(72px,\s*6vw,\s*104px\);/
       );
     });
   });
@@ -63,6 +63,21 @@ describe('GRAPHMIND STUDY SPACE — COMPLETE UI/UX OVERHAUL VERIFICATION', () =>
         'Must contain supporting subtitle'
       );
       assert.ok(studyViewSrc.includes('study-header-divider'), 'Must include hairline header divider');
+    });
+
+    it('implements masked line reveal for Study Space title without cutting descenders', () => {
+      assert.ok(studyViewSrc.includes('study-title-clip'), 'Must wrap title in clip container');
+      assert.ok(studyViewSrc.includes('study-title-line'), 'Must use animated title line span');
+      assert.match(
+        studyCss,
+        /\.study-title\s*\{[\s\S]*?line-height:\s*1\.05;/,
+        'Line height must be at least 1.05 to prevent descender clipping'
+      );
+      assert.match(
+        studyCss,
+        /\.study-title-clip\s*\{[\s\S]*?padding-bottom:\s*0\.22em;[\s\S]*?margin-bottom:\s*-0\.22em;/,
+        'Clip container must reserve bottom padding for letters with descenders (y, p)'
+      );
     });
   });
 
