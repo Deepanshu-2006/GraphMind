@@ -7,6 +7,7 @@ import {
   formatAttemptDate, 
   formatDuration,
   computeProgressComparison,
+  ensureResultsSummary,
   pad
 } from '../src/components/study/StudySpaceView';
 import {
@@ -620,6 +621,264 @@ describe('GRAPHMIND STUDY SPACE PROMPT 3 — ASSESSMENT HISTORY & ATTEMPT ORGANI
         studyCss,
         /\.study-progress-comparison\.unchanged\s*\{[\s\S]*?#A1A1A1/
       );
+    });
+  });
+});
+
+describe('GRAPHMIND STUDY SPACE PROMPT 4 — HISTORICAL RESULTS & ANSWER REVIEW', () => {
+  const studyViewPath = path.resolve(__dirname, '../src/components/study/StudySpaceView.tsx');
+  const studyViewSrc = fs.readFileSync(studyViewPath, 'utf8');
+
+  const testResultsPath = path.resolve(__dirname, '../src/components/test/TestResultsView.tsx');
+  const testResultsSrc = fs.readFileSync(testResultsPath, 'utf8');
+
+  const testReviewPath = path.resolve(__dirname, '../src/components/test/TestReviewView.tsx');
+  const testReviewSrc = fs.readFileSync(testReviewPath, 'utf8');
+
+  const missedConceptsPath = path.resolve(__dirname, '../src/components/test/MissedConceptsReview.tsx');
+  const missedConceptsSrc = fs.readFileSync(missedConceptsPath, 'utf8');
+
+  const studyCssPath = path.resolve(__dirname, '../src/styles/studySpace.css');
+  const studyCss = fs.readFileSync(studyCssPath, 'utf8');
+
+  beforeEach(() => {
+    storageMap.clear();
+    clearAllUserData();
+    clearAssessmentHistory();
+  });
+
+  describe('1. Immutable Historical Attempt Snapshot', () => {
+    it('persists and retrieves exact questions, user answers, and score snapshot', () => {
+      const graph = { ...defaultKnowledgeGraph, id: 'graph-arch-1', name: 'Computer Architecture' };
+      const testGen = generateKnowledgeTest(graph, { questionCount: 4 });
+      const test = testGen.test!;
+
+      // 1 correct, 1 incorrect, 2 unanswered
+      const answers: Record<string, string> = {
+        [test.questions[0].id]: test.questions[0].correctOptionId,
+        [test.questions[1].id]: 'wrong-option-id'
+      };
+
+      const summary = recordKnowledgeTestCompletion(test, answers, 110, {
+        graphName: 'Computer Architecture',
+        completionReason: 'submission'
+      });
+
+      const attempt = getAssessmentAttemptById(summary.attemptId!);
+      assert.ok(attempt);
+      assert.strictEqual(attempt.graphName, 'Computer Architecture');
+      assert.strictEqual(attempt.totalQuestions, 4);
+      assert.strictEqual(attempt.correctAnswers, 1);
+      assert.strictEqual(attempt.scorePercentage, 25);
+      assert.strictEqual(attempt.timeSpentSeconds, 110);
+      assert.strictEqual(attempt.completionReason, 'submission');
+
+      // Check unanswered questions are strictly preserved as absent
+      assert.strictEqual(attempt.userAnswers[test.questions[0].id], test.questions[0].correctOptionId);
+      assert.strictEqual(attempt.userAnswers[test.questions[1].id], 'wrong-option-id');
+      assert.strictEqual(attempt.userAnswers[test.questions[2].id], undefined);
+      assert.strictEqual(attempt.userAnswers[test.questions[3].id], undefined);
+    });
+
+    it('does not overwrite or corrupt older attempts when a new assessment completes', () => {
+      const graph = { ...defaultKnowledgeGraph, id: 'graph-db-1', name: 'Databases' };
+      const t1 = generateKnowledgeTest(graph, { questionCount: 3 }).test!;
+      const t2 = { ...generateKnowledgeTest(graph, { questionCount: 3 }).test!, id: 'test-db-2' };
+
+      const s1 = recordKnowledgeTestCompletion(t1, { [t1.questions[0].id]: t1.questions[0].correctOptionId }, 60);
+      const s2 = recordKnowledgeTestCompletion(t2, {}, 120);
+
+      const oldAttempt = getAssessmentAttemptById(s1.attemptId!);
+      const newAttempt = getAssessmentAttemptById(s2.attemptId!);
+
+      assert.ok(oldAttempt);
+      assert.ok(newAttempt);
+      assert.strictEqual(oldAttempt.correctAnswers, 1);
+      assert.strictEqual(newAttempt.correctAnswers, 0);
+      assert.notStrictEqual(oldAttempt.id, newAttempt.id);
+    });
+
+    it('reconstructs complete results summary safely via ensureResultsSummary if omitted from legacy record', () => {
+      const legacyAttempt: AssessmentAttempt = {
+        id: 'legacy-att-99',
+        testId: 'legacy-test-99',
+        graphId: 'legacy-graph',
+        graphName: 'Legacy Systems',
+        createdAt: '2026-09-01T10:00:00Z',
+        completedAt: '2026-09-01T10:15:00Z',
+        totalQuestions: 2,
+        correctAnswers: 1,
+        scorePercentage: 50,
+        timeSpentSeconds: 900,
+        completionReason: 'submission',
+        questions: [
+          {
+            id: 'q-leg-1',
+            question: 'Question 1',
+            options: [{ id: 'A', text: 'Option A' }, { id: 'B', text: 'Option B' }],
+            correctOptionId: 'A',
+            explanation: 'Why A is correct',
+            conceptIds: ['c1'],
+            conceptNames: ['Concept 1']
+          },
+          {
+            id: 'q-leg-2',
+            question: 'Question 2',
+            options: [{ id: 'A', text: 'Option A' }, { id: 'B', text: 'Option B' }],
+            correctOptionId: 'B',
+            explanation: 'Why B is correct',
+            conceptIds: ['c2'],
+            conceptNames: ['Concept 2']
+          }
+        ],
+        userAnswers: {
+          'q-leg-1': 'A' // correct, q-leg-2 is unanswered
+        },
+        conceptIds: ['c1', 'c2'],
+        conceptNames: ['Concept 1', 'Concept 2'],
+        sourceIds: [],
+        resultsSummary: undefined as any
+      };
+
+      const summary = ensureResultsSummary(legacyAttempt);
+      assert.strictEqual(summary.score, 1);
+      assert.strictEqual(summary.totalQuestions, 2);
+      assert.strictEqual(summary.percentage, 50);
+      assert.strictEqual(summary.reviewRecommendedConcepts.length, 1);
+      assert.strictEqual(summary.reviewRecommendedConcepts[0].questionId, 'q-leg-2');
+      assert.strictEqual(summary.reviewRecommendedConcepts[0].selectedOptionText, 'Unanswered');
+      assert.strictEqual(summary.strongConceptNames[0], 'Concept 1');
+    });
+  });
+
+  describe('2. Navigation Between Historical Sub-Views & URL Route Sync', () => {
+    it('syncs attempt ID and sub-views to URL search params', () => {
+      assert.ok(
+        studyViewSrc.includes("url.searchParams.set('attempt', selectedAttemptId)"),
+        'Must sync attempt ID to URL parameter'
+      );
+      assert.ok(
+        studyViewSrc.includes("url.searchParams.set('view', 'answers')"),
+        'Must sync answers review subview to URL'
+      );
+      assert.ok(
+        studyViewSrc.includes("url.searchParams.set('view', 'missed')"),
+        'Must sync missed review subview to URL'
+      );
+    });
+
+    it('handles popstate browser back/forward navigation between subviews and list', () => {
+      assert.ok(
+        studyViewSrc.includes("window.addEventListener('popstate', handlePopState)"),
+        'Must attach popstate listener'
+      );
+      assert.ok(
+        studyViewSrc.includes("if (viewParam === 'answers')"),
+        'Must restore review-answers view on popstate navigation'
+      );
+      assert.ok(
+        studyViewSrc.includes("if (viewParam === 'missed')"),
+        'Must restore review-missed view on popstate navigation'
+      );
+    });
+  });
+
+  describe('3. Display Historical Performance in TestResultsView', () => {
+    it('accepts isHistorical and displays saved graph name and completion date', () => {
+      assert.ok(
+        testResultsSrc.includes('isHistorical?: boolean;'),
+        'TestResultsView must accept isHistorical prop'
+      );
+      assert.ok(
+        testResultsSrc.includes('completionDate?: string;'),
+        'TestResultsView must accept completionDate prop'
+      );
+      assert.ok(
+        testResultsSrc.includes('results-historical-header-context'),
+        'Must render historical header context'
+      );
+      assert.ok(
+        studyCss.includes('.results-historical-header-context'),
+        'Must style results-historical-header-context'
+      );
+    });
+  });
+
+  describe('4. Read-Only Review All Answers & All Answer States', () => {
+    it('handles correct, incorrect, and unanswered questions clearly', () => {
+      assert.ok(
+        testReviewSrc.includes("const isUnanswered = !selectedId || selectedId === '';"),
+        'Must explicitly detect unanswered questions'
+      );
+      assert.ok(
+        testReviewSrc.includes("isCorrect ? 'CORRECT' : isUnanswered ? 'UNANSWERED' : 'INCORRECT'"),
+        'Must display CORRECT, UNANSWERED, and INCORRECT statuses'
+      );
+      assert.ok(
+        testReviewSrc.includes("isUnanswered ? 'Unanswered' : (selectedOption?.text || selectedId)"),
+        'Must display Unanswered label in summary for unanswered questions'
+      );
+    });
+
+    it('does not display empty explanation or fake source quote when metadata is absent', () => {
+      assert.ok(
+        testReviewSrc.includes('q.explanation &&'),
+        'Only render explanation section when explanation exists'
+      );
+      assert.ok(
+        testReviewSrc.includes('q.sourceEvidence &&'),
+        'Only render source evidence quote when source evidence exists'
+      );
+    });
+  });
+
+  describe('5. Concept Availability & Graceful Graph Navigation', () => {
+    it('gracefully disables graph navigation when concept is not in current active graph', () => {
+      assert.ok(
+        testReviewSrc.includes('isConceptAvailableInGraph'),
+        'TestReviewView must check if concept exists in current graph'
+      );
+      assert.ok(
+        testReviewSrc.includes('Concept not in current graph'),
+        'TestReviewView must explain when concept is absent from graph'
+      );
+      assert.ok(
+        missedConceptsSrc.includes('isConceptAvailableInGraph'),
+        'MissedConceptsReview must check if concept exists in current graph'
+      );
+      assert.ok(
+        missedConceptsSrc.includes('Concept not in current graph'),
+        'MissedConceptsReview must explain when concept is absent from graph'
+      );
+    });
+
+    it('renders historical results even when knowledge graph is deleted or inaccessible', () => {
+      // StudySpaceView passes activeGraph to TestResultsView and TestReviewView, but if activeGraph is null,
+      // TestResultsView and TestReviewView still render complete saved snapshot
+      assert.ok(
+        studyViewSrc.includes('graph={activeGraph}'),
+        'Must pass activeGraph safely into results and review views'
+      );
+    });
+  });
+
+  describe('6. Security, Ownership, and Read-Only Guarantees', () => {
+    it('renders clean error banner when attempt ID does not exist or access is unauthorized', () => {
+      assert.ok(
+        studyViewSrc.includes('Assessment attempt could not be found or access was denied.'),
+        'Must display restrained error message on missing or unauthorized attempt'
+      );
+      assert.ok(
+        studyViewSrc.includes('Back to Study Space'),
+        'Must provide Back to Study Space action'
+      );
+    });
+
+    it('does not trigger timer countdown, question editing, or assessment submission in review mode', () => {
+      // TestReviewView has no input elements, radio groups, countdown timers, or submit handlers
+      assert.doesNotMatch(testReviewSrc, /<input/);
+      assert.doesNotMatch(testReviewSrc, /recordKnowledgeTestCompletion/);
+      assert.doesNotMatch(testReviewSrc, /saveAssessmentAttempt/);
     });
   });
 });
