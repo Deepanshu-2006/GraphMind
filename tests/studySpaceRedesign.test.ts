@@ -80,8 +80,39 @@ describe('GRAPHMIND STUDY SPACE — COMPLETE UI/UX OVERHAUL VERIFICATION', () =>
     it('styles Continue Learning score block with large tabular numeral and subtle counts', () => {
       assert.match(
         studyCss,
-        /\.study-continue-score-pct\s*\{[\s\S]*?font-size:\s*28px;[\s\S]*?font-weight:\s*600;/
+        /\.study-continue-score-pct\s*\{[\s\S]*?font-size:\s*34px;[\s\S]*?font-weight:\s*600;/
       );
+    });
+
+    it('implements a mathematically precise circular progress visualization', () => {
+      assert.ok(studyViewSrc.includes('viewBox="0 0 116 116"'), 'Must specify 116x116 viewBox');
+      assert.ok(studyViewSrc.includes('role="progressbar"'), 'Must have accessible progressbar role');
+      assert.ok(studyViewSrc.includes('className="study-continue-circle-track"'), 'Must include track circle');
+      assert.ok(studyViewSrc.includes('className="study-continue-circle-arc"'), 'Must include progress arc circle');
+      assert.ok(studyViewSrc.includes('transform="rotate(-90 58 58)"'), 'Must rotate starting point to 12 o\'clock');
+      assert.ok(studyViewSrc.includes('CIRCLE_RADIUS = 46'), 'Must define radius 46');
+      assert.ok(studyViewSrc.includes('CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS'), 'Must calculate 2*PI*r circumference');
+    });
+
+    it('clamps scores to 0-100 range and handles 0% and 100% states cleanly', () => {
+      assert.ok(
+        studyViewSrc.includes('Math.max(0, Math.min(100, Math.round(raw)))'),
+        'Must clamp score to 0..100 integer range'
+      );
+      assert.ok(
+        studyViewSrc.includes('strokeDashoffset: CIRCLE_CIRCUMFERENCE * (1 - clampedScore / 100)'),
+        'Must calculate stroke offset using standard circle percentage formula'
+      );
+      assert.ok(
+        studyViewSrc.includes('opacity: clampedScore === 0 ? 0 : 1'),
+        'Must hide stroke at 0% so no artificial green dot remains visible'
+      );
+    });
+
+    it('choreographs synchronized counter and arc animation with viewport awareness', () => {
+      assert.ok(studyViewSrc.includes('useInView(continueSectionRef'), 'Must use viewport observer ref');
+      assert.ok(studyViewSrc.includes('animate(0, clampedScore'), 'Must count up from 0 to clampedScore in sync');
+      assert.ok(studyViewSrc.includes('shouldReduceMotion'), 'Must respect user reduced motion preference');
     });
   });
 

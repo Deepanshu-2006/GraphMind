@@ -81,13 +81,15 @@
   background-color: var(--bg-surface, #101010);
   border: 1px solid var(--border-default, #242424);
   border-radius: var(--radius-panel, 8px);
-  padding: 24px 28px;
+  padding: 28px 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 32px;
-  transition: border-color var(--transition-normal, 200ms ease),
-              background-color var(--transition-normal, 200ms ease);
+  gap: 36px;
+  min-height: 172px;
+  box-sizing: border-box;
+  transition: border-color var(--transition-normal, 180ms ease),
+              background-color var(--transition-normal, 180ms ease);
 }
 
 .study-continue-box:hover {
@@ -98,30 +100,74 @@
 .study-continue-info {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
   flex: 1;
 }
 
 .study-continue-kicker {
   font-family: var(--font-mono, monospace);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #707070;
+  line-height: 1;
 }
 
 .study-continue-title {
   font-family: var(--font-display, var(--font-body, sans-serif));
-  font-size: 22px;
+  font-size: 32px;
   font-weight: 600;
-  letter-spacing: -0.015em;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
   color: var(--text-primary, #F5F5F5);
   margin: 0;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  max-width: 640px;
+}
+
+.study-continue-context-line {
+  font-family: var(--font-body, sans-serif);
+  font-size: 13px;
+  color: var(--text-secondary, #A1A1A1);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.study-continue-summary-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.study-continue-ratio-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.study-continue-ratio-num {
+  font-family: var(--font-mono, monospace);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-primary, #F5F5F5);
+  line-height: 1;
+}
+
+.study-continue-ratio-lbl {
+  font-family: var(--font-body, sans-serif);
+  font-size: 13px;
+  color: #707070;
+  font-weight: 400;
+  line-height: 1;
 }
 
 .study-continue-meta {
@@ -132,7 +178,6 @@
   font-family: var(--font-body, sans-serif);
   font-size: 13px;
   color: var(--text-secondary, #A1A1A1);
-  margin-top: 3px;
 }
 
 .study-meta-dot {
@@ -153,39 +198,110 @@
   font-weight: 500;
 }
 
-/* Split right action and score presentation */
+/* Right Performance Column */
 .study-continue-action-wrap {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 28px;
+  justify-content: center;
+  gap: 14px;
   flex-shrink: 0;
 }
 
 .study-continue-score-block {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
+  align-items: center;
+  justify-content: center;
 }
 
-.study-continue-score-counts {
-  font-family: var(--font-mono, monospace);
-  font-size: 11px;
-  color: #707070;
-  letter-spacing: 0.04em;
+.study-continue-circle-wrap {
+  position: relative;
+  width: 116px;
+  height: 116px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.study-continue-circle-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 116px;
+  height: 116px;
+  overflow: visible;
+  display: block;
+}
+
+.study-continue-circle-track {
+  stroke: rgba(255, 255, 255, 0.07);
+  stroke-width: 5px;
+  fill: none;
+}
+
+.study-continue-circle-arc {
+  stroke: var(--accent, #A3FF12);
+  stroke-width: 5px;
+  fill: none;
+  stroke-linecap: round;
+  transition: opacity 160ms ease;
+}
+
+.study-continue-circle-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  z-index: 1;
+  pointer-events: none;
+  text-align: center;
 }
 
 .study-continue-score-pct {
   font-family: var(--font-display, var(--font-body, sans-serif));
-  font-size: 28px;
+  font-size: 34px;
   font-weight: 600;
   line-height: 1;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   color: var(--text-primary, #F5F5F5);
+  font-variant-numeric: tabular-nums;
+}
+
+.study-continue-circle-lbl {
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #707070;
+  line-height: 1;
+}
+
+.study-continue-action-row {
+  display: flex;
+  justify-content: center;
 }
 
 .study-continue-action-btn {
-  padding: 8px 0;
+  font-family: var(--font-body, sans-serif);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 4px 0;
+}
+
+.study-continue-action-btn:hover .study-btn-content span:first-child {
+  color: #FFFFFF;
+}
+
+.study-continue-action-btn:focus-visible {
+  outline: 2px solid var(--accent, #A3FF12);
+  outline-offset: 4px;
+  border-radius: 2px;
 }
 
 /* Editorial Button with Animated Signature Underline */
@@ -1346,19 +1462,26 @@
   .study-continue-box {
     flex-direction: column;
     align-items: flex-start;
-    gap: 20px;
-    padding: 20px 22px;
+    gap: 24px;
+    padding: 24px 24px;
+  }
+
+  .study-continue-title {
+    font-size: 26px;
+    max-width: 100%;
   }
 
   .study-continue-action-wrap {
     width: 100%;
+    flex-direction: row;
     justify-content: space-between;
-    padding-top: 14px;
+    align-items: center;
+    padding-top: 18px;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
   }
 
-  .study-continue-score-block {
-    align-items: flex-start;
+  .study-continue-action-row {
+    justify-content: flex-end;
   }
 
   .study-metrics-grid {
@@ -1397,6 +1520,31 @@
 @media (max-width: 640px) {
   .study-space-container {
     padding: 28px 16px 64px 16px;
+  }
+
+  .study-continue-box {
+    padding: 20px 18px;
+    gap: 20px;
+  }
+
+  .study-continue-title {
+    font-size: 24px;
+  }
+
+  .study-continue-action-wrap {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .study-continue-action-row {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .study-continue-action-btn {
+    min-height: 44px;
+    justify-content: center;
   }
 
   .study-title {
@@ -1491,6 +1639,8 @@
   .study-btn-underline,
   .study-row,
   .study-continue-box,
+  .study-continue-circle-arc,
+  .study-continue-circle-track,
   .study-progress-card,
   .study-revisit-card,
   .study-historical-results-wrap,
