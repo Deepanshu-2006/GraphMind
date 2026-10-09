@@ -36,7 +36,7 @@ type TestWorkspaceMode =
   | 'review-answers'
   | 'review-missed';
 
-export type TimeTransitionPhase = 'idle' | 'receding' | 'centering' | 'hold' | 'dissolve' | 'done';
+export type TimeTransitionPhase = 'idle' | 'anticipation' | 'receding' | 'centering' | 'hold' | 'dissolve' | 'done';
 
 export function TestWorkspace({
   graph,
@@ -70,7 +70,7 @@ export function TestWorkspace({
 
   // Cinematic timer-transition state & coordinate tracking
   const [timeTransitionPhase, setTimeTransitionPhase] = useState<TimeTransitionPhase>('idle');
-  const [timerTargetDelta, setTimerTargetDelta] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [timerStartOffset, setTimerStartOffset] = useState<{ x: number; y: number }>({ x: -280, y: -220 });
   const timerAnchorRef = useRef<HTMLDivElement>(null);
   const hasSubmittedRef = useRef(false);
   const isTransitionTriggeredRef = useRef(false);
@@ -106,7 +106,7 @@ export function TestWorkspace({
     window.scrollTo(0, 0);
   }, [mode]);
 
-  // Handle Time Expired with Cinematic Timer Transition
+  // Handle Time Expired with Mathematical Centering & Unified Cinematic Transition
   const handleTimeExpired = useCallback(() => {
     if (!test || hasSubmittedRef.current || isTransitionTriggeredRef.current) return;
     hasSubmittedRef.current = true;
@@ -122,51 +122,53 @@ export function TestWorkspace({
     setResultsSummary(summary);
     onPracticeStatesUpdated?.();
 
-    // If user prefers reduced motion, skip cinematic motion
+    // If reduced motion is requested, bypass large motion and start directly at center
     if (shouldReduceMotion) {
+      setTimerStartOffset({ x: 0, y: 0 });
       setTimeTransitionPhase('done');
       setMode('timeup');
       return;
     }
 
-    // Measure exact anchor center vs viewport center
-    const rect = timerAnchorRef.current?.getBoundingClientRect();
-    if (rect) {
-      const currentCenterX = rect.left + rect.width / 2;
-      const currentCenterY = rect.top + rect.height / 2;
-      const targetCenterX = window.innerWidth / 2;
-      const targetCenterY = window.innerHeight * 0.44;
-      setTimerTargetDelta({
-        x: targetCenterX - currentCenterX,
-        y: targetCenterY - currentCenterY
-      });
-    }
+    // 01 — CREATE ANTICIPATION (0.0s – 0.5s):
+    // Hold existing timer in original topbar position, settle digits into stable 00:00
+    setTimeTransitionPhase('anticipation');
 
-    // PHASE 1 / 2A: 0ms: Interface recedes into darkness
-    setTimeTransitionPhase('receding');
+    // 01b — RECEDING INTERFACE (0.5s – 1.2s):
+    // Gradually reduce the prominence of the surrounding assessment interface
+    const tReceding = setTimeout(() => {
+      setTimeTransitionPhase('receding');
+    }, 500);
+    transitionTimeoutsRef.current.push(tReceding);
 
-    // PHASE 2B: 200ms: Timer expands and moves toward visual center
-    const t1 = setTimeout(() => {
-      setTimeTransitionPhase('centering');
-    }, 200);
+    // 02 — MAKE THE CLOCK THE HERO (1.2s):
+    // Measure actual DOM bounds and mount TimeUpScreen with calculated offset
+    const tHero = setTimeout(() => {
+      let initialOffset = { x: -280, y: -220 };
+      if (workspaceRootRef.current && timerAnchorRef.current) {
+        workspaceRootRef.current.scrollTop = 0;
+        const rootRect = workspaceRootRef.current.getBoundingClientRect();
+        const timerRect = timerAnchorRef.current.getBoundingClientRect();
 
-    // PHASE 2C: 900ms: Holds at center, introducing restrained lime-green accent
-    const t2 = setTimeout(() => {
-      setTimeTransitionPhase('hold');
-    }, 900);
+        // Mathematically exact center of the main content area (excluding sidebar and topbar)
+        const contentCenterX = rootRect.width / 2;
+        const contentCenterY = rootRect.height / 2;
 
-    // PHASE 2D: 1100ms: Clock begins to dissolve (fade out + subtle upward drift)
-    const t3 = setTimeout(() => {
-      setTimeTransitionPhase('dissolve');
-    }, 1100);
+        // Center of topbar timer in main content area coordinates
+        const timerCenterX = (timerRect.left + timerRect.width / 2) - rootRect.left;
+        const timerCenterY = (timerRect.top + timerRect.height / 2) - rootRect.top;
 
-    // PHASE 3: 1450ms: Switch to TimeUpScreen for Phase 3 reveals
-    const t4 = setTimeout(() => {
+        initialOffset = {
+          x: timerCenterX - contentCenterX,
+          y: timerCenterY - contentCenterY
+        };
+      }
+
+      setTimerStartOffset(initialOffset);
       setTimeTransitionPhase('done');
       setMode('timeup');
-    }, 1450);
-
-    transitionTimeoutsRef.current = [t1, t2, t3, t4];
+    }, 1200);
+    transitionTimeoutsRef.current.push(tHero);
   }, [test, answers, onPracticeStatesUpdated, shouldReduceMotion]);
 
   // Timer Tick & Wall-Clock Synchronization (remains accurate across background tab throttling)
@@ -212,7 +214,7 @@ export function TestWorkspace({
     hasSubmittedRef.current = false;
     isTransitionTriggeredRef.current = false;
     setTimeTransitionPhase('idle');
-    setTimerTargetDelta({ x: 0, y: 0 });
+    setTimerStartOffset({ x: -280, y: -220 });
     clearTransitionTimeouts();
     setIsTimerActive(true);
     setMode('testing');
@@ -343,6 +345,7 @@ export function TestWorkspace({
     <motion.div
       ref={workspaceRootRef}
       className="test-workspace-root"
+      data-transition-phase={timeTransitionPhase}
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.98 }}
@@ -351,8 +354,7 @@ export function TestWorkspace({
       aria-label="GraphMind Dedicated Test Workspace"
     >
       {/* Top persistent control bar for testing mode — emerges from top (Section 21) */}
-      {/* Top persistent control bar for testing mode & transition */}
-      {((mode === 'testing' && timeTransitionPhase !== 'done') || (timeTransitionPhase !== 'idle' && timeTransitionPhase !== 'done')) && test && (
+      {mode === 'testing' && test && (
         <motion.div
           className="test-workspace-topbar"
           initial={{ opacity: 0, y: -14 }}
@@ -360,67 +362,16 @@ export function TestWorkspace({
           exit={{ opacity: 0, y: -14 }}
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
         >
-          <motion.div
-            ref={timerAnchorRef}
-            className={`topbar-timer-anchor ${
-              timeTransitionPhase !== 'idle' ? 'is-transitioning-timer' : ''
-            }`}
-            animate={
-              timeTransitionPhase === 'centering' || timeTransitionPhase === 'hold'
-                ? {
-                    x: timerTargetDelta.x,
-                    y: timerTargetDelta.y,
-                    scale: typeof window !== 'undefined' && window.innerWidth < 600 ? 1.8 : 2.2,
-                    opacity: 1
-                  }
-                : timeTransitionPhase === 'dissolve'
-                ? {
-                    x: timerTargetDelta.x,
-                    y: timerTargetDelta.y - 18,
-                    scale: typeof window !== 'undefined' && window.innerWidth < 600 ? 1.8 : 2.2,
-                    opacity: 0
-                  }
-                : {
-                    x: 0,
-                    y: 0,
-                    scale: 1,
-                    opacity: 1
-                  }
-            }
-            transition={
-              timeTransitionPhase === 'centering'
-                ? {
-                    duration: 0.7,
-                    ease: [0.16, 1, 0.3, 1]
-                  }
-                : timeTransitionPhase === 'hold'
-                ? {
-                    duration: 0.2
-                  }
-                : timeTransitionPhase === 'dissolve'
-                ? {
-                    duration: 0.35,
-                    ease: [0.16, 1, 0.3, 1]
-                  }
-                : {
-                    duration: 0.2
-                  }
-            }
-          >
+          <div ref={timerAnchorRef} className="topbar-timer-anchor">
             <BigTimer
               remainingSeconds={remainingSeconds}
               totalSeconds={test.timeLimitSeconds}
               isPaused={!isTimerActive}
-              isTransitionAccent={timeTransitionPhase === 'hold' || timeTransitionPhase === 'dissolve'}
-              isTransitioning={timeTransitionPhase !== 'idle'}
+              isTransitioning={timeTransitionPhase === 'anticipation' || timeTransitionPhase === 'receding'}
             />
-          </motion.div>
+          </div>
 
-          <div
-            className={`topbar-exit-anchor ${
-              timeTransitionPhase !== 'idle' ? 'is-transition-receding' : ''
-            }`}
-          >
+          <div className="topbar-exit-anchor">
             <button
               type="button"
               className="test-exit-action-btn"
@@ -435,96 +386,94 @@ export function TestWorkspace({
       )}
 
       {/* Main Mode View */}
-      <div
-        className={`test-workspace-content-canvas ${
-          timeTransitionPhase !== 'idle' && mode === 'testing'
-            ? 'is-transition-receding'
-            : ''
-        }`}
-      >
-        <AnimatePresence mode="wait">
-          {mode === 'intro' && (
-            <TestIntroScreen
-              key="intro"
-              test={test}
-              conceptsCovered={conceptsCovered}
-              isInsufficientMaterial={isInsufficientMaterial}
-              onStartTest={handleStartTest}
-              onExitTest={onClose}
-            />
-          )}
+      {mode !== 'timeup' && (
+        <div className="test-workspace-content-canvas">
+          <AnimatePresence mode="wait">
+            {mode === 'intro' && (
+              <TestIntroScreen
+                key="intro"
+                test={test}
+                conceptsCovered={conceptsCovered}
+                isInsufficientMaterial={isInsufficientMaterial}
+                onStartTest={handleStartTest}
+                onExitTest={onClose}
+              />
+            )}
 
-          {mode === 'testing' && test && currentQuestion && (
-            <TestQuestionView
-              key="active-test-question-workspace"
-              question={currentQuestion}
-              currentIndex={currentIndex}
-              totalQuestions={test.questions.length}
-              selectedOptionId={answers[currentQuestion.id]}
-              isFlagged={flaggedIds.has(currentQuestion.id)}
-              onSelectOption={handleSelectOption}
-              onToggleFlag={handleToggleFlag}
-              onPrev={handlePrevQuestion}
-              onNext={handleNextQuestion}
-              onSubmit={() => setIsSubmitModalOpen(true)}
-              isFirst={currentIndex === 0}
-              isLast={currentIndex === test.questions.length - 1}
-              onToggleNavigator={() => setIsNavigatorOpen(prev => !prev)}
-            />
-          )}
+            {mode === 'testing' && test && currentQuestion && (
+              <TestQuestionView
+                key="active-test-question-workspace"
+                question={currentQuestion}
+                currentIndex={currentIndex}
+                totalQuestions={test.questions.length}
+                selectedOptionId={answers[currentQuestion.id]}
+                isFlagged={flaggedIds.has(currentQuestion.id)}
+                onSelectOption={handleSelectOption}
+                onToggleFlag={handleToggleFlag}
+                onPrev={handlePrevQuestion}
+                onNext={handleNextQuestion}
+                onSubmit={() => setIsSubmitModalOpen(true)}
+                isFirst={currentIndex === 0}
+                isLast={currentIndex === test.questions.length - 1}
+                onToggleNavigator={() => setIsNavigatorOpen(prev => !prev)}
+              />
+            )}
 
-          {mode === 'timeup' && (
-            <TimeUpScreen
-              key="timeup"
-              onViewResults={() => setMode('results')}
-              assessmentName={test?.title || graph?.name || 'ASSESSMENT'}
-              totalQuestions={test?.questions.length || 0}
-              answeredCount={Object.keys(answers).length}
-            />
-          )}
+            {mode === 'results' && resultsSummary && (
+              <TestResultsView
+                key="results"
+                results={resultsSummary}
+                test={test}
+                graph={graph}
+                onReviewAnswers={() => setMode('review-answers')}
+                onReviewMissedConcepts={() => setMode('review-missed')}
+                onBackToGraph={onClose}
+                onSelectConceptToReview={(conceptId) => {
+                  onClose();
+                  onFocusConceptInGraph?.(conceptId);
+                }}
+              />
+            )}
 
-          {mode === 'results' && resultsSummary && (
-            <TestResultsView
-              key="results"
-              results={resultsSummary}
-              test={test}
-              graph={graph}
-              onReviewAnswers={() => setMode('review-answers')}
-              onReviewMissedConcepts={() => setMode('review-missed')}
-              onBackToGraph={onClose}
-              onSelectConceptToReview={(conceptId) => {
-                onClose();
-                onFocusConceptInGraph?.(conceptId);
-              }}
-            />
-          )}
+            {mode === 'review-answers' && test && (
+              <TestReviewView
+                key="review-answers"
+                test={test}
+                userAnswers={answers}
+                onBackToResults={() => setMode('results')}
+                onSelectConceptToReview={(conceptId) => {
+                  onClose();
+                  onFocusConceptInGraph?.(conceptId);
+                }}
+              />
+            )}
 
-          {mode === 'review-answers' && test && (
-            <TestReviewView
-              key="review-answers"
-              test={test}
-              userAnswers={answers}
-              onBackToResults={() => setMode('results')}
-              onSelectConceptToReview={(conceptId) => {
-                onClose();
-                onFocusConceptInGraph?.(conceptId);
-              }}
-            />
-          )}
+            {mode === 'review-missed' && resultsSummary && (
+              <MissedConceptsReview
+                key="review-missed"
+                missedConcepts={resultsSummary.reviewRecommendedConcepts}
+                onBackToResults={() => setMode('results')}
+                onReviewConceptInGraph={(conceptId) => {
+                  onClose();
+                  onFocusConceptInGraph?.(conceptId);
+                }}
+              />
+            )}
+          </AnimatePresence>
+        </div>
+      )}
 
-          {mode === 'review-missed' && resultsSummary && (
-            <MissedConceptsReview
-              key="review-missed"
-              missedConcepts={resultsSummary.reviewRecommendedConcepts}
-              onBackToResults={() => setMode('results')}
-              onReviewConceptInGraph={(conceptId) => {
-                onClose();
-                onFocusConceptInGraph?.(conceptId);
-              }}
-            />
-          )}
-        </AnimatePresence>
-      </div>
+      {/* Dedicated Transition Layer & TIME'S UP Experience */}
+      {mode === 'timeup' && (
+        <TimeUpScreen
+          key="timeup"
+          onViewResults={() => setMode('results')}
+          assessmentName={test?.title || graph?.name || 'ASSESSMENT'}
+          totalQuestions={test?.questions.length || 0}
+          answeredCount={Object.keys(answers).length}
+          initialTimerOffset={timerStartOffset}
+        />
+      )}
 
       {/* Question Navigator Popover */}
       {mode === 'testing' && test && (

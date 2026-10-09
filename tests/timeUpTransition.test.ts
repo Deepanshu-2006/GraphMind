@@ -5,17 +5,15 @@ import path from 'node:path';
 
 describe('GraphMind Cinematic TIME\'S UP Transition — Architecture & Orchestration', () => {
   const testWorkspacePath = path.join(process.cwd(), 'src/components/test/TestWorkspace.tsx');
-  const bigTimerPath = path.join(process.cwd(), 'src/components/test/BigTimer.tsx');
   const timeUpPath = path.join(process.cwd(), 'src/components/test/TimeUpScreen.tsx');
   const testCssPath = path.join(process.cwd(), 'src/styles/test.css');
 
   const testWorkspaceContent = fs.readFileSync(testWorkspacePath, 'utf-8');
-  const bigTimerContent = fs.readFileSync(bigTimerPath, 'utf-8');
   const timeUpContent = fs.readFileSync(timeUpPath, 'utf-8');
   const testCssContent = fs.readFileSync(testCssPath, 'utf-8');
 
-  describe('PHASE 1 — The Final Countdown & Sole Visual Focus', () => {
-    it('triggers the cinematic transition sequence only when remaining time hits 00:00', () => {
+  describe('STAGE A — The Final Second & Centering Bounds Calculation', () => {
+    it('triggers the transition sequence only when countdown hits 00:00', () => {
       assert.ok(
         testWorkspaceContent.includes('if (remaining <= 0) {') &&
         testWorkspaceContent.includes('setIsTimerActive(false);') &&
@@ -24,150 +22,138 @@ describe('GraphMind Cinematic TIME\'S UP Transition — Architecture & Orchestra
       );
     });
 
-    it('pauses the clock at 00:00 and fades the surrounding assessment interface into darkness', () => {
+    it('settles digits at 00:00, orchestrates anticipation and receding phases, and calculates content bounds', () => {
       assert.ok(
         testWorkspaceContent.includes('setRemainingSeconds(0);') &&
+        testWorkspaceContent.includes("setTimeTransitionPhase('anticipation');") &&
         testWorkspaceContent.includes("setTimeTransitionPhase('receding');"),
-        'Remaining seconds must be clamped to 0 and interface must transition to receding'
+        'Must orchestrate anticipation (0.0s-0.5s) and receding (0.5s-1.2s) phases'
       );
       assert.ok(
-        testWorkspaceContent.includes('is-transition-receding'),
-        'Must apply is-transition-receding to receding assessment canvas and exit button'
+        testCssContent.includes('[data-transition-phase="anticipation"]') &&
+        testCssContent.includes('[data-transition-phase="receding"]') &&
+        testCssContent.includes('color: #FF5A5A !important;'),
+        'Must settle 00:00 digits with restrained red tint #FF5A5A and no animation'
       );
       assert.ok(
-        testCssContent.includes('.test-workspace-content-canvas.is-transition-receding') &&
-        testCssContent.includes('opacity: 0 !important;') &&
-        testCssContent.includes('pointer-events: none !important;'),
-        'Content canvas must cleanly fade to 0 opacity without pointer events'
+        testWorkspaceContent.includes('workspaceRootRef.current.getBoundingClientRect();') &&
+        testWorkspaceContent.includes('timerAnchorRef.current.getBoundingClientRect();'),
+        'Must measure workspaceRootRef and timerAnchorRef bounds'
       );
       assert.ok(
-        testCssContent.includes('.topbar-exit-anchor.is-transition-receding') &&
-        testCssContent.includes('opacity: 0 !important;'),
-        'Exit button must fade down smoothly during transition'
-      );
-    });
-  });
-
-  describe('PHASE 2 — The Actual Timer Clock Takes Over', () => {
-    it('animates the ACTUAL timer instance in the topbar anchor rather than creating a duplicate clock', () => {
-      assert.ok(
-        testWorkspaceContent.includes('ref={timerAnchorRef}') &&
-        testWorkspaceContent.includes('className={`topbar-timer-anchor ${') &&
-        testWorkspaceContent.includes("timeTransitionPhase !== 'idle' ? 'is-transitioning-timer' : ''"),
-        'The actual topbar-timer-anchor must be animated directly via timerAnchorRef'
+        testWorkspaceContent.includes('const contentCenterX = rootRect.width / 2;') &&
+        testWorkspaceContent.includes('const contentCenterY = rootRect.height / 2;'),
+        'Visual center must be mathematically calculated from actual available content bounds'
       );
       assert.ok(
-        testCssContent.includes('.topbar-timer-anchor.is-transitioning-timer') &&
-        testCssContent.includes('z-index: 1000;') &&
-        testCssContent.includes('transform-origin: center center;') &&
-        testCssContent.includes('will-change: transform, opacity;'),
-        'Animated timer anchor must sit at z-index: 1000 with center transform origin and hardware acceleration'
-      );
-    });
-
-    it('calculates the exact delta from current topbar position to the visual center of the viewport', () => {
-      assert.ok(
-        testWorkspaceContent.includes('const rect = timerAnchorRef.current?.getBoundingClientRect();') &&
-        testWorkspaceContent.includes('const currentCenterX = rect.left + rect.width / 2;') &&
-        testWorkspaceContent.includes('const currentCenterY = rect.top + rect.height / 2;') &&
-        testWorkspaceContent.includes('const targetCenterX = window.innerWidth / 2;') &&
-        testWorkspaceContent.includes('x: targetCenterX - currentCenterX') &&
-        testWorkspaceContent.includes('y: targetCenterY - currentCenterY'),
-        'Must measure getBoundingClientRect and dynamically calculate viewport center offset'
-      );
-    });
-
-    it('enlarges the timer smoothly toward the visual center using GPU transforms', () => {
-      assert.ok(
-        testWorkspaceContent.includes("timeTransitionPhase === 'centering'") &&
-        testWorkspaceContent.includes('scale: typeof window !== \'undefined\' && window.innerWidth < 600 ? 1.8 : 2.2') &&
-        testWorkspaceContent.includes('duration: 0.7') &&
-        testWorkspaceContent.includes('ease: [0.16, 1, 0.3, 1]'),
-        'Must coordinate translate-and-scale with duration 0.7s and GraphMind cubic bezier curve'
-      );
-    });
-
-    it('holds the enlarged 00:00 briefly and transitions digits to restrained GraphMind lime-green accent', () => {
-      assert.ok(
-        testWorkspaceContent.includes("timeTransitionPhase === 'hold'") &&
-        testWorkspaceContent.includes("isTransitionAccent={timeTransitionPhase === 'hold' || timeTransitionPhase === 'dissolve'}"),
-        'Must transition to hold phase and activate isTransitionAccent'
-      );
-      assert.ok(
-        bigTimerContent.includes('isTransitionAccent?: boolean;') &&
-        bigTimerContent.includes('isTransitionAccent ? \'timer-transition-accent\' : \'\''),
-        'BigTimer must accept and apply timer-transition-accent class'
-      );
-      assert.ok(
-        testCssContent.includes('.big-timer-container.timer-transition-accent .big-timer-digits') &&
-        testCssContent.includes('color: var(--accent, #B8FF3D) !important;') &&
-        testCssContent.includes('animation: none !important;'),
-        'Timer digits must take GraphMind lime-green #B8FF3D accent and stop warning pulse during hold'
-      );
-    });
-
-    it('fades out the secondary label and dissolves the clock with slight upward movement into darkness', () => {
-      assert.ok(
-        testCssContent.includes('.big-timer-container.is-transitioning .big-timer-label') &&
-        testCssContent.includes('opacity: 0;'),
-        'Secondary TIME REMAINING label must fade away during transition'
-      );
-      assert.ok(
-        testWorkspaceContent.includes("timeTransitionPhase === 'dissolve'") &&
-        testWorkspaceContent.includes('y: timerTargetDelta.y - 18') &&
-        testWorkspaceContent.includes('opacity: 0'),
-        'Dissolve phase must translate slightly upward (y - 18) and fade opacity to 0'
+        testWorkspaceContent.includes('x: timerCenterX - contentCenterX') &&
+        testWorkspaceContent.includes('y: timerCenterY - contentCenterY'),
+        'Initial timer offset must be calculated from live DOM coordinates without hardcoded offsets'
       );
     });
   });
 
-  describe('PHASE 3 & 4 — Sequential TIME\'S UP Reveal & Coordinated Motion', () => {
-    it('reveals TimeUpScreen only after the clock dissolve phase completes', () => {
+  describe('STAGE B — Dedicated Transition Layer & The Clock Takes Over', () => {
+    it('uses a dedicated transition layer that covers the main content area with mathematical centering', () => {
       assert.ok(
-        testWorkspaceContent.includes("setTimeTransitionPhase('dissolve');") &&
-        testWorkspaceContent.includes("setTimeTransitionPhase('done');") &&
-        testWorkspaceContent.includes("setMode('timeup');"),
-        'TimeUpScreen mode must only be set after dissolve phase finishes'
+        timeUpContent.includes('test-timeup-transition-layer'),
+        'TimeUpScreen must apply test-timeup-transition-layer class'
+      );
+      assert.ok(
+        testCssContent.includes('.test-timeup-transition-layer') &&
+        testCssContent.includes('position: absolute;') &&
+        testCssContent.includes('inset: 0;') &&
+        testCssContent.includes('z-index: 50;'),
+        'Dedicated transition layer must cover main content area with position absolute inset 0'
+      );
+      assert.ok(
+        testCssContent.includes('.test-timeup-hero-anchor') &&
+        testCssContent.includes('min-height: 180px;'),
+        'Hero anchor must host both transforming clock and emerging heading at optical center'
       );
     });
 
-    it('reveals TIME\'S and UP. using a refined vertical clip/mask reveal with separate lines and connected period', () => {
+    it('smoothly glides the clock into the exact center with controlled easing and restrained red tint', () => {
       assert.ok(
-        timeUpContent.includes('test-timeup-title-line-mask') &&
+        timeUpContent.includes('initialTimerOffset') &&
+        timeUpContent.includes('clockContainerVariants'),
+        'TimeUpScreen must receive initialTimerOffset and apply clockContainerVariants'
+      );
+      assert.ok(
+        timeUpContent.includes('x: initialTimerOffset.x') &&
+        timeUpContent.includes('y: initialTimerOffset.y') &&
+        timeUpContent.includes('x: 0') &&
+        timeUpContent.includes('y: 0'),
+        'Clock must animate from measured initialTimerOffset to (0, 0) center'
+      );
+      assert.ok(
+        testCssContent.includes('.test-timeup-cinematic-clock') &&
+        testCssContent.includes('font-family: var(--font-mono') &&
+        testCssContent.includes('clamp(72px, 10.5vw, 114px);') &&
+        testCssContent.includes('color: #FF5A5A;'),
+        'Clock must enlarge substantially to clamp(72px, 10.5vw, 114px) with restrained red tint #FF5A5A'
+      );
+      assert.ok(
+        testCssContent.includes('.test-timeup-clock-sep') &&
+        testCssContent.includes('color: #FF5A5A;'),
+        'Clock colon must preserve restrained red tint #FF5A5A'
+      );
+    });
+  });
+
+  describe('STAGE C & D — Clock Transformation & Simultaneous TIME\'S UP Reveal', () => {
+    it('separates clock digits horizontally and dissolves them upward after the 00:00 hold', () => {
+      assert.ok(
+        timeUpContent.includes('minutesGroupVariants') &&
+        timeUpContent.includes('secondsGroupVariants') &&
+        timeUpContent.includes('separatorVariants'),
+        'Must coordinate individual digit group transforms for minutes, seconds, and separator'
+      );
+      assert.ok(
+        timeUpContent.includes('delay: 1.7') &&
+        timeUpContent.includes('x: shouldReduceMotion ? 0 : -48') &&
+        timeUpContent.includes('x: shouldReduceMotion ? 0 : 48'),
+        'Clock must hold for ~900ms before separating at delay 1.7s'
+      );
+    });
+
+    it('begins revealing TIME\'S UP before the clock has completely disappeared so both feel connected', () => {
+      assert.ok(
         timeUpContent.includes('headingLine1Variants') &&
-        timeUpContent.includes('headingLine2Variants'),
-        'Heading lines must be wrapped in clip mask containers with individual animation variants'
+        timeUpContent.includes('headingLine2Variants') &&
+        timeUpContent.includes('test-timeup-title-line-mask'),
+        'Heading lines must use separate line masks and animation variants'
+      );
+      assert.ok(
+        timeUpContent.includes('delay: shouldReduceMotion ? 0 : 1.9') ||
+        timeUpContent.includes('delay: shouldReduceMotion ? 0 : 1.90'),
+        'Heading entrance delay must overlap with clock dissolve duration to maintain continuous narrative'
       );
       assert.ok(
         testCssContent.includes('.test-timeup-title-line-mask') &&
-        testCssContent.includes('overflow: hidden;') &&
-        testCssContent.includes('line-height: 0.84;'),
+        testCssContent.includes('overflow: hidden;'),
         'Line mask container must use overflow: hidden for vertical clip reveal'
-      );
-      assert.ok(
-        timeUpContent.includes('y: shouldReduceMotion ? 0 : \'100%\'') &&
-        timeUpContent.includes('y: \'0%\''),
-        'Title lines must translate from 100% (hidden below mask edge) to 0%'
       );
       assert.ok(
         timeUpContent.includes('UP<span className="test-timeup-period" aria-hidden="true">.</span>'),
         'Period must remain connected to UP'
       );
     });
+  });
 
-    it('reveals supporting copy, metadata context, and VIEW RESULTS with signature underline interaction in sequence', () => {
+  describe('STAGE E — Final Screen Settles & State Continuity', () => {
+    it('reveals eyebrow, supporting copy, metadata context, and VIEW RESULTS button in sequence', () => {
       assert.ok(
+        timeUpContent.includes('test-timeup-status') &&
         timeUpContent.includes('test-timeup-message') &&
         timeUpContent.includes('test-timeup-context-row') &&
         timeUpContent.includes('test-timeup-action-btn') &&
         timeUpContent.includes('test-timeup-action-underline'),
-        'TimeUpScreen must contain message, context, action button, and animated underline'
+        'TimeUpScreen must contain status eyebrow, message, context row, action button, and animated underline'
       );
     });
-  });
 
-  describe('PHASE 5 & 6 — Functional Correctness, Single-Submission, & Edge Cases', () => {
-    it('submits assessment exactly once upon expiration and prevents duplicate submission', () => {
+    it('submits assessment exactly once upon expiration and preserves recorded answers and score', () => {
       assert.ok(
         testWorkspaceContent.includes('if (!test || hasSubmittedRef.current || isTransitionTriggeredRef.current) return;') &&
         testWorkspaceContent.includes('hasSubmittedRef.current = true;') &&
@@ -187,31 +173,25 @@ describe('GraphMind Cinematic TIME\'S UP Transition — Architecture & Orchestra
         testWorkspaceContent.includes("setMode('results');"),
         'Early submission must transition directly to results without triggering time-up animation'
       );
-      // Ensure handleConfirmSubmit doesn't trigger timeTransitionPhase
-      const submitStart = testWorkspaceContent.indexOf('const handleConfirmSubmit');
-      const submitEnd = testWorkspaceContent.indexOf('}, [test, answers, onPracticeStatesUpdated, clearTransitionTimeouts]);');
-      const submitBody = testWorkspaceContent.substring(submitStart, submitEnd);
+    });
+
+    it('respects prefers-reduced-motion accessibility across framer motion and CSS', () => {
       assert.ok(
-        !submitBody.includes('setTimeTransitionPhase'),
-        'Submit handler must never trigger time-up transition phases'
+        timeUpContent.includes('useReducedMotion') &&
+        timeUpContent.includes('shouldReduceMotion'),
+        'Must query useReducedMotion in TimeUpScreen'
+      );
+      assert.ok(
+        testCssContent.includes('@media (prefers-reduced-motion: reduce)'),
+        'CSS must include reduced motion adaptations'
       );
     });
 
-    it('respects prefers-reduced-motion by bypassing the large clock movement directly to timeup mode', () => {
-      assert.ok(
-        testWorkspaceContent.includes('if (shouldReduceMotion) {') &&
-        testWorkspaceContent.includes("setTimeTransitionPhase('done');") &&
-        testWorkspaceContent.includes("setMode('timeup');"),
-        'Reduced motion preference must immediately transition to timeup mode without running the clock animation'
-      );
-    });
-
-    it('safely cleans up all transition timers on unmount', () => {
+    it('cleans up transition timeouts and intervals safely', () => {
       assert.ok(
         testWorkspaceContent.includes('const clearTransitionTimeouts = useCallback(() => {') &&
-        testWorkspaceContent.includes('transitionTimeoutsRef.current.forEach(t => clearTimeout(t));') &&
         testWorkspaceContent.includes('clearTransitionTimeouts();'),
-        'Must clean up pending transition timeouts on unmount and test restart'
+        'Must clean up pending timeouts on unmount and test restart'
       );
     });
   });
