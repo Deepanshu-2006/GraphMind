@@ -2,9 +2,12 @@ import { useState, useCallback, useLayoutEffect, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { KnowledgeTest } from '../../types/test';
 
+import type { KnowledgeGraph } from '../../types/knowledgeGraph';
+
 export interface TestReviewViewProps {
   test: KnowledgeTest;
   userAnswers: Record<string, string>;
+  graph?: KnowledgeGraph | null;
   onBackToResults: () => void;
   onSelectConceptToReview?: (conceptId: string) => void;
 }
@@ -12,6 +15,7 @@ export interface TestReviewViewProps {
 export function TestReviewView({
   test,
   userAnswers,
+  graph,
   onBackToResults,
   onSelectConceptToReview
 }: TestReviewViewProps) {
@@ -43,9 +47,19 @@ export function TestReviewView({
     }, 420);
   }, [isExiting, onBackToResults]);
 
+  // Concept availability in graph
+  const isConceptAvailableInGraph = useCallback((conceptId?: string, conceptName?: string): boolean => {
+    if (!graph || !graph.nodes || graph.nodes.length === 0) return false;
+    if (!conceptId && !conceptName) return false;
+    return graph.nodes.some(
+      n => (conceptId && n.id === conceptId) || (conceptName && n.name?.toLowerCase() === conceptName.toLowerCase())
+    );
+  }, [graph]);
+
   // Concept review in graph transition (Section 19)
-  const handleReviewConceptInGraph = useCallback((conceptId: string) => {
+  const handleReviewConceptInGraph = useCallback((conceptId: string, conceptName?: string) => {
     if (isExiting || !onSelectConceptToReview) return;
+    if (!isConceptAvailableInGraph(conceptId, conceptName)) return;
     setIsExiting(true);
     setExitDirection('graph');
     setSelectedConceptId(conceptId);
@@ -53,7 +67,7 @@ export function TestReviewView({
     setTimeout(() => {
       onSelectConceptToReview(conceptId);
     }, 360);
-  }, [isExiting, onSelectConceptToReview]);
+  }, [isExiting, onSelectConceptToReview, isConceptAvailableInGraph]);
 
   // Keyboard Escape navigation
   useEffect(() => {
@@ -195,14 +209,16 @@ export function TestReviewView({
         {test.questions.map((q, idx) => {
           const numStr = (idx + 1).toString().padStart(2, '0');
           const selectedId = userAnswers[q.id];
-          const isCorrect = selectedId === q.correctOptionId;
+          const isUnanswered = !selectedId || selectedId === '';
+          const isCorrect = !isUnanswered && selectedId === q.correctOptionId;
           const isExpanded = expandedQuestionId === q.id;
 
-          const selectedOption = q.options.find(o => o.id === selectedId);
-          const correctOption = q.options.find(o => o.id === q.correctOptionId);
+          const selectedOption = q.options?.find(o => o.id === selectedId);
+          const correctOption = q.options?.find(o => o.id === q.correctOptionId);
 
           const primaryConceptId = q.conceptIds?.[0];
           const primaryConceptName = q.conceptNames?.[0] || 'Concept';
+          const isConceptAvailable = isConceptAvailableInGraph(primaryConceptId, primaryConceptName);
 
           const isHovered = hoveredQuestionId === q.id;
           const isSelected = selectedConceptId === primaryConceptId;
@@ -269,8 +285,10 @@ export function TestReviewView({
                 <div className="review-row-question-text">{q.question}</div>
 
                 {/* 3. Status Label: 10px uppercase, font-weight 600, reserved column */}
-                <span className={`review-row-status-col ${isCorrect ? 'status-correct' : 'status-incorrect'}`}>
-                  {isCorrect ? 'CORRECT' : 'INCORRECT'}
+                <span className={`review-row-status-col ${
+                  isCorrect ? 'status-correct' : isUnanswered ? 'status-unanswered' : 'status-incorrect'
+                }`}>
+                  {isCorrect ? 'CORRECT' : isUnanswered ? 'UNANSWERED' : 'INCORRECT'}
                 </span>
 
                 {/* 4. Chevron: Small, muted gray, rotates smoothly */}
@@ -299,15 +317,17 @@ export function TestReviewView({
                       <div className="review-answer-summary-block">
                         <div className="review-summary-row">
                           <span className="review-summary-label">Your answer</span>
-                          <span className={`review-summary-val ${isCorrect ? 'val-correct' : 'val-incorrect'}`}>
-                            {selectedOption?.text || 'Unanswered'}
+                          <span className={`review-summary-val ${
+                            isCorrect ? 'val-correct' : isUnanswered ? 'val-unanswered' : 'val-incorrect'
+                          }`}>
+                            {isUnanswered ? 'Unanswered' : (selectedOption?.text || selectedId)}
                           </span>
                         </div>
                         {!isCorrect && (
                           <div className="review-summary-row">
                             <span className="review-summary-label">Correct answer</span>
                             <span className="review-summary-val val-correct">
-                              {correctOption?.text}
+                              {correctOption?.text || q.correctOptionId}
                             </span>
                           </div>
                         )}
@@ -365,20 +385,26 @@ export function TestReviewView({
                       {/* Section D: REVIEW IN GRAPH Action (Section 3) */}
                       {primaryConceptId && onSelectConceptToReview && (
                         <div className="review-expanded-footer-action">
-                          <button
-                            type="button"
-                            className="review-graph-editorial-link"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleReviewConceptInGraph(primaryConceptId);
-                            }}
-                          >
-                            <span className="review-graph-link-text">
-                              REVIEW {primaryConceptName.toUpperCase()} IN GRAPH
-                            </span>
-                            <span className="review-graph-arrow" aria-hidden="true">→</span>
-                            <span className="review-graph-underline" aria-hidden="true" />
-                          </button>
+                          {isConceptAvailable ? (
+                            <button
+                              type="button"
+                              className="review-graph-editorial-link"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReviewConceptInGraph(primaryConceptId, primaryConceptName);
+                              }}
+                            >
+                              <span className="review-graph-link-text">
+                                REVIEW {primaryConceptName.toUpperCase()} IN GRAPH
+                              </span>
+                              <span className="review-graph-arrow" aria-hidden="true">→</span>
+                              <span className="review-graph-underline" aria-hidden="true" />
+                            </button>
+                          ) : (
+                            <div className="review-graph-unavailable-note">
+                              <span>Concept not in current graph</span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

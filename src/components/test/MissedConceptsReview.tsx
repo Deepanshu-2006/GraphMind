@@ -1,15 +1,18 @@
 import { useState, useCallback, useLayoutEffect, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import type { MissedConceptItem } from '../../types/test';
+import type { KnowledgeGraph } from '../../types/knowledgeGraph';
 
 export interface MissedConceptsReviewProps {
   missedConcepts: MissedConceptItem[];
+  graph?: KnowledgeGraph | null;
   onBackToResults: () => void;
   onReviewConceptInGraph: (conceptId: string) => void;
 }
 
 export function MissedConceptsReview({
   missedConcepts,
+  graph,
   onBackToResults,
   onReviewConceptInGraph
 }: MissedConceptsReviewProps) {
@@ -50,9 +53,19 @@ export function MissedConceptsReview({
     }, 420);
   }, [isExiting, onBackToResults]);
 
+  // Concept availability in graph
+  const isConceptAvailableInGraph = useCallback((conceptId?: string, conceptName?: string): boolean => {
+    if (!graph || !graph.nodes || graph.nodes.length === 0) return false;
+    if (!conceptId && !conceptName) return false;
+    return graph.nodes.some(
+      n => (conceptId && n.id === conceptId) || (conceptName && n.name?.toLowerCase() === conceptName.toLowerCase())
+    );
+  }, [graph]);
+
   // Concept review interaction (Section 16): selected row anchors, others recede
-  const handleSelectConcept = useCallback((conceptId: string) => {
+  const handleSelectConcept = useCallback((conceptId: string, conceptName?: string) => {
     if (isExiting) return;
+    if (!isConceptAvailableInGraph(conceptId, conceptName)) return;
     setIsExiting(true);
     setExitDirection('graph');
     setSelectedConceptId(conceptId);
@@ -60,7 +73,7 @@ export function MissedConceptsReview({
     setTimeout(() => {
       onReviewConceptInGraph(conceptId);
     }, 360);
-  }, [isExiting, onReviewConceptInGraph]);
+  }, [isExiting, onReviewConceptInGraph, isConceptAvailableInGraph]);
 
   // Keyboard escape handler for back navigation
   useEffect(() => {
@@ -179,25 +192,34 @@ export function MissedConceptsReview({
             const isHovered = hoveredConceptId === item.conceptId;
             const isSelected = selectedConceptId === item.conceptId;
             const isOtherDimmed = isExiting && exitDirection === 'graph' && !isSelected;
+            const isAvailable = isConceptAvailableInGraph(item.conceptId, item.conceptName);
 
             return (
               <motion.div
                 key={item.conceptId || item.conceptName}
                 className={`missed-concept-row ${isHovered ? 'is-hovered' : ''} ${
                   isSelected ? 'is-selected' : ''
-                } ${isOtherDimmed ? 'is-dimmed' : ''}`}
+                } ${isOtherDimmed ? 'is-dimmed' : ''} ${!isAvailable ? 'row-unavailable' : ''}`}
                 onMouseEnter={() => setHoveredConceptId(item.conceptId)}
                 onMouseLeave={() => setHoveredConceptId(null)}
-                onClick={() => handleSelectConcept(item.conceptId)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleSelectConcept(item.conceptId);
+                onClick={() => {
+                  if (isAvailable) {
+                    handleSelectConcept(item.conceptId, item.conceptName);
                   }
                 }}
-                aria-label={`Review ${item.conceptName} in knowledge graph`}
+                role={isAvailable ? "button" : "region"}
+                tabIndex={isAvailable ? 0 : -1}
+                onKeyDown={(e) => {
+                  if (isAvailable && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    handleSelectConcept(item.conceptId, item.conceptName);
+                  }
+                }}
+                aria-label={
+                  isAvailable
+                    ? `Review ${item.conceptName} in knowledge graph`
+                    : `${item.conceptName} (concept not in current graph)`
+                }
                 initial={{ opacity: 0, y: 24 }}
                 animate={
                   isExiting && exitDirection === 'back'
@@ -263,13 +285,19 @@ export function MissedConceptsReview({
                   )}
                 </div>
 
-                {/* Right Column: REVIEW → typography-driven action (Section 7) */}
+                {/* Right Column: REVIEW → typography-driven action (Section 7) or Unavailable Message */}
                 <div className="missed-row-action-col">
-                  <div className="missed-row-action-link">
-                    <span className="missed-action-text">REVIEW</span>
-                    <span className="missed-action-arrow" aria-hidden="true">→</span>
-                    <span className="missed-action-underline" aria-hidden="true" />
-                  </div>
+                  {isAvailable ? (
+                    <div className="missed-row-action-link">
+                      <span className="missed-action-text">REVIEW</span>
+                      <span className="missed-action-arrow" aria-hidden="true">→</span>
+                      <span className="missed-action-underline" aria-hidden="true" />
+                    </div>
+                  ) : (
+                    <div className="missed-row-unavailable-badge" title="This concept is no longer present in the active knowledge graph">
+                      <span>Concept not in current graph</span>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             );

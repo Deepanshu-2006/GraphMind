@@ -18,6 +18,10 @@ export interface TestResultsViewProps {
   onSelectConceptToReview?: (conceptId: string) => void;
   onRetrySave?: () => void;
   backButtonLabel?: string;
+  isHistorical?: boolean;
+  completionDate?: string;
+  graphName?: string;
+  completionReason?: string;
 }
 
 export interface ScoreInterpretation {
@@ -76,7 +80,11 @@ export const TestResultsView = memo(function TestResultsView({
   onBackToGraph,
   onSelectConceptToReview,
   onRetrySave,
-  backButtonLabel
+  backButtonLabel,
+  isHistorical,
+  completionDate,
+  graphName,
+  completionReason
 }: TestResultsViewProps) {
   // Exit transition states (Section 22)
   const [isExiting, setIsExiting] = useState(false);
@@ -207,9 +215,21 @@ export const TestResultsView = memo(function TestResultsView({
 
   const hasMissed = uniqueReviewConcepts.length > 0;
 
+  // Concept availability in graph
+  const isConceptAvailableInGraph = useMemo(() => {
+    return (conceptId?: string, conceptName?: string): boolean => {
+      if (!graph || !graph.nodes || graph.nodes.length === 0) return false;
+      if (!conceptId && !conceptName) return false;
+      return graph.nodes.some(
+        n => (conceptId && n.id === conceptId) || (conceptName && n.name?.toLowerCase() === conceptName.toLowerCase())
+      );
+    };
+  }, [graph]);
+
   // Actionable concept selection: bridges student back to knowledge graph (Section 12)
-  const handleSelectConcept = (conceptId: string) => {
+  const handleSelectConcept = (conceptId: string, conceptName?: string) => {
     if (isExiting) return;
+    if (!isConceptAvailableInGraph(conceptId, conceptName)) return;
     setIsExiting(true);
     setExitTarget('graph');
     setTimeout(() => {
@@ -292,6 +312,25 @@ export const TestResultsView = memo(function TestResultsView({
             >
               Retry Saving
             </button>
+          )}
+        </div>
+      )}
+
+      {/* Historical Assessment Context (Section 4) */}
+      {(isHistorical || graphName || completionDate) && (
+        <div className="results-historical-header-context">
+          <span className="results-historical-graph-name">{graphName || test?.title || 'Assessment'}</span>
+          {completionDate && (
+            <>
+              <span className="results-meta-dot" aria-hidden="true" />
+              <span className="results-historical-meta-date">Completed {completionDate}</span>
+            </>
+          )}
+          {completionReason === 'time_expired' && (
+            <>
+              <span className="results-meta-dot" aria-hidden="true" />
+              <span className="study-badge-expired">Time expired</span>
+            </>
           )}
         </div>
       )}
@@ -486,41 +525,58 @@ export const TestResultsView = memo(function TestResultsView({
 
             <div className="knowledge-concept-list" role="list">
               {uniqueStrongConcepts.length > 0 ? (
-                uniqueStrongConcepts.map((item, idx) => (
-                  <motion.div
-                    key={item.id || item.name}
-                    className="knowledge-concept-row-wrap"
-                    role="listitem"
-                    initial={{ opacity: 0, y: 10 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: '-20px' }}
-                    transition={{
-                      duration: 0.28,
-                      delay: Math.min(0.24, idx * 0.035),
-                      ease: [0.16, 1, 0.3, 1]
-                    }}
-                  >
-                    <button
-                      type="button"
-                      className="knowledge-concept-row"
-                      onClick={() => handleSelectConcept(item.id)}
-                      title={`Focus "${item.name}" in knowledge graph`}
+                uniqueStrongConcepts.map((item, idx) => {
+                  const isAvailable = isConceptAvailableInGraph(item.id, item.name);
+                  return (
+                    <motion.div
+                      key={item.id || item.name}
+                      className="knowledge-concept-row-wrap"
+                      role="listitem"
+                      initial={{ opacity: 0, y: 10 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true, margin: '-20px' }}
+                      transition={{
+                        duration: 0.28,
+                        delay: Math.min(0.24, idx * 0.035),
+                        ease: [0.16, 1, 0.3, 1]
+                      }}
                     >
-                      <div className="concept-row-left">
-                        <span className="concept-index-num">
-                          {(idx + 1).toString().padStart(2, '0')}
-                        </span>
-                        <span className="concept-row-name" title={item.name}>
-                          {item.name}
-                        </span>
-                      </div>
-                      <span className="concept-status-sign sign-positive" aria-hidden="true">
-                        +
-                      </span>
-                    </button>
-                    <div className="knowledge-row-divider" />
-                  </motion.div>
-                ))
+                      {isAvailable ? (
+                        <button
+                          type="button"
+                          className="knowledge-concept-row"
+                          onClick={() => handleSelectConcept(item.id, item.name)}
+                          title={`Focus "${item.name}" in knowledge graph`}
+                        >
+                          <div className="concept-row-left">
+                            <span className="concept-index-num">
+                              {(idx + 1).toString().padStart(2, '0')}
+                            </span>
+                            <span className="concept-row-name" title={item.name}>
+                              {item.name}
+                            </span>
+                          </div>
+                          <span className="concept-status-sign sign-positive" aria-hidden="true">
+                            +
+                          </span>
+                        </button>
+                      ) : (
+                        <div className="knowledge-concept-row concept-row-static" title="Concept not in current knowledge graph">
+                          <div className="concept-row-left">
+                            <span className="concept-index-num">
+                              {(idx + 1).toString().padStart(2, '0')}
+                            </span>
+                            <span className="concept-row-name" title={item.name}>
+                              {item.name}
+                            </span>
+                          </div>
+                          <span className="concept-unavailable-text">Not in graph</span>
+                        </div>
+                      )}
+                      <div className="knowledge-row-divider" />
+                    </motion.div>
+                  );
+                })
               ) : (
                 <div className="knowledge-empty-row">
                   <span>No mastered concepts in this session.</span>
@@ -540,41 +596,58 @@ export const TestResultsView = memo(function TestResultsView({
 
             <div className="knowledge-concept-list" role="list">
               {uniqueReviewConcepts.length > 0 ? (
-                uniqueReviewConcepts.map((item, idx) => (
-                  <motion.div
-                    key={item.id || item.name}
-                    className="knowledge-concept-row-wrap"
-                    role="listitem"
-                    initial={{ opacity: 0, y: 10 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: '-20px' }}
-                    transition={{
-                      duration: 0.28,
-                      delay: Math.min(0.24, idx * 0.035),
-                      ease: [0.16, 1, 0.3, 1]
-                    }}
-                  >
-                    <button
-                      type="button"
-                      className="knowledge-concept-row actionable-concept-row"
-                      onClick={() => handleSelectConcept(item.id)}
-                      title={`Focus "${item.name}" in knowledge graph`}
+                uniqueReviewConcepts.map((item, idx) => {
+                  const isAvailable = isConceptAvailableInGraph(item.id, item.name);
+                  return (
+                    <motion.div
+                      key={item.id || item.name}
+                      className="knowledge-concept-row-wrap"
+                      role="listitem"
+                      initial={{ opacity: 0, y: 10 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true, margin: '-20px' }}
+                      transition={{
+                        duration: 0.28,
+                        delay: Math.min(0.24, idx * 0.035),
+                        ease: [0.16, 1, 0.3, 1]
+                      }}
                     >
-                      <div className="concept-row-left">
-                        <span className="concept-index-num">
-                          {(idx + 1).toString().padStart(2, '0')}
-                        </span>
-                        <span className="concept-row-name" title={item.name}>
-                          {item.name}
-                        </span>
-                      </div>
-                      <span className="concept-status-sign sign-warning" aria-hidden="true">
-                        →
-                      </span>
-                    </button>
-                    <div className="knowledge-row-divider" />
-                  </motion.div>
-                ))
+                      {isAvailable ? (
+                        <button
+                          type="button"
+                          className="knowledge-concept-row actionable-concept-row"
+                          onClick={() => handleSelectConcept(item.id, item.name)}
+                          title={`Focus "${item.name}" in knowledge graph`}
+                        >
+                          <div className="concept-row-left">
+                            <span className="concept-index-num">
+                              {(idx + 1).toString().padStart(2, '0')}
+                            </span>
+                            <span className="concept-row-name" title={item.name}>
+                              {item.name}
+                            </span>
+                          </div>
+                          <span className="concept-status-sign sign-warning" aria-hidden="true">
+                            →
+                          </span>
+                        </button>
+                      ) : (
+                        <div className="knowledge-concept-row concept-row-static" title="Concept not in current knowledge graph">
+                          <div className="concept-row-left">
+                            <span className="concept-index-num">
+                              {(idx + 1).toString().padStart(2, '0')}
+                            </span>
+                            <span className="concept-row-name" title={item.name}>
+                              {item.name}
+                            </span>
+                          </div>
+                          <span className="concept-unavailable-text">Not in graph</span>
+                        </div>
+                      )}
+                      <div className="knowledge-row-divider" />
+                    </motion.div>
+                  );
+                })
               ) : (
                 <div className="knowledge-empty-row">
                   <span>All concepts mastered with full accuracy.</span>

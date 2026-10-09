@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Search, X, ChevronDown } from 'lucide-react';
 import type { KnowledgeGraph } from '../../types/knowledgeGraph';
-import type { KnowledgeTest, AssessmentAttempt } from '../../types/test';
+import type { KnowledgeTest, AssessmentAttempt, TestResultsSummary, MissedConceptItem } from '../../types/test';
 import { 
   getAssessmentAttempts, 
   getAssessmentAttemptById 
@@ -106,6 +106,62 @@ export function computeProgressComparison(
   };
 }
 
+/**
+ * Guarantees a complete TestResultsSummary from an immutable AssessmentAttempt snapshot,
+ * reconstructing missed concepts and scores if the original record omitted them.
+ */
+export function ensureResultsSummary(attempt: AssessmentAttempt): TestResultsSummary {
+  if (attempt.resultsSummary && Array.isArray(attempt.resultsSummary.reviewRecommendedConcepts)) {
+    return attempt.resultsSummary;
+  }
+
+  const questions = attempt.questions || [];
+  const missedItems: MissedConceptItem[] = [];
+  const strongConceptNamesSet = new Set<string>();
+
+  for (const q of questions) {
+    const selectedId = attempt.userAnswers?.[q.id];
+    const isCorrect = Boolean(selectedId && selectedId === q.correctOptionId);
+    const selectedOption = q.options?.find(o => o.id === selectedId);
+    const correctOption = q.options?.find(o => o.id === q.correctOptionId);
+
+    if (isCorrect) {
+      for (const name of q.conceptNames || []) {
+        strongConceptNamesSet.add(name);
+      }
+    } else {
+      missedItems.push({
+        conceptId: q.conceptIds?.[0] || '',
+        conceptName: q.conceptNames?.[0] || 'Concept',
+        questionId: q.id,
+        questionText: q.question,
+        selectedOptionText: selectedOption?.text || (selectedId ? selectedId : 'Unanswered'),
+        correctOptionText: correctOption?.text || q.correctOptionId || '',
+        explanation: q.explanation,
+        sourceName: q.sourceName,
+        sourceEvidence: q.sourceEvidence,
+        page: q.page
+      });
+    }
+  }
+
+  for (const item of missedItems) {
+    strongConceptNamesSet.delete(item.conceptName);
+  }
+
+  return {
+    testId: attempt.testId || attempt.id,
+    attemptId: attempt.id,
+    score: attempt.correctAnswers,
+    totalQuestions: attempt.totalQuestions || questions.length,
+    percentage: attempt.scorePercentage,
+    timeSpentSeconds: attempt.timeSpentSeconds || 0,
+    strongConceptNames: Array.from(strongConceptNamesSet),
+    reviewRecommendedConcepts: missedItems,
+    persistenceStatus: 'saved'
+  };
+}
+
 export interface GraphAttemptGroup {
   graphId: string;
   graphName: string;
@@ -164,11 +220,17 @@ export function StudySpaceView({
 
     if (attemptParam) {
       setSelectedAttemptId(attemptParam);
-      setViewMode(viewParam === 'missed' ? 'review-missed' : 'historical-results');
+      if (viewParam === 'missed') {
+        setViewMode('review-missed');
+      } else if (viewParam === 'answers') {
+        setViewMode('review-answers');
+      } else {
+        setViewMode('historical-results');
+      }
     }
   }, [loadAttempts, initialAttemptId]);
 
-  // Handle browser popstate for back/forward navigation
+  // Handle browser popstate for back/forward navigation between views
   useEffect(() => {
     const handlePopState = () => {
       const urlParams = new URLSearchParams(window.location.search);
@@ -177,7 +239,13 @@ export function StudySpaceView({
 
       if (attemptParam) {
         setSelectedAttemptId(attemptParam);
-        setViewMode(viewParam === 'missed' ? 'review-missed' : 'historical-results');
+        if (viewParam === 'missed') {
+          setViewMode('review-missed');
+        } else if (viewParam === 'answers') {
+          setViewMode('review-answers');
+        } else {
+          setViewMode('historical-results');
+        }
       } else {
         setSelectedAttemptId(null);
         setViewMode('list');
@@ -201,6 +269,27 @@ export function StudySpaceView({
     });
   }, []);
 
+  // Navigate between historical sub-views (results, answers, missed) preserving attempt ID in URL
+  const handleNavigateSubView = useCallback((targetView: StudyViewMode) => {
+    setViewMode(targetView);
+    if (!selectedAttemptId) return;
+
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('attempt', selectedAttemptId);
+      if (targetView === 'review-missed') {
+        url.searchParams.set('view', 'missed');
+      } else if (targetView === 'review-answers') {
+        url.searchParams.set('view', 'answers');
+      } else {
+        url.searchParams.delete('view');
+      }
+      window.history.pushState({}, '', url.toString());
+    } catch {
+      // In test/SSR environments
+    }
+  }, [selectedAttemptId]);
+
   // Open an attempt in historical results mode
   const handleOpenAttempt = useCallback((
     attemptId: string, 
@@ -214,6 +303,8 @@ export function StudySpaceView({
       url.searchParams.set('attempt', attemptId);
       if (targetView === 'review-missed') {
         url.searchParams.set('view', 'missed');
+      } else if (targetView === 'review-answers') {
+        url.searchParams.set('view', 'answers');
       } else {
         url.searchParams.delete('view');
       }
@@ -365,6 +456,12 @@ export function StudySpaceView({
     };
   }, [selectedAttempt]);
 
+  // Effective results summary (guaranteed complete even if legacy record omitted resultsSummary)
+  const effectiveResultsSummary = useMemo<TestResultsSummary | null>(() => {
+    if (!selectedAttempt) return null;
+    return ensureResultsSummary(selectedAttempt);
+  }, [selectedAttempt]);
+
   // Top/latest attempt for "Continue learning" section
   const latestAttempt = attempts.length > 0 ? attempts[0] : null;
   const latestDateInfo = latestAttempt ? formatAttemptDate(latestAttempt.completedAt) : null;
@@ -374,7 +471,7 @@ export function StudySpaceView({
   // SUB-VIEW: Historical Assessment Results, Answers Review, Missed Concepts
   // =========================================================================
   if (selectedAttemptId) {
-    if (!selectedAttempt || !historicalTest) {
+    if (!selectedAttempt || !historicalTest || !effectiveResultsSummary) {
       return (
         <div className="study-space-container">
           <div className="study-error-banner" role="alert">
@@ -399,19 +496,21 @@ export function StudySpaceView({
           <TestReviewView
             test={historicalTest}
             userAnswers={selectedAttempt.userAnswers}
-            onBackToResults={() => setViewMode('historical-results')}
+            graph={activeGraph}
+            onBackToResults={() => handleNavigateSubView('historical-results')}
             onSelectConceptToReview={(conceptId) => onNavigateToConcept?.(conceptId)}
           />
         </div>
       );
     }
 
-    if (viewMode === 'review-missed' && selectedAttempt.resultsSummary) {
+    if (viewMode === 'review-missed') {
       return (
         <div className="study-historical-results-wrap">
           <MissedConceptsReview
-            missedConcepts={selectedAttempt.resultsSummary.reviewRecommendedConcepts}
-            onBackToResults={() => setViewMode('historical-results')}
+            missedConcepts={effectiveResultsSummary.reviewRecommendedConcepts}
+            graph={activeGraph}
+            onBackToResults={() => handleNavigateSubView('historical-results')}
             onReviewConceptInGraph={(conceptId) => onNavigateToConcept?.(conceptId)}
           />
         </div>
@@ -422,12 +521,16 @@ export function StudySpaceView({
     return (
       <div className="study-historical-results-wrap">
         <TestResultsView
-          results={selectedAttempt.resultsSummary}
+          results={effectiveResultsSummary}
           test={historicalTest}
           graph={activeGraph}
+          isHistorical={true}
+          completionDate={formatAttemptDate(selectedAttempt.completedAt).dateStr}
+          graphName={selectedAttempt.graphName}
+          completionReason={selectedAttempt.completionReason}
           backButtonLabel="BACK TO STUDY SPACE"
-          onReviewAnswers={() => setViewMode('review-answers')}
-          onReviewMissedConcepts={() => setViewMode('review-missed')}
+          onReviewAnswers={() => handleNavigateSubView('review-answers')}
+          onReviewMissedConcepts={() => handleNavigateSubView('review-missed')}
           onBackToGraph={handleBackToList}
           onSelectConceptToReview={(conceptId) => onNavigateToConcept?.(conceptId)}
         />

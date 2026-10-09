@@ -923,3 +923,77 @@
     transform: none !important;
   }
 }
+
+/* --------------------------------------------------------------------------
+   13. Historical Assessment & Answer Review Presentation (Prompt 4)
+   -------------------------------------------------------------------------- */
+.results-historical-header-context {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-body, sans-serif);
+  font-size: 13px;
+  color: var(--text-secondary, #A1A1A1);
+  margin-top: 6px;
+  margin-bottom: 24px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-wrap: wrap;
+}
+
+.results-historical-graph-name {
+  color: var(--text-primary, #F5F5F5);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.results-historical-meta-date {
+  color: #8A8A8A;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+}
+
+.review-row-status-col.status-unanswered {
+  color: #8E8E8E;
+}
+
+.review-summary-val.val-unanswered {
+  color: #8E8E8E;
+  font-style: italic;
+}
+
+.review-graph-unavailable-note {
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  color: #666666;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.missed-row-unavailable-badge {
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  color: #666666;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: right;
+}
+
+.concept-row-static {
+  cursor: default !important;
+  opacity: 0.65;
+}
+
+.concept-row-static:hover {
+  background: transparent !important;
+}
+
+.concept-unavailable-text {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  color: #666666;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
