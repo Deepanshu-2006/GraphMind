@@ -7,14 +7,13 @@ import { CreateGraphModal } from './components/modals/CreateGraphModal';
 import { NewGraphModal } from './components/modals/NewGraphModal';
 import { DeleteGraphModal } from './components/modals/DeleteGraphModal';
 import { SourcesView } from './components/sources/SourcesView';
-import { LearningPathsView } from './components/paths/LearningPathsView';
+import { StudySpaceView } from './components/study/StudySpaceView';
 import { SettingsView } from './components/settings/SettingsView';
 import { demoKnowledgeGraph } from './data/graphData';
 import type { KnowledgeSource, KnowledgeGraph } from './types/knowledgeGraph';
 import { sourceToRecentMaterial } from './services/sourceIngestion';
 import { pipelineOrchestrator, type PipelineStage, type PipelineProgressEvent } from './services/pipelineOrchestrator';
 import { DEFAULT_MIGRATION_GRAPH_ID } from './services/storage';
-import { generateLearningPaths } from './services/learningPathGeneration';
 import { GraphProvider, useGraph } from './context/GraphContext';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import type { NavSection, RecentMaterial, ProjectWorkspace } from './types';
@@ -23,7 +22,7 @@ export function AppContent() {
   const getInitialSection = (): NavSection => {
     const path = window.location.pathname.replace(/^\//, '').toLowerCase();
     if (path === 'graph') return 'graph';
-    if (path === 'paths') return 'paths';
+    if (path === 'study' || path === 'paths') return 'study';
     if (path === 'sources') return 'sources';
     if (path === 'settings') return 'settings';
     return 'overview';
@@ -61,14 +60,12 @@ export function AppContent() {
     activeGraphMeta,
     activeGraph: contextActiveGraph,
     activeSources,
-    activeCompletedConceptIds,
     createGraph,
     renameGraph,
     switchGraph,
     deleteGraph,
     updateActiveGraph,
-    updateActiveSources,
-    toggleCompleteConcept
+    updateActiveSources
   } = useGraph();
 
   // Pipeline processing state (scoped to active graph operations)
@@ -114,16 +111,6 @@ export function AppContent() {
       updatedAt: activeGraphMeta?.updatedAt
     };
   }, [activeGraphMeta, effectiveGraph]);
-
-  // Real Learning Paths derivation (Requirements 2, 3, 14, 25):
-  // Derived strictly from the active knowledge graph without cross-graph pollution
-  const learningPathResult = useMemo(() => {
-    return generateLearningPaths(contextActiveGraph, activeCompletedConceptIds);
-  }, [contextActiveGraph, activeCompletedConceptIds]);
-
-  const handleToggleCompleteConcept = (conceptId: string) => {
-    toggleCompleteConcept(conceptId);
-  };
 
   const handleExploreConceptInGraph = (conceptId: string) => {
     setFocusedConceptId(conceptId);
@@ -445,23 +432,12 @@ export function AppContent() {
           />
         )}
 
-        {/* Learning Paths View */}
-        {currentSection === 'paths' && (
-          <LearningPathsView 
-            paths={learningPathResult.paths}
-            totalConceptsInGraph={contextActiveGraph?.nodes?.length || 0}
-            totalRelationshipsInGraph={contextActiveGraph?.relationships?.length || 0}
-            isLoading={pipelineStage !== 'complete' && pipelineStage !== 'error' && activeSources.some(s => s.status === 'processing')}
-            loadingMessage={pipelineStatusMessage}
-            onSelectPath={(pathId) => {
-              if (!pathId) {
-                navigateToSection('graph');
-              }
-            }}
-            onOpenUpload={() => setCreateModalOpen(true)}
-            onToggleCompleteConcept={handleToggleCompleteConcept}
-            onExploreConceptInGraph={handleExploreConceptInGraph}
-            sources={activeSources}
+        {/* Study Space View (Central Learning Hub & Assessment History) */}
+        {(currentSection === 'study' || currentSection === 'paths') && (
+          <StudySpaceView 
+            onNavigateToGraph={() => navigateToSection('graph')}
+            onNavigateToConcept={(conceptId) => handleExploreConceptInGraph(conceptId)}
+            activeGraph={contextActiveGraph}
           />
         )}
 

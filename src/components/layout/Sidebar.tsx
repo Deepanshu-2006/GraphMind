@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   Compass, 
   Network, 
-  GitFork, 
+  BookOpen, 
   Files,
   Settings
 } from 'lucide-react';
@@ -30,7 +30,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const mainNavItems = [
     { id: 'overview' as NavSection, label: 'Overview', icon: Compass },
     { id: 'graph' as NavSection, label: 'Knowledge Graph', icon: Network },
-    { id: 'paths' as NavSection, label: 'Learning Paths', icon: GitFork },
+    { id: 'study' as NavSection, label: 'Study Space', icon: BookOpen },
     { id: 'sources' as NavSection, label: 'Sources', icon: Files }
   ];
 
@@ -60,7 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <nav className="sidebar-nav-list" aria-label="Main Navigation">
           {mainNavItems.map((item) => {
             const Icon = item.icon;
-            const isActive = currentSection === item.id;
+            const isActive = currentSection === item.id || (item.id === 'study' && currentSection === 'paths');
             return (
               <button
                 key={item.id}

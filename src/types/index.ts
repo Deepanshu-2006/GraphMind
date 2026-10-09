@@ -28,7 +28,7 @@ export interface Relationship {
   sourceChunkIds?: string[];
 }
 
-export type NavSection = 'overview' | 'graph' | 'paths' | 'sources' | 'settings';
+export type NavSection = 'overview' | 'graph' | 'study' | 'paths' | 'sources' | 'settings';
 
 export interface ConceptConnection {
   targetId: string;

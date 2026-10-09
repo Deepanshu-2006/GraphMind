@@ -17,6 +17,7 @@ export interface TestResultsViewProps {
   onBackToGraph: () => void;
   onSelectConceptToReview?: (conceptId: string) => void;
   onRetrySave?: () => void;
+  backButtonLabel?: string;
 }
 
 export interface ScoreInterpretation {
@@ -74,7 +75,8 @@ export const TestResultsView = memo(function TestResultsView({
   onReviewMissedConcepts,
   onBackToGraph,
   onSelectConceptToReview,
-  onRetrySave
+  onRetrySave,
+  backButtonLabel
 }: TestResultsViewProps) {
   // Exit transition states (Section 22)
   const [isExiting, setIsExiting] = useState(false);
@@ -266,13 +268,13 @@ export const TestResultsView = memo(function TestResultsView({
           className="results-quiet-back-btn results-top-back-btn"
           onClick={handleBackToGraph}
           disabled={isExiting}
-          title="Return to knowledge graph"
+          title={backButtonLabel ? `Return to ${backButtonLabel.toLowerCase()}` : "Return to knowledge graph"}
           initial={{ opacity: 0, y: -6 }}
           animate={isExiting ? { opacity: 0, y: -4 } : { opacity: 1, y: 0 }}
           transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
         >
           <span className="back-arrow" aria-hidden="true">←</span>
-          <span>BACK TO GRAPH</span>
+          <span>{backButtonLabel || 'BACK TO GRAPH'}</span>
         </motion.button>
       </div>
 
