@@ -1,0 +1,560 @@
+/* ==========================================================================
+   GraphMind Study Space — Central Learning Hub & Assessment History
+   Editorial Minimal + Raycast/Linear Restraint + Swiss Architecture.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Root Page Container
+   -------------------------------------------------------------------------- */
+.study-space-container {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 48px 32px 100px 32px;
+  display: flex;
+  flex-direction: column;
+  color: var(--text-primary);
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --------------------------------------------------------------------------
+   2. Editorial Page Header
+   -------------------------------------------------------------------------- */
+.study-header {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 40px;
+}
+
+.study-eyebrow {
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: #666666;
+  margin-bottom: 14px;
+  display: inline-block;
+  user-select: none;
+}
+
+.study-title {
+  font-family: var(--font-display, var(--font-body, sans-serif));
+  font-size: 36px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  color: var(--text-primary, #F5F5F5);
+  margin: 0;
+}
+
+.study-subtitle {
+  font-family: var(--font-body, sans-serif);
+  font-size: 14.5px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--text-secondary, #A1A1A1);
+  margin-top: 10px;
+  max-width: 580px;
+}
+
+.study-header-divider {
+  width: 100%;
+  height: 1px;
+  background-color: var(--border-default, #242424);
+  margin-top: 28px;
+}
+
+/* --------------------------------------------------------------------------
+   3. Continue Learning Section (Compact Editorial Feature)
+   -------------------------------------------------------------------------- */
+.study-continue-section {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 48px;
+}
+
+.study-continue-box {
+  background-color: var(--bg-surface, #101010);
+  border: 1px solid var(--border-default, #242424);
+  border-radius: var(--radius-panel, 8px);
+  padding: 24px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  transition: border-color var(--transition-normal, 200ms ease),
+              background-color var(--transition-normal, 200ms ease);
+}
+
+.study-continue-box:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  background-color: #121212;
+}
+
+.study-continue-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.study-continue-kicker {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #707070;
+}
+
+.study-continue-title {
+  font-family: var(--font-display, var(--font-body, sans-serif));
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text-primary, #F5F5F5);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.study-continue-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-body, sans-serif);
+  font-size: 13px;
+  color: var(--text-secondary, #A1A1A1);
+  margin-top: 2px;
+}
+
+.study-meta-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.2);
+  display: inline-block;
+}
+
+.study-meta-highlight {
+  color: var(--accent, #A3FF12);
+  font-weight: 500;
+}
+
+.study-meta-warm {
+  color: #F87171;
+  font-weight: 500;
+}
+
+/* Editorial Button with Animated Signature Underline */
+.study-editorial-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  color: var(--text-primary, #F5F5F5);
+  font-family: var(--font-body, sans-serif);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  outline: none;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.study-editorial-btn:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+.study-btn-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color var(--transition-fast, 150ms ease);
+}
+
+.study-btn-arrow {
+  display: inline-block;
+  transition: transform var(--transition-fast, 150ms cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+.study-btn-underline {
+  width: 0%;
+  height: 1px;
+  background-color: var(--accent, #A3FF12);
+  margin-top: 3px;
+  transition: width 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.study-editorial-btn:hover .study-btn-content {
+  color: var(--accent, #A3FF12);
+}
+
+.study-editorial-btn:hover .study-btn-arrow {
+  transform: translateX(4px);
+  color: var(--accent, #A3FF12);
+}
+
+.study-editorial-btn:hover .study-btn-underline {
+  width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   4. Assessment History Section (Editorial Aligned Grid)
+   -------------------------------------------------------------------------- */
+.study-history-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.study-history-header-block {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+}
+
+.study-section-title {
+  font-family: var(--font-display, var(--font-body, sans-serif));
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text-primary, #F5F5F5);
+  margin: 0;
+}
+
+.study-section-desc {
+  font-family: var(--font-body, sans-serif);
+  font-size: 13px;
+  color: var(--text-muted, #8A8A8A);
+  margin-top: 4px;
+}
+
+/* Table Architecture */
+.study-table-container {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border-default, #242424);
+  border-radius: var(--radius-panel, 8px);
+  background-color: var(--bg-surface, #101010);
+}
+
+.study-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.study-table-head {
+  border-bottom: 1px solid var(--border-default, #242424);
+  background-color: #0E0E0E;
+}
+
+.study-th {
+  padding: 12px 20px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #707070;
+  user-select: none;
+}
+
+.study-th.study-th-action {
+  text-align: right;
+}
+
+.study-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background-color var(--transition-fast, 150ms ease);
+  cursor: pointer;
+}
+
+.study-row:last-child {
+  border-bottom: none;
+}
+
+.study-row:hover {
+  background-color: var(--bg-surface-hover, #181818);
+}
+
+.study-row:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: -1px;
+}
+
+.study-td {
+  padding: 18px 20px;
+  vertical-align: middle;
+  font-family: var(--font-body, sans-serif);
+  font-size: 13.5px;
+  color: var(--text-secondary, #A1A1A1);
+}
+
+.study-td.study-td-action {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Cell Contents */
+.study-attempt-name {
+  font-family: var(--font-body, sans-serif);
+  font-size: 14.5px;
+  font-weight: 550;
+  color: var(--text-primary, #F5F5F5);
+  line-height: 1.3;
+}
+
+.study-attempt-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: #707070;
+  margin-top: 3px;
+}
+
+.study-badge-expired {
+  font-family: var(--font-mono, monospace);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #F87171;
+  background-color: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+.study-date-text {
+  color: #D4D4D4;
+  font-weight: 450;
+}
+
+.study-time-text {
+  font-size: 11.5px;
+  color: #666666;
+  margin-top: 2px;
+}
+
+.study-result-score {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary, #F5F5F5);
+}
+
+.study-result-pct {
+  font-size: 11.5px;
+  color: #8A8A8A;
+  margin-top: 2px;
+}
+
+.study-questions-count {
+  color: #D4D4D4;
+}
+
+.study-questions-time {
+  font-size: 11.5px;
+  color: #666666;
+  margin-top: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   5. Empty State
+   -------------------------------------------------------------------------- */
+.study-empty-state {
+  border: 1px solid var(--border-default, #242424);
+  border-radius: var(--radius-panel, 8px);
+  background-color: var(--bg-surface, #101010);
+  padding: 56px 40px;
+  max-width: 640px;
+  margin-top: 12px;
+}
+
+.study-empty-heading {
+  font-family: var(--font-display, var(--font-body, sans-serif));
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary, #F5F5F5);
+  margin: 12px 0 10px 0;
+}
+
+.study-empty-text {
+  font-family: var(--font-body, sans-serif);
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-secondary, #A1A1A1);
+  margin: 0 0 28px 0;
+  max-width: 480px;
+}
+
+.study-empty-action {
+  font-size: 13.5px;
+}
+
+/* --------------------------------------------------------------------------
+   6. Loading & Error States
+   -------------------------------------------------------------------------- */
+.study-loading-state {
+  padding: 48px 0;
+  color: var(--text-muted, #8A8A8A);
+  font-family: var(--font-body, sans-serif);
+  font-size: 14px;
+}
+
+.study-error-banner {
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  background-color: rgba(239, 68, 68, 0.08);
+  border-radius: var(--radius-panel, 8px);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.study-error-text {
+  color: #F87171;
+  font-size: 13.5px;
+}
+
+.study-retry-btn {
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #FCA5A5;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all var(--transition-fast, 150ms ease);
+}
+
+.study-retry-btn:hover {
+  background-color: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.8);
+  color: #FFF;
+}
+
+/* --------------------------------------------------------------------------
+   7. Historical Results View Wrapper
+   -------------------------------------------------------------------------- */
+.study-historical-results-wrap {
+  width: 100%;
+  animation: studyFadeIn 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes studyFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   8. Responsive Layouts
+   -------------------------------------------------------------------------- */
+@media (max-width: 960px) {
+  .study-space-container {
+    padding: 36px 24px 80px 24px;
+  }
+
+  .study-continue-box {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 20px 22px;
+  }
+}
+
+@media (max-width: 640px) {
+  .study-space-container {
+    padding: 28px 16px 64px 16px;
+  }
+
+  .study-title {
+    font-size: 30px;
+  }
+
+  /* Stack table into mobile cards */
+  .study-table-container {
+    border: none;
+    background: transparent;
+  }
+
+  .study-table,
+  .study-table tbody,
+  .study-row,
+  .study-td {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .study-table-head {
+    display: none;
+  }
+
+  .study-row {
+    background-color: var(--bg-surface, #101010);
+    border: 1px solid var(--border-default, #242424);
+    border-radius: var(--radius-panel, 8px);
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .study-td {
+    padding: 6px 0;
+    font-size: 13px;
+  }
+
+  .study-td.study-td-action {
+    text-align: left;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .study-empty-state {
+    padding: 36px 20px;
+  }
+
+  .study-empty-heading {
+    font-size: 22px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   9. Accessibility & Reduced Motion
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .study-btn-arrow,
+  .study-btn-underline,
+  .study-row,
+  .study-continue-box,
+  .study-historical-results-wrap {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+}
