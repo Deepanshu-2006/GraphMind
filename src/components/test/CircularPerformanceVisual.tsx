@@ -207,7 +207,9 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
       aria-label="Knowledge Performance Circular Visualization"
       initial={false}
       animate={
-        isExiting && exitTarget === 'graph'
+        isExiting && exitTarget === 'missed'
+          ? { scale: 0.86, opacity: 0, transition: { duration: 0.36, delay: 0.24, ease: [0.16, 1, 0.3, 1] } }
+          : isExiting && exitTarget === 'graph'
           ? { scale: 0.85, opacity: 0, transition: { duration: 0.28, delay: 0.12, ease: [0.16, 1, 0.3, 1] } }
           : { scale: 1, opacity: 1 }
       }
@@ -371,7 +373,14 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
 
         {/* Center Typography (Section 1 & 8) */}
         {/* Synchronized: Number counts up as ring measures, confirms the score */}
-        <div className="circular-center-content">
+        <motion.div
+          className="circular-center-content"
+          animate={
+            isExiting && exitTarget === 'missed'
+              ? { scale: 0.90, opacity: 0, transition: { duration: 0.24, delay: 0.06, ease: [0.16, 1, 0.3, 1] } }
+              : { scale: 1, opacity: 1 }
+          }
+        >
           <div className="circular-center-score-row" aria-label={`${scoreFormatted} of ${totalFormatted}`}>
             <span className="circular-center-number">
               <SlotDigit targetDigit={tensDigit} delay={0.42} duration={0.68} />
@@ -388,15 +397,18 @@ export const CircularPerformanceVisual = memo(function CircularPerformanceVisual
           >
             <PercentageCounter target={percentage} delay={420} duration={580} />
           </motion.span>
-        </div>
+        </motion.div>
       </div>
 
       {/* Footer Subtitle: e.g. 2 correct · 8 to revisit + quiet 00:53 elapsed (Section 1 & 8) */}
       <motion.div
         className="circular-summary-footer"
         initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.98, ease: [0.16, 1, 0.3, 1] }}
+        animate={
+          isExiting
+            ? { opacity: 0, y: -6, transition: { duration: 0.20, delay: 0.04, ease: [0.16, 1, 0.3, 1] } }
+            : { opacity: 1, y: 0, transition: { duration: 0.35, delay: 0.98, ease: [0.16, 1, 0.3, 1] } }
+        }
       >
         <div className="circular-summary-counts">
           <span>{score} correct</span>

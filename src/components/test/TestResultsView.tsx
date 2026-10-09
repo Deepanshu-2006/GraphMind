@@ -220,7 +220,7 @@ export const TestResultsView = memo(function TestResultsView({
     setExitTarget('missed');
     setTimeout(() => {
       onReviewMissedConcepts();
-    }, 480);
+    }, 620);
   };
 
   const handleBackToGraph = () => {
@@ -285,8 +285,8 @@ export const TestResultsView = memo(function TestResultsView({
                     : { y: '0%', opacity: 1, clipPath: 'inset(0 0 0% 0)' }
                 }
                 transition={{
-                  duration: 0.65,
-                  delay: isExiting ? 0.24 : 0.08,
+                  duration: isExiting ? 0.38 : 0.65,
+                  delay: isExiting ? (exitTarget === 'missed' ? 0.14 : 0.24) : 0.08,
                   ease: [0.16, 1, 0.3, 1]
                 }}
               >
@@ -303,8 +303,8 @@ export const TestResultsView = memo(function TestResultsView({
                     : { y: '0%', opacity: 1, clipPath: 'inset(0 0 0% 0)' }
                 }
                 transition={{
-                  duration: 0.65,
-                  delay: isExiting ? 0.24 : 0.16,
+                  duration: isExiting ? 0.38 : 0.65,
+                  delay: isExiting ? (exitTarget === 'missed' ? 0.18 : 0.24) : 0.16,
                   ease: [0.16, 1, 0.3, 1]
                 }}
               >
@@ -319,7 +319,7 @@ export const TestResultsView = memo(function TestResultsView({
             initial={{ opacity: 0, y: 14 }}
             animate={
               isExiting
-                ? { opacity: 0, y: -10, transition: { duration: 0.22, delay: 0.06, ease: [0.16, 1, 0.3, 1] } }
+                ? { opacity: 0, y: -12, transition: { duration: 0.26, delay: exitTarget === 'missed' ? 0.10 : 0.06, ease: [0.16, 1, 0.3, 1] } }
                 : { opacity: 1, y: 0, transition: { duration: 0.45, delay: 0.26, ease: [0.16, 1, 0.3, 1] } }
             }
           >
@@ -439,7 +439,7 @@ export const TestResultsView = memo(function TestResultsView({
         initial={{ opacity: 0, y: 16 }}
         animate={
           isExiting
-            ? { opacity: 0, y: 14, transition: { duration: 0.22, delay: 0, ease: [0.16, 1, 0.3, 1] } }
+            ? { opacity: 0, y: -18, transition: { duration: 0.28, delay: 0.06, ease: [0.16, 1, 0.3, 1] } }
             : { opacity: 1, y: 0, transition: { duration: 0.48, delay: 0.48, ease: [0.16, 1, 0.3, 1] } }
         }
       >
