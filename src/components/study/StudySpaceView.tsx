@@ -1084,7 +1084,7 @@ export function StudySpaceView({
                 <div className="study-continue-grid">
                   {/* LEFT: Complete Assessment Narrative & Performance Hierarchy */}
                   <div className="study-continue-info">
-                    {/* Section Context & Prominent Graph Title */}
+                    {/* AREA A — Section Context & Prominent Graph Title (Upper-Left) */}
                     <div className="study-continue-context-layer">
                       <div className="study-continue-eyebrow-row">
                         <motion.span 
@@ -1094,14 +1094,6 @@ export function StudySpaceView({
                           transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.30, delay: 0.04, ease: REVEAL_EASE }}
                         >
                           CONTINUE LEARNING
-                        </motion.span>
-                        <motion.span 
-                          className="study-continue-eyebrow-tag"
-                          initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
-                          animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
-                          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.30, delay: 0.06, ease: REVEAL_EASE }}
-                        >
-                          LATEST ASSESSMENT
                         </motion.span>
                       </div>
 
@@ -1123,43 +1115,73 @@ export function StudySpaceView({
                           transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.30, delay: 0.12, ease: REVEAL_EASE }}
                         >
                           <span>{latestDateInfo.dateStr}</span>
-                          <span className="study-meta-dot" aria-hidden="true" />
+                          <span className="study-meta-dot" aria-hidden="true">·</span>
                           <span>{latestAttempt.totalQuestions} questions</span>
                         </motion.div>
                       </div>
                     </div>
 
-                    {/* Substantial Correct-Answer Statistic & Concepts Revisit */}
+                    {/* AREA C — Results Summary & Connected Next Action */}
                     <motion.div 
                       className="study-continue-summary-block"
                       initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
                       animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
                       transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.18, ease: REVEAL_EASE }}
                     >
+                      {/* Correct-Answer Statistic */}
                       <div className="study-continue-ratio-row">
                         <div className="study-continue-ratio-num">
-                          <span>{pad(latestAttempt.correctAnswers)}</span>
+                          <span className="study-ratio-numerator">{pad(latestAttempt.correctAnswers)}</span>
                           <span className="study-continue-ratio-slash">/</span>
-                          <span>{pad(latestAttempt.totalQuestions)}</span>
+                          <span className="study-ratio-denominator">{pad(latestAttempt.totalQuestions)}</span>
                         </div>
                         <span className="study-continue-ratio-lbl">CORRECT ANSWERS</span>
                       </div>
 
-                      <div className="study-continue-meta">
-                        {missedCount > 0 ? (
-                          <span className="study-meta-warm">
-                            {missedCount} concept{missedCount === 1 ? '' : 's'} to revisit
-                          </span>
-                        ) : (
-                          <span className="study-meta-highlight">
-                            All concepts mastered
-                          </span>
-                        )}
+                      {/* Learning Insight & Connected Next Action */}
+                      <div className="study-continue-results-action-group">
+                        <div className="study-continue-meta">
+                          <span 
+                            className={`study-meta-indicator ${missedCount > 0 ? 'study-meta-indicator-warm' : 'study-meta-indicator-lime'}`} 
+                            aria-hidden="true" 
+                          />
+                          {missedCount > 0 ? (
+                            <span className="study-meta-insight-text study-meta-warm">
+                              {missedCount} concept{missedCount === 1 ? '' : 's'} to revisit
+                            </span>
+                          ) : (
+                            <span className="study-meta-insight-text study-meta-highlight">
+                              All concepts mastered · complete comprehension
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="study-continue-action-row">
+                          <button
+                            type="button"
+                            className="study-editorial-btn study-continue-action-btn"
+                            onClick={() => handleOpenAttempt(
+                              latestAttempt.id, 
+                              missedCount > 0 ? 'review-missed' : 'historical-results'
+                            )}
+                            aria-label={
+                              missedCount > 0 
+                                ? `Review missed concepts for ${latestAttempt.graphName}` 
+                                : `Review results for ${latestAttempt.graphName}`
+                            }
+                          >
+                            <span className="study-btn-content">
+                              <span>{missedCount > 0 ? 'REVIEW MISSED CONCEPTS' : 'REVIEW RESULTS'}</span>
+                              <span className="study-btn-arrow" aria-hidden="true">→</span>
+                            </span>
+                            <span className="study-btn-underline" aria-hidden="true" />
+                          </button>
+                        </div>
                       </div>
                     </motion.div>
                   </div>
 
-                  {/* RIGHT: Custom Circular SVG Score Visualization & Primary Next Action */}
+                  {/* AREA B — Performance Visualization (Focal Circular Score) */}
                   <motion.div 
                     className="study-continue-action-wrap"
                     initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
@@ -1170,8 +1192,8 @@ export function StudySpaceView({
                       <div className="study-continue-circle-wrap">
                         <svg 
                           className="study-continue-circle-svg" 
-                          width="200" 
-                          height="200" 
+                          width="210" 
+                          height="210" 
                           viewBox="0 0 200 200" 
                           role="progressbar" 
                           aria-valuenow={clampedScore} 
@@ -1207,34 +1229,6 @@ export function StudySpaceView({
                         </div>
                       </div>
                     </div>
-
-                    {/* Editorial Text Action directly anchored below the circle */}
-                    <motion.div
-                      className="study-continue-action-row"
-                      initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
-                      animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
-                      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.36, ease: REVEAL_EASE }}
-                    >
-                      <button
-                        type="button"
-                        className="study-editorial-btn study-continue-action-btn"
-                        onClick={() => handleOpenAttempt(
-                          latestAttempt.id, 
-                          missedCount > 0 ? 'review-missed' : 'historical-results'
-                        )}
-                        aria-label={
-                          missedCount > 0 
-                            ? `Review missed concepts for ${latestAttempt.graphName}` 
-                            : `Review results for ${latestAttempt.graphName}`
-                        }
-                      >
-                        <span className="study-btn-content">
-                          <span>{missedCount > 0 ? 'REVIEW MISSED CONCEPTS' : 'REVIEW RESULTS'}</span>
-                          <span className="study-btn-arrow" aria-hidden="true">→</span>
-                        </span>
-                        <span className="study-btn-underline" aria-hidden="true" />
-                      </button>
-                    </motion.div>
                   </motion.div>
                 </div>
               </div>

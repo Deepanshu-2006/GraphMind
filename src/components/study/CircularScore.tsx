@@ -17,6 +17,20 @@ export const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS;
 export const REVEAL_EASE = [0.16, 1, 0.3, 1] as const;
 
 /**
+ * Calculates the exact Cartesian endpoint (x, y) along the circular arc
+ * starting from 12 o'clock (-90 deg) and progressing clockwise.
+ */
+export function getArcEndpoint(score: number, radius = CIRCLE_RADIUS, cx = 100, cy = 100) {
+  const clamped = Math.max(0, Math.min(100, Math.round(Number(score) || 0)));
+  const angle = -Math.PI / 2 + (clamped / 100) * 2 * Math.PI;
+  return {
+    x: Number((cx + radius * Math.cos(angle)).toFixed(2)),
+    y: Number((cy + radius * Math.sin(angle)).toFixed(2)),
+    angle
+  };
+}
+
+/**
  * Reusable, mathematically precise circular score visualization using SVG.
  * Features a thin, muted track, a lime-green progress arc, and centered tabular numerals.
  * Handles 0%, partial, and 100% scores with proper stroke caps and opacity.

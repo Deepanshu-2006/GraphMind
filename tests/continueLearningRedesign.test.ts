@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getArcEndpoint, CIRCLE_RADIUS } from '../src/components/study/CircularScore';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,65 +27,69 @@ describe('Continue Learning Redesign & Asymmetric Editorial Assessment Experienc
       );
     });
 
-    it('houses all assessment narrative items in the LEFT column (study-continue-info)', () => {
-      // Find the left column
+    it('houses assessment identity and connected results in the narrative column (study-continue-info)', () => {
+      // Find the narrative column and focal visualization column
       const leftColStart = studyViewSrc.indexOf('className="study-continue-info"');
       const rightColStart = studyViewSrc.indexOf('className="study-continue-action-wrap"');
-      assert.ok(leftColStart !== -1 && rightColStart !== -1, 'Must have left and right columns');
-      assert.ok(leftColStart < rightColStart, 'Left column must precede right column');
+      assert.ok(leftColStart !== -1 && rightColStart !== -1, 'Must have narrative and visualization areas');
+      assert.ok(leftColStart < rightColStart, 'Narrative column must precede visualization column');
 
       const leftColContent = studyViewSrc.slice(leftColStart, rightColStart);
 
-      // Verify LEFT items:
+      // Verify AREA A (Assessment Identity):
       // 1. Small uppercase CONTINUE LEARNING label
-      assert.ok(leftColContent.includes('CONTINUE LEARNING'), 'Left column must include CONTINUE LEARNING');
+      assert.ok(leftColContent.includes('CONTINUE LEARNING'), 'Must include CONTINUE LEARNING kicker');
       assert.ok(leftColContent.includes('study-continue-kicker'), 'Must have kicker class');
 
       // 2. Prominent assessment or graph title
-      assert.ok(leftColContent.includes('study-continue-title'), 'Left column must include title');
+      assert.ok(leftColContent.includes('study-continue-title'), 'Must include title');
       assert.ok(leftColContent.includes('{latestAttempt.graphName}'), 'Must display graphName');
 
       // 3. Quiet assessment date and contextual metadata
-      assert.ok(leftColContent.includes('latestDateInfo.dateStr'), 'Left column must include assessment date');
-      assert.ok(leftColContent.includes('latestAttempt.totalQuestions'), 'Left column must include questions count');
+      assert.ok(leftColContent.includes('latestDateInfo.dateStr'), 'Must include assessment date');
+      assert.ok(leftColContent.includes('latestAttempt.totalQuestions'), 'Must include questions count');
       assert.ok(leftColContent.includes('study-continue-context-line'), 'Must use context-line styling');
 
-      // 4. Large correct-answer statistic
-      assert.ok(leftColContent.includes('study-continue-ratio-row'), 'Left column must include ratio row');
-      assert.ok(leftColContent.includes('study-continue-ratio-num'), 'Must display large ratio numbers');
+      // Verify AREA C (Results & Connected Next Action):
+      // 4. Large correct-answer statistic with distinct numerator/denominator hierarchy
+      assert.ok(leftColContent.includes('study-continue-ratio-row'), 'Must include ratio row');
+      assert.ok(leftColContent.includes('study-continue-ratio-num'), 'Must display ratio numeral');
+      assert.ok(leftColContent.includes('study-ratio-numerator'), 'Must have distinct numerator class');
+      assert.ok(leftColContent.includes('study-ratio-denominator'), 'Must have distinct denominator class');
       assert.ok(leftColContent.includes('study-continue-ratio-slash'), 'Must display slash separator');
+      assert.ok(leftColContent.includes('CORRECT ANSWERS'), 'Must include CORRECT ANSWERS');
 
-      // 5. Supporting label identifying correct answers
-      assert.ok(leftColContent.includes('CORRECT ANSWERS'), 'Left column must include CORRECT ANSWERS');
-      assert.ok(leftColContent.includes('study-continue-ratio-lbl'), 'Must use ratio label');
-
-      // 6. Number of concepts requiring revision
+      // 5. Number of concepts requiring revision & learning insight
+      assert.ok(leftColContent.includes('study-continue-results-action-group'), 'Must group results with connected next action');
       assert.ok(leftColContent.includes('study-meta-warm'), 'Must have warm highlight for concepts to revisit');
       assert.ok(leftColContent.includes('to revisit'), 'Must display count of concepts requiring revision');
+
+      // 6. Connected review action integrated with results
+      assert.ok(leftColContent.includes('study-continue-action-btn'), 'Action button must be connected to results in narrative column');
+      assert.ok(leftColContent.includes('REVIEW MISSED CONCEPTS'), 'Must have REVIEW MISSED CONCEPTS text');
     });
 
-    it('houses circular score visualization and action in the RIGHT column (study-continue-action-wrap)', () => {
+    it('houses pure, unencumbered circular score visualization in Area B (study-continue-action-wrap)', () => {
       const rightColStart = studyViewSrc.indexOf('className="study-continue-action-wrap"');
       const rightColEnd = studyViewSrc.indexOf('</motion.section>', rightColStart);
       const rightColContent = studyViewSrc.slice(rightColStart, rightColEnd);
 
-      // Verify RIGHT items:
+      // Verify AREA B items:
       // 1. Custom circular SVG score visualization
-      assert.ok(rightColContent.includes('study-continue-circle-svg'), 'Right column must have SVG circular score');
-      assert.ok(rightColContent.includes('study-continue-circle-track'), 'Right column must have track');
-      assert.ok(rightColContent.includes('study-continue-circle-arc'), 'Right column must have lime arc');
+      assert.ok(rightColContent.includes('study-continue-circle-svg'), 'Must have SVG circular score');
+      assert.ok(rightColContent.includes('study-continue-circle-track'), 'Must have track');
+      assert.ok(rightColContent.includes('study-continue-circle-arc'), 'Must have lime arc');
 
       // 2. Animated percentage positioned in its center
-      assert.ok(rightColContent.includes('study-continue-score-pct'), 'Right column must have percentage element');
+      assert.ok(rightColContent.includes('study-continue-score-pct'), 'Must have percentage element');
       assert.ok(rightColContent.includes('{displayedScore}%'), 'Must display animated score percentage');
 
       // 3. Small uppercase assessment-score caption
-      assert.ok(rightColContent.includes('study-continue-circle-lbl'), 'Right column must have circle label');
+      assert.ok(rightColContent.includes('study-continue-circle-lbl'), 'Must have circle label');
       assert.ok(rightColContent.includes('SCORE'), 'Must label as SCORE');
 
-      // 4. Review-missed-concepts action beneath visualization
-      assert.ok(rightColContent.includes('study-continue-action-btn'), 'Right column must have action button');
-      assert.ok(rightColContent.includes('REVIEW MISSED CONCEPTS'), 'Must have REVIEW MISSED CONCEPTS text');
+      // 4. Circle is not encumbered by an arbitrary disconnected button
+      assert.ok(!rightColContent.includes('study-continue-action-btn'), 'Circle must be clean and unencumbered in Area B');
     });
 
     it('enforces visually dominant title and substantial but secondary correct-answer statistic in typography', () => {
@@ -141,6 +146,33 @@ describe('Continue Learning Redesign & Asymmetric Editorial Assessment Experienc
         studyViewSrc.includes('Math.max(0, Math.min(100, Math.round(raw)))'),
         'Must clamp score strictly to 0..100 range'
       );
+    });
+
+    it('positions endpoint indicator accurately along the circular arc', () => {
+      // At 0%: 12 o'clock (top)
+      const pt0 = getArcEndpoint(0, CIRCLE_RADIUS, 100, 100);
+      assert.strictEqual(pt0.x, 100);
+      assert.strictEqual(pt0.y, 18);
+
+      // At 25%: 3 o'clock (right)
+      const pt25 = getArcEndpoint(25, CIRCLE_RADIUS, 100, 100);
+      assert.strictEqual(pt25.x, 182);
+      assert.strictEqual(pt25.y, 100);
+
+      // At 50%: 6 o'clock (bottom)
+      const pt50 = getArcEndpoint(50, CIRCLE_RADIUS, 100, 100);
+      assert.strictEqual(pt50.x, 100);
+      assert.strictEqual(pt50.y, 182);
+
+      // At 75%: 9 o'clock (left)
+      const pt75 = getArcEndpoint(75, CIRCLE_RADIUS, 100, 100);
+      assert.strictEqual(pt75.x, 18);
+      assert.strictEqual(pt75.y, 100);
+
+      // At 100%: 12 o'clock (full loop)
+      const pt100 = getArcEndpoint(100, CIRCLE_RADIUS, 100, 100);
+      assert.strictEqual(pt100.x, 100);
+      assert.strictEqual(pt100.y, 18);
     });
   });
 
@@ -214,18 +246,18 @@ describe('Continue Learning Redesign & Asymmetric Editorial Assessment Experienc
       assert.doesNotMatch(studyCss, /\.study-continue-box\s*\{[^}]*backdrop-filter/);
     });
 
-    it('adapts gracefully on tablet and mobile without horizontal overflow', () => {
+    it('creates a deliberate vertical rhythm between Continue Learning and Learning Progress', () => {
       assert.match(
         studyCss,
-        /@media\s*\(max-width:\s*960px\)[\s\S]*?\.study-continue-circle-wrap\s*\{[\s\S]*?width:\s*170px;/
+        /\.study-continue-section\s*\{[\s\S]*?margin-bottom:\s*64px;/
       );
       assert.match(
         studyCss,
-        /@media\s*\(max-width:\s*640px\)[\s\S]*?\.study-continue-grid\s*\{[\s\S]*?grid-template-columns:\s*1fr;/
+        /@media\s*\(max-width:\s*960px\)[\s\S]*?\.study-continue-section\s*\{[\s\S]*?margin-bottom:\s*52px;/
       );
       assert.match(
         studyCss,
-        /@media\s*\(max-width:\s*640px\)[\s\S]*?\.study-continue-circle-wrap\s*\{[\s\S]*?width:\s*160px;/
+        /@media\s*\(max-width:\s*640px\)[\s\S]*?\.study-continue-section\s*\{[\s\S]*?margin-bottom:\s*44px;/
       );
     });
   });
