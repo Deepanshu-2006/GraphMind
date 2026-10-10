@@ -1218,70 +1218,197 @@
 }
 
 /* --------------------------------------------------------------------------
-   12. Learning Progress Across Assessment Attempts (Prompt 5)
+   12. Learning Progress — Learning Trajectory Architecture
+   Editorial sequence of knowledge graph trajectories (no generic dashboard cards)
    -------------------------------------------------------------------------- */
 .study-progress-section {
-  margin-bottom: 48px;
-}
-
-.study-progress-cards-list {
+  margin-top: 56px;
+  margin-bottom: 64px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  margin-top: 20px;
+  gap: 36px;
 }
 
-.study-progress-card {
-  background-color: var(--bg-surface, #101010);
-  border: 1px solid var(--border-default, #242424);
-  border-radius: var(--radius-panel, 8px);
-  padding: 24px 28px;
-  transition: border-color var(--transition-normal, 200ms ease),
-              background-color var(--transition-normal, 200ms ease);
-}
-
-.study-progress-card:hover {
-  border-color: rgba(255, 255, 255, 0.16);
-  background-color: #121212;
-}
-
-.study-progress-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-
-.study-progress-card-title-wrap {
+/* SECTION INTRODUCTION (Section 3) */
+.study-trajectory-section-header {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
-.study-progress-kicker {
+.study-trajectory-eyebrow {
   font-family: var(--font-mono, monospace);
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 500;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #707070;
+  color: var(--accent, #A3FF12);
+  display: inline-block;
+  line-height: 1;
 }
 
-.study-progress-graph-name {
+.study-trajectory-section-title {
   font-family: var(--font-display, var(--font-body, sans-serif));
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.015em;
+  font-size: clamp(32px, 3.2vw, 38px);
+  font-weight: 550;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
   color: var(--text-primary, #F5F5F5);
   margin: 0;
 }
 
-.study-progress-attempts-count {
+.study-trajectory-section-desc {
   font-family: var(--font-body, sans-serif);
-  font-size: 13px;
-  color: var(--text-secondary, #A1A1A1);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #777777;
+  max-width: 520px;
+  margin: 0;
+}
+
+/* TRAJECTORY LIST & REGIONS (Section 4) */
+.study-progress-cards-list,
+.study-trajectory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.study-progress-card,
+.study-trajectory-row {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  box-sizing: border-box;
+  transition: none;
+}
+
+.study-progress-card:hover,
+.study-trajectory-row:hover {
+  background: transparent;
+  border-color: transparent;
+}
+
+.study-trajectory-row + .study-trajectory-row {
+  padding-top: 48px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* AREA A — Graph Identity & Current Performance (Section 5) */
+.study-trajectory-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.study-trajectory-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.study-progress-kicker,
+.study-trajectory-kicker {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #707070;
+  line-height: 1;
+}
+
+.study-progress-graph-name,
+.study-trajectory-graph-name {
+  font-family: var(--font-display, var(--font-body, sans-serif));
+  font-size: clamp(22px, 2.2vw, 26px);
+  font-weight: 550;
+  letter-spacing: -0.02em;
+  color: var(--text-primary, #F5F5F5);
+  margin: 0;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.study-progress-attempts-count,
+.study-trajectory-attempts-count {
+  font-family: var(--font-body, sans-serif);
+  font-size: 13.5px;
+  color: #888888;
+  line-height: 1.4;
+}
+
+.study-trajectory-perf {
+  display: flex;
+  align-items: flex-end;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.study-trajectory-latest-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.study-trajectory-perf-lbl {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #707070;
+  line-height: 1;
+}
+
+.study-trajectory-score-row {
+  display: inline-flex;
+  align-items: baseline;
+  line-height: 1;
+}
+
+.study-trajectory-score-val {
+  font-family: var(--font-display, var(--font-mono, monospace));
+  font-size: clamp(40px, 4.4vw, 48px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: #FFFFFF;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.study-trajectory-score-symbol {
+  font-family: var(--font-display, var(--font-mono, monospace));
+  font-size: clamp(22px, 2.4vw, 26px);
+  font-weight: 500;
+  color: #888888;
+  margin-left: 2px;
+  line-height: 1;
+}
+
+.study-trajectory-perf-date {
+  font-family: var(--font-body, sans-serif);
+  font-size: 12px;
+  color: #707070;
+  line-height: 1.3;
+}
+
+.study-trajectory-comparison-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding-bottom: 4px;
 }
 
 .study-progress-badge {
@@ -1294,6 +1421,7 @@
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.04em;
+  line-height: 1;
 }
 
 .study-progress-badge.improved {
@@ -1319,200 +1447,193 @@
   font-weight: 700;
 }
 
-.study-progress-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  padding: 16px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.study-progress-metric {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.study-progress-metric-label {
-  font-family: var(--font-mono, monospace);
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #707070;
-}
-
-.study-progress-metric-val {
-  font-family: var(--font-display, var(--font-body, sans-serif));
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  color: var(--text-primary, #F5F5F5);
-}
-
-.study-progress-diff-improved {
-  color: var(--accent, #A3FF12);
-}
-
-.study-progress-diff-declined {
-  color: #F87171;
-}
-
-.study-progress-diff-unchanged,
-.study-progress-diff-incompatible {
-  color: var(--text-secondary, #A1A1A1);
-}
-
-.study-progress-metric-date {
-  font-family: var(--font-body, sans-serif);
-  font-size: 11.5px;
-  color: #7A7A7A;
-}
-
-.study-progress-single-note {
-  grid-column: span 2;
-}
-
-.study-progress-note-text {
-  font-size: 13px !important;
-  font-weight: 400 !important;
-  color: #8A8A8A !important;
-  line-height: 1.4;
-}
-
-/* Chronological Timeline & Restrained SVG Visualization */
-.study-progress-timeline-block {
-  margin-top: 20px;
-}
-
-.study-progress-timeline-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.study-progress-timeline-title {
-  font-family: var(--font-mono, monospace);
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #707070;
-}
-
-.study-progress-timeline-hint {
+.study-trajectory-prev-note {
   font-family: var(--font-body, sans-serif);
   font-size: 12px;
   color: #707070;
+  line-height: 1.3;
 }
 
-.study-progress-svg-wrap {
+.study-trajectory-single-hint {
+  font-family: var(--font-body, sans-serif);
+  font-size: 13px;
+  color: #707070;
+  line-height: 1.4;
+  max-width: 240px;
+}
+
+/* AREA B — Score Trajectory Visualization (Section 6) */
+.study-trajectory-viz-block {
   width: 100%;
-  height: 80px;
-  margin-bottom: 14px;
 }
 
-.study-progress-svg {
+.study-trajectory-chart-shell {
+  width: 100%;
+  height: 120px;
+  position: relative;
+}
+
+.study-progress-svg,
+.study-trajectory-svg {
   width: 100%;
   height: 100%;
   display: block;
+  overflow: visible;
 }
 
-.study-svg-point-node {
+.study-trajectory-grid-line {
+  stroke: rgba(255, 255, 255, 0.05);
+  vector-effect: non-scaling-stroke;
+}
+
+.study-trajectory-axis-lbl {
+  user-select: none;
+  line-height: 1;
+}
+
+.study-trajectory-line {
+  vector-effect: non-scaling-stroke;
+}
+
+.study-trajectory-node {
   cursor: pointer;
   outline: none;
 }
 
-.study-svg-point-node circle {
-  transition: r 180ms ease, stroke-width 180ms ease, stroke 180ms ease;
+.study-trajectory-point {
+  transition: r 180ms ease, stroke-width 180ms ease, stroke 180ms ease, fill 180ms ease;
+  vector-effect: non-scaling-stroke;
 }
 
-.study-svg-point-node:hover circle,
-.study-svg-point-node:focus-visible circle {
-  r: 6px;
-  stroke-width: 2.2px;
-  stroke: var(--accent, #A3FF12);
-  fill: #1A1A1A;
+.study-trajectory-node:hover .study-trajectory-point,
+.study-trajectory-node:focus-visible .study-trajectory-point {
+  r: 5.5px;
+  stroke: #FFFFFF;
+  fill: var(--accent, #A3FF12);
+  stroke-width: 2px;
 }
 
-.study-progress-history-strip {
+.study-trajectory-point-lbl {
+  user-select: none;
+  transition: fill 180ms ease, font-weight 180ms ease;
+}
+
+.study-trajectory-point-lbl.highlight {
+  fill: #FFFFFF;
+  font-weight: 600;
+}
+
+/* AREA C — Compact Historical Attempt Strip (Section 7) */
+.study-progress-history-strip,
+.study-trajectory-strip {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.study-trajectory-strip-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  margin-top: 10px;
 }
 
-.study-progress-strip-label {
+.study-progress-strip-label,
+.study-trajectory-strip-lbl {
   font-family: var(--font-mono, monospace);
-  font-size: 10.5px;
-  letter-spacing: 0.12em;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #666666;
 }
 
-.study-progress-chips-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+.study-trajectory-strip-hint {
+  font-family: var(--font-body, sans-serif);
+  font-size: 12px;
+  color: #666666;
 }
 
-.study-progress-chip {
+.study-progress-chips-wrap,
+.study-trajectory-chips-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.study-progress-chip,
+.study-trajectory-chip {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 10px;
   padding: 6px 12px;
-  background-color: #141414;
-  border: 1px solid var(--border-default, #242424);
+  background-color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 4px;
   color: var(--text-primary, #F5F5F5);
   cursor: pointer;
+  font-family: var(--font-mono, monospace);
   font-size: 12px;
-  font-family: var(--font-body, sans-serif);
-  transition: border-color var(--transition-normal, 180ms ease),
-              background-color var(--transition-normal, 180ms ease),
-              transform var(--transition-normal, 180ms ease);
+  line-height: 1;
+  transition: border-color 180ms ease,
+              background-color 180ms ease,
+              transform 180ms ease;
 }
 
 .study-progress-chip:hover,
-.study-progress-chip.active {
-  border-color: rgba(255, 255, 255, 0.24);
-  background-color: #1A1A1A;
+.study-progress-chip.active,
+.study-trajectory-chip:hover,
+.study-trajectory-chip.active {
+  border-color: rgba(163, 255, 18, 0.35);
+  background-color: rgba(163, 255, 18, 0.05);
   transform: translateY(-1px);
 }
 
-.study-progress-chip:focus-visible {
+.study-progress-chip:focus-visible,
+.study-trajectory-chip:focus-visible {
   outline: 2px solid var(--accent, #A3FF12);
   outline-offset: 1px;
 }
 
-.study-progress-chip-name {
-  font-family: var(--font-mono, monospace);
+.study-trajectory-chip-idx {
+  color: #777777;
   font-size: 11px;
-  font-weight: 500;
-  color: #A1A1A1;
 }
 
-.study-progress-chip-arrow {
+.study-progress-chip-score,
+.study-trajectory-chip-score {
+  color: #F5F5F5;
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+.study-progress-chip.active .study-trajectory-chip-score {
+  color: var(--accent, #A3FF12);
+}
+
+.study-progress-chip-date,
+.study-trajectory-chip-date {
+  color: #666666;
+  font-size: 11px;
+}
+
+.study-progress-chip-arrow,
+.study-trajectory-chip-arrow {
   color: #555555;
   font-size: 11px;
+  transition: transform 180ms ease, color 180ms ease;
 }
 
-.study-progress-chip-score {
-  font-weight: 600;
+.study-progress-chip:hover .study-trajectory-chip-arrow,
+.study-progress-chip.active .study-trajectory-chip-arrow,
+.study-trajectory-chip:hover .study-trajectory-chip-arrow,
+.study-trajectory-chip.active .study-trajectory-chip-arrow {
   color: var(--accent, #A3FF12);
-  font-family: var(--font-mono, monospace);
-  font-size: 11.5px;
-}
-
-.study-progress-chip-date {
-  color: #707070;
-  font-size: 11px;
+  transform: translateX(2px);
 }
 
 /* --------------------------------------------------------------------------
@@ -1716,6 +1837,15 @@
     grid-template-columns: 1fr 1fr auto;
     row-gap: 16px;
   }
+
+  /* Responsive Learning Trajectory (Tablet <= 960px) */
+  .study-trajectory-header {
+    gap: 20px;
+  }
+
+  .study-trajectory-section-title {
+    font-size: clamp(30px, 3.8vw, 34px);
+  }
 }
 
 @media (max-width: 768px) {
@@ -1913,6 +2043,40 @@
   .study-empty-heading {
     font-size: 22px;
   }
+
+  /* Responsive Learning Trajectory (Mobile <= 640px) */
+  .study-trajectory-section-title {
+    font-size: clamp(27px, 6vw, 30px);
+  }
+
+  .study-trajectory-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .study-trajectory-perf {
+    width: 100%;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  .study-trajectory-chart-shell {
+    height: 96px;
+  }
+
+  .study-trajectory-chips-wrap {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 6px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .study-trajectory-chip {
+    flex-shrink: 0;
+    min-height: 34px;
+    touch-action: manipulation;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1939,6 +2103,10 @@
   .study-continue-circle-track,
   .study-continue-circle-endpoint,
   .study-progress-card,
+  .study-trajectory-row,
+  .study-trajectory-line,
+  .study-trajectory-node,
+  .study-trajectory-chip,
   .study-revisit-card,
   .study-historical-results-wrap,
   .study-disclosure-arrow,
@@ -1947,4 +2115,10 @@
     animation: none !important;
     transform: none !important;
   }
+
+  .study-trajectory-line {
+    stroke-dashoffset: 0 !important;
+    animation: none !important;
+  }
 }
+
