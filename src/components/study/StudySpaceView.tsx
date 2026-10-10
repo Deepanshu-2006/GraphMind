@@ -16,6 +16,7 @@ import {
 import { TestResultsView } from '../test/TestResultsView';
 import { TestReviewView } from '../test/TestReviewView';
 import { MissedConceptsReview } from '../test/MissedConceptsReview';
+import { getArcEndpoint } from './CircularScore';
 
 export interface StudySpaceViewProps {
   onNavigateToGraph: () => void;
@@ -1138,6 +1139,8 @@ export function StudySpaceView({
                         <span className="study-continue-ratio-lbl">CORRECT ANSWERS</span>
                       </div>
 
+                      <div className="study-continue-results-divider" aria-hidden="true" />
+
                       {/* Learning Insight & Connected Next Action */}
                       <div className="study-continue-results-action-group">
                         <div className="study-continue-meta">
@@ -1192,8 +1195,8 @@ export function StudySpaceView({
                       <div className="study-continue-circle-wrap">
                         <svg 
                           className="study-continue-circle-svg" 
-                          width="210" 
-                          height="210" 
+                          width="320" 
+                          height="320" 
                           viewBox="0 0 200 200" 
                           role="progressbar" 
                           aria-valuenow={clampedScore} 
@@ -1222,6 +1225,14 @@ export function StudySpaceView({
                             } : { strokeDashoffset: CIRCLE_CIRCUMFERENCE, opacity: 0 }}
                             transition={shouldReduceMotion ? { duration: 0 } : { duration: 1.2, delay: 0.32, ease: REVEAL_EASE }}
                           />
+                          {displayedScore > 0 && clampedScore > 0 && (
+                            <circle 
+                              cx={getArcEndpoint(displayedScore, CIRCLE_RADIUS, 100, 100).x} 
+                              cy={getArcEndpoint(displayedScore, CIRCLE_RADIUS, 100, 100).y} 
+                              r="3.2" 
+                              className="study-continue-circle-endpoint" 
+                            />
+                          )}
                         </svg>
                         <div className="study-continue-circle-content" aria-hidden="true">
                           <span className="study-continue-score-pct">{displayedScore}%</span>

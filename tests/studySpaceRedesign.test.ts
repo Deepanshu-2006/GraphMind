@@ -104,7 +104,7 @@ describe('GRAPHMIND STUDY SPACE — COMPLETE UI/UX OVERHAUL VERIFICATION', () =>
     it('styles Continue Learning score block with large tabular numeral and subtle counts', () => {
       assert.match(
         studyCss,
-        /\.study-continue-score-pct\s*\{[\s\S]*?font-size:\s*clamp\(56px,\s*6vw,\s*66px\);[\s\S]*?font-weight:\s*600;/
+        /\.study-continue-score-pct\s*\{[\s\S]*?font-size:\s*clamp\((?:56px,\s*6vw,\s*66px|70px,\s*6\.8vw,\s*84px)\);[\s\S]*?font-weight:\s*600;/
       );
       assert.match(
         studyCss,

@@ -40,7 +40,7 @@ export function CircularScore({
   displayedScore,
   hasEnteredView = true,
   shouldReduceMotion = false,
-  size = 200,
+  size = 320,
   radius = CIRCLE_RADIUS,
   label = 'SCORE',
   className = ''
@@ -49,6 +49,8 @@ export function CircularScore({
   const currentNum = displayedScore !== undefined ? displayedScore : clampedScore;
   const circumference = 2 * Math.PI * radius;
   const strokeOffset = circumference * (1 - clampedScore / 100);
+
+  const endpoint = getArcEndpoint(currentNum, radius, 100, 100);
 
   return (
     <div className={`study-continue-circle-wrap ${className}`.trim()}>
@@ -84,6 +86,14 @@ export function CircularScore({
           } : { strokeDashoffset: circumference, opacity: 0 }}
           transition={shouldReduceMotion ? { duration: 0 } : { duration: 1.2, delay: 0.32, ease: REVEAL_EASE }}
         />
+        {currentNum > 0 && clampedScore > 0 && (
+          <circle 
+            cx={endpoint.x} 
+            cy={endpoint.y} 
+            r="3.2" 
+            className="study-continue-circle-endpoint" 
+          />
+        )}
       </svg>
       <div className="study-continue-circle-content" aria-hidden="true">
         <span className="study-continue-score-pct">{currentNum}%</span>

@@ -103,7 +103,7 @@ describe('Continue Learning Redesign & Asymmetric Editorial Assessment Experienc
       );
       assert.match(
         studyCss,
-        /\.study-continue-score-pct\s*\{[\s\S]*?font-size:\s*clamp\(56px,\s*6vw,\s*66px\);[\s\S]*?font-weight:\s*600;/
+        /\.study-continue-score-pct\s*\{[\s\S]*?font-size:\s*clamp\(70px,\s*6\.8vw,\s*84px\);[\s\S]*?font-weight:\s*600;/
       );
     });
   });
@@ -173,6 +173,38 @@ describe('Continue Learning Redesign & Asymmetric Editorial Assessment Experienc
       const pt100 = getArcEndpoint(100, CIRCLE_RADIUS, 100, 100);
       assert.strictEqual(pt100.x, 100);
       assert.strictEqual(pt100.y, 18);
+    });
+
+    it('renders the precision endpoint indicator pip in CircularScore and StudySpaceView', () => {
+      assert.ok(circularScoreSrc.includes('className="study-continue-circle-endpoint"'), 'CircularScore must render endpoint pip');
+      assert.ok(studyViewSrc.includes('className="study-continue-circle-endpoint"'), 'StudySpaceView must render endpoint pip');
+      assert.match(
+        studyCss,
+        /\.study-continue-circle-endpoint\s*\{[\s\S]*?fill:\s*var\(--accent,\s*#A3FF12\);[\s\S]*?stroke:\s*#0A0A0A;/
+      );
+    });
+
+    it('composes an upper identity region with 320px focal Learning Orbit and lower telemetry group', () => {
+      assert.match(
+        studyCss,
+        /\.study-continue-grid\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s*320px;/
+      );
+      assert.match(
+        studyCss,
+        /\.study-continue-info\s*\{[\s\S]*?display:\s*contents;/
+      );
+      assert.match(
+        studyCss,
+        /\.study-continue-context-layer\s*\{[\s\S]*?grid-column:\s*1;\s*grid-row:\s*1;/
+      );
+      assert.match(
+        studyCss,
+        /\.study-continue-action-wrap\s*\{[\s\S]*?grid-column:\s*2;\s*grid-row:\s*1;[\s\S]*?width:\s*320px;\s*height:\s*320px;/
+      );
+      assert.match(
+        studyCss,
+        /\.study-continue-summary-block\s*\{[\s\S]*?grid-column:\s*1\s*\/\s*-1;\s*grid-row:\s*2;[\s\S]*?justify-content:\s*flex-start;[\s\S]*?border-top:\s*1px solid rgba\(255,\s*255,\s*255,\s*0\.08\);/
+      );
     });
   });
 
