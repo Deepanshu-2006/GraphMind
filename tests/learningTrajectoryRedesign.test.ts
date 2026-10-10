@@ -349,4 +349,118 @@ describe('GRAPHMIND STUDY SPACE — LEARNING TRAJECTORY REDESIGN VERIFICATION', 
       );
     });
   });
+
+  describe('8. Final Score Visualization: Inline Score Change Indicator', () => {
+    it('renders inline diff without button pill styling', () => {
+      assert.ok(
+        studyViewSrc.includes('study-trajectory-inline-diff'),
+        'Must render study-trajectory-inline-diff'
+      );
+      assert.ok(
+        studyViewSrc.includes('vs. previous attempt'),
+        'Must explain comparison context as "vs. previous attempt"'
+      );
+      assert.match(
+        studyCss,
+        /\.study-trajectory-inline-diff[\s\S]*?background:\s*transparent;[\s\S]*?border:\s*none;/,
+        'Inline diff must not use enclosing badge or pill background/border'
+      );
+    });
+
+    it('formats percentage points change accurately with direction symbols', () => {
+      assert.ok(studyViewSrc.includes('diffValueFormatted'));
+      assert.ok(studyViewSrc.includes('diffSymbol'));
+      assert.ok(studyViewSrc.includes('+${scoreDiff} pp'));
+      assert.ok(studyViewSrc.includes('−${Math.abs(scoreDiff)} pp'));
+      assert.ok(studyViewSrc.includes('0 pp'));
+    });
+  });
+
+  describe('9. Final Score Visualization: Main Graph Geometry & Interactive Tooltip', () => {
+    it('provides expanded vertical breathing room (170–210px) with 760x180 viewBox', () => {
+      assert.ok(
+        studyViewSrc.includes('viewBox="0 0 760 180"'),
+        'Main SVG graph must use 760x180 viewBox'
+      );
+      assert.match(
+        studyCss,
+        /\.study-trajectory-chart-shell\s*\{[\s\S]*?height:\s*clamp\(170px,\s*18vw,\s*210px\);/,
+        'Chart shell height must be 170–210px on desktop'
+      );
+    });
+
+    it('calculates fixed 0–100% scale with comfortable baseline padding', () => {
+      const attempts = [
+        {
+          attemptId: 'att-1',
+          attemptNumber: 'Attempt 01',
+          scorePercentage: 0,
+          completedAt: '2026-10-09T10:00:00Z',
+          dateStr: 'Oct 09',
+          timeStr: '10:00',
+          totalQuestions: 10,
+          correctAnswers: 0
+        },
+        {
+          attemptId: 'att-2',
+          attemptNumber: 'Attempt 02',
+          scorePercentage: 100,
+          completedAt: '2026-10-10T10:00:00Z',
+          dateStr: 'Oct 10',
+          timeStr: '10:00',
+          totalQuestions: 10,
+          correctAnswers: 10
+        }
+      ];
+
+      const geom = calculateTrajectoryGeometry(attempts, 760);
+      assert.strictEqual(geom.Y_MIN, 28, 'Top 100% guideline has 28px margin for labels');
+      assert.strictEqual(geom.Y_MAX, 148, 'Bottom 0% baseline has 32px padding from SVG bottom');
+      assert.strictEqual(geom.coords[0].y, 148);
+      assert.strictEqual(geom.coords[1].y, 28);
+    });
+
+    it('renders unclipped interactive HTML tooltip for data points', () => {
+      assert.ok(
+        studyViewSrc.includes('study-trajectory-tooltip'),
+        'Must render study-trajectory-tooltip'
+      );
+      assert.ok(
+        studyViewSrc.includes('study-trajectory-tooltip-num'),
+        'Tooltip must display attempt number'
+      );
+      assert.ok(
+        studyViewSrc.includes('study-trajectory-tooltip-score'),
+        'Tooltip must display exact score'
+      );
+      assert.match(
+        studyCss,
+        /\.study-trajectory-tooltip\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?z-index:\s*20;/,
+        'Tooltip must be absolutely positioned over chart shell'
+      );
+    });
+  });
+
+  describe('10. Final Score Visualization: Minimalist Attempt Timeline', () => {
+    it('structures attempts into 3 vertical information levels: attempt number, score, date', () => {
+      assert.ok(studyViewSrc.includes('study-trajectory-timeline'));
+      assert.ok(studyViewSrc.includes('study-trajectory-timeline-col'));
+      assert.ok(studyViewSrc.includes('study-trajectory-col-num'));
+      assert.ok(studyViewSrc.includes('study-trajectory-col-score'));
+      assert.ok(studyViewSrc.includes('study-trajectory-col-date'));
+    });
+
+    it('styles attempt columns without enclosing cards or button borders', () => {
+      assert.match(
+        studyCss,
+        /\.study-trajectory-timeline-col\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?border:\s*none;/,
+        'Timeline columns must be borderless and backgroundless'
+      );
+      assert.match(
+        studyCss,
+        /\.study-trajectory-active-pip\s*\{[\s\S]*?background-color:\s*var\(--accent,\s*#A3FF12\);/,
+        'Active attempt must show lime green indicator pip'
+      );
+    });
+  });
 });
