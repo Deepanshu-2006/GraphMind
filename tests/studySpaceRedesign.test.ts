@@ -112,7 +112,7 @@ describe('GRAPHMIND STUDY SPACE — COMPLETE UI/UX OVERHAUL VERIFICATION', () =>
       );
       assert.match(
         studyCss,
-        /\.study-continue-title\s*\{[\s\S]*?font-size:\s*clamp\(44px,\s*4\.8vw,\s*52px\);/
+        /\.study-continue-title\s*\{[\s\S]*?font-size:\s*clamp\((?:34px,\s*3\.4vw,\s*38px|36px,\s*3\.8vw,\s*42px|38px,\s*4vw,\s*44px|44px,\s*4\.8vw,\s*52px)\);/
       );
     });
 

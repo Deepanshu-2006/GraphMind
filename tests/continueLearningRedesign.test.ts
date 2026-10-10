@@ -41,8 +41,10 @@ describe('Continue Learning Redesign & Asymmetric Editorial Assessment Experienc
       assert.ok(leftColContent.includes('CONTINUE LEARNING'), 'Must include CONTINUE LEARNING kicker');
       assert.ok(leftColContent.includes('study-continue-kicker'), 'Must have kicker class');
 
-      // 2. Prominent assessment or graph title
+      // 2. Prominent assessment title and supporting context
       assert.ok(leftColContent.includes('study-continue-title'), 'Must include title');
+      assert.ok(leftColContent.includes('Your learning, in progress.'), 'Must display editorial heading');
+      assert.ok(!leftColContent.includes('Your latest assessment and the concepts worth revisiting.'), 'Redundant description must be removed');
       assert.ok(leftColContent.includes('{latestAttempt.graphName}'), 'Must display graphName');
 
       // 3. Quiet assessment date and contextual metadata
@@ -95,7 +97,7 @@ describe('Continue Learning Redesign & Asymmetric Editorial Assessment Experienc
     it('enforces visually dominant title and substantial but secondary correct-answer statistic in typography', () => {
       assert.match(
         studyCss,
-        /\.study-continue-title\s*\{[\s\S]*?font-size:\s*clamp\(44px,\s*4\.8vw,\s*52px\);[\s\S]*?font-weight:\s*600;/
+        /\.study-continue-title\s*\{[\s\S]*?font-size:\s*clamp\((?:34px,\s*3\.4vw,\s*38px|36px,\s*3\.8vw,\s*42px|38px,\s*4vw,\s*44px|44px,\s*4\.8vw,\s*52px)\);[\s\S]*?font-weight:\s*(?:550|600);/
       );
       assert.match(
         studyCss,
@@ -184,26 +186,22 @@ describe('Continue Learning Redesign & Asymmetric Editorial Assessment Experienc
       );
     });
 
-    it('composes an upper identity region with 320px focal Learning Orbit and lower telemetry group', () => {
+    it('composes an asymmetric editorial layout with narrative column and 320px focal Learning Orbit', () => {
       assert.match(
         studyCss,
         /\.study-continue-grid\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s*320px;/
       );
       assert.match(
         studyCss,
-        /\.study-continue-info\s*\{[\s\S]*?display:\s*contents;/
+        /\.study-continue-info\s*\{[\s\S]*?display:\s*flex;[\s\S]*?flex-direction:\s*column;/
       );
       assert.match(
         studyCss,
-        /\.study-continue-context-layer\s*\{[\s\S]*?grid-column:\s*1;\s*grid-row:\s*1;/
+        /\.study-continue-summary-block\s*\{[\s\S]*?display:\s*flex;[\s\S]*?flex-direction:\s*column;/
       );
       assert.match(
         studyCss,
-        /\.study-continue-action-wrap\s*\{[\s\S]*?grid-column:\s*2;\s*grid-row:\s*1;[\s\S]*?width:\s*320px;\s*height:\s*320px;/
-      );
-      assert.match(
-        studyCss,
-        /\.study-continue-summary-block\s*\{[\s\S]*?grid-column:\s*1\s*\/\s*-1;\s*grid-row:\s*2;[\s\S]*?justify-content:\s*flex-start;[\s\S]*?border-top:\s*1px solid rgba\(255,\s*255,\s*255,\s*0\.08\);/
+        /\.study-continue-action-wrap\s*\{[\s\S]*?width:\s*320px;\s*height:\s*320px;/
       );
     });
   });

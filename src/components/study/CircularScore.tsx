@@ -21,7 +21,7 @@ export const REVEAL_EASE = [0.16, 1, 0.3, 1] as const;
  * starting from 12 o'clock (-90 deg) and progressing clockwise.
  */
 export function getArcEndpoint(score: number, radius = CIRCLE_RADIUS, cx = 100, cy = 100) {
-  const clamped = Math.max(0, Math.min(100, Math.round(Number(score) || 0)));
+  const clamped = Math.max(0, Math.min(100, Number(score) || 0));
   const angle = -Math.PI / 2 + (clamped / 100) * 2 * Math.PI;
   return {
     x: Number((cx + radius * Math.cos(angle)).toFixed(2)),
@@ -79,12 +79,18 @@ export function CircularScore({
           transform="rotate(-90 100 100)"
           strokeDasharray={circumference}
           strokeLinecap={clampedScore === 0 ? 'butt' : 'round'}
-          initial={shouldReduceMotion ? false : { strokeDashoffset: circumference, opacity: 0 }}
+          initial={shouldReduceMotion ? false : { 
+            strokeDashoffset: circumference, 
+            opacity: clampedScore === 0 ? 0 : 1 
+          }}
           animate={hasEnteredView ? {
             strokeDashoffset: strokeOffset,
             opacity: clampedScore === 0 ? 0 : 1
           } : { strokeDashoffset: circumference, opacity: 0 }}
-          transition={shouldReduceMotion ? { duration: 0 } : { duration: 1.2, delay: 0.32, ease: REVEAL_EASE }}
+          transition={shouldReduceMotion ? { duration: 0 } : { 
+            strokeDashoffset: { duration: 1.2, delay: 0.32, ease: REVEAL_EASE },
+            opacity: { duration: 0 }
+          }}
         />
         {currentNum > 0 && clampedScore > 0 && (
           <circle 

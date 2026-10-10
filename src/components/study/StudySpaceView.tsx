@@ -816,6 +816,7 @@ export function StudySpaceView({
   }, [inViewRaw]);
 
   const hasAnimatedRef = useRef(false);
+  const endpointRef = useRef<SVGCircleElement | null>(null);
   const [displayedScore, setDisplayedScore] = useState<number>(() => {
     return shouldReduceMotion ? clampedScore : 0;
   });
@@ -824,11 +825,23 @@ export function StudySpaceView({
     if (!hasContinueEnteredView) return;
     if (shouldReduceMotion) {
       setDisplayedScore(clampedScore);
+      if (endpointRef.current && clampedScore > 0) {
+        const pt = getArcEndpoint(clampedScore, CIRCLE_RADIUS, 100, 100);
+        endpointRef.current.setAttribute('cx', String(pt.x));
+        endpointRef.current.setAttribute('cy', String(pt.y));
+        endpointRef.current.style.opacity = '1';
+      }
       return;
     }
 
     if (hasAnimatedRef.current) {
       setDisplayedScore(clampedScore);
+      if (endpointRef.current && clampedScore > 0) {
+        const pt = getArcEndpoint(clampedScore, CIRCLE_RADIUS, 100, 100);
+        endpointRef.current.setAttribute('cx', String(pt.x));
+        endpointRef.current.setAttribute('cy', String(pt.y));
+        endpointRef.current.style.opacity = '1';
+      }
       return;
     }
     hasAnimatedRef.current = true;
@@ -837,18 +850,40 @@ export function StudySpaceView({
     // Arc delay is 320ms and runs for 1200ms with REVEAL_EASE.
     // Counter timeout starts at 320ms and runs for 1200ms with REVEAL_EASE.
     // Both finish simultaneously at 1520ms.
+    let controls: { stop: () => void } | null = null;
     const timer = setTimeout(() => {
-      const controls = animate(0, clampedScore, {
+      if (endpointRef.current && clampedScore > 0) {
+        endpointRef.current.style.opacity = '1';
+      }
+      controls = animate(0, clampedScore, {
         duration: 1.2,
         ease: REVEAL_EASE,
         onUpdate: (latest) => {
-          setDisplayedScore(Math.round(latest));
+          const rounded = Math.round(latest);
+          setDisplayedScore(prev => (prev !== rounded ? rounded : prev));
+          if (endpointRef.current && clampedScore > 0) {
+            const pt = getArcEndpoint(latest, CIRCLE_RADIUS, 100, 100);
+            endpointRef.current.setAttribute('cx', String(pt.x));
+            endpointRef.current.setAttribute('cy', String(pt.y));
+          }
+        },
+        onComplete: () => {
+          setDisplayedScore(clampedScore);
+          if (endpointRef.current && clampedScore > 0) {
+            const pt = getArcEndpoint(clampedScore, CIRCLE_RADIUS, 100, 100);
+            endpointRef.current.setAttribute('cx', String(pt.x));
+            endpointRef.current.setAttribute('cy', String(pt.y));
+          }
         }
       });
-      return () => controls.stop();
     }, 320);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (controls) {
+        controls.stop();
+      }
+    };
   }, [hasContinueEnteredView, clampedScore, shouldReduceMotion]);
 
   // Compute learning progress across attempts grouped strictly by stable graphId (Prompt 5)
@@ -1101,23 +1136,26 @@ export function StudySpaceView({
                       <div className="study-continue-identity-row">
                         <motion.h2 
                           className="study-continue-title" 
-                          title={latestAttempt.graphName}
+                          title="Your learning, in progress."
                           initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
                           animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
                           transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.08, ease: REVEAL_EASE }}
                         >
-                          {latestAttempt.graphName}
+                          Your learning, in progress.
                         </motion.h2>
 
                         <motion.div 
-                          className="study-continue-context-line"
+                          className="study-continue-meta-stack"
                           initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
                           animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
                           transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.30, delay: 0.12, ease: REVEAL_EASE }}
                         >
-                          <span>{latestDateInfo.dateStr}</span>
-                          <span className="study-meta-dot" aria-hidden="true">·</span>
-                          <span>{latestAttempt.totalQuestions} questions</span>
+                          <span className="study-continue-graph-name">{latestAttempt.graphName}</span>
+                          <div className="study-continue-context-line">
+                            <span>{latestDateInfo.dateStr}</span>
+                            <span className="study-meta-dot" aria-hidden="true">·</span>
+                            <span>{latestAttempt.totalQuestions} questions</span>
+                          </div>
                         </motion.div>
                       </div>
                     </div>
@@ -1129,20 +1167,19 @@ export function StudySpaceView({
                       animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
                       transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.18, ease: REVEAL_EASE }}
                     >
-                      {/* Correct-Answer Statistic */}
-                      <div className="study-continue-ratio-row">
-                        <div className="study-continue-ratio-num">
-                          <span className="study-ratio-numerator">{pad(latestAttempt.correctAnswers)}</span>
-                          <span className="study-continue-ratio-slash">/</span>
-                          <span className="study-ratio-denominator">{pad(latestAttempt.totalQuestions)}</span>
-                        </div>
-                        <span className="study-continue-ratio-lbl">CORRECT ANSWERS</span>
-                      </div>
-
-                      <div className="study-continue-results-divider" aria-hidden="true" />
-
-                      {/* Learning Insight & Connected Next Action */}
+                      {/* Three-Column Horizontal Results Distribution: Left (Score) - Middle (Insight) - Right (Action) */}
                       <div className="study-continue-results-action-group">
+                        {/* LEFT: Correct-Answer Statistic */}
+                        <div className="study-continue-ratio-row">
+                          <div className="study-continue-ratio-num">
+                            <span className="study-ratio-numerator">{pad(latestAttempt.correctAnswers)}</span>
+                            <span className="study-continue-ratio-slash">/</span>
+                            <span className="study-ratio-denominator">{pad(latestAttempt.totalQuestions)}</span>
+                          </div>
+                          <span className="study-continue-ratio-lbl">CORRECT ANSWERS</span>
+                        </div>
+
+                        {/* MIDDLE: Missed-Concept Count */}
                         <div className="study-continue-meta">
                           <span 
                             className={`study-meta-indicator ${missedCount > 0 ? 'study-meta-indicator-warm' : 'study-meta-indicator-lime'}`} 
@@ -1159,6 +1196,7 @@ export function StudySpaceView({
                           )}
                         </div>
 
+                        {/* RIGHT: Connected Next Action */}
                         <div className="study-continue-action-row">
                           <button
                             type="button"
@@ -1218,19 +1256,27 @@ export function StudySpaceView({
                             transform="rotate(-90 100 100)"
                             strokeDasharray={CIRCLE_CIRCUMFERENCE}
                             strokeLinecap={clampedScore === 0 ? 'butt' : 'round'}
-                            initial={shouldReduceMotion ? false : { strokeDashoffset: CIRCLE_CIRCUMFERENCE, opacity: 0 }}
+                            initial={shouldReduceMotion ? false : { 
+                              strokeDashoffset: CIRCLE_CIRCUMFERENCE, 
+                              opacity: clampedScore === 0 ? 0 : 1 
+                            }}
                             animate={hasContinueEnteredView ? {
                               strokeDashoffset: CIRCLE_CIRCUMFERENCE * (1 - clampedScore / 100),
                               opacity: clampedScore === 0 ? 0 : 1
                             } : { strokeDashoffset: CIRCLE_CIRCUMFERENCE, opacity: 0 }}
-                            transition={shouldReduceMotion ? { duration: 0 } : { duration: 1.2, delay: 0.32, ease: REVEAL_EASE }}
+                            transition={shouldReduceMotion ? { duration: 0 } : { 
+                              strokeDashoffset: { duration: 1.2, delay: 0.32, ease: REVEAL_EASE },
+                              opacity: { duration: 0 }
+                            }}
                           />
-                          {displayedScore > 0 && clampedScore > 0 && (
+                          {clampedScore > 0 && (
                             <circle 
-                              cx={getArcEndpoint(displayedScore, CIRCLE_RADIUS, 100, 100).x} 
-                              cy={getArcEndpoint(displayedScore, CIRCLE_RADIUS, 100, 100).y} 
+                              ref={endpointRef}
+                              cx={getArcEndpoint(shouldReduceMotion ? clampedScore : 0, CIRCLE_RADIUS, 100, 100).x} 
+                              cy={getArcEndpoint(shouldReduceMotion ? clampedScore : 0, CIRCLE_RADIUS, 100, 100).y} 
                               r="3.2" 
                               className="study-continue-circle-endpoint" 
+                              style={{ opacity: shouldReduceMotion ? 1 : 0 }}
                             />
                           )}
                         </svg>
