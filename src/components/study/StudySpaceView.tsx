@@ -814,6 +814,7 @@ export function StudySpaceView({
     return () => clearTimeout(timer);
   }, [inViewRaw]);
 
+  const hasAnimatedRef = useRef(false);
   const [displayedScore, setDisplayedScore] = useState<number>(() => {
     return shouldReduceMotion ? clampedScore : 0;
   });
@@ -824,6 +825,12 @@ export function StudySpaceView({
       setDisplayedScore(clampedScore);
       return;
     }
+
+    if (hasAnimatedRef.current) {
+      setDisplayedScore(clampedScore);
+      return;
+    }
+    hasAnimatedRef.current = true;
 
     // Coordinated entrance: counter animates in lockstep with the SVG arc drawing
     // Arc delay is 320ms and runs for 1200ms with REVEAL_EASE.
@@ -1062,7 +1069,7 @@ export function StudySpaceView({
       {/* Populated State with Real Attempts */}
       {!isLoading && !errorMessage && attempts.length > 0 && (
         <>
-          {/* 3. Continue Learning Section (V6 Open Editorial Composition) */}
+          {/* 3. Continue Learning Section (Asymmetric Editorial Composition) */}
           {latestAttempt && latestDateInfo && (
             <motion.section 
               ref={continueSectionRef}
@@ -1073,60 +1080,61 @@ export function StudySpaceView({
               transition={{ duration: 0.35, delay: 0.04, ease: REVEAL_EASE }}
             >
               <div className="study-continue-box">
-                {/* LAYER A & LAYER B: Section Context & Graph Identity */}
-                <div className="study-continue-context-layer">
-                  {/* Layer A — Section Context */}
-                  <div className="study-continue-eyebrow-row">
-                    <motion.span 
-                      className="study-continue-kicker"
-                      initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
-                      animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
-                      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.30, delay: 0.04, ease: REVEAL_EASE }}
-                    >
-                      CONTINUE LEARNING
-                    </motion.span>
-                    <motion.span 
-                      className="study-continue-eyebrow-tag"
-                      initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
-                      animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
-                      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.30, delay: 0.06, ease: REVEAL_EASE }}
-                    >
-                      LATEST ASSESSMENT
-                    </motion.span>
-                  </div>
-
-                  {/* Layer B — Graph Identity */}
-                  <div className="study-continue-identity-row">
-                    <motion.h2 
-                      className="study-continue-title" 
-                      title={latestAttempt.graphName}
-                      initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
-                      animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-                      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.08, ease: REVEAL_EASE }}
-                    >
-                      {latestAttempt.graphName}
-                    </motion.h2>
-
-                    <motion.div 
-                      className="study-continue-context-line"
-                      initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
-                      animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
-                      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.30, delay: 0.14, ease: REVEAL_EASE }}
-                    >
-                      <span>{latestDateInfo.dateStr}</span>
-                    </motion.div>
-                  </div>
-                </div>
-
-                {/* LAYER C: Asymmetric Performance Grid (Left Story + Right Circular Counterweight) */}
+                {/* Asymmetric Editorial Grid: Left Narrative + Right Score Visualization */}
                 <div className="study-continue-grid">
-                  {/* Left Region — Performance Summary */}
+                  {/* LEFT: Complete Assessment Narrative & Performance Hierarchy */}
                   <div className="study-continue-info">
+                    {/* Section Context & Prominent Graph Title */}
+                    <div className="study-continue-context-layer">
+                      <div className="study-continue-eyebrow-row">
+                        <motion.span 
+                          className="study-continue-kicker"
+                          initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
+                          animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+                          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.30, delay: 0.04, ease: REVEAL_EASE }}
+                        >
+                          CONTINUE LEARNING
+                        </motion.span>
+                        <motion.span 
+                          className="study-continue-eyebrow-tag"
+                          initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
+                          animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+                          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.30, delay: 0.06, ease: REVEAL_EASE }}
+                        >
+                          LATEST ASSESSMENT
+                        </motion.span>
+                      </div>
+
+                      <div className="study-continue-identity-row">
+                        <motion.h2 
+                          className="study-continue-title" 
+                          title={latestAttempt.graphName}
+                          initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
+                          animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+                          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.08, ease: REVEAL_EASE }}
+                        >
+                          {latestAttempt.graphName}
+                        </motion.h2>
+
+                        <motion.div 
+                          className="study-continue-context-line"
+                          initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
+                          animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+                          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.30, delay: 0.12, ease: REVEAL_EASE }}
+                        >
+                          <span>{latestDateInfo.dateStr}</span>
+                          <span className="study-meta-dot" aria-hidden="true" />
+                          <span>{latestAttempt.totalQuestions} questions</span>
+                        </motion.div>
+                      </div>
+                    </div>
+
+                    {/* Substantial Correct-Answer Statistic & Concepts Revisit */}
                     <motion.div 
                       className="study-continue-summary-block"
                       initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
                       animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-                      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.20, ease: REVEAL_EASE }}
+                      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.18, ease: REVEAL_EASE }}
                     >
                       <div className="study-continue-ratio-row">
                         <div className="study-continue-ratio-num">
@@ -1138,32 +1146,25 @@ export function StudySpaceView({
                       </div>
 
                       <div className="study-continue-meta">
-                        <span>{latestAttempt.totalQuestions} questions</span>
                         {missedCount > 0 ? (
-                          <>
-                            <span className="study-meta-dot" aria-hidden="true" />
-                            <span className="study-meta-warm">
-                              {missedCount} concept{missedCount === 1 ? '' : 's'} to revisit
-                            </span>
-                          </>
+                          <span className="study-meta-warm">
+                            {missedCount} concept{missedCount === 1 ? '' : 's'} to revisit
+                          </span>
                         ) : (
-                          <>
-                            <span className="study-meta-dot" aria-hidden="true" />
-                            <span className="study-meta-highlight">
-                              All concepts mastered
-                            </span>
-                          </>
+                          <span className="study-meta-highlight">
+                            All concepts mastered
+                          </span>
                         )}
                       </div>
                     </motion.div>
                   </div>
 
-                  {/* Right Region — Score Visualization & Action */}
+                  {/* RIGHT: Custom Circular SVG Score Visualization & Primary Next Action */}
                   <motion.div 
                     className="study-continue-action-wrap"
                     initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
                     animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-                    transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.40, delay: 0.24, ease: REVEAL_EASE }}
+                    transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.40, delay: 0.22, ease: REVEAL_EASE }}
                   >
                     <div className="study-continue-score-block">
                       <div className="study-continue-circle-wrap">
@@ -1191,6 +1192,7 @@ export function StudySpaceView({
                             className="study-continue-circle-arc"
                             transform="rotate(-90 100 100)"
                             strokeDasharray={CIRCLE_CIRCUMFERENCE}
+                            strokeLinecap={clampedScore === 0 ? 'butt' : 'round'}
                             initial={shouldReduceMotion ? false : { strokeDashoffset: CIRCLE_CIRCUMFERENCE, opacity: 0 }}
                             animate={hasContinueEnteredView ? {
                               strokeDashoffset: CIRCLE_CIRCUMFERENCE * (1 - clampedScore / 100),
@@ -1211,7 +1213,7 @@ export function StudySpaceView({
                       className="study-continue-action-row"
                       initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
                       animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
-                      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.38, ease: REVEAL_EASE }}
+                      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.36, ease: REVEAL_EASE }}
                     >
                       <button
                         type="button"
