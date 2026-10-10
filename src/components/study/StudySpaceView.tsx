@@ -1062,7 +1062,7 @@ export function StudySpaceView({
       {/* Populated State with Real Attempts */}
       {!isLoading && !errorMessage && attempts.length > 0 && (
         <>
-          {/* 3. Continue Learning Section (V3 Signature Editorial Feature) */}
+          {/* 3. Continue Learning Section (V6 Open Editorial Composition) */}
           {latestAttempt && latestDateInfo && (
             <motion.section 
               ref={continueSectionRef}
@@ -1070,149 +1070,171 @@ export function StudySpaceView({
               aria-label="Continue learning"
               initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
               animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-              transition={{ duration: 0.40, delay: 0.04, ease: REVEAL_EASE }}
+              transition={{ duration: 0.35, delay: 0.04, ease: REVEAL_EASE }}
             >
               <div className="study-continue-box">
-                {/* Left Region: The Learning Story */}
-                <div className="study-continue-info">
-                  {/* Stage 1: Eyebrow label */}
-                  <motion.span 
-                    className="study-continue-kicker"
-                    initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
-                    animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
-                    transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.04, ease: REVEAL_EASE }}
-                  >
-                    CONTINUE LEARNING
-                  </motion.span>
-
-                  {/* Stage 2: Prominent graph title (Strongest textual anchor) */}
-                  <motion.h2 
-                    className="study-continue-title" 
-                    title={latestAttempt.graphName}
-                    initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
-                    animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-                    transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.40, delay: 0.08, ease: REVEAL_EASE }}
-                  >
-                    {latestAttempt.graphName}
-                  </motion.h2>
-
-                  {/* Stage 3: Assessment date */}
-                  <motion.div 
-                    className="study-continue-context-line"
-                    initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
-                    animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-                    transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.16, ease: REVEAL_EASE }}
-                  >
-                    <span>Latest assessment · {latestDateInfo.dateStr}</span>
-                  </motion.div>
-
-                  {/* Stage 3: Strong typographic performance summary */}
-                  <motion.div 
-                    className="study-continue-summary-block"
-                    initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
-                    animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-                    transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.24, ease: REVEAL_EASE }}
-                  >
-                    <div className="study-continue-ratio-row">
-                      <div className="study-continue-ratio-num">
-                        <span>{pad(latestAttempt.correctAnswers)}</span>
-                        <span className="study-continue-ratio-slash">/</span>
-                        <span>{pad(latestAttempt.totalQuestions)}</span>
-                      </div>
-                      <span className="study-continue-ratio-lbl">CORRECT ANSWERS</span>
-                    </div>
-
-                    <div className="study-continue-meta">
-                      <span>{latestAttempt.totalQuestions} questions</span>
-                      {missedCount > 0 && (
-                        <>
-                          <span className="study-meta-dot" aria-hidden="true" />
-                          <span className="study-meta-warm">
-                            {missedCount} concept{missedCount === 1 ? '' : 's'} to revisit
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </motion.div>
-                </div>
-
-                {/* Right Region: The Score Visualization */}
-                <motion.div 
-                  className="study-continue-action-wrap"
-                  initial={shouldReduceMotion ? false : { opacity: 0 }}
-                  animate={hasContinueEnteredView ? { opacity: 1 } : { opacity: 0 }}
-                  transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.40, delay: 0.28, ease: REVEAL_EASE }}
-                >
-                  {/* Stage 4: Substantially larger 200px circular score visualization */}
-                  <div className="study-continue-score-block">
-                    <div className="study-continue-circle-wrap">
-                      <svg 
-                        className="study-continue-circle-svg" 
-                        width="200" 
-                        height="200" 
-                        viewBox="0 0 200 200" 
-                        role="progressbar" 
-                        aria-valuenow={clampedScore} 
-                        aria-valuemin={0} 
-                        aria-valuemax={100} 
-                        aria-label={`Assessment score: ${clampedScore}%`}
-                      >
-                        <circle 
-                          cx="100" 
-                          cy="100" 
-                          r={CIRCLE_RADIUS} 
-                          className="study-continue-circle-track" 
-                        />
-                        <motion.circle 
-                          cx="100" 
-                          cy="100" 
-                          r={CIRCLE_RADIUS} 
-                          className="study-continue-circle-arc"
-                          transform="rotate(-90 100 100)"
-                          strokeDasharray={CIRCLE_CIRCUMFERENCE}
-                          initial={shouldReduceMotion ? false : { strokeDashoffset: CIRCLE_CIRCUMFERENCE, opacity: 0 }}
-                          animate={hasContinueEnteredView ? {
-                            strokeDashoffset: CIRCLE_CIRCUMFERENCE * (1 - clampedScore / 100),
-                            opacity: clampedScore === 0 ? 0 : 1
-                          } : { strokeDashoffset: CIRCLE_CIRCUMFERENCE, opacity: 0 }}
-                          transition={shouldReduceMotion ? { duration: 0 } : { duration: 1.2, delay: 0.32, ease: REVEAL_EASE }}
-                        />
-                      </svg>
-                      <div className="study-continue-circle-content" aria-hidden="true">
-                        <span className="study-continue-score-pct">{displayedScore}%</span>
-                        <span className="study-continue-circle-lbl">SCORE</span>
-                      </div>
-                    </div>
+                {/* LAYER A & LAYER B: Section Context & Graph Identity */}
+                <div className="study-continue-context-layer">
+                  {/* Layer A — Section Context */}
+                  <div className="study-continue-eyebrow-row">
+                    <motion.span 
+                      className="study-continue-kicker"
+                      initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
+                      animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+                      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.30, delay: 0.04, ease: REVEAL_EASE }}
+                    >
+                      CONTINUE LEARNING
+                    </motion.span>
+                    <motion.span 
+                      className="study-continue-eyebrow-tag"
+                      initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
+                      animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+                      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.30, delay: 0.06, ease: REVEAL_EASE }}
+                    >
+                      LATEST ASSESSMENT
+                    </motion.span>
                   </div>
 
-                  {/* Stage 5: Understated editorial text action */}
-                  <motion.div
-                    className="study-continue-action-row"
-                    initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
-                    animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
-                    transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.44, ease: REVEAL_EASE }}
-                  >
-                    <button
-                      type="button"
-                      className="study-editorial-btn study-continue-action-btn"
-                      onClick={() => handleOpenAttempt(
-                        latestAttempt.id, 
-                        missedCount > 0 ? 'review-missed' : 'historical-results'
-                      )}
-                      aria-label={
-                        missedCount > 0 
-                          ? `Review missed concepts for ${latestAttempt.graphName}` 
-                          : `Review results for ${latestAttempt.graphName}`
-                      }
+                  {/* Layer B — Graph Identity */}
+                  <div className="study-continue-identity-row">
+                    <motion.h2 
+                      className="study-continue-title" 
+                      title={latestAttempt.graphName}
+                      initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
+                      animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+                      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.08, ease: REVEAL_EASE }}
                     >
-                      <span className="study-btn-content">
-                        <span>{missedCount > 0 ? 'REVIEW MISSED CONCEPTS' : 'REVIEW RESULTS'}</span>
-                        <span className="study-btn-arrow" aria-hidden="true">→</span>
-                      </span>
-                      <span className="study-btn-underline" aria-hidden="true" />
-                    </button>
+                      {latestAttempt.graphName}
+                    </motion.h2>
+
+                    <motion.div 
+                      className="study-continue-context-line"
+                      initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
+                      animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+                      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.30, delay: 0.14, ease: REVEAL_EASE }}
+                    >
+                      <span>{latestDateInfo.dateStr}</span>
+                    </motion.div>
+                  </div>
+                </div>
+
+                {/* LAYER C: Asymmetric Performance Grid (Left Story + Right Circular Counterweight) */}
+                <div className="study-continue-grid">
+                  {/* Left Region — Performance Summary */}
+                  <div className="study-continue-info">
+                    <motion.div 
+                      className="study-continue-summary-block"
+                      initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
+                      animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+                      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.20, ease: REVEAL_EASE }}
+                    >
+                      <div className="study-continue-ratio-row">
+                        <div className="study-continue-ratio-num">
+                          <span>{pad(latestAttempt.correctAnswers)}</span>
+                          <span className="study-continue-ratio-slash">/</span>
+                          <span>{pad(latestAttempt.totalQuestions)}</span>
+                        </div>
+                        <span className="study-continue-ratio-lbl">CORRECT ANSWERS</span>
+                      </div>
+
+                      <div className="study-continue-meta">
+                        <span>{latestAttempt.totalQuestions} questions</span>
+                        {missedCount > 0 ? (
+                          <>
+                            <span className="study-meta-dot" aria-hidden="true" />
+                            <span className="study-meta-warm">
+                              {missedCount} concept{missedCount === 1 ? '' : 's'} to revisit
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="study-meta-dot" aria-hidden="true" />
+                            <span className="study-meta-highlight">
+                              All concepts mastered
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  {/* Right Region — Score Visualization & Action */}
+                  <motion.div 
+                    className="study-continue-action-wrap"
+                    initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
+                    animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+                    transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.40, delay: 0.24, ease: REVEAL_EASE }}
+                  >
+                    <div className="study-continue-score-block">
+                      <div className="study-continue-circle-wrap">
+                        <svg 
+                          className="study-continue-circle-svg" 
+                          width="200" 
+                          height="200" 
+                          viewBox="0 0 200 200" 
+                          role="progressbar" 
+                          aria-valuenow={clampedScore} 
+                          aria-valuemin={0} 
+                          aria-valuemax={100} 
+                          aria-label={`Assessment score: ${clampedScore}%`}
+                        >
+                          <circle 
+                            cx="100" 
+                            cy="100" 
+                            r={CIRCLE_RADIUS} 
+                            className="study-continue-circle-track" 
+                          />
+                          <motion.circle 
+                            cx="100" 
+                            cy="100" 
+                            r={CIRCLE_RADIUS} 
+                            className="study-continue-circle-arc"
+                            transform="rotate(-90 100 100)"
+                            strokeDasharray={CIRCLE_CIRCUMFERENCE}
+                            initial={shouldReduceMotion ? false : { strokeDashoffset: CIRCLE_CIRCUMFERENCE, opacity: 0 }}
+                            animate={hasContinueEnteredView ? {
+                              strokeDashoffset: CIRCLE_CIRCUMFERENCE * (1 - clampedScore / 100),
+                              opacity: clampedScore === 0 ? 0 : 1
+                            } : { strokeDashoffset: CIRCLE_CIRCUMFERENCE, opacity: 0 }}
+                            transition={shouldReduceMotion ? { duration: 0 } : { duration: 1.2, delay: 0.32, ease: REVEAL_EASE }}
+                          />
+                        </svg>
+                        <div className="study-continue-circle-content" aria-hidden="true">
+                          <span className="study-continue-score-pct">{displayedScore}%</span>
+                          <span className="study-continue-circle-lbl">SCORE</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Editorial Text Action directly anchored below the circle */}
+                    <motion.div
+                      className="study-continue-action-row"
+                      initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
+                      animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+                      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.38, ease: REVEAL_EASE }}
+                    >
+                      <button
+                        type="button"
+                        className="study-editorial-btn study-continue-action-btn"
+                        onClick={() => handleOpenAttempt(
+                          latestAttempt.id, 
+                          missedCount > 0 ? 'review-missed' : 'historical-results'
+                        )}
+                        aria-label={
+                          missedCount > 0 
+                            ? `Review missed concepts for ${latestAttempt.graphName}` 
+                            : `Review results for ${latestAttempt.graphName}`
+                        }
+                      >
+                        <span className="study-btn-content">
+                          <span>{missedCount > 0 ? 'REVIEW MISSED CONCEPTS' : 'REVIEW RESULTS'}</span>
+                          <span className="study-btn-arrow" aria-hidden="true">→</span>
+                        </span>
+                        <span className="study-btn-underline" aria-hidden="true" />
+                      </button>
+                    </motion.div>
                   </motion.div>
-                </motion.div>
+                </div>
               </div>
             </motion.section>
           )}

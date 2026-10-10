@@ -104,15 +104,15 @@ describe('GRAPHMIND STUDY SPACE — COMPLETE UI/UX OVERHAUL VERIFICATION', () =>
     it('styles Continue Learning score block with large tabular numeral and subtle counts', () => {
       assert.match(
         studyCss,
-        /\.study-continue-score-pct\s*\{[\s\S]*?font-size:\s*clamp\(44px,\s*4\.8vw,\s*50px\);[\s\S]*?font-weight:\s*600;/
+        /\.study-continue-score-pct\s*\{[\s\S]*?font-size:\s*clamp\(56px,\s*6vw,\s*66px\);[\s\S]*?font-weight:\s*600;/
       );
       assert.match(
         studyCss,
-        /\.study-continue-ratio-num\s*\{[\s\S]*?font-size:\s*clamp\(32px,\s*3\.5vw,\s*38px\);/
+        /\.study-continue-ratio-num\s*\{[\s\S]*?font-size:\s*clamp\(48px,\s*5\.2vw,\s*60px\);/
       );
       assert.match(
         studyCss,
-        /\.study-continue-title\s*\{[\s\S]*?font-size:\s*clamp\(34px,\s*4vw,\s*42px\);/
+        /\.study-continue-title\s*\{[\s\S]*?font-size:\s*clamp\(44px,\s*4\.8vw,\s*52px\);/
       );
     });
 
@@ -147,6 +147,17 @@ describe('GRAPHMIND STUDY SPACE — COMPLETE UI/UX OVERHAUL VERIFICATION', () =>
       assert.ok(studyViewSrc.includes('animate(0, clampedScore'), 'Must count up from 0 to clampedScore in sync');
       assert.ok(studyViewSrc.includes('duration: 1.2'), 'Must coordinate 1.2s duration between arc and counter');
       assert.ok(studyViewSrc.includes('shouldReduceMotion'), 'Must respect user reduced motion preference');
+    });
+
+    it('implements V6 open editorial composition sitting directly on canvas with no enclosing card', () => {
+      assert.ok(studyViewSrc.includes('className="study-continue-context-layer"'), 'Must have context layer grouping');
+      assert.ok(studyViewSrc.includes('className="study-continue-summary-block"'), 'Must have performance summary block');
+      assert.ok(studyViewSrc.includes('className="study-continue-circle-track"'), 'Must have clean SVG circle track');
+      assert.ok(studyViewSrc.includes('className="study-continue-circle-arc"'), 'Must have clean SVG circle arc');
+      assert.match(
+        studyCss,
+        /\.study-continue-box\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?border:\s*none;/
+      );
     });
   });
 
