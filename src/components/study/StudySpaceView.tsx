@@ -487,6 +487,347 @@ export interface GraphAttemptGroup {
   progressComparison?: ScoreComparison;
 }
 
+export interface LearningTrajectoryRowProps {
+  prog: GraphLearningProgress;
+  hoveredPointAttemptId: string | null;
+  setHoveredPointAttemptId: (id: string | null) => void;
+  handleOpenAttempt: (attemptId: string) => void;
+  shouldReduceMotion: boolean;
+  isFirst: boolean;
+}
+
+export function LearningTrajectoryRow({
+  prog,
+  hoveredPointAttemptId,
+  setHoveredPointAttemptId,
+  handleOpenAttempt,
+  shouldReduceMotion,
+  isFirst
+}: LearningTrajectoryRowProps) {
+  const rowRef = useRef<HTMLDivElement | null>(null);
+  const inViewRaw = useInView(rowRef, { once: true, amount: 0.15 });
+  const [rowInView, setRowInView] = useState(false);
+
+  useEffect(() => {
+    if (inViewRaw || typeof window === 'undefined' || typeof IntersectionObserver === 'undefined' || shouldReduceMotion) {
+      setRowInView(true);
+      return;
+    }
+
+    const checkVisibility = () => {
+      if (rowRef.current) {
+        const rect = rowRef.current.getBoundingClientRect();
+        if (rect.top < window.innerHeight * 0.95 && rect.bottom > 0) {
+          setRowInView(true);
+          return true;
+        }
+      }
+      return false;
+    };
+
+    if (checkVisibility()) return;
+
+    const scrollContainer = document.querySelector('.workspace-viewport') || window;
+    const handleScroll = () => {
+      if (checkVisibility()) {
+        scrollContainer.removeEventListener('scroll', handleScroll);
+        window.removeEventListener('scroll', handleScroll);
+      }
+    };
+
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    let observer: IntersectionObserver | null = null;
+    try {
+      observer = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setRowInView(true);
+            observer?.disconnect();
+          }
+        }
+      }, { threshold: 0.1 });
+      if (rowRef.current) {
+        observer.observe(rowRef.current);
+      }
+    } catch {
+      // Ignore
+    }
+
+    return () => {
+      scrollContainer.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('scroll', handleScroll);
+      observer?.disconnect();
+    };
+  }, [inViewRaw, shouldReduceMotion]);
+
+  const [displayedScore, setDisplayedScore] = useState<number>(() => {
+    return shouldReduceMotion ? prog.latestScore : 0;
+  });
+  const hasAnimatedScoreRef = useRef(false);
+
+  useEffect(() => {
+    if (!rowInView) return;
+    if (shouldReduceMotion) {
+      setDisplayedScore(prog.latestScore);
+      return;
+    }
+    if (hasAnimatedScoreRef.current) {
+      setDisplayedScore(prog.latestScore);
+      return;
+    }
+    hasAnimatedScoreRef.current = true;
+    const controls = animate(0, prog.latestScore, {
+      duration: 0.65,
+      ease: REVEAL_EASE,
+      onUpdate: (val) => setDisplayedScore(Math.round(val))
+    });
+    return () => controls.stop();
+  }, [rowInView, prog.latestScore, shouldReduceMotion]);
+
+  const latestDate = formatAttemptDate(prog.latestAttempt.completedAt);
+  const prevDate = prog.previousAttempt ? formatAttemptDate(prog.previousAttempt.completedAt) : null;
+  const isUnchangedOrZero = prog.comparisonStatus === 'unchanged' || (prog.hasComparison && prog.latestScore === 0 && prog.previousScore === 0);
+
+  const [isPathSettled, setIsPathSettled] = useState(Boolean(shouldReduceMotion));
+
+  const pts = prog.chronologicalAttempts;
+  const N = pts.length;
+  const plotWidth = Math.min(510 - 44, Math.max(220, (N - 1) * 92));
+  const coords = pts.map((pt, i) => {
+    const x = N === 1 ? 56 : 44 + (i / (N - 1)) * plotWidth;
+    const clampedScore = Math.max(0, Math.min(100, Number(pt.scorePercentage) || 0));
+    const y = 64 - (clampedScore / 100) * 48;
+    return {
+      x: Math.round(x * 10) / 10,
+      y: Math.round(y * 10) / 10,
+      pt,
+      index: i
+    };
+  });
+
+  const pathD = N >= 2 ? coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x} ${c.y}`).join(' ') : '';
+
+  return (
+    <motion.div
+      ref={rowRef}
+      className={`study-progress-card study-trajectory-row ${isFirst ? 'study-trajectory-primary' : ''}`}
+      initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
+      animate={rowInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.45, ease: REVEAL_EASE }}
+    >
+      {/* AREA A — Graph Identity & Current Performance */}
+      <div className="study-progress-card-header study-trajectory-header">
+        <div className="study-progress-card-title-wrap study-trajectory-identity">
+          <span className="study-progress-kicker study-trajectory-kicker">KNOWLEDGE GRAPH</span>
+          <h3 className="study-progress-graph-name study-trajectory-graph-name">{prog.graphName}</h3>
+          <span className="study-progress-attempts-count study-trajectory-attempts-count">
+            {prog.totalAttempts} completed {prog.totalAttempts === 1 ? 'attempt' : 'attempts'}
+          </span>
+        </div>
+
+        <div className="study-trajectory-perf">
+          <div className="study-trajectory-latest-stat">
+            <span className="study-trajectory-perf-lbl">Latest result</span>
+            <div className="study-trajectory-score-row">
+              <span className="study-progress-metric-val study-trajectory-score-val">{displayedScore}%</span>
+            </div>
+            <span className="study-trajectory-perf-date">{latestDate.dateStr}</span>
+          </div>
+
+          <div className="study-trajectory-comparison-wrap">
+            {prog.hasComparison && prog.comparisonStatus ? (
+              <div 
+                className={`study-progress-badge ${isUnchangedOrZero ? 'unchanged' : prog.comparisonStatus}`}
+                title={prog.comparisonMessage}
+              >
+                <span className="study-progress-badge-symbol">
+                  {prog.comparisonStatus === 'improved' && !isUnchangedOrZero ? '+' : prog.comparisonStatus === 'declined' ? '−' : '·'}
+                </span>
+                <span>
+                  {isUnchangedOrZero ? '0 percentage points' : prog.scoreChangeFormatted}
+                </span>
+              </div>
+            ) : null}
+
+            {prog.hasComparison && prog.previousScore !== undefined && prevDate ? (
+              <span className="study-trajectory-prev-note">
+                Previous: {prog.previousScore}% ({prevDate.dateStr})
+              </span>
+            ) : (
+              <span className="study-trajectory-single-hint">
+                Complete another assessment to see your progress.
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* AREA B — Score Trajectory Visualization */}
+      <div className="study-trajectory-viz-block">
+        <div className="study-progress-svg-wrap study-trajectory-chart-shell">
+          <svg
+            viewBox="0 0 540 80"
+            className="study-progress-svg study-trajectory-svg"
+            preserveAspectRatio="none"
+            aria-label={`Score trajectory chart for ${prog.graphName}`}
+          >
+            {/* Reference grid lines at 100%, 50%, 0% */}
+            <line
+              x1="38"
+              y1="16"
+              x2="510"
+              y2="16"
+              className="study-trajectory-grid-line line-100"
+              stroke="rgba(255,255,255,0.05)"
+              strokeDasharray="3 3"
+            />
+            <text x="30" y="19" textAnchor="end" fill="#555555" fontSize="9" fontFamily="var(--font-mono, monospace)" className="study-trajectory-axis-lbl">100%</text>
+
+            <line
+              x1="38"
+              y1="40"
+              x2="510"
+              y2="40"
+              className="study-trajectory-grid-line line-50"
+              stroke="rgba(255,255,255,0.04)"
+              strokeDasharray="3 3"
+            />
+            <text x="30" y="43" textAnchor="end" fill="#444444" fontSize="9" fontFamily="var(--font-mono, monospace)" className="study-trajectory-axis-lbl">50%</text>
+
+            <line
+              x1="38"
+              y1="64"
+              x2="510"
+              y2="64"
+              className="study-trajectory-grid-line line-0"
+              stroke="rgba(255,255,255,0.05)"
+              strokeDasharray="3 3"
+            />
+            <text x="30" y="67" textAnchor="end" fill="#555555" fontSize="9" fontFamily="var(--font-mono, monospace)" className="study-trajectory-axis-lbl">0%</text>
+
+            {/* Trajectory Drawing Line (Phase 3 Motion Animation) */}
+            {N >= 2 && pathD && (
+              <motion.path
+                d={pathD}
+                fill="none"
+                className="study-trajectory-line"
+                stroke="var(--accent, #A3FF12)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={isPathSettled ? { strokeDasharray: 'none' } : undefined}
+                initial={shouldReduceMotion ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }}
+                animate={rowInView ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.95, delay: 0.22, ease: REVEAL_EASE }}
+                onAnimationComplete={() => setIsPathSettled(true)}
+              />
+            )}
+
+            {/* Interactive Data Points */}
+            {coords.map((c, idx) => {
+              const isHovered = hoveredPointAttemptId === c.pt.attemptId;
+              const isLatest = idx === N - 1;
+              const showLabel = N <= 6 || idx === 0 || isLatest || isHovered;
+
+              return (
+                <g
+                  key={c.pt.attemptId}
+                  className={`study-svg-point-node study-trajectory-node ${isHovered ? 'hovered active' : ''}`}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`${c.pt.attemptNumber}: ${c.pt.scorePercentage}% on ${c.pt.dateStr}`}
+                  onClick={() => handleOpenAttempt(c.pt.attemptId)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleOpenAttempt(c.pt.attemptId);
+                    }
+                  }}
+                  onMouseEnter={() => setHoveredPointAttemptId(c.pt.attemptId)}
+                  onMouseLeave={() => setHoveredPointAttemptId(null)}
+                  onFocus={() => setHoveredPointAttemptId(c.pt.attemptId)}
+                  onBlur={() => setHoveredPointAttemptId(null)}
+                >
+                  {isHovered && (
+                    <circle
+                      cx={c.x}
+                      cy={c.y}
+                      r="9"
+                      fill="none"
+                      stroke="var(--accent, #A3FF12)"
+                      strokeWidth="1"
+                      strokeOpacity="0.3"
+                    />
+                  )}
+                  <circle
+                    cx={c.x}
+                    cy={c.y}
+                    r={isHovered ? 5.5 : isLatest ? 4.5 : 3.5}
+                    fill={isHovered ? 'var(--accent, #A3FF12)' : '#0A0A0A'}
+                    stroke={isHovered ? '#FFFFFF' : 'var(--accent, #A3FF12)'}
+                    strokeWidth={isHovered ? 2 : 1.75}
+                    className="study-trajectory-point"
+                  />
+                  {showLabel && (
+                    <text
+                      x={c.x}
+                      y={c.y < 28 ? c.y + 13 : c.y - 7}
+                      textAnchor="middle"
+                      fill={isHovered ? '#FFFFFF' : isLatest ? 'var(--text-primary, #F5F5F5)' : '#8A8A8A'}
+                      fontSize={isHovered ? '10' : '9'}
+                      fontWeight={isHovered ? '600' : '500'}
+                      fontFamily="var(--font-mono, monospace)"
+                      className={`study-trajectory-point-lbl ${isHovered ? 'highlight' : ''}`}
+                    >
+                      {c.pt.scorePercentage}%
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+      </div>
+
+      {/* AREA C — Compact Historical Attempt Strip */}
+      <div className="study-progress-history-strip study-trajectory-strip">
+        <div className="study-trajectory-strip-header">
+          <span className="study-progress-strip-label study-trajectory-strip-lbl">Score history:</span>
+          <span className="study-trajectory-strip-hint">Select any attempt to review historical results</span>
+        </div>
+        <div className="study-progress-chips-wrap study-trajectory-chips-wrap" role="list">
+          {prog.chronologicalAttempts.map((pt, pIdx) => {
+            const isSelected = hoveredPointAttemptId === pt.attemptId;
+            return (
+              <motion.button
+                key={pt.attemptId}
+                type="button"
+                className={`study-progress-chip study-trajectory-chip ${isSelected ? 'active' : ''}`}
+                onClick={() => handleOpenAttempt(pt.attemptId)}
+                onMouseEnter={() => setHoveredPointAttemptId(pt.attemptId)}
+                onMouseLeave={() => setHoveredPointAttemptId(null)}
+                onFocus={() => setHoveredPointAttemptId(pt.attemptId)}
+                onBlur={() => setHoveredPointAttemptId(null)}
+                aria-label={`Open historical result for ${pt.attemptNumber}: ${pt.scorePercentage}% on ${pt.dateStr}`}
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
+                animate={rowInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.28, delay: 0.35 + pIdx * 0.04, ease: REVEAL_EASE }}
+              >
+                <span className="study-progress-chip-name study-trajectory-chip-num">{pad(pIdx + 1)}</span>
+                <span className="study-progress-chip-arrow study-trajectory-chip-arrow" aria-hidden="true">→</span>
+                <span className="study-progress-chip-score study-trajectory-chip-score">{pt.scorePercentage}%</span>
+                <span className="study-progress-chip-date study-trajectory-chip-date">{pt.dateStr}</span>
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export function StudySpaceView({
   onNavigateToGraph,
   onNavigateToConcept,
@@ -814,6 +1155,64 @@ export function StudySpaceView({
     }, 120);
     return () => clearTimeout(timer);
   }, [inViewRaw]);
+
+  const progressSectionRef = useRef<HTMLElement | null>(null);
+  const progressInViewRaw = useInView(progressSectionRef, { once: true, amount: 0.15 });
+  const [hasProgressEnteredView, setHasProgressEnteredView] = useState(false);
+
+  useEffect(() => {
+    if (progressInViewRaw || typeof window === 'undefined' || typeof IntersectionObserver === 'undefined' || shouldReduceMotion) {
+      setHasProgressEnteredView(true);
+      return;
+    }
+
+    const checkVisibility = () => {
+      if (progressSectionRef.current) {
+        const rect = progressSectionRef.current.getBoundingClientRect();
+        if (rect.top < window.innerHeight * 0.95 && rect.bottom > 0) {
+          setHasProgressEnteredView(true);
+          return true;
+        }
+      }
+      return false;
+    };
+
+    if (checkVisibility()) return;
+
+    const scrollContainer = document.querySelector('.workspace-viewport') || window;
+    const handleScroll = () => {
+      if (checkVisibility()) {
+        scrollContainer.removeEventListener('scroll', handleScroll);
+        window.removeEventListener('scroll', handleScroll);
+      }
+    };
+
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    let observer: IntersectionObserver | null = null;
+    try {
+      observer = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setHasProgressEnteredView(true);
+            observer?.disconnect();
+          }
+        }
+      }, { threshold: 0.1 });
+      if (progressSectionRef.current) {
+        observer.observe(progressSectionRef.current);
+      }
+    } catch {
+      // Ignore
+    }
+
+    return () => {
+      scrollContainer.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('scroll', handleScroll);
+      observer?.disconnect();
+    };
+  }, [progressInViewRaw, shouldReduceMotion]);
 
   const hasAnimatedRef = useRef(false);
   const endpointRef = useRef<SVGCircleElement | null>(null);
@@ -1292,247 +1691,36 @@ export function StudySpaceView({
             </motion.section>
           )}
 
-          {/* 4. Learning Progress Section Across Assessment Attempts (Prompt 5) */}
+          {/* 4. Learning Progress Section Across Assessment Attempts (Learning Trajectory Redesign) */}
           {allGraphProgress.length > 0 && (
             <motion.section 
+              ref={progressSectionRef}
               className="study-progress-section" 
               aria-label="Learning progress"
-              initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.42, delay: 0.08, ease: REVEAL_EASE }}
+              initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
+              animate={hasProgressEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+              transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.42, delay: 0.05, ease: REVEAL_EASE }}
             >
-              <div className="study-section-header-block">
-                <span className="study-eyebrow">PROGRESS OVER TIME</span>
-                <h2 className="study-section-title">Learning progress</h2>
-                <p className="study-section-desc">
-                  Track how your understanding of each knowledge graph evolves across attempts.
+              <div className="study-section-header-block study-trajectory-section-header">
+                <span className="study-eyebrow study-trajectory-eyebrow">LEARNING PROGRESS</span>
+                <h2 className="study-section-title study-trajectory-section-title">Your learning, over time.</h2>
+                <p className="study-section-desc study-trajectory-section-desc">
+                  See how your understanding changes with every assessment.
                 </p>
               </div>
 
-              <div className="study-progress-cards-list">
-                {allGraphProgress.map((prog) => {
-                  const latestDate = formatAttemptDate(prog.latestAttempt.completedAt);
-                  const prevDate = prog.previousAttempt ? formatAttemptDate(prog.previousAttempt.completedAt) : null;
-                  const isUnchangedOrZero = prog.comparisonStatus === 'unchanged' || (prog.hasComparison && prog.latestScore === 0 && prog.previousScore === 0);
-
-                  return (
-                    <div key={prog.graphId} className="study-progress-card">
-                      <div className="study-progress-card-header">
-                        <div className="study-progress-card-title-wrap">
-                          <span className="study-progress-kicker">KNOWLEDGE GRAPH</span>
-                          <h3 className="study-progress-graph-name">{prog.graphName}</h3>
-                          <span className="study-progress-attempts-count">
-                            {prog.totalAttempts} completed {prog.totalAttempts === 1 ? 'attempt' : 'attempts'}
-                          </span>
-                        </div>
-
-                        {prog.hasComparison && prog.comparisonStatus && (
-                          <div 
-                            className={`study-progress-badge ${isUnchangedOrZero ? 'unchanged' : prog.comparisonStatus}`}
-                            title={prog.comparisonMessage}
-                          >
-                            <span className="study-progress-badge-symbol">
-                              {prog.comparisonStatus === 'improved' && !isUnchangedOrZero ? '+' : prog.comparisonStatus === 'declined' ? '−' : '·'}
-                            </span>
-                            <span>
-                              {isUnchangedOrZero ? '0 percentage points' : prog.scoreChangeFormatted}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="study-progress-metrics">
-                        <div className="study-progress-metric">
-                          <span className="study-progress-metric-label">Latest score</span>
-                          <span className="study-progress-metric-val">{prog.latestScore}%</span>
-                          <span className="study-progress-metric-date">{latestDate.dateStr}</span>
-                        </div>
-
-                        {prog.hasComparison && prog.previousScore !== undefined && prevDate ? (
-                          <>
-                            <div className="study-progress-metric">
-                              <span className="study-progress-metric-label">Previous score</span>
-                              <span className="study-progress-metric-val">{prog.previousScore}%</span>
-                              <span className="study-progress-metric-date">{prevDate.dateStr}</span>
-                            </div>
-                            <div className="study-progress-metric">
-                              <span className="study-progress-metric-label">Change</span>
-                              <span className={`study-progress-metric-val study-progress-diff-${isUnchangedOrZero ? 'unchanged' : prog.comparisonStatus}`}>
-                                {isUnchangedOrZero ? '0 percentage points' : prog.scoreChangeFormatted}
-                              </span>
-                              <span className="study-progress-metric-date">
-                                {isUnchangedOrZero ? 'Unchanged (same score as previous)' : 'Normalized percentage points'}
-                              </span>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="study-progress-metric study-progress-single-note">
-                            <span className="study-progress-metric-label">Score comparison</span>
-                            <span className="study-progress-metric-val study-progress-note-text">
-                              Complete another assessment on this graph to track score changes.
-                            </span>
-                          </div>
-                        )}
-
-                        <div className="study-progress-metric">
-                          <span className="study-progress-metric-label">Completed attempts</span>
-                          <span className="study-progress-metric-val">{prog.totalAttempts}</span>
-                          <span className="study-progress-metric-date">Total saved snapshots</span>
-                        </div>
-                      </div>
-
-                      {/* Chronological Score History Visualization */}
-                      <div className="study-progress-timeline-block">
-                        <div className="study-progress-timeline-header">
-                          <span className="study-progress-timeline-title">Score history</span>
-                          <span className="study-progress-timeline-hint">
-                            Select any attempt to review historical results
-                          </span>
-                        </div>
-
-                        {/* SVG Chart if >= 2 attempts */}
-                        {prog.chronologicalAttempts.length >= 2 && (
-                          <div className="study-progress-svg-wrap">
-                            <svg
-                              viewBox="0 0 540 80"
-                              className="study-progress-svg"
-                              preserveAspectRatio="none"
-                              aria-label={`Score history chart for ${prog.graphName}`}
-                            >
-                              {/* Reference lines at 100%, 50%, 0% */}
-                              <line
-                                x1="38"
-                                y1="16"
-                                x2="510"
-                                y2="16"
-                                stroke="rgba(255,255,255,0.05)"
-                                strokeDasharray="3 3"
-                              />
-                              <text x="30" y="19" textAnchor="end" fill="#555555" fontSize="9" fontFamily="var(--font-mono, monospace)">100%</text>
-
-                              <line
-                                x1="38"
-                                y1="40"
-                                x2="510"
-                                y2="40"
-                                stroke="rgba(255,255,255,0.04)"
-                                strokeDasharray="3 3"
-                              />
-                              <text x="30" y="43" textAnchor="end" fill="#444444" fontSize="9" fontFamily="var(--font-mono, monospace)">50%</text>
-
-                              <line
-                                x1="38"
-                                y1="64"
-                                x2="510"
-                                y2="64"
-                                stroke="rgba(255,255,255,0.05)"
-                                strokeDasharray="3 3"
-                              />
-                              <text x="30" y="67" textAnchor="end" fill="#555555" fontSize="9" fontFamily="var(--font-mono, monospace)">0%</text>
-
-                              {/* Calculated polyline and area path */}
-                              {(() => {
-                                const pts = prog.chronologicalAttempts;
-                                const coords = pts.map((pt, i) => {
-                                  const x = 44 + (i / (pts.length - 1)) * (510 - 44);
-                                  const y = 16 + ((100 - pt.scorePercentage) / 100) * (64 - 16);
-                                  return { x, y, pt };
-                                });
-
-                                const pathD = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`).join(' ');
-                                const isImproved = prog.comparisonStatus === 'improved' && !isUnchangedOrZero;
-                                const strokeColor = isImproved ? 'var(--accent, #A3FF12)' : 'rgba(255, 255, 255, 0.22)';
-
-                                return (
-                                  <>
-                                    <path
-                                      d={pathD}
-                                      fill="none"
-                                      stroke={strokeColor}
-                                      strokeWidth="1.75"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    />
-                                    {coords.map((c, idx) => {
-                                      const isHovered = hoveredPointAttemptId === c.pt.attemptId;
-                                      const showLabel = pts.length <= 6 || idx === 0 || idx === pts.length - 1 || isHovered;
-
-                                      return (
-                                        <g
-                                          key={c.pt.attemptId}
-                                          className={`study-svg-point-node ${isHovered ? 'hovered' : ''}`}
-                                          tabIndex={0}
-                                          role="button"
-                                          aria-label={`${c.pt.attemptNumber}: ${c.pt.scorePercentage}% on ${c.pt.dateStr}`}
-                                          onClick={() => handleOpenAttempt(c.pt.attemptId)}
-                                          onKeyDown={(e) => {
-                                            if (e.key === 'Enter' || e.key === ' ') {
-                                              e.preventDefault();
-                                              handleOpenAttempt(c.pt.attemptId);
-                                            }
-                                          }}
-                                          onMouseEnter={() => setHoveredPointAttemptId(c.pt.attemptId)}
-                                          onMouseLeave={() => setHoveredPointAttemptId(null)}
-                                          onFocus={() => setHoveredPointAttemptId(c.pt.attemptId)}
-                                          onBlur={() => setHoveredPointAttemptId(null)}
-                                        >
-                                          <circle
-                                            cx={c.x}
-                                            cy={c.y}
-                                            r={isHovered ? 5.5 : 4}
-                                            fill="#101010"
-                                            stroke={isHovered ? 'var(--accent, #A3FF12)' : isImproved && idx === pts.length - 1 ? 'var(--accent, #A3FF12)' : 'rgba(255, 255, 255, 0.45)'}
-                                            strokeWidth={isHovered ? 2 : 1.5}
-                                          />
-                                          {showLabel && (
-                                            <text
-                                              x={c.x}
-                                              y={c.y < 28 ? c.y + 13 : c.y - 7}
-                                              textAnchor="middle"
-                                              fill={isHovered ? 'var(--text-primary, #F5F5F5)' : '#8A8A8A'}
-                                              fontSize="10"
-                                              fontWeight={isHovered ? '600' : '500'}
-                                              fontFamily="var(--font-mono, monospace)"
-                                            >
-                                              {c.pt.scorePercentage}%
-                                            </text>
-                                          )}
-                                        </g>
-                                      );
-                                    })}
-                                  </>
-                                );
-                              })()}
-                            </svg>
-                          </div>
-                        )}
-
-                        {/* Interactive Chronological Chips Strip */}
-                        <div className="study-progress-history-strip">
-                          <span className="study-progress-strip-label">Score history:</span>
-                          <div className="study-progress-chips-wrap">
-                            {prog.chronologicalAttempts.map((pt) => (
-                              <button
-                                key={pt.attemptId}
-                                type="button"
-                                className={`study-progress-chip ${hoveredPointAttemptId === pt.attemptId ? 'active' : ''}`}
-                                onClick={() => handleOpenAttempt(pt.attemptId)}
-                                onMouseEnter={() => setHoveredPointAttemptId(pt.attemptId)}
-                                onMouseLeave={() => setHoveredPointAttemptId(null)}
-                                aria-label={`Open historical result for ${pt.attemptNumber}: ${pt.scorePercentage}% on ${pt.dateStr}`}
-                              >
-                                <span className="study-progress-chip-name">{pt.attemptNumber}</span>
-                                <span className="study-progress-chip-arrow" aria-hidden="true">→</span>
-                                <span className="study-progress-chip-score">{pt.scorePercentage}%</span>
-                                <span className="study-progress-chip-date">{pt.dateStr}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="study-progress-cards-list study-trajectory-list">
+                {allGraphProgress.map((prog, idx) => (
+                  <LearningTrajectoryRow
+                    key={prog.graphId}
+                    prog={prog}
+                    hoveredPointAttemptId={hoveredPointAttemptId}
+                    setHoveredPointAttemptId={setHoveredPointAttemptId}
+                    handleOpenAttempt={handleOpenAttempt}
+                    shouldReduceMotion={Boolean(shouldReduceMotion)}
+                    isFirst={idx === 0}
+                  />
+                ))}
               </div>
             </motion.section>
           )}
