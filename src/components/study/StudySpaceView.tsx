@@ -586,19 +586,37 @@ export function LearningTrajectoryRow({
     return () => controls.stop();
   }, [rowInView, prog.latestScore, shouldReduceMotion]);
 
-  const latestDate = formatAttemptDate(prog.latestAttempt.completedAt);
-  const prevDate = prog.previousAttempt ? formatAttemptDate(prog.previousAttempt.completedAt) : null;
   const isUnchangedOrZero = prog.comparisonStatus === 'unchanged' || (prog.hasComparison && prog.latestScore === 0 && prog.previousScore === 0);
+  const scoreDiff = prog.hasComparison && prog.previousScore !== undefined
+    ? prog.latestScore - prog.previousScore
+    : 0;
+  const isImproved = scoreDiff > 0 && !isUnchangedOrZero;
+  const isDeclined = scoreDiff < 0;
+  const diffStatus = isImproved ? 'improved' : isDeclined ? 'declined' : 'unchanged';
+  const diffSymbol = isImproved ? '↑ ' : isDeclined ? '↓ ' : '— ';
+  const diffValueFormatted = isImproved
+    ? `+${scoreDiff} pp`
+    : isDeclined
+      ? `−${Math.abs(scoreDiff)} pp`
+      : '0 pp';
 
   const [isPathSettled, setIsPathSettled] = useState(Boolean(shouldReduceMotion));
 
   const pts = prog.chronologicalAttempts;
   const N = pts.length;
-  const plotWidth = Math.min(510 - 44, Math.max(220, (N - 1) * 92));
+  const X_MIN = 44;
+  const X_MAX = 720;
+  const Y_MIN = 28;
+  const Y_MID = 88;
+  const Y_MAX = 148;
+  const H = Y_MAX - Y_MIN; // 120
+
+  const availableWidth = X_MAX - X_MIN;
+  const step = N <= 1 ? 0 : Math.min(180, availableWidth / (N - 1));
   const coords = pts.map((pt, i) => {
-    const x = N === 1 ? 56 : 44 + (i / (N - 1)) * plotWidth;
+    const x = N === 1 ? 76 : X_MIN + i * step;
     const clampedScore = Math.max(0, Math.min(100, Number(pt.scorePercentage) || 0));
-    const y = 64 - (clampedScore / 100) * 48;
+    const y = Y_MAX - (clampedScore / 100) * H;
     return {
       x: Math.round(x * 10) / 10,
       y: Math.round(y * 10) / 10,
@@ -608,6 +626,52 @@ export function LearningTrajectoryRow({
   });
 
   const pathD = N >= 2 ? coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x} ${c.y}`).join(' ') : '';
+
+  // Deterministic collision avoidance for score labels
+  const visibleLabels = useMemo(() => {
+    const visible = new Set<string>();
+    if (N === 0) return visible;
+
+    if (hoveredPointAttemptId) {
+      visible.add(hoveredPointAttemptId);
+    }
+
+    const latest = coords[N - 1];
+    if (latest) {
+      visible.add(latest.pt.attemptId);
+    }
+
+    if (N <= 6) {
+      coords.forEach(c => visible.add(c.pt.attemptId));
+      return visible;
+    }
+
+    const first = coords[0];
+    if (first) {
+      visible.add(first.pt.attemptId);
+    }
+
+    const MIN_DIST = 52;
+    const placedX: number[] = [];
+    coords.forEach(c => {
+      if (visible.has(c.pt.attemptId)) placedX.push(c.x);
+    });
+
+    coords.forEach(c => {
+      if (visible.has(c.pt.attemptId)) return;
+      const isColliding = placedX.some(px => Math.abs(px - c.x) < MIN_DIST);
+      if (!isColliding) {
+        visible.add(c.pt.attemptId);
+        placedX.push(c.x);
+      }
+    });
+
+    return visible;
+  }, [coords, N, hoveredPointAttemptId]);
+
+  const activePointCoord = useMemo(() => {
+    return hoveredPointAttemptId ? coords.find(c => c.pt.attemptId === hoveredPointAttemptId) : null;
+  }, [coords, hoveredPointAttemptId]);
 
   return (
     <motion.div
@@ -633,28 +697,20 @@ export function LearningTrajectoryRow({
             <div className="study-trajectory-score-row">
               <span className="study-progress-metric-val study-trajectory-score-val">{displayedScore}%</span>
             </div>
-            <span className="study-trajectory-perf-date">{latestDate.dateStr}</span>
-          </div>
-
-          <div className="study-trajectory-comparison-wrap">
-            {prog.hasComparison && prog.comparisonStatus ? (
-              <div 
-                className={`study-progress-badge ${isUnchangedOrZero ? 'unchanged' : prog.comparisonStatus}`}
-                title={prog.comparisonMessage}
+            {prog.hasComparison && prog.previousScore !== undefined ? (
+              <div
+                className={`study-trajectory-inline-diff study-progress-badge study-progress-comparison ${diffStatus}`}
+                title={isUnchangedOrZero ? '0 percentage points' : prog.scoreChangeFormatted}
+                aria-label={`${diffValueFormatted} vs. previous attempt`}
               >
-                <span className="study-progress-badge-symbol">
-                  {prog.comparisonStatus === 'improved' && !isUnchangedOrZero ? '+' : prog.comparisonStatus === 'declined' ? '−' : '·'}
+                <span className="study-trajectory-diff-val">
+                  <span className="study-progress-badge-symbol study-trajectory-diff-arrow" aria-hidden="true">
+                    {diffSymbol}
+                  </span>
+                  <span>{diffValueFormatted}</span>
                 </span>
-                <span>
-                  {isUnchangedOrZero ? '0 percentage points' : prog.scoreChangeFormatted}
-                </span>
+                <span className="study-trajectory-diff-context">vs. previous attempt</span>
               </div>
-            ) : null}
-
-            {prog.hasComparison && prog.previousScore !== undefined && prevDate ? (
-              <span className="study-trajectory-prev-note">
-                Previous: {prog.previousScore}% ({prevDate.dateStr})
-              </span>
             ) : (
               <span className="study-trajectory-single-hint">
                 Complete another assessment to see your progress.
@@ -667,47 +723,78 @@ export function LearningTrajectoryRow({
       {/* AREA B — Score Trajectory Visualization */}
       <div className="study-trajectory-viz-block">
         <div className="study-progress-svg-wrap study-trajectory-chart-shell">
+          {/* Enhanced from legacy viewBox="0 0 540 80" strokeDasharray="3 3" to responsive 760 180 solid hairline scale */}
           <svg
-            viewBox="0 0 540 80"
+            viewBox="0 0 760 180"
             className="study-progress-svg study-trajectory-svg"
             preserveAspectRatio="none"
             aria-label={`Score trajectory chart for ${prog.graphName}`}
           >
             {/* Reference grid lines at 100%, 50%, 0% */}
             <line
-              x1="38"
-              y1="16"
-              x2="510"
-              y2="16"
+              x1={X_MIN}
+              y1={Y_MIN}
+              x2={X_MAX}
+              y2={Y_MIN}
               className="study-trajectory-grid-line line-100"
-              stroke="rgba(255,255,255,0.05)"
-              strokeDasharray="3 3"
+              stroke="rgba(255, 255, 255, 0.035)"
+              strokeWidth="1"
             />
-            <text x="30" y="19" textAnchor="end" fill="#555555" fontSize="9" fontFamily="var(--font-mono, monospace)" className="study-trajectory-axis-lbl">100%</text>
+            <text
+              x={X_MIN - 10}
+              y={Y_MIN + 3}
+              textAnchor="end"
+              fill="#555555"
+              fontSize="9"
+              fontFamily="var(--font-mono, monospace)"
+              className="study-trajectory-axis-lbl"
+            >
+              100%
+            </text>
 
             <line
-              x1="38"
-              y1="40"
-              x2="510"
-              y2="40"
+              x1={X_MIN}
+              y1={Y_MID}
+              x2={X_MAX}
+              y2={Y_MID}
               className="study-trajectory-grid-line line-50"
-              stroke="rgba(255,255,255,0.04)"
-              strokeDasharray="3 3"
+              stroke="rgba(255, 255, 255, 0.025)"
+              strokeWidth="1"
             />
-            <text x="30" y="43" textAnchor="end" fill="#444444" fontSize="9" fontFamily="var(--font-mono, monospace)" className="study-trajectory-axis-lbl">50%</text>
+            <text
+              x={X_MIN - 10}
+              y={Y_MID + 3}
+              textAnchor="end"
+              fill="#444444"
+              fontSize="9"
+              fontFamily="var(--font-mono, monospace)"
+              className="study-trajectory-axis-lbl"
+            >
+              50%
+            </text>
 
             <line
-              x1="38"
-              y1="64"
-              x2="510"
-              y2="64"
+              x1={X_MIN}
+              y1={Y_MAX}
+              x2={X_MAX}
+              y2={Y_MAX}
               className="study-trajectory-grid-line line-0"
-              stroke="rgba(255,255,255,0.05)"
-              strokeDasharray="3 3"
+              stroke="rgba(255, 255, 255, 0.07)"
+              strokeWidth="1.25"
             />
-            <text x="30" y="67" textAnchor="end" fill="#555555" fontSize="9" fontFamily="var(--font-mono, monospace)" className="study-trajectory-axis-lbl">0%</text>
+            <text
+              x={X_MIN - 10}
+              y={Y_MAX + 3}
+              textAnchor="end"
+              fill="#555555"
+              fontSize="9"
+              fontFamily="var(--font-mono, monospace)"
+              className="study-trajectory-axis-lbl"
+            >
+              0%
+            </text>
 
-            {/* Trajectory Drawing Line (Phase 3 Motion Animation) */}
+            {/* Trajectory Drawing Line (Phase 2 Motion Animation) */}
             {N >= 2 && pathD && (
               <motion.path
                 d={pathD}
@@ -727,14 +814,15 @@ export function LearningTrajectoryRow({
 
             {/* Interactive Data Points */}
             {coords.map((c, idx) => {
-              const isHovered = hoveredPointAttemptId === c.pt.attemptId;
+              const isSelected = hoveredPointAttemptId === c.pt.attemptId;
               const isLatest = idx === N - 1;
-              const showLabel = N <= 6 || idx === 0 || isLatest || isHovered;
+              const isHighlighted = isSelected;
+              const showLabel = visibleLabels.has(c.pt.attemptId);
 
               return (
-                <g
+                <motion.g
                   key={c.pt.attemptId}
-                  className={`study-svg-point-node study-trajectory-node ${isHovered ? 'hovered active' : ''}`}
+                  className={`study-svg-point-node study-trajectory-node ${isHighlighted ? 'hovered active' : ''} ${isLatest ? 'latest' : ''}`}
                   tabIndex={0}
                   role="button"
                   aria-label={`${c.pt.attemptNumber}: ${c.pt.scorePercentage}% on ${c.pt.dateStr}`}
@@ -747,14 +835,18 @@ export function LearningTrajectoryRow({
                   }}
                   onMouseEnter={() => setHoveredPointAttemptId(c.pt.attemptId)}
                   onMouseLeave={() => setHoveredPointAttemptId(null)}
+                  onMouseOver={() => setHoveredPointAttemptId(c.pt.attemptId)}
                   onFocus={() => setHoveredPointAttemptId(c.pt.attemptId)}
                   onBlur={() => setHoveredPointAttemptId(null)}
+                  initial={shouldReduceMotion ? false : { scale: 0, opacity: 0 }}
+                  animate={rowInView ? { scale: 1, opacity: 1 } : { scale: 0, opacity: 0 }}
+                  transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.3, delay: 0.26 + idx * 0.05, ease: REVEAL_EASE }}
                 >
-                  {isHovered && (
+                  {isHighlighted && (
                     <circle
                       cx={c.x}
                       cy={c.y}
-                      r="9"
+                      r="10"
                       fill="none"
                       stroke="var(--accent, #A3FF12)"
                       strokeWidth="1"
@@ -764,61 +856,105 @@ export function LearningTrajectoryRow({
                   <circle
                     cx={c.x}
                     cy={c.y}
-                    r={isHovered ? 5.5 : isLatest ? 4.5 : 3.5}
-                    fill={isHovered ? 'var(--accent, #A3FF12)' : '#0A0A0A'}
-                    stroke={isHovered ? '#FFFFFF' : 'var(--accent, #A3FF12)'}
-                    strokeWidth={isHovered ? 2 : 1.75}
+                    r={isHighlighted ? 5.5 : isLatest ? 4.5 : 3.5}
+                    fill={isHighlighted ? 'var(--accent, #A3FF12)' : '#0A0A0A'}
+                    stroke={isHighlighted ? '#FFFFFF' : isLatest ? 'var(--accent, #A3FF12)' : 'rgba(163, 255, 18, 0.45)'}
+                    strokeWidth={isHighlighted ? 2 : isLatest ? 1.75 : 1.25}
                     className="study-trajectory-point"
                   />
                   {showLabel && (
                     <text
                       x={c.x}
-                      y={c.y < 28 ? c.y + 13 : c.y - 7}
-                      textAnchor="middle"
-                      fill={isHovered ? '#FFFFFF' : isLatest ? 'var(--text-primary, #F5F5F5)' : '#8A8A8A'}
-                      fontSize={isHovered ? '10' : '9'}
-                      fontWeight={isHovered ? '600' : '500'}
+                      y={c.y < 42 ? c.y + 14 : c.y - 9}
+                      textAnchor={c.x < X_MIN + 20 ? 'start' : c.x > X_MAX - 20 ? 'end' : 'middle'}
+                      fill={isHighlighted ? '#FFFFFF' : isLatest ? 'var(--text-primary, #F5F5F5)' : '#7A7A7A'}
+                      fontSize={isHighlighted ? '10.5' : isLatest ? '9.5' : '9'}
+                      fontWeight={isHighlighted ? '600' : '500'}
                       fontFamily="var(--font-mono, monospace)"
-                      className={`study-trajectory-point-lbl ${isHovered ? 'highlight' : ''}`}
+                      className={`study-trajectory-point-lbl ${isHighlighted ? 'highlight' : ''}`}
                     >
                       {c.pt.scorePercentage}%
                     </text>
                   )}
-                </g>
+                </motion.g>
               );
             })}
           </svg>
+
+          {/* Interactive Tooltip (HTML overlay, positioned over active/hovered node) */}
+          {activePointCoord && (
+            <div
+              className="study-trajectory-tooltip"
+              role="tooltip"
+              style={{
+                left: `${(activePointCoord.x / 760) * 100}%`,
+                top: `${(activePointCoord.y / 180) * 100}%`,
+                transform: activePointCoord.y < 50
+                  ? 'translate(-50%, 14px)'
+                  : 'translate(-50%, -100%)',
+                marginTop: activePointCoord.y < 50 ? 0 : -10
+              }}
+            >
+              <div className="study-trajectory-tooltip-row">
+                <span className="study-trajectory-tooltip-num">
+                  {activePointCoord.pt.attemptNumber}
+                </span>
+                <span className="study-trajectory-tooltip-score">
+                  {activePointCoord.pt.scorePercentage}%
+                </span>
+              </div>
+              {activePointCoord.pt.dateStr && (
+                <div className="study-trajectory-tooltip-date">
+                  {activePointCoord.pt.dateStr}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* AREA C — Compact Historical Attempt Strip */}
+      {/* AREA C — Minimalist Historical Attempt Timeline */}
       <div className="study-progress-history-strip study-trajectory-strip">
-        <div className="study-trajectory-strip-header">
-          <span className="study-progress-strip-label study-trajectory-strip-lbl">Score history:</span>
-          <span className="study-trajectory-strip-hint">Select any attempt to review historical results</span>
-        </div>
-        <div className="study-progress-chips-wrap study-trajectory-chips-wrap" role="list">
+        <span className="sr-only study-progress-strip-label">Score history:</span>
+        <div
+          className="study-progress-chips-wrap study-trajectory-chips-wrap study-trajectory-timeline"
+          role="list"
+          aria-label="Chronological assessment attempt timeline"
+        >
           {prog.chronologicalAttempts.map((pt, pIdx) => {
             const isSelected = hoveredPointAttemptId === pt.attemptId;
+            const isLatest = pIdx === N - 1;
             return (
               <motion.button
                 key={pt.attemptId}
                 type="button"
-                className={`study-progress-chip study-trajectory-chip ${isSelected ? 'active' : ''}`}
+                className={`study-progress-chip study-trajectory-chip study-trajectory-timeline-col ${isSelected ? 'active' : ''} ${isLatest ? 'latest' : ''}`}
                 onClick={() => handleOpenAttempt(pt.attemptId)}
                 onMouseEnter={() => setHoveredPointAttemptId(pt.attemptId)}
                 onMouseLeave={() => setHoveredPointAttemptId(null)}
+                onMouseOver={() => setHoveredPointAttemptId(pt.attemptId)}
                 onFocus={() => setHoveredPointAttemptId(pt.attemptId)}
                 onBlur={() => setHoveredPointAttemptId(null)}
-                aria-label={`Open historical result for ${pt.attemptNumber}: ${pt.scorePercentage}% on ${pt.dateStr}`}
-                initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
-                animate={rowInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
-                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.28, delay: 0.35 + pIdx * 0.04, ease: REVEAL_EASE }}
+                aria-label={`Attempt ${pad(pIdx + 1)}: ${pt.scorePercentage}% on ${pt.dateStr}. Select to review historical results.`}
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
+                animate={rowInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.32, delay: 0.38 + pIdx * 0.035, ease: REVEAL_EASE }}
               >
-                <span className="study-progress-chip-name study-trajectory-chip-num">{pad(pIdx + 1)}</span>
-                <span className="study-progress-chip-arrow study-trajectory-chip-arrow" aria-hidden="true">→</span>
-                <span className="study-progress-chip-score study-trajectory-chip-score">{pt.scorePercentage}%</span>
-                <span className="study-progress-chip-date study-trajectory-chip-date">{pt.dateStr}</span>
+                <div className="study-trajectory-col-top">
+                  <span className="study-progress-chip-name study-trajectory-chip-num study-trajectory-col-num">
+                    {pad(pIdx + 1)}
+                  </span>
+                  <span className="study-progress-chip-arrow study-trajectory-chip-arrow sr-only" aria-hidden="true">→</span>
+                </div>
+                <span className="study-progress-chip-score study-trajectory-chip-score study-trajectory-col-score">
+                  {pt.scorePercentage}%
+                </span>
+                <span className="study-progress-chip-date study-trajectory-chip-date study-trajectory-col-date">
+                  {pt.dateStr}
+                </span>
+                {isSelected && (
+                  <span className="study-trajectory-active-pip" aria-hidden="true" />
+                )}
               </motion.button>
             );
           })}
