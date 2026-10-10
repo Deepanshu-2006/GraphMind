@@ -81,7 +81,7 @@ describe('GRAPHMIND STUDY SPACE — COMPLETE UI/UX OVERHAUL VERIFICATION', () =>
     });
   });
 
-  describe('3. Continue Learning Compact Editorial Composition', () => {
+  describe('3. Continue Learning Compact Editorial Composition (V3)', () => {
     it('composes Continue Learning with left contextual info and right score / primary action', () => {
       assert.ok(studyViewSrc.includes('className="study-continue-box"'));
       assert.ok(studyViewSrc.includes('className="study-continue-info"'));
@@ -92,21 +92,39 @@ describe('GRAPHMIND STUDY SPACE — COMPLETE UI/UX OVERHAUL VERIFICATION', () =>
       assert.ok(studyViewSrc.includes('Review results'));
     });
 
+    it('implements V3 Left Region with editorial typography and ratio summary', () => {
+      assert.ok(studyViewSrc.includes('CONTINUE LEARNING'), 'Must have CONTINUE LEARNING eyebrow');
+      assert.ok(studyViewSrc.includes('study-continue-ratio-row'), 'Must contain ratio summary row');
+      assert.ok(studyViewSrc.includes('study-continue-ratio-num'), 'Must display ratio numeral');
+      assert.ok(studyViewSrc.includes('study-continue-ratio-slash'), 'Must have slash separator');
+      assert.ok(studyViewSrc.includes('CORRECT ANSWERS'), 'Must have uppercase CORRECT ANSWERS label');
+      assert.ok(studyViewSrc.includes('study-continue-meta'), 'Must have quiet supporting metadata');
+    });
+
     it('styles Continue Learning score block with large tabular numeral and subtle counts', () => {
       assert.match(
         studyCss,
-        /\.study-continue-score-pct\s*\{[\s\S]*?font-size:\s*34px;[\s\S]*?font-weight:\s*600;/
+        /\.study-continue-score-pct\s*\{[\s\S]*?font-size:\s*clamp\(44px,\s*4\.8vw,\s*50px\);[\s\S]*?font-weight:\s*600;/
+      );
+      assert.match(
+        studyCss,
+        /\.study-continue-ratio-num\s*\{[\s\S]*?font-size:\s*clamp\(32px,\s*3\.5vw,\s*38px\);/
+      );
+      assert.match(
+        studyCss,
+        /\.study-continue-title\s*\{[\s\S]*?font-size:\s*clamp\(34px,\s*4vw,\s*42px\);/
       );
     });
 
     it('implements a mathematically precise circular progress visualization', () => {
-      assert.ok(studyViewSrc.includes('viewBox="0 0 116 116"'), 'Must specify 116x116 viewBox');
+      assert.ok(studyViewSrc.includes('viewBox="0 0 200 200"'), 'Must specify 200x200 viewBox');
       assert.ok(studyViewSrc.includes('role="progressbar"'), 'Must have accessible progressbar role');
       assert.ok(studyViewSrc.includes('className="study-continue-circle-track"'), 'Must include track circle');
       assert.ok(studyViewSrc.includes('className="study-continue-circle-arc"'), 'Must include progress arc circle');
-      assert.ok(studyViewSrc.includes('transform="rotate(-90 58 58)"'), 'Must rotate starting point to 12 o\'clock');
-      assert.ok(studyViewSrc.includes('CIRCLE_RADIUS = 46'), 'Must define radius 46');
+      assert.ok(studyViewSrc.includes('transform="rotate(-90 100 100)"'), 'Must rotate starting point to 12 o\'clock');
+      assert.ok(studyViewSrc.includes('CIRCLE_RADIUS = 82'), 'Must define radius 82');
       assert.ok(studyViewSrc.includes('CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS'), 'Must calculate 2*PI*r circumference');
+      assert.ok(studyViewSrc.includes('className="study-continue-circle-lbl"'), 'Must have SCORE label in circle');
     });
 
     it('clamps scores to 0-100 range and handles 0% and 100% states cleanly', () => {
@@ -127,6 +145,7 @@ describe('GRAPHMIND STUDY SPACE — COMPLETE UI/UX OVERHAUL VERIFICATION', () =>
     it('choreographs synchronized counter and arc animation with viewport awareness', () => {
       assert.ok(studyViewSrc.includes('useInView(continueSectionRef'), 'Must use viewport observer ref');
       assert.ok(studyViewSrc.includes('animate(0, clampedScore'), 'Must count up from 0 to clampedScore in sync');
+      assert.ok(studyViewSrc.includes('duration: 1.2'), 'Must coordinate 1.2s duration between arc and counter');
       assert.ok(studyViewSrc.includes('shouldReduceMotion'), 'Must respect user reduced motion preference');
     });
   });
