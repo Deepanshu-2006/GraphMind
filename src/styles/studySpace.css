@@ -20,6 +20,19 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Screen Reader Only Utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* --------------------------------------------------------------------------
    2. Editorial Page Header (Matching Sources page typography & composition)
    -------------------------------------------------------------------------- */
@@ -1357,8 +1370,8 @@
 .study-trajectory-latest-stat {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
+  align-items: flex-end;
+  gap: 6px;
 }
 
 .study-trajectory-perf-lbl {
@@ -1396,62 +1409,64 @@
   line-height: 1;
 }
 
-.study-trajectory-perf-date {
-  font-family: var(--font-body, sans-serif);
-  font-size: 12px;
-  color: #707070;
-  line-height: 1.3;
-}
-
-.study-trajectory-comparison-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  padding-bottom: 4px;
-}
-
-.study-progress-badge {
+/* Compact Inline Score Comparison (No pill, borderless, typography-driven) */
+.study-trajectory-inline-diff,
+.study-progress-badge,
+.study-progress-comparison {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 6px;
-  padding: 4px 10px;
-  border-radius: 4px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   font-family: var(--font-mono, monospace);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  line-height: 1;
+  font-size: 12px;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
 }
 
-.study-progress-badge.improved {
+.study-progress-badge.improved,
+.study-progress-comparison.improved {
   color: var(--accent, #A3FF12);
-  background-color: rgba(163, 255, 18, 0.08);
-  border: 1px solid rgba(163, 255, 18, 0.22);
+  background: transparent;
+  border: none;
 }
 
-.study-progress-badge.declined {
+.study-progress-badge.declined,
+.study-progress-comparison.declined {
   color: #F87171;
-  background-color: rgba(248, 113, 113, 0.08);
-  border: 1px solid rgba(248, 113, 113, 0.22);
+  background: transparent;
+  border: none;
 }
 
 .study-progress-badge.unchanged,
-.study-progress-badge.incompatible {
+.study-progress-badge.incompatible,
+.study-progress-comparison.unchanged {
   color: var(--text-secondary, #A1A1A1);
-  background-color: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  border: none;
 }
 
+.study-trajectory-diff-val {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+
+.study-trajectory-diff-arrow,
 .study-progress-badge-symbol {
   font-weight: 700;
 }
 
-.study-trajectory-prev-note {
+.study-trajectory-diff-context {
+  color: #707070;
   font-family: var(--font-body, sans-serif);
   font-size: 12px;
-  color: #707070;
-  line-height: 1.3;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
 .study-trajectory-single-hint {
@@ -1469,7 +1484,7 @@
 
 .study-trajectory-chart-shell {
   width: 100%;
-  height: 120px;
+  height: clamp(170px, 18vw, 210px);
   position: relative;
 }
 
@@ -1482,7 +1497,6 @@
 }
 
 .study-trajectory-grid-line {
-  stroke: rgba(255, 255, 255, 0.05);
   vector-effect: non-scaling-stroke;
 }
 
@@ -1523,117 +1537,194 @@
   font-weight: 600;
 }
 
-/* AREA C — Compact Historical Attempt Strip (Section 7) */
+/* Tooltip (Unclipped HTML Overlay, Usable by Pointer, Touch & Keyboard) */
+.study-trajectory-tooltip {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  margin-top: -10px;
+  background-color: #121212;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  padding: 6px 10px;
+  pointer-events: none;
+  z-index: 20;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: nowrap;
+  animation: trajectoryTooltipFade 140ms ease-out forwards;
+}
+
+@keyframes trajectoryTooltipFade {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -92%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -100%);
+  }
+}
+
+.study-trajectory-tooltip-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.study-trajectory-tooltip-num {
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: #888888;
+  letter-spacing: 0.04em;
+}
+
+.study-trajectory-tooltip-score {
+  font-family: var(--font-display, var(--font-mono, monospace));
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--accent, #A3FF12);
+  font-variant-numeric: tabular-nums;
+}
+
+.study-trajectory-tooltip-date {
+  font-family: var(--font-body, sans-serif);
+  font-size: 11px;
+  color: #666666;
+}
+
+/* AREA C — Minimalist Historical Attempt Timeline (Section 7) */
 .study-progress-history-strip,
 .study-trajectory-strip {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   width: 100%;
-}
-
-.study-trajectory-strip-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.study-progress-strip-label,
-.study-trajectory-strip-lbl {
-  font-family: var(--font-mono, monospace);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #666666;
-}
-
-.study-trajectory-strip-hint {
-  font-family: var(--font-body, sans-serif);
-  font-size: 12px;
-  color: #666666;
 }
 
 .study-progress-chips-wrap,
-.study-trajectory-chips-wrap {
+.study-trajectory-chips-wrap,
+.study-trajectory-timeline {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: clamp(16px, 3.2vw, 36px);
   width: 100%;
+  overflow-x: auto;
+  padding: 6px 0 12px 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  box-sizing: border-box;
 }
 
 .study-progress-chip,
-.study-trajectory-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 12px;
-  background-color: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 4px;
+.study-trajectory-chip,
+.study-trajectory-timeline-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   color: var(--text-primary, #F5F5F5);
   cursor: pointer;
+  text-align: left;
+  position: relative;
+  min-width: 44px;
+  box-sizing: border-box;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.study-trajectory-col-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.study-progress-chip-name,
+.study-trajectory-chip-num,
+.study-trajectory-col-num {
   font-family: var(--font-mono, monospace);
-  font-size: 12px;
-  line-height: 1;
-  transition: border-color 180ms ease,
-              background-color 180ms ease,
-              transform 180ms ease;
-}
-
-.study-progress-chip:hover,
-.study-progress-chip.active,
-.study-trajectory-chip:hover,
-.study-trajectory-chip.active {
-  border-color: rgba(163, 255, 18, 0.35);
-  background-color: rgba(163, 255, 18, 0.05);
-  transform: translateY(-1px);
-}
-
-.study-progress-chip:focus-visible,
-.study-trajectory-chip:focus-visible {
-  outline: 2px solid var(--accent, #A3FF12);
-  outline-offset: 1px;
-}
-
-.study-trajectory-chip-idx {
-  color: #777777;
   font-size: 11px;
+  font-weight: 500;
+  color: #707070;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  transition: color 180ms ease;
 }
 
 .study-progress-chip-score,
-.study-trajectory-chip-score {
-  color: #F5F5F5;
+.study-trajectory-chip-score,
+.study-trajectory-col-score {
+  font-family: var(--font-display, var(--font-mono, monospace));
+  font-size: 15px;
   font-weight: 600;
-  font-size: 12.5px;
-}
-
-.study-progress-chip.active .study-trajectory-chip-score {
-  color: var(--accent, #A3FF12);
+  color: #FFFFFF;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  transition: color 180ms ease;
 }
 
 .study-progress-chip-date,
-.study-trajectory-chip-date {
+.study-trajectory-chip-date,
+.study-trajectory-col-date {
+  font-family: var(--font-body, sans-serif);
+  font-size: 11.5px;
   color: #666666;
-  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+  transition: color 180ms ease;
 }
 
-.study-progress-chip-arrow,
-.study-trajectory-chip-arrow {
-  color: #555555;
-  font-size: 11px;
-  transition: transform 180ms ease, color 180ms ease;
-}
-
-.study-progress-chip:hover .study-trajectory-chip-arrow,
-.study-progress-chip.active .study-trajectory-chip-arrow,
-.study-trajectory-chip:hover .study-trajectory-chip-arrow,
-.study-trajectory-chip.active .study-trajectory-chip-arrow {
+/* Active Attempt State: Lime Green Accent and Indicator Pip */
+.study-progress-chip.active .study-trajectory-col-num,
+.study-trajectory-chip.active .study-trajectory-col-num {
   color: var(--accent, #A3FF12);
-  transform: translateX(2px);
+}
+
+.study-progress-chip.active .study-trajectory-col-score,
+.study-trajectory-chip.active .study-trajectory-col-score {
+  color: var(--accent, #A3FF12);
+}
+
+.study-progress-chip.active .study-trajectory-col-date,
+.study-trajectory-chip.active .study-trajectory-col-date {
+  color: #999999;
+}
+
+.study-trajectory-active-pip {
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  width: 14px;
+  height: 2px;
+  background-color: var(--accent, #A3FF12);
+  border-radius: 1px;
+}
+
+/* Hover State: Subtle text brightness */
+.study-trajectory-chip:hover:not(.active) .study-trajectory-col-num {
+  color: #AAAAAA;
+}
+
+.study-trajectory-chip:hover:not(.active) .study-trajectory-col-score {
+  color: #FFFFFF;
+}
+
+.study-trajectory-chip:hover:not(.active) .study-trajectory-col-date {
+  color: #888888;
+}
+
+/* Visible Keyboard Focus State */
+.study-progress-chip:focus-visible,
+.study-trajectory-chip:focus-visible {
+  outline: 2px solid var(--accent, #A3FF12);
+  outline-offset: 4px;
+  border-radius: 2px;
 }
 
 /* --------------------------------------------------------------------------
@@ -2057,12 +2148,16 @@
 
   .study-trajectory-perf {
     width: 100%;
-    justify-content: space-between;
-    align-items: flex-end;
+    justify-content: flex-start;
+    align-items: flex-start;
+  }
+
+  .study-trajectory-latest-stat {
+    align-items: flex-start;
   }
 
   .study-trajectory-chart-shell {
-    height: 96px;
+    height: clamp(120px, 26vw, 140px);
   }
 
   .study-trajectory-chips-wrap {

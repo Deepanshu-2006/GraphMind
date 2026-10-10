@@ -24,14 +24,14 @@ export interface TrajectoryGeometry {
 
 export function calculateTrajectoryGeometry(
   attempts: ChronologicalScorePoint[],
-  width = 740
+  width = 760
 ): TrajectoryGeometry {
   const X_MIN = 44;
-  const X_MAX = width - 40; // 700
-  const Y_MIN = 22; // 100% score
-  const Y_MAX = 98; // 0% score
-  const Y_MID = 60; // 50% score
-  const H = Y_MAX - Y_MIN; // 76
+  const X_MAX = width - 40; // 720
+  const Y_MIN = 28; // 100% score
+  const Y_MAX = 148; // 0% score
+  const Y_MID = 88; // 50% score
+  const H = Y_MAX - Y_MIN; // 120
 
   function getY(score: number): number {
     const clamped = Math.max(0, Math.min(100, Number(score) || 0));
@@ -44,7 +44,7 @@ export function calculateTrajectoryGeometry(
   }
 
   if (N === 1) {
-    const x = 74;
+    const x = 76;
     const y = getY(attempts[0].scorePercentage);
     return {
       coords: [{ x, y, pt: attempts[0], index: 0 }],
@@ -59,7 +59,7 @@ export function calculateTrajectoryGeometry(
   }
 
   const availableWidth = X_MAX - X_MIN;
-  const step = Math.min(160, availableWidth / (N - 1));
+  const step = Math.min(180, availableWidth / (N - 1));
   const coords = attempts.map((pt, i) => {
     const x = X_MIN + i * step;
     const y = getY(pt.scorePercentage);
@@ -107,7 +107,7 @@ export function LearningTrajectoryChart({
   shouldReduceMotion
 }: LearningTrajectoryChartProps) {
   const { coords, pathD, X_MIN, X_MAX, Y_MIN, Y_MID, Y_MAX } = useMemo(() => {
-    return calculateTrajectoryGeometry(attempts, 740);
+    return calculateTrajectoryGeometry(attempts, 760);
   }, [attempts]);
 
   const [isPathSettled, setIsPathSettled] = useState(Boolean(shouldReduceMotion));
@@ -115,15 +115,57 @@ export function LearningTrajectoryChart({
   const totalPoints = coords.length;
   const isSingle = totalPoints === 1;
 
+  // Deterministic collision avoidance for score labels
+  const visibleLabels = useMemo(() => {
+    const visible = new Set<string>();
+    if (totalPoints === 0) return visible;
+
+    if (activeAttemptId) visible.add(activeAttemptId);
+    if (hoveredAttemptId) visible.add(hoveredAttemptId);
+
+    const latest = coords[totalPoints - 1];
+    if (latest) visible.add(latest.pt.attemptId);
+
+    if (totalPoints <= 6) {
+      coords.forEach(c => visible.add(c.pt.attemptId));
+      return visible;
+    }
+
+    const first = coords[0];
+    if (first) visible.add(first.pt.attemptId);
+
+    const MIN_DIST = 52;
+    const placedX: number[] = [];
+    coords.forEach(c => {
+      if (visible.has(c.pt.attemptId)) placedX.push(c.x);
+    });
+
+    coords.forEach(c => {
+      if (visible.has(c.pt.attemptId)) return;
+      const isColliding = placedX.some(px => Math.abs(px - c.x) < MIN_DIST);
+      if (!isColliding) {
+        visible.add(c.pt.attemptId);
+        placedX.push(c.x);
+      }
+    });
+
+    return visible;
+  }, [coords, totalPoints, activeAttemptId, hoveredAttemptId]);
+
+  const activeCoord = useMemo(() => {
+    const targetId = hoveredAttemptId || activeAttemptId;
+    return targetId ? coords.find(c => c.pt.attemptId === targetId) : null;
+  }, [coords, hoveredAttemptId, activeAttemptId]);
+
   return (
     <div className="study-trajectory-chart-shell">
       <svg
-        viewBox="0 0 740 120"
+        viewBox="0 0 760 180"
         className="study-trajectory-svg"
         preserveAspectRatio="none"
         aria-label={`Score trajectory chart for ${graphName}`}
       >
-        {/* Architectural Baseline Reference Grid */}
+        {/* Subtle, thin reference grid levels (100%, 50%, 0%) */}
         {/* 100% Guideline */}
         <line
           x1={X_MIN}
@@ -131,11 +173,11 @@ export function LearningTrajectoryChart({
           x2={X_MAX}
           y2={Y_MIN}
           className="study-trajectory-grid-line line-100"
-          stroke="rgba(255, 255, 255, 0.05)"
-          strokeDasharray="2 3"
+          stroke="rgba(255, 255, 255, 0.035)"
+          strokeWidth="1"
         />
         <text
-          x={X_MIN - 8}
+          x={X_MIN - 10}
           y={Y_MIN + 3}
           textAnchor="end"
           className="study-trajectory-axis-lbl"
@@ -153,11 +195,11 @@ export function LearningTrajectoryChart({
           x2={X_MAX}
           y2={Y_MID}
           className="study-trajectory-grid-line line-50"
-          stroke="rgba(255, 255, 255, 0.035)"
-          strokeDasharray="2 3"
+          stroke="rgba(255, 255, 255, 0.025)"
+          strokeWidth="1"
         />
         <text
-          x={X_MIN - 8}
+          x={X_MIN - 10}
           y={Y_MID + 3}
           textAnchor="end"
           className="study-trajectory-axis-lbl"
@@ -168,18 +210,18 @@ export function LearningTrajectoryChart({
           50%
         </text>
 
-        {/* 0% Baseline Guideline */}
+        {/* 0% Baseline Guideline (slightly more distinguished) */}
         <line
           x1={X_MIN}
           y1={Y_MAX}
           x2={X_MAX}
           y2={Y_MAX}
           className="study-trajectory-grid-line line-0"
-          stroke="rgba(255, 255, 255, 0.05)"
-          strokeDasharray="2 3"
+          stroke="rgba(255, 255, 255, 0.07)"
+          strokeWidth="1.25"
         />
         <text
-          x={X_MIN - 8}
+          x={X_MIN - 10}
           y={Y_MAX + 3}
           textAnchor="end"
           className="study-trajectory-axis-lbl"
@@ -190,7 +232,7 @@ export function LearningTrajectoryChart({
           0%
         </text>
 
-        {/* Trajectory Drawing Line (Phase 3 Motion Animation) */}
+        {/* Trajectory Drawing Line (Progressive Drawing) */}
         {!isSingle && pathD && (
           <motion.path
             d={pathD}
@@ -214,14 +256,12 @@ export function LearningTrajectoryChart({
           const isHovered = hoveredAttemptId === c.pt.attemptId;
           const isLatest = idx === totalPoints - 1;
           const isHighlighted = isSelected || isHovered;
-
-          // Always show score label for small attempt sets, otherwise first, latest, and active/hovered
-          const showLabel = totalPoints <= 6 || idx === 0 || isLatest || isHighlighted;
+          const showLabel = visibleLabels.has(c.pt.attemptId);
 
           return (
             <motion.g
               key={c.pt.attemptId}
-              className={`study-trajectory-node ${isHighlighted ? 'active' : ''}`}
+              className={`study-trajectory-node ${isHighlighted ? 'active' : ''} ${isLatest ? 'latest' : ''}`}
               tabIndex={0}
               role="button"
               aria-label={`Attempt ${c.index + 1}: ${c.pt.scorePercentage}% on ${c.pt.dateStr}`}
@@ -238,14 +278,14 @@ export function LearningTrajectoryChart({
               onBlur={() => onHoverAttempt(null)}
               initial={shouldReduceMotion ? { scale: 1, opacity: 1 } : { scale: 0, opacity: 0 }}
               animate={inView ? { scale: 1, opacity: 1 } : { scale: 0, opacity: 0 }}
-              transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.28 + idx * 0.045, ease: REVEAL_EASE }}
+              transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.3, delay: 0.26 + idx * 0.05, ease: REVEAL_EASE }}
             >
               {/* Subtle hover pulse / focus ring */}
               {isHighlighted && (
                 <circle
                   cx={c.x}
                   cy={c.y}
-                  r="9"
+                  r="10"
                   fill="none"
                   stroke="var(--accent, #A3FF12)"
                   strokeWidth="1"
@@ -253,14 +293,14 @@ export function LearningTrajectoryChart({
                 />
               )}
 
-              {/* Point Node */}
+              {/* Point Node Marker */}
               <circle
                 cx={c.x}
                 cy={c.y}
                 r={isHighlighted ? 5.5 : isLatest ? 4.5 : 3.5}
                 fill={isHighlighted ? 'var(--accent, #A3FF12)' : '#0A0A0A'}
-                stroke={isHighlighted ? '#FFFFFF' : 'var(--accent, #A3FF12)'}
-                strokeWidth={isHighlighted ? 2 : 1.75}
+                stroke={isHighlighted ? '#FFFFFF' : isLatest ? 'var(--accent, #A3FF12)' : 'rgba(163, 255, 18, 0.45)'}
+                strokeWidth={isHighlighted ? 2 : isLatest ? 1.75 : 1.25}
                 className="study-trajectory-point"
               />
 
@@ -268,11 +308,11 @@ export function LearningTrajectoryChart({
               {showLabel && (
                 <text
                   x={c.x}
-                  y={c.y < 30 ? c.y + 14 : c.y - 8}
-                  textAnchor="middle"
+                  y={c.y < 42 ? c.y + 14 : c.y - 9}
+                  textAnchor={c.x < X_MIN + 20 ? 'start' : c.x > X_MAX - 20 ? 'end' : 'middle'}
                   className={`study-trajectory-point-lbl ${isHighlighted ? 'highlight' : ''}`}
-                  fill={isHighlighted ? '#FFFFFF' : isLatest ? 'var(--text-primary, #F5F5F5)' : '#8A8A8A'}
-                  fontSize={isHighlighted ? '10.5' : '9.5'}
+                  fill={isHighlighted ? '#FFFFFF' : isLatest ? 'var(--text-primary, #F5F5F5)' : '#7A7A7A'}
+                  fontSize={isHighlighted ? '10.5' : isLatest ? '9.5' : '9'}
                   fontWeight={isHighlighted ? '600' : '500'}
                   fontFamily="var(--font-mono, monospace)"
                 >
@@ -283,6 +323,28 @@ export function LearningTrajectoryChart({
           );
         })}
       </svg>
+
+      {/* Unclipped HTML Tooltip */}
+      {activeCoord && (
+        <div
+          className="study-trajectory-tooltip"
+          role="tooltip"
+          style={{
+            left: `${(activeCoord.x / 760) * 100}%`,
+            top: `${(activeCoord.y / 180) * 100}%`,
+            transform: activeCoord.y < 50 ? 'translate(-50%, 14px)' : 'translate(-50%, -100%)',
+            marginTop: activeCoord.y < 50 ? 0 : -10
+          }}
+        >
+          <div className="study-trajectory-tooltip-row">
+            <span className="study-trajectory-tooltip-num">{activeCoord.pt.attemptNumber}</span>
+            <span className="study-trajectory-tooltip-score">{activeCoord.pt.scorePercentage}%</span>
+          </div>
+          {activeCoord.pt.dateStr && (
+            <div className="study-trajectory-tooltip-date">{activeCoord.pt.dateStr}</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
