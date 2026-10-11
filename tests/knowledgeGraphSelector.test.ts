@@ -40,11 +40,11 @@ describe('GRAPHMIND STUDY SPACE — KNOWLEDGE GRAPH SELECTOR & FILTERED LEARNING
       );
     });
 
-    it('styles selector trigger button with minimal near-black surface and muted chevron', () => {
+    it('styles selector trigger button with minimal borderless surface, refined typography, and muted chevron', () => {
       assert.match(
         studyCss,
-        /\.study-graph-selector-trigger\s*\{[\s\S]*?background-color:\s*#121212;[\s\S]*?color:\s*#F5F5F5;/,
-        'Trigger must have near-black background and white text'
+        /\.study-graph-selector-trigger\s*\{[\s\S]*?background-color:\s*transparent;[\s\S]*?border:\s*none;/,
+        'Trigger must have transparent background and borderless styling'
       );
       assert.match(
         studyCss,
@@ -53,7 +53,7 @@ describe('GRAPHMIND STUDY SPACE — KNOWLEDGE GRAPH SELECTOR & FILTERED LEARNING
       );
       assert.match(
         studyCss,
-        /\.study-graph-selector-chevron\s*\{[\s\S]*?color:\s*#777777;/,
+        /\.study-graph-selector-chevron\s*\{[\s\S]*?color:\s*#6E6E6E;/,
         'Chevron must be muted'
       );
     });

@@ -1229,7 +1229,8 @@ export function StudyGraphSelector({
           {selectedGraph?.name || 'Select knowledge graph'}
         </span>
         <ChevronDown
-          size={14}
+          size={13}
+          strokeWidth={1.8}
           className={`study-graph-selector-chevron ${isOpen ? 'open' : ''}`}
           aria-hidden="true"
         />
@@ -1356,19 +1357,39 @@ export function StudyGraphSelector({
                 );
               })}
 
-              {filteredGraphs.length === 0 && (
-                <div className="study-graph-selector-empty-search">
+              {availableGraphs.length === 0 ? (
+                <motion.div
+                  className="study-graph-selector-empty-search"
+                  initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.20, ease: REVEAL_EASE }}
+                >
+                  <span className="study-graph-selector-empty-title">No graphs yet</span>
+                  <span className="study-graph-selector-empty-subtitle">Create a knowledge graph to start learning.</span>
+                </motion.div>
+              ) : filteredGraphs.length === 0 ? (
+                <motion.div
+                  className="study-graph-selector-empty-search"
+                  initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.20, ease: REVEAL_EASE }}
+                >
                   <span className="study-graph-selector-empty-title">No graphs found</span>
                   <span className="study-graph-selector-empty-subtitle">Try another search.</span>
                   <button
                     type="button"
                     className="study-graph-selector-empty-clear"
-                    onClick={() => setSearchQuery('')}
+                    onClick={() => {
+                      setSearchQuery('');
+                      searchInputRef.current?.focus();
+                    }}
+                    aria-label="Clear search"
                   >
-                    Clear search
+                    <span>Clear search</span>
+                    <span className="study-graph-selector-empty-arrow" aria-hidden="true">→</span>
                   </button>
-                </div>
-              )}
+                </motion.div>
+              ) : null}
             </div>
 
             {onNavigateToAllGraphs && (

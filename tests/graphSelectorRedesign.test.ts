@@ -63,16 +63,39 @@ describe('GRAPHMIND — GRAPH SELECTOR VISUAL REFINEMENT SPECIFICATION', () => {
       );
     });
 
-    it('provides carefully designed hover, focus-visible, and open states', () => {
+    it('styles closed selector with borderless minimal appearance and improved typography', () => {
       assert.match(
         studyCss,
-        /\.study-graph-selector-trigger:hover\s*\{/,
-        'Must have hover state'
+        /\.study-graph-selector-trigger\s*\{[\s\S]*?background-color:\s*transparent;[\s\S]*?border:\s*none;/,
+        'Trigger must have transparent background and no border'
       );
       assert.match(
         studyCss,
-        /\.study-graph-selector-trigger:focus-visible\s*\{[\s\S]*?border-color:\s*var\(--accent,\s*#A3FF12\);/,
-        'Must have lime-green focus-visible state'
+        /\.study-graph-selector-trigger\s*\{[\s\S]*?color:\s*#ECECEC;[\s\S]*?font-size:\s*17px;/,
+        'Trigger typography must be 17px near-white text'
+      );
+      assert.match(
+        studyCss,
+        /\.study-graph-selector-pip\s*\{[\s\S]*?width:\s*6\.5px;[\s\S]*?height:\s*6\.5px;/,
+        'Status indicator dot must be refined to 6-7px'
+      );
+      assert.match(
+        studyCss,
+        /\.study-header-right\s*\{[\s\S]*?margin-bottom:\s*12px;/,
+        'Header right must reposition selector upward by ~10px'
+      );
+    });
+
+    it('provides carefully designed hover, focus-visible, and open states without green outline on focus', () => {
+      assert.match(
+        studyCss,
+        /\.study-graph-selector-trigger:hover\s*\{[\s\S]*?background-color:\s*rgba\(255,\s*255,\s*255,\s*0\.04\);/,
+        'Must have subtle neutral hover tint without visible border'
+      );
+      assert.match(
+        studyCss,
+        /\.study-graph-selector-trigger:focus-visible\s*\{[\s\S]*?outline:\s*1px solid rgba\(255,\s*255,\s*255,\s*0\.35\);/,
+        'Must have restrained, accessible neutral focus-visible state without green outline'
       );
       assert.match(
         studyCss,
@@ -240,4 +263,85 @@ describe('GRAPHMIND — GRAPH SELECTOR VISUAL REFINEMENT SPECIFICATION', () => {
       assert.ok(studyViewSrc.includes('e.key === \'Enter\''), 'Must handle Enter key');
     });
   });
+
+  describe('6. Empty Search State Redesign', () => {
+    it('distinguishes between empty search results and empty collection', () => {
+      assert.ok(
+        studyViewSrc.includes("availableGraphs.length === 0 ?"),
+        'Must handle empty collection case separately'
+      );
+      assert.ok(
+        studyViewSrc.includes('No graphs yet'),
+        'Must display "No graphs yet" when collection has no graphs'
+      );
+      assert.ok(
+        studyViewSrc.includes('Create a knowledge graph to start learning.'),
+        'Must display collection empty subtitle'
+      );
+      assert.ok(
+        studyViewSrc.includes('No graphs found'),
+        'Must display "No graphs found" when search yields no matches'
+      );
+      assert.ok(
+        studyViewSrc.includes('Try another search.'),
+        'Must display search empty subtitle'
+      );
+    });
+
+    it('renders minimal text action "Clear search →" without heavy borders or pills', () => {
+      assert.ok(
+        studyViewSrc.includes('study-graph-selector-empty-clear'),
+        'Must have clear search action'
+      );
+      assert.ok(
+        studyViewSrc.includes('study-graph-selector-empty-arrow'),
+        'Must render arrow element for Clear search →'
+      );
+      assert.ok(
+        studyViewSrc.includes("searchInputRef.current?.focus()"),
+        'Must return focus to search input when clearing search'
+      );
+      assert.match(
+        studyCss,
+        /\.study-graph-selector-empty-clear\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?border:\s*none;/,
+        'Clear action must have no background and no border'
+      );
+      assert.match(
+        studyCss,
+        /\.study-graph-selector-empty-clear\s*\{[\s\S]*?color:\s*var\(--accent,\s*#A3FF12\);/,
+        'Clear action must use lime green accent text'
+      );
+    });
+
+    it('implements compact vertical padding and refined typography in CSS', () => {
+      assert.match(
+        studyCss,
+        /\.study-graph-selector-empty-search\s*\{[\s\S]*?padding:\s*22px 14px 18px 14px;/,
+        'Empty search state must have compact, balanced padding'
+      );
+      assert.match(
+        studyCss,
+        /\.study-graph-selector-empty-title\s*\{[\s\S]*?font-size:\s*13px;[\s\S]*?color:\s*#F5F5F5;/,
+        'Empty title must be 13px clean white/near-white'
+      );
+      assert.match(
+        studyCss,
+        /\.study-graph-selector-empty-subtitle\s*\{[\s\S]*?font-size:\s*11\.5px;[\s\S]*?color:\s*#777777;/,
+        'Empty subtitle must be 11.5px muted gray'
+      );
+    });
+
+    it('supports subtle entrance transition and respects prefers-reduced-motion', () => {
+      assert.ok(
+        studyViewSrc.includes('initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}'),
+        'Empty search must animate opacity and subtle vertical displacement'
+      );
+      assert.match(
+        studyCss,
+        /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?\.study-graph-selector-empty-search[\s\S]*?\.study-graph-selector-empty-clear/,
+        'CSS must disable transitions on empty state elements during reduced motion'
+      );
+    });
+  });
 });
+
