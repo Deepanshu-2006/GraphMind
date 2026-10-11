@@ -1,0 +1,306 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import type { AssessmentAttempt } from '../src/types/test';
+import {
+  computeGraphLearningProgress,
+  computeProgressComparison
+} from '../src/components/study/StudySpaceView';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+describe('GRAPHMIND STUDY SPACE — KNOWLEDGE GRAPH SELECTOR & FILTERED LEARNING PROGRESS', () => {
+  const studyViewPath = path.resolve(__dirname, '../src/components/study/StudySpaceView.tsx');
+  const studyViewSrc = fs.readFileSync(studyViewPath, 'utf8');
+
+  const studyCssPath = path.resolve(__dirname, '../src/styles/studySpace.css');
+  const studyCss = fs.readFileSync(studyCssPath, 'utf8');
+
+  describe('1. Header Layout & Graph Selector Placement (Requirement 2)', () => {
+    it('arranges header in a balanced horizontal row on desktop with title on left and selector on right', () => {
+      assert.ok(studyViewSrc.includes('study-header-main-row'), 'Must contain header main row');
+      assert.ok(studyViewSrc.includes('study-header-left'), 'Must contain header left column');
+      assert.ok(studyViewSrc.includes('study-header-right'), 'Must contain header right container');
+      assert.ok(studyViewSrc.includes('<StudyGraphSelector'), 'Must render StudyGraphSelector component in header');
+    });
+
+    it('styles header with flexbox layout and stacks on narrow screens', () => {
+      assert.match(
+        studyCss,
+        /\.study-header-main-row\s*\{[\s\S]*?display:\s*flex;[\s\S]*?justify-content:\s*space-between;/,
+        'Header main row must use flex layout'
+      );
+      assert.match(
+        studyCss,
+        /@media\s*\(max-width:\s*820px\)\s*\{[\s\S]*?\.study-header-main-row\s*\{[\s\S]*?flex-direction:\s*column;/,
+        'Header must stack vertically on mobile/narrow screens'
+      );
+    });
+
+    it('styles selector trigger button with minimal near-black surface and muted chevron', () => {
+      assert.match(
+        studyCss,
+        /\.study-graph-selector-trigger\s*\{[\s\S]*?background-color:\s*#121212;[\s\S]*?color:\s*#F5F5F5;/,
+        'Trigger must have near-black background and white text'
+      );
+      assert.match(
+        studyCss,
+        /\.study-graph-selector-pip\s*\{[\s\S]*?background-color:\s*var\(--accent,\s*#A3FF12\);/,
+        'Trigger must have subtle lime-green status indicator pip'
+      );
+      assert.match(
+        studyCss,
+        /\.study-graph-selector-chevron\s*\{[\s\S]*?color:\s*#777777;/,
+        'Chevron must be muted'
+      );
+    });
+  });
+
+  describe('2. Custom Accessible Graph Selector Popover (Requirement 3)', () => {
+    it('renders popover with search input, listbox, and keyboard accessibility', () => {
+      assert.ok(studyViewSrc.includes('id="study-graph-selector-popover"'), 'Must have popover container');
+      assert.ok(studyViewSrc.includes('role="listbox"'), 'Must have listbox role for accessibility');
+      assert.ok(studyViewSrc.includes('role="option"'), 'Must have option roles for graphs');
+      assert.ok(studyViewSrc.includes('study-graph-selector-search-input'), 'Must have search input');
+      assert.ok(studyViewSrc.includes('Search knowledge graphs…'), 'Must have search placeholder');
+      assert.ok(studyViewSrc.includes('study-graph-selector-search-clear'), 'Must have clear search button');
+    });
+
+    it('supports keyboard navigation (ArrowUp, ArrowDown, Enter, Escape)', () => {
+      assert.ok(studyViewSrc.includes("e.key === 'Escape'"), 'Must handle Escape key');
+      assert.ok(studyViewSrc.includes("e.key === 'ArrowDown'"), 'Must handle ArrowDown key');
+      assert.ok(studyViewSrc.includes("e.key === 'ArrowUp'"), 'Must handle ArrowUp key');
+      assert.ok(studyViewSrc.includes("e.key === 'Enter'"), 'Must handle Enter key');
+    });
+
+    it('displays truthful metadata: completed assessment count, latest score, or "No assessments yet"', () => {
+      assert.ok(studyViewSrc.includes('study-graph-selector-option-meta'));
+      assert.ok(studyViewSrc.includes("'No assessments yet'"));
+      assert.ok(studyViewSrc.includes('study-graph-selector-option-score'));
+    });
+
+    it('styles popover with anchored positioning, z-index, and scroll containment', () => {
+      assert.match(
+        studyCss,
+        /\.study-graph-selector-popover\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?background-color:\s*#111111;[\s\S]*?z-index:\s*100;/,
+        'Popover must be absolutely anchored with high z-index'
+      );
+      assert.match(
+        studyCss,
+        /\.study-graph-selector-list\s*\{[\s\S]*?max-height:\s*240px;[\s\S]*?overflow-y:\s*auto;/,
+        'List must have internal scroll limit'
+      );
+    });
+  });
+
+  describe('3. Single Persistent Learning Progress Section for Selected Graph (Requirement 5)', () => {
+    it('renders Learning Progress section conditioned on selectedGraphMeta', () => {
+      assert.ok(
+        studyViewSrc.includes('{selectedGraphMeta && ('),
+        'Must display Learning Progress conditioned on selectedGraphMeta'
+      );
+    });
+
+    it('renders exactly one LearningTrajectoryRow with key bound to selectedGraphProgress.graphId', () => {
+      assert.ok(
+        studyViewSrc.includes('key={selectedGraphProgress.graphId}'),
+        'Row key must be bound to graphId to trigger clean re-animations upon graph change'
+      );
+      assert.ok(
+        !studyViewSrc.includes('allGraphProgress.map'),
+        'Must NOT iterate and stack multiple progress sections vertically'
+      );
+    });
+
+    it('correctly filters attempt history strictly by graphId', () => {
+      const mockAttempts: AssessmentAttempt[] = [
+        {
+          id: 'att-1',
+          testId: 't-1',
+          graphId: 'graph-ds',
+          graphName: 'Distributed Systems',
+          startedAt: '2026-10-09T10:00:00.000Z',
+          completedAt: '2026-10-09T10:05:00.000Z',
+          scorePercentage: 70,
+          totalQuestions: 10,
+          correctAnswers: 7,
+          incorrectAnswers: 3,
+          unansweredCount: 0,
+          timeSpentSeconds: 300,
+          completionReason: 'submitted',
+          questions: [],
+          userAnswers: {},
+          flaggedQuestionIds: [],
+          conceptNames: ['Consensus']
+        },
+        {
+          id: 'att-2',
+          testId: 't-2',
+          graphId: 'graph-os',
+          graphName: 'Operating Systems',
+          startedAt: '2026-10-09T11:00:00.000Z',
+          completedAt: '2026-10-09T11:05:00.000Z',
+          scorePercentage: 85,
+          totalQuestions: 10,
+          correctAnswers: 8,
+          incorrectAnswers: 2,
+          unansweredCount: 0,
+          timeSpentSeconds: 300,
+          completionReason: 'submitted',
+          questions: [],
+          userAnswers: {},
+          flaggedQuestionIds: [],
+          conceptNames: ['Virtual Memory']
+        }
+      ];
+
+      const progDS = computeGraphLearningProgress('graph-ds', mockAttempts);
+      const progOS = computeGraphLearningProgress('graph-os', mockAttempts);
+
+      assert.ok(progDS !== null);
+      assert.equal(progDS.graphId, 'graph-ds');
+      assert.equal(progDS.latestScore, 70);
+      assert.equal(progDS.totalAttempts, 1);
+
+      assert.ok(progOS !== null);
+      assert.equal(progOS.graphId, 'graph-os');
+      assert.equal(progOS.latestScore, 85);
+      assert.equal(progOS.totalAttempts, 1);
+    });
+  });
+
+  describe('4. Graph-Specific Empty States & Edge Cases (Requirement 7)', () => {
+    it('returns null from computeGraphLearningProgress for graphs with 0 assessments', () => {
+      const prog = computeGraphLearningProgress('graph-empty', []);
+      assert.equal(prog, null, 'Must return null when no assessments exist');
+    });
+
+    it('renders refined empty state card when selected graph has 0 assessments', () => {
+      assert.ok(studyViewSrc.includes('study-progress-empty-card'));
+      assert.ok(studyViewSrc.includes('study-progress-empty-msg'));
+      assert.ok(studyViewSrc.includes('No assessments yet for this knowledge graph.'));
+      assert.ok(studyViewSrc.includes('study-progress-empty-action'));
+    });
+
+    it('truthfully handles legitimate 0% score and 100% score without fabricating data', () => {
+      const attempt0: AssessmentAttempt = {
+        id: 'att-0',
+        testId: 't-0',
+        graphId: 'graph-zero',
+        graphName: 'Zero Score Graph',
+        startedAt: '2026-10-09T10:00:00.000Z',
+        completedAt: '2026-10-09T10:05:00.000Z',
+        scorePercentage: 0,
+        totalQuestions: 10,
+        correctAnswers: 0,
+        incorrectAnswers: 10,
+        unansweredCount: 0,
+        timeSpentSeconds: 300,
+        completionReason: 'submitted',
+        questions: [],
+        userAnswers: {},
+        flaggedQuestionIds: [],
+        conceptNames: []
+      };
+
+      const progZero = computeGraphLearningProgress('graph-zero', [attempt0]);
+      assert.ok(progZero !== null);
+      assert.equal(progZero.latestScore, 0);
+      assert.equal(progZero.hasComparison, false);
+
+      const attempt100: AssessmentAttempt = {
+        id: 'att-100',
+        testId: 't-100',
+        graphId: 'graph-perfect',
+        graphName: 'Perfect Score Graph',
+        startedAt: '2026-10-09T10:00:00.000Z',
+        completedAt: '2026-10-09T10:05:00.000Z',
+        scorePercentage: 100,
+        totalQuestions: 10,
+        correctAnswers: 10,
+        incorrectAnswers: 0,
+        unansweredCount: 0,
+        timeSpentSeconds: 300,
+        completionReason: 'submitted',
+        questions: [],
+        userAnswers: {},
+        flaggedQuestionIds: [],
+        conceptNames: []
+      };
+
+      const prog100 = computeGraphLearningProgress('graph-perfect', [attempt100]);
+      assert.ok(prog100 !== null);
+      assert.equal(prog100.latestScore, 100);
+    });
+
+    it('truthfully formats comparison for 1 attempt vs multiple attempts', () => {
+      const att1: AssessmentAttempt = {
+        id: 'att-1',
+        testId: 't-1',
+        graphId: 'graph-multi',
+        graphName: 'Multi Attempt Graph',
+        startedAt: '2026-10-08T10:00:00.000Z',
+        completedAt: '2026-10-08T10:05:00.000Z',
+        scorePercentage: 50,
+        totalQuestions: 10,
+        correctAnswers: 5,
+        incorrectAnswers: 5,
+        unansweredCount: 0,
+        timeSpentSeconds: 300,
+        completionReason: 'submitted',
+        questions: [],
+        userAnswers: {},
+        flaggedQuestionIds: [],
+        conceptNames: []
+      };
+
+      const att2: AssessmentAttempt = {
+        id: 'att-2',
+        testId: 't-2',
+        graphId: 'graph-multi',
+        graphName: 'Multi Attempt Graph',
+        startedAt: '2026-10-09T10:00:00.000Z',
+        completedAt: '2026-10-09T10:05:00.000Z',
+        scorePercentage: 80,
+        totalQuestions: 10,
+        correctAnswers: 8,
+        incorrectAnswers: 2,
+        unansweredCount: 0,
+        timeSpentSeconds: 300,
+        completionReason: 'submitted',
+        questions: [],
+        userAnswers: {},
+        flaggedQuestionIds: [],
+        conceptNames: []
+      };
+
+      const comp = computeProgressComparison(att2, att1);
+      assert.equal(comp.diffPoints, 30);
+      assert.equal(comp.status, 'improved');
+      assert.equal(comp.message, 'Improved by 30 percentage points');
+    });
+  });
+
+  describe('5. Assessment History Relationship & Filtering (Requirement 8)', () => {
+    it('supports all-graphs browsing by default with optional filter to selected graph', () => {
+      assert.ok(studyViewSrc.includes('study-filter-tab-graph'));
+      assert.ok(studyViewSrc.includes('study-filter-tag-clear'));
+      assert.ok(studyViewSrc.includes("setHistoryScope('all')"));
+    });
+
+    it('provides accessible reset action in search empty state when filtered to selected graph', () => {
+      assert.ok(studyViewSrc.includes("View all knowledge graphs"));
+      assert.ok(studyViewSrc.includes("No assessments found for"));
+    });
+  });
+
+  describe('6. Self-Healing & Fallback on Graph Deletion (Requirement 4)', () => {
+    it('implements effectiveSelectedGraphId fallback to first available graph or active context', () => {
+      assert.ok(studyViewSrc.includes('effectiveSelectedGraphId'));
+      assert.ok(studyViewSrc.includes('availableGraphs.some(g => g.id === selectedGraphId)'));
+    });
+  });
+});
