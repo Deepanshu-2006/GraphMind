@@ -2236,6 +2236,8 @@
 /* Tooltip (Unclipped Floating Overlay with Smooth Gliding Motion) */
 .study-trajectory-tooltip {
   position: absolute;
+  top: 0;
+  left: 0;
   z-index: 20;
   pointer-events: none;
   background: rgba(16, 16, 16, 0.95);
@@ -2249,52 +2251,11 @@
   flex-direction: column;
   gap: 2px;
   white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    left 180ms cubic-bezier(0.16, 1, 0.3, 1),
-    top 180ms cubic-bezier(0.16, 1, 0.3, 1),
-    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 140ms ease,
-    visibility 140ms ease;
-  will-change: left, top, transform, opacity;
+  will-change: transform, opacity;
 }
 
 .study-trajectory-tooltip.visible {
-  opacity: 1;
-  visibility: visible;
-}
-
-/* Vertical Positioning Variants (Clear 12px gap from point) */
-.study-trajectory-tooltip.top {
-  transform: translate(-50%, -100%);
-  margin-top: -12px;
-}
-
-.study-trajectory-tooltip.bottom {
-  transform: translate(-50%, 0);
-  margin-top: 12px;
-}
-
-/* Horizontal Edge Clamping (Prevents boundary clipping) */
-.study-trajectory-tooltip.align-left.top {
-  transform: translate(0, -100%);
-  margin-left: -6px;
-}
-
-.study-trajectory-tooltip.align-left.bottom {
-  transform: translate(0, 0);
-  margin-left: -6px;
-}
-
-.study-trajectory-tooltip.align-right.top {
-  transform: translate(-100%, -100%);
-  margin-left: 6px;
-}
-
-.study-trajectory-tooltip.align-right.bottom {
-  transform: translate(-100%, 0);
-  margin-left: 6px;
+  /* State indicator for test harnesses and inspection */
 }
 
 .study-trajectory-tooltip-header,

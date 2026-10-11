@@ -819,20 +819,150 @@ export function LearningTrajectoryRow({
   }, [coords, hoveredPointAttemptId]);
 
   // Persistent reference to the last inspected coordinate for smooth gliding transitions without unmounting
-  const [displayedTooltipPoint, setDisplayedTooltipPoint] = useState<typeof coords[0] | null>(null);
+  const [displayedTooltipPoint, setDisplayedTooltipPoint] = useState<typeof coords[0] | null>(() => {
+    return coords.length > 0 ? coords[coords.length - 1] : null;
+  });
+
+  const [isTooltipActive, setIsTooltipActive] = useState(false);
+  const activeDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (activePointCoord) {
-      setDisplayedTooltipPoint(prev => (prev?.pt.attemptId === activePointCoord.pt.attemptId ? prev : activePointCoord));
+      if (activeDebounceTimerRef.current) {
+        clearTimeout(activeDebounceTimerRef.current);
+        activeDebounceTimerRef.current = null;
+      }
+      setDisplayedTooltipPoint(activePointCoord);
+      setIsTooltipActive(true);
+    } else {
+      activeDebounceTimerRef.current = setTimeout(() => {
+        setIsTooltipActive(false);
+      }, 75);
     }
+    return () => {
+      if (activeDebounceTimerRef.current) {
+        clearTimeout(activeDebounceTimerRef.current);
+      }
+    };
   }, [activePointCoord]);
 
-  const isTooltipActive = Boolean(hoveredPointAttemptId && activePointCoord);
-  const isTooltipNearTop = displayedTooltipPoint ? displayedTooltipPoint.y < 55 : false;
-  const isTooltipNearLeft = displayedTooltipPoint ? displayedTooltipPoint.x < 110 : false;
-  const isTooltipNearRight = displayedTooltipPoint ? displayedTooltipPoint.x > 650 : false;
-  const tooltipVerticalClass = isTooltipNearTop ? 'bottom' : 'top';
-  const tooltipHorizontalClass = isTooltipNearLeft ? 'align-left' : isTooltipNearRight ? 'align-right' : 'align-center';
+  const chartShellRef = useRef<HTMLDivElement | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
+  const isFirstEntryRef = useRef(true);
+  const [isFirstEntry, setIsFirstEntry] = useState(true);
+
+  const [shellDims, setShellDims] = useState<{ width: number; height: number }>({ width: 760, height: 180 });
+  const [tooltipDims, setTooltipDims] = useState<{ width: number; height: number }>({ width: 126, height: 46 });
+
+  useEffect(() => {
+    const el = chartShellRef.current;
+    if (!el) return;
+    const updateDims = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setShellDims({ width: rect.width, height: rect.height });
+      }
+    };
+    updateDims();
+    const ro = new ResizeObserver(updateDims);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const tip = tooltipRef.current;
+    if (!tip) return;
+    const rect = tip.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      setTooltipDims({ width: rect.width, height: rect.height });
+    }
+  }, [displayedTooltipPoint]);
+
+  useEffect(() => {
+    if (isTooltipActive) {
+      if (isFirstEntryRef.current) {
+        const frame = requestAnimationFrame(() => {
+          isFirstEntryRef.current = false;
+          setIsFirstEntry(false);
+        });
+        return () => cancelAnimationFrame(frame);
+      }
+    } else {
+      const timer = setTimeout(() => {
+        isFirstEntryRef.current = true;
+        setIsFirstEntry(true);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [isTooltipActive]);
+
+  const targetPos = useMemo(() => {
+    if (!displayedTooltipPoint) {
+      return { x: 0, y: 0 };
+    }
+    const shellWidth = shellDims.width;
+    const shellHeight = shellDims.height;
+    const tipWidth = tooltipDims.width;
+    const tipHeight = tooltipDims.height;
+
+    // Convert SVG coordinates (0..760, 0..180) to pixel position within chart shell
+    const px = (displayedTooltipPoint.x / 760) * shellWidth;
+    const py = (displayedTooltipPoint.y / 180) * shellHeight;
+
+    const PADDING_X = 8;
+    const PADDING_Y = 6;
+    const GAP = 12;
+
+    // Center horizontally over point and clamp to avoid chart edge clipping
+    const idealX = px - tipWidth / 2;
+    const clampedX = Math.max(PADDING_X, Math.min(shellWidth - tipWidth - PADDING_X, idealX));
+
+    // Determine vertical placement: above by default, or below if near top boundary
+    const idealY = py - tipHeight - GAP;
+    let clampedY: number;
+    if (idealY < PADDING_Y) {
+      clampedY = py + GAP;
+    } else {
+      clampedY = idealY;
+    }
+    clampedY = Math.max(PADDING_Y, Math.min(shellHeight - tipHeight - PADDING_Y, clampedY));
+
+    return {
+      x: Math.round(clampedX * 10) / 10,
+      y: Math.round(clampedY * 10) / 10
+    };
+  }, [displayedTooltipPoint, shellDims, tooltipDims]);
+
+  const handleChartPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (coords.length === 0) return;
+    const shellEl = chartShellRef.current;
+    if (!shellEl) return;
+
+    const rect = shellEl.getBoundingClientRect();
+    if (rect.width <= 0) return;
+
+    const relX = e.clientX - rect.left;
+    const svgX = (relX / rect.width) * 760;
+
+    let closest = coords[0];
+    let minDiff = Math.abs(coords[0].x - svgX);
+
+    for (let i = 1; i < coords.length; i++) {
+      const diff = Math.abs(coords[i].x - svgX);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closest = coords[i];
+      }
+    }
+
+    if (closest && closest.pt.attemptId !== hoveredPointAttemptId) {
+      setHoveredPointAttemptId(closest.pt.attemptId);
+    }
+  }, [coords, hoveredPointAttemptId, setHoveredPointAttemptId]);
+
+  const handleChartPointerLeave = useCallback(() => {
+    setHoveredPointAttemptId(null);
+  }, [setHoveredPointAttemptId]);
 
   return (
     <motion.div
@@ -891,7 +1021,12 @@ export function LearningTrajectoryRow({
 
       {/* AREA B — Score Trajectory Visualization */}
       <div className="study-trajectory-viz-block">
-        <div className="study-progress-svg-wrap study-trajectory-chart-shell">
+        <div
+          ref={chartShellRef}
+          className="study-progress-svg-wrap study-trajectory-chart-shell"
+          onPointerMove={handleChartPointerMove}
+          onPointerLeave={handleChartPointerLeave}
+        >
           {/* Enhanced from legacy viewBox="0 0 540 80" strokeDasharray="3 3" to responsive 760 180 solid hairline scale */}
           <svg
             viewBox="0 0 760 180"
@@ -1019,6 +1154,7 @@ export function LearningTrajectoryRow({
               const showLabel = visibleLabels.has(c.pt.attemptId) || isHovered;
               const arrivalDelay = pointArrivalDelays[idx] ?? (LINE_DELAY + idx * 0.1);
               const labelDelay = arrivalDelay;
+              void labelDelay;
 
               return (
                 <motion.g
@@ -1036,7 +1172,6 @@ export function LearningTrajectoryRow({
                   }}
                   onMouseEnter={() => setHoveredPointAttemptId(c.pt.attemptId)}
                   onMouseLeave={() => setHoveredPointAttemptId(null)}
-                  onMouseOver={() => setHoveredPointAttemptId(c.pt.attemptId)}
                   onFocus={() => setHoveredPointAttemptId(c.pt.attemptId)}
                   onBlur={() => setHoveredPointAttemptId(null)}
                   initial={shouldReduceMotion ? false : { scale: 0.35, opacity: 0 }}
@@ -1111,15 +1246,43 @@ export function LearningTrajectoryRow({
             })}
           </svg>
 
-          {/* Refined floating tooltip with smooth glide across points */}
+          {/* Continuous floating tooltip with smooth gliding spring motion */}
           {displayedTooltipPoint && (
-            <div
-              className={`study-trajectory-tooltip ${isTooltipActive ? 'visible' : ''} ${tooltipVerticalClass} ${tooltipHorizontalClass}`}
+            <motion.div
+              ref={tooltipRef}
+              className={`study-trajectory-tooltip ${isTooltipActive ? 'visible' : ''}`}
               role="tooltip"
               aria-hidden={!isTooltipActive}
               style={{
-                left: `${(displayedTooltipPoint.x / 760) * 100}%`,
-                top: `${(displayedTooltipPoint.y / 180) * 100}%`,
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                zIndex: 20,
+                pointerEvents: 'none',
+                willChange: 'transform, opacity'
+              }}
+              transformTemplate={({ x, y }) => `translate3d(${x}, ${y}, 0)`}
+              animate={{
+                x: targetPos.x,
+                y: targetPos.y + (isTooltipActive ? 0 : 4),
+                opacity: isTooltipActive ? 1 : 0
+              }}
+              transition={{
+                x: shouldReduceMotion
+                  ? { duration: 0 }
+                  : isFirstEntry
+                    ? { duration: 0 }
+                    : { type: 'spring', stiffness: 320, damping: 32, mass: 0.8 },
+                y: shouldReduceMotion
+                  ? { duration: 0 }
+                  : isFirstEntry
+                    ? { duration: 0.22, ease: [0.16, 1, 0.3, 1] }
+                    : { type: 'spring', stiffness: 320, damping: 32, mass: 0.8 },
+                opacity: shouldReduceMotion
+                  ? { duration: 0 }
+                  : isTooltipActive
+                    ? { duration: 0.18, ease: 'easeOut' }
+                    : { duration: 0.14, ease: 'easeIn' }
               }}
             >
               <div className="study-trajectory-tooltip-header study-trajectory-tooltip-row">
@@ -1135,7 +1298,7 @@ export function LearningTrajectoryRow({
                   {displayedTooltipPoint.pt.dateStr}
                 </div>
               )}
-            </div>
+            </motion.div>
           )}
         </div>
       </div>
@@ -1149,6 +1312,7 @@ export function LearningTrajectoryRow({
           } ${timelineSettled ? 'settled' : ''}`}
           role="list"
           aria-label="Chronological assessment attempt timeline"
+          onMouseLeave={handleChartPointerLeave}
         >
           {prog.chronologicalAttempts.map((pt, pIdx) => {
             const isInspected = hoveredPointAttemptId === pt.attemptId;
@@ -1173,7 +1337,6 @@ export function LearningTrajectoryRow({
                 onClick={() => handleOpenAttempt(pt.attemptId)}
                 onMouseEnter={() => setHoveredPointAttemptId(pt.attemptId)}
                 onMouseLeave={() => setHoveredPointAttemptId(null)}
-                onMouseOver={() => setHoveredPointAttemptId(pt.attemptId)}
                 onFocus={() => setHoveredPointAttemptId(pt.attemptId)}
                 onBlur={() => setHoveredPointAttemptId(null)}
                 aria-label={`Attempt ${pad(pIdx + 1)}: ${pt.scorePercentage}% on ${pt.dateStr}. Select to review historical results.`}
