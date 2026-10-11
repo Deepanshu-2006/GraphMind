@@ -850,6 +850,20 @@ export function LearningTrajectoryRow({
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const isFirstEntryRef = useRef(true);
   const [isFirstEntry, setIsFirstEntry] = useState(true);
+  const hoveredPointAttemptIdRef = useRef<string | null>(hoveredPointAttemptId);
+  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    hoveredPointAttemptIdRef.current = hoveredPointAttemptId;
+  }, [hoveredPointAttemptId]);
+
+  useEffect(() => {
+    return () => {
+      if (leaveTimerRef.current) {
+        clearTimeout(leaveTimerRef.current);
+      }
+    };
+  }, []);
 
   const [shellDims, setShellDims] = useState<{ width: number; height: number }>({ width: 760, height: 180 });
   const [tooltipDims, setTooltipDims] = useState<{ width: number; height: number }>({ width: 126, height: 46 });
@@ -933,7 +947,11 @@ export function LearningTrajectoryRow({
     };
   }, [displayedTooltipPoint, shellDims, tooltipDims]);
 
-  const handleChartPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+  const handleChartPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement | SVGSVGElement>) => {
+    if (leaveTimerRef.current) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
     if (coords.length === 0) return;
     const shellEl = chartShellRef.current;
     if (!shellEl) return;
@@ -941,28 +959,113 @@ export function LearningTrajectoryRow({
     const rect = shellEl.getBoundingClientRect();
     if (rect.width <= 0) return;
 
+    // Convert mouse clientX to SVG viewBox coordinate system (0..760)
     const relX = e.clientX - rect.left;
     const svgX = (relX / rect.width) * 760;
 
-    let closest = coords[0];
-    let minDiff = Math.abs(coords[0].x - svgX);
+    const currentId = hoveredPointAttemptIdRef.current;
+    const currentIdx = currentId ? coords.findIndex(c => c.pt.attemptId === currentId) : -1;
 
+    // Find mathematically closest point to svgX
+    let closestIdx = 0;
+    let minDiff = Math.abs(coords[0].x - svgX);
     for (let i = 1; i < coords.length; i++) {
       const diff = Math.abs(coords[i].x - svgX);
       if (diff < minDiff) {
         minDiff = diff;
-        closest = coords[i];
+        closestIdx = i;
       }
     }
 
-    if (closest && closest.pt.attemptId !== hoveredPointAttemptId) {
-      setHoveredPointAttemptId(closest.pt.attemptId);
+    if (currentIdx === -1) {
+      // First pointer entry into the chart interaction region
+      const targetPoint = coords[closestIdx];
+      hoveredPointAttemptIdRef.current = targetPoint.pt.attemptId;
+      setHoveredPointAttemptId(targetPoint.pt.attemptId);
+      setDisplayedTooltipPoint(targetPoint);
+      setIsTooltipActive(true);
+      return;
     }
-  }, [coords, hoveredPointAttemptId, setHoveredPointAttemptId]);
+
+    if (closestIdx === currentIdx) {
+      return;
+    }
+
+    // Apply hysteresis deadband around the boundary between adjacent points
+    // to prevent rapid flickering / toggling when pointer pauses near midpoints.
+    const currentPt = coords[currentIdx];
+
+    if (closestIdx > currentIdx) {
+      const nextPt = coords[currentIdx + 1];
+      const dist = nextPt.x - currentPt.x;
+      const hysteresis = Math.min(12, dist * 0.15);
+      const midpoint = (currentPt.x + nextPt.x) / 2;
+
+      if (svgX > midpoint + hysteresis) {
+        const targetPoint = coords[closestIdx];
+        hoveredPointAttemptIdRef.current = targetPoint.pt.attemptId;
+        setHoveredPointAttemptId(targetPoint.pt.attemptId);
+        setDisplayedTooltipPoint(targetPoint);
+        setIsTooltipActive(true);
+      }
+    } else if (closestIdx < currentIdx) {
+      const prevPt = coords[currentIdx - 1];
+      const dist = currentPt.x - prevPt.x;
+      const hysteresis = Math.min(12, dist * 0.15);
+      const midpoint = (prevPt.x + currentPt.x) / 2;
+
+      if (svgX < midpoint - hysteresis) {
+        const targetPoint = coords[closestIdx];
+        hoveredPointAttemptIdRef.current = targetPoint.pt.attemptId;
+        setHoveredPointAttemptId(targetPoint.pt.attemptId);
+        setDisplayedTooltipPoint(targetPoint);
+        setIsTooltipActive(true);
+      }
+    }
+  }, [coords, setHoveredPointAttemptId]);
 
   const handleChartPointerLeave = useCallback(() => {
-    setHoveredPointAttemptId(null);
+    if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+    leaveTimerRef.current = setTimeout(() => {
+      hoveredPointAttemptIdRef.current = null;
+      setHoveredPointAttemptId(null);
+    }, 75);
   }, [setHoveredPointAttemptId]);
+
+  const handleTimelinePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (leaveTimerRef.current) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+    const container = e.currentTarget;
+    const buttons = container.querySelectorAll<HTMLButtonElement>('.study-trajectory-timeline-col');
+    if (!buttons.length) return;
+
+    const mouseX = e.clientX;
+    let closestIdx = 0;
+    let minDiff = Infinity;
+
+    buttons.forEach((btn, idx) => {
+      const rect = btn.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const diff = Math.abs(centerX - mouseX);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestIdx = idx;
+      }
+    });
+
+    const targetPt = prog.chronologicalAttempts[closestIdx];
+    if (targetPt && targetPt.attemptId !== hoveredPointAttemptIdRef.current) {
+      hoveredPointAttemptIdRef.current = targetPt.attemptId;
+      setHoveredPointAttemptId(targetPt.attemptId);
+      const targetCoord = coords.find(c => c.pt.attemptId === targetPt.attemptId);
+      if (targetCoord) {
+        setDisplayedTooltipPoint(targetCoord);
+      }
+      setIsTooltipActive(true);
+    }
+  }, [coords, prog.chronologicalAttempts, setHoveredPointAttemptId]);
 
   return (
     <motion.div
@@ -1145,6 +1248,22 @@ export function LearningTrajectoryRow({
               </>
             )}
 
+            {/* Transparent shared interaction layer covering full plotting area */}
+            <rect
+              x={0}
+              y={0}
+              width={760}
+              height={180}
+              fill="transparent"
+              className="study-trajectory-interaction-layer"
+              style={{ pointerEvents: 'all', cursor: 'pointer' }}
+              onClick={() => {
+                if (activePointCoord) {
+                  handleOpenAttempt(activePointCoord.pt.attemptId);
+                }
+              }}
+            />
+
             {/* PHASE 4 & 5 — Interactive Data Points and Score Labels */}
             {coords.map((c, idx) => {
               const isHovered = hoveredPointAttemptId === c.pt.attemptId;
@@ -1171,7 +1290,6 @@ export function LearningTrajectoryRow({
                     }
                   }}
                   onMouseEnter={() => setHoveredPointAttemptId(c.pt.attemptId)}
-                  onMouseLeave={() => setHoveredPointAttemptId(null)}
                   onFocus={() => setHoveredPointAttemptId(c.pt.attemptId)}
                   onBlur={() => setHoveredPointAttemptId(null)}
                   initial={shouldReduceMotion ? false : { scale: 0.35, opacity: 0 }}
@@ -1312,7 +1430,8 @@ export function LearningTrajectoryRow({
           } ${timelineSettled ? 'settled' : ''}`}
           role="list"
           aria-label="Chronological assessment attempt timeline"
-          onMouseLeave={handleChartPointerLeave}
+          onPointerMove={handleTimelinePointerMove}
+          onMouseLeave={() => setHoveredPointAttemptId(null)}
         >
           {prog.chronologicalAttempts.map((pt, pIdx) => {
             const isInspected = hoveredPointAttemptId === pt.attemptId;
@@ -1336,7 +1455,6 @@ export function LearningTrajectoryRow({
                 } ${isSelected ? 'selected' : ''} ${isDimmed ? 'dimmed' : ''} ${isLatest ? 'latest' : ''}`}
                 onClick={() => handleOpenAttempt(pt.attemptId)}
                 onMouseEnter={() => setHoveredPointAttemptId(pt.attemptId)}
-                onMouseLeave={() => setHoveredPointAttemptId(null)}
                 onFocus={() => setHoveredPointAttemptId(pt.attemptId)}
                 onBlur={() => setHoveredPointAttemptId(null)}
                 aria-label={`Attempt ${pad(pIdx + 1)}: ${pt.scorePercentage}% on ${pt.dateStr}. Select to review historical results.`}

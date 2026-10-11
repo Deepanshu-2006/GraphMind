@@ -2153,6 +2153,10 @@
   overflow: visible;
 }
 
+.study-trajectory-reference-grid {
+  pointer-events: none;
+}
+
 .study-trajectory-grid-line {
   vector-effect: non-scaling-stroke;
 }
@@ -2162,8 +2166,14 @@
   line-height: 1;
 }
 
+.study-trajectory-interaction-layer {
+  pointer-events: all;
+  cursor: pointer;
+}
+
 .study-trajectory-line {
   shape-rendering: geometricPrecision;
+  pointer-events: none;
 }
 
 .study-trajectory-line-glow {
@@ -2234,6 +2244,11 @@
 }
 
 /* Tooltip (Unclipped Floating Overlay with Smooth Gliding Motion) */
+.study-trajectory-tooltip,
+.study-trajectory-tooltip * {
+  pointer-events: none !important;
+}
+
 .study-trajectory-tooltip {
   position: absolute;
   top: 0;

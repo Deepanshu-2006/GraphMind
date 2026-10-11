@@ -173,4 +173,94 @@ describe('GRAPHMIND — SMOOTH, CONTINUOUS CHART TOOLTIP ANIMATION VERIFICATION'
       assert.ok(studyViewSrc.includes('onClick={() => handleOpenAttempt('));
     });
   });
+
+  describe('8. Shared Interaction Layer & Continuous Hover Detection (Prompt Section 1 & 2)', () => {
+    it('covers the entire plotting region with a shared transparent interaction layer', () => {
+      assert.ok(
+        studyViewSrc.includes('study-trajectory-interaction-layer'),
+        'Must render dedicated shared transparent interaction layer'
+      );
+      assert.ok(
+        studyViewSrc.includes('width={760}') && studyViewSrc.includes('height={180}'),
+        'Interaction layer rect must span entire 760x180 viewBox'
+      );
+    });
+
+    it('does not clear hover state on SVG point marker mouseleave to prevent flickering in empty space', () => {
+      const svgNodesSectionMatch = studyViewSrc.match(/coords\.map\(\(c,\s*idx\)\s*=>\s*\{[\s\S]*?return\s*\(\s*<motion\.g[\s\S]*?<\/motion\.g>/);
+      assert.ok(svgNodesSectionMatch, 'Must find SVG point nodes mapping');
+      const svgNodesSection = svgNodesSectionMatch[0];
+      assert.ok(
+        !svgNodesSection.includes('onMouseLeave={() => setHoveredPointAttemptId(null)}'),
+        'SVG point nodes must NOT clear hover state on mouse leave; only chart shell exit clears hover'
+      );
+    });
+  });
+
+  describe('9. Intelligent Nearest Point Selection with Boundary Hysteresis (Prompt Section 3)', () => {
+    it('implements hysteresis deadband to prevent rapid boundary toggling between points', () => {
+      assert.ok(
+        studyViewSrc.includes('midpoint + hysteresis'),
+        'Must require pointer to pass midpoint plus hysteresis to transition right'
+      );
+      assert.ok(
+        studyViewSrc.includes('midpoint - hysteresis'),
+        'Must require pointer to pass midpoint minus hysteresis to transition left'
+      );
+      assert.ok(
+        studyViewSrc.includes('Math.min(12, dist * 0.15)'),
+        'Must compute proportional hysteresis buffer'
+      );
+    });
+
+    it('uses stable ref for hoveredPointAttemptId to avoid unnecessary re-renders during pointer moves', () => {
+      assert.ok(
+        studyViewSrc.includes('hoveredPointAttemptIdRef'),
+        'Must use hoveredPointAttemptIdRef for stable identity'
+      );
+    });
+  });
+
+  describe('10. Tooltip & Chart Pointer Event Isolation (Prompt Section 6)', () => {
+    it('guarantees pointer-events: none on tooltip and all its child elements', () => {
+      assert.match(
+        studyCss,
+        /\.study-trajectory-tooltip,\s*\.study-trajectory-tooltip\s*\*\s*\{[\s\S]*?pointer-events:\s*none\s*!important;/,
+        'Must enforce pointer-events: none !important on tooltip and all child elements'
+      );
+    });
+
+    it('sets pointer-events: none on trajectory line and reference grid to prevent hit-testing interference', () => {
+      assert.match(
+        studyCss,
+        /\.study-trajectory-line\s*\{[\s\S]*?pointer-events:\s*none;/,
+        'Trajectory line must not capture pointer events'
+      );
+      assert.match(
+        studyCss,
+        /\.study-trajectory-reference-grid\s*\{[\s\S]*?pointer-events:\s*none;/,
+        'Reference grid must not capture pointer events'
+      );
+    });
+  });
+
+  describe('11. Continuous Hovering Between Timeline Columns (Area C)', () => {
+    it('does not stop hovering when cursor moves through gaps between timeline columns', () => {
+      assert.ok(
+        studyViewSrc.includes('handleTimelinePointerMove'),
+        'Must handle pointer movement across timeline container'
+      );
+      assert.ok(
+        studyViewSrc.includes('onPointerMove={handleTimelinePointerMove}'),
+        'Must attach handleTimelinePointerMove to timeline container'
+      );
+      const timelineButtonsSectionMatch = studyViewSrc.match(/prog\.chronologicalAttempts\.map\(\(pt,\s*pIdx\)\s*=>\s*\{[\s\S]*?return\s*\(\s*<motion\.button[\s\S]*?<\/motion\.button>/);
+      assert.ok(timelineButtonsSectionMatch, 'Must find timeline buttons mapping');
+      const timelineButtonsSection = timelineButtonsSectionMatch[0];
+      assert.ok(
+        !timelineButtonsSection.includes('onMouseLeave={() => setHoveredPointAttemptId(null)}'),
+        'Individual timeline buttons must NOT clear hover state on mouse leave so hovering does not stop in gaps'
+      );
+    });
+  });
 });
