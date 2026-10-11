@@ -2524,6 +2524,21 @@ export function StudySpaceView({
   // Show all attempts toggle for Assessment History (defaults to 3 most recent)
   const [isAttemptsExpanded, setIsAttemptsExpanded] = useState(false);
 
+  // Dedicated animation generation counter and visibility tracking for assessment attempts
+  const [attemptsAnimGen, setAttemptsAnimGen] = useState(0);
+  const [animatedAttemptIds, setAnimatedAttemptIds] = useState<Set<string>>(new Set());
+  const [settledAttemptIds, setSettledAttemptIds] = useState<Set<string>>(new Set());
+  const [isExpandControlAnimated, setIsExpandControlAnimated] = useState(false);
+  const [isExpandControlSettled, setIsExpandControlSettled] = useState(false);
+
+  const animatedAttemptIdsRef = useRef<Set<string>>(new Set());
+  const settledAttemptIdsRef = useRef<Set<string>>(new Set());
+  const isExpandControlAnimatedRef = useRef<boolean>(false);
+  const isExpandControlSettledRef = useRef<boolean>(false);
+  const attemptRowElementsRef = useRef<Map<string, HTMLElement>>(new Map());
+  const expandControlElementRef = useRef<HTMLElement | null>(null);
+  const attemptsTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
   // Track graph selection change to immediately reset score during render
   const [prevSelectedGraphId, setPrevSelectedGraphId] = useState(effectiveSelectedGraphId);
   if (prevSelectedGraphId !== effectiveSelectedGraphId) {
@@ -2535,6 +2550,15 @@ export function StudySpaceView({
     setViewMode('list');
     setIsAllConceptsExpanded(false);
     setIsAttemptsExpanded(false);
+    setAttemptsAnimGen((g) => g + 1);
+    animatedAttemptIdsRef.current = new Set();
+    settledAttemptIdsRef.current = new Set();
+    isExpandControlAnimatedRef.current = false;
+    isExpandControlSettledRef.current = false;
+    setAnimatedAttemptIds(new Set());
+    setSettledAttemptIds(new Set());
+    setIsExpandControlAnimated(false);
+    setIsExpandControlSettled(false);
   }
 
   // Reset attempt expansion whenever filter mode or search query changes
@@ -2543,6 +2567,15 @@ export function StudySpaceView({
   if (prevFilterKey !== currentFilterKey) {
     setPrevFilterKey(currentFilterKey);
     setIsAttemptsExpanded(false);
+    setAttemptsAnimGen((g) => g + 1);
+    animatedAttemptIdsRef.current = new Set();
+    settledAttemptIdsRef.current = new Set();
+    isExpandControlAnimatedRef.current = false;
+    isExpandControlSettledRef.current = false;
+    setAnimatedAttemptIds(new Set());
+    setSettledAttemptIds(new Set());
+    setIsExpandControlAnimated(false);
+    setIsExpandControlSettled(false);
   }
 
   useEffect(() => {
@@ -2651,6 +2684,188 @@ export function StudySpaceView({
     }
     return conceptsWorthRevisiting.slice(0, 5);
   }, [conceptsWorthRevisiting, isAllConceptsExpanded]);
+
+  // Replay & scroll-triggered entrance animations for assessment attempts
+  useEffect(() => {
+    // Clear all pending timers from previous runs
+    attemptsTimersRef.current.forEach((t) => clearTimeout(t));
+    attemptsTimersRef.current.clear();
+
+    const isBrowser = typeof window !== 'undefined';
+    if (!isBrowser) return;
+
+    // Determine current visible attempts
+    const visibleAttempts: { id: string; index: number }[] = [];
+    filteredGroups.forEach((group) => {
+      group.attempts.forEach((attempt, idx) => {
+        if (isAttemptsExpanded || idx < 3) {
+          visibleAttempts.push({ id: attempt.id, index: idx });
+        }
+      });
+    });
+
+    const hasExpandControl = filteredGroups.some((g) => g.attempts.length > 3);
+
+    // If reduced motion is requested, immediately mark everything as settled without animation
+    if (shouldReduceMotion) {
+      const allIds = new Set(visibleAttempts.map((a) => a.id));
+      animatedAttemptIdsRef.current = allIds;
+      settledAttemptIdsRef.current = allIds;
+      isExpandControlAnimatedRef.current = true;
+      isExpandControlSettledRef.current = true;
+      setAnimatedAttemptIds(allIds);
+      setSettledAttemptIds(allIds);
+      setIsExpandControlAnimated(true);
+      setIsExpandControlSettled(true);
+      return;
+    }
+
+    // If IntersectionObserver is unavailable, immediately settle
+    if (typeof IntersectionObserver === 'undefined') {
+      const allIds = new Set(visibleAttempts.map((a) => a.id));
+      animatedAttemptIdsRef.current = allIds;
+      settledAttemptIdsRef.current = allIds;
+      isExpandControlAnimatedRef.current = true;
+      isExpandControlSettledRef.current = true;
+      setAnimatedAttemptIds(allIds);
+      setSettledAttemptIds(allIds);
+      if (hasExpandControl) {
+        setIsExpandControlAnimated(true);
+        setIsExpandControlSettled(true);
+      }
+      return;
+    }
+
+    const triggerAttempt = (id: string, index: number) => {
+      if (animatedAttemptIdsRef.current.has(id)) return;
+      animatedAttemptIdsRef.current.add(id);
+      setAnimatedAttemptIds(new Set(animatedAttemptIdsRef.current));
+
+      const staggerIndex = index >= 3 ? index - 3 : index;
+      const delayMs = staggerIndex * 70;
+      const settleMs = delayMs + 540;
+
+      const timer = setTimeout(() => {
+        attemptsTimersRef.current.delete(timer);
+        settledAttemptIdsRef.current.add(id);
+        setSettledAttemptIds(new Set(settledAttemptIdsRef.current));
+      }, settleMs);
+
+      attemptsTimersRef.current.add(timer);
+    };
+
+    const triggerExpandControl = (attemptsCount: number) => {
+      if (isExpandControlAnimatedRef.current) return;
+      isExpandControlAnimatedRef.current = true;
+      setIsExpandControlAnimated(true);
+
+      const delayMs = Math.min(attemptsCount, 3) * 70;
+      const settleMs = delayMs + 540;
+
+      const timer = setTimeout(() => {
+        attemptsTimersRef.current.delete(timer);
+        isExpandControlSettledRef.current = true;
+        setIsExpandControlSettled(true);
+      }, settleMs);
+
+      attemptsTimersRef.current.add(timer);
+    };
+
+    const isElementInView = (el: HTMLElement) => {
+      const rect = el.getBoundingClientRect();
+      // Support headless/unit test runners where geometry is 0x0
+      if (rect.top === 0 && rect.bottom === 0 && rect.height === 0) {
+        return true;
+      }
+      return rect.top < window.innerHeight && rect.bottom > 0;
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting || entry.intersectionRatio > 0) {
+            const target = entry.target as HTMLElement;
+            const attemptId = target.getAttribute('data-attempt-id');
+            if (attemptId) {
+              const item = visibleAttempts.find((a) => a.id === attemptId);
+              if (item) {
+                triggerAttempt(item.id, item.index);
+                observer.unobserve(target);
+              }
+            } else if (target === expandControlElementRef.current) {
+              const maxAttempts = filteredGroups[0]?.attempts?.length || 4;
+              triggerExpandControl(maxAttempts);
+              observer.unobserve(target);
+            }
+          }
+        });
+      },
+      {
+        root: null,
+        rootMargin: '0px 0px -20px 0px',
+        threshold: 0.05
+      }
+    );
+
+    // Observe un-animated attempt rows
+    visibleAttempts.forEach(({ id, index }) => {
+      if (!animatedAttemptIdsRef.current.has(id)) {
+        const el = attemptRowElementsRef.current.get(id);
+        if (el) {
+          if (isElementInView(el)) {
+            triggerAttempt(id, index);
+          } else {
+            observer.observe(el);
+          }
+        }
+      }
+    });
+
+    // Observe un-animated expand control
+    if (hasExpandControl && !isExpandControlAnimatedRef.current && expandControlElementRef.current) {
+      if (isElementInView(expandControlElementRef.current)) {
+        const maxAttempts = filteredGroups[0]?.attempts?.length || 4;
+        triggerExpandControl(maxAttempts);
+      } else {
+        observer.observe(expandControlElementRef.current);
+      }
+    }
+
+    // Scroll listener fallback for fast scrolling
+    const handleScroll = () => {
+      visibleAttempts.forEach(({ id, index }) => {
+        if (!animatedAttemptIdsRef.current.has(id)) {
+          const el = attemptRowElementsRef.current.get(id);
+          if (el && isElementInView(el)) {
+            triggerAttempt(id, index);
+            observer.unobserve(el);
+          }
+        }
+      });
+
+      if (hasExpandControl && !isExpandControlAnimatedRef.current && expandControlElementRef.current) {
+        if (isElementInView(expandControlElementRef.current)) {
+          const maxAttempts = filteredGroups[0]?.attempts?.length || 4;
+          triggerExpandControl(maxAttempts);
+          observer.unobserve(expandControlElementRef.current);
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    const scrollContainer = document.querySelector('.study-scrollable-container') || document.querySelector('.study-editorial-canvas');
+    if (scrollContainer) {
+      scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+    }
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', handleScroll);
+      if (scrollContainer) {
+        scrollContainer.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [attemptsAnimGen, isAttemptsExpanded, shouldReduceMotion, filteredGroups]);
 
   // =========================================================================
   // SUB-VIEW: Historical Assessment Results, Answers Review, Missed Concepts
@@ -3472,7 +3687,28 @@ export function StudySpaceView({
                           const isExpired = attempt.completionReason === 'time_expired';
 
                           return (
-                            <article key={attempt.id} className="study-record-item">
+                            <article
+                              key={attempt.id}
+                              ref={(el) => {
+                                if (el) {
+                                  attemptRowElementsRef.current.set(attempt.id, el);
+                                } else {
+                                  attemptRowElementsRef.current.delete(attempt.id);
+                                }
+                              }}
+                              className="study-record-item"
+                              data-attempt-id={attempt.id}
+                              data-entry-state={
+                                shouldReduceMotion || settledAttemptIds.has(attempt.id)
+                                  ? 'settled'
+                                  : animatedAttemptIds.has(attempt.id)
+                                  ? 'animate'
+                                  : 'initial'
+                              }
+                              style={{
+                                '--study-row-delay': `${(attemptIndex >= 3 ? attemptIndex - 3 : attemptIndex) * 70}ms`
+                              } as React.CSSProperties}
+                            >
                               {/* Left Area: Attempt Identity & Numerical Score */}
                               <div className="study-record-left">
                                 <span className="study-record-identity">Attempt {attemptNumber}</span>
@@ -3531,7 +3767,22 @@ export function StudySpaceView({
 
                       {/* Collapsible Assessment History Control */}
                       {group.attempts.length > 3 && (
-                        <div className="study-records-expand-wrap">
+                        <div
+                          ref={(el) => {
+                            expandControlElementRef.current = el;
+                          }}
+                          className="study-records-expand-wrap"
+                          data-entry-state={
+                            shouldReduceMotion || isExpandControlSettled
+                              ? 'settled'
+                              : isExpandControlAnimated
+                              ? 'animate'
+                              : 'initial'
+                          }
+                          style={{
+                            '--study-row-delay': `${Math.min(group.attempts.length, 3) * 70}ms`
+                          } as React.CSSProperties}
+                        >
                           <button
                             type="button"
                             className="study-records-expand-btn"
