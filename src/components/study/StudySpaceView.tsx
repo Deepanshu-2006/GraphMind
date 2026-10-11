@@ -1214,7 +1214,15 @@ export function StudyGraphSelector({
         aria-controls="study-graph-selector-listbox"
         aria-label={`Knowledge graph: ${selectedGraph?.name || 'Select graph'}. Click to choose knowledge graph.`}
       >
-        <span className="study-graph-selector-pip" aria-hidden="true" />
+        <span className="study-graph-selector-pip-slot" aria-hidden="true">
+          <motion.span 
+            key={selectedGraph?.id || 'none'}
+            className="study-graph-selector-pip"
+            initial={shouldReduceMotion ? false : { scale: 0.8, opacity: 0.7 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.22, ease: REVEAL_EASE }}
+          />
+        </span>
         <span className="study-graph-selector-name">
           {selectedGraph?.name || 'Select knowledge graph'}
         </span>
@@ -1232,19 +1240,24 @@ export function StudyGraphSelector({
             className="study-graph-selector-popover"
             role="dialog"
             aria-label="Select knowledge graph"
-            initial={shouldReduceMotion ? false : { opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={shouldReduceMotion ? undefined : { opacity: 0, y: -4 }}
-            transition={{ duration: 0.18, ease: REVEAL_EASE }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: -6, scale: 0.99 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={shouldReduceMotion ? undefined : { opacity: 0, y: -4, scale: 0.99 }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.24, ease: REVEAL_EASE }}
           >
             <div className="study-graph-selector-popover-header">
               <span className="study-graph-selector-popover-kicker">KNOWLEDGE GRAPHS</span>
               <span className="study-graph-selector-popover-count">
-                {availableGraphs.length} {availableGraphs.length === 1 ? 'graph' : 'graphs'}
+                {availableGraphs.length} {availableGraphs.length === 1 ? 'GRAPH' : 'GRAPHS'}
               </span>
             </div>
 
-            <div className="study-graph-selector-search-box">
+            <motion.div 
+              className="study-graph-selector-search-box"
+              initial={shouldReduceMotion ? false : { opacity: 0, y: -2 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.20, delay: 0.04, ease: REVEAL_EASE }}
+            >
               <Search size={13} className="study-graph-selector-search-icon" aria-hidden="true" />
               <input
                 ref={searchInputRef}
@@ -1265,7 +1278,7 @@ export function StudyGraphSelector({
                   <X size={12} />
                 </button>
               )}
-            </div>
+            </motion.div>
 
             <div
               id="study-graph-selector-listbox"
@@ -1278,13 +1291,20 @@ export function StudyGraphSelector({
                 const isHighlighted = idx === highlightedIndex;
 
                 return (
-                  <button
+                  <motion.button
                     key={g.id}
                     type="button"
                     role="option"
                     id={`graph-opt-${g.id}`}
                     aria-selected={isSelected}
                     className={`study-graph-selector-option ${isSelected ? 'is-selected' : ''} ${isHighlighted ? 'is-highlighted' : ''}`}
+                    initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={shouldReduceMotion ? { duration: 0 } : { 
+                      duration: 0.20, 
+                      delay: Math.min(0.18, 0.05 + idx * 0.03), 
+                      ease: REVEAL_EASE 
+                    }}
                     onClick={() => {
                       onSelectGraph(g.id);
                       setIsOpen(false);
@@ -1292,7 +1312,13 @@ export function StudyGraphSelector({
                     onMouseEnter={() => setHighlightedIndex(idx)}
                   >
                     <div className="study-graph-selector-option-main">
-                      {isSelected && <span className="study-graph-selector-option-pip" aria-hidden="true" />}
+                      <span className="study-graph-selector-option-pip-wrap" aria-hidden="true">
+                        {isSelected ? (
+                          <span className="study-graph-selector-option-pip" />
+                        ) : (
+                          <span className="study-graph-selector-option-pip-placeholder" />
+                        )}
+                      </span>
                       <div className="study-graph-selector-option-info">
                         <span className="study-graph-selector-option-title">{g.name}</span>
                         <span className="study-graph-selector-option-meta">
@@ -1307,15 +1333,14 @@ export function StudyGraphSelector({
                         {g.latestScore}%
                       </span>
                     )}
-                  </button>
+                  </motion.button>
                 );
               })}
 
               {filteredGraphs.length === 0 && (
                 <div className="study-graph-selector-empty-search">
-                  <span className="study-graph-selector-empty-text">
-                    No knowledge graphs match "{searchQuery}"
-                  </span>
+                  <span className="study-graph-selector-empty-title">No graphs found</span>
+                  <span className="study-graph-selector-empty-subtitle">Try another search.</span>
                   <button
                     type="button"
                     className="study-graph-selector-empty-clear"

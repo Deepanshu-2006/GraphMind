@@ -139,7 +139,7 @@
   align-items: center;
   gap: 10px;
   height: 38px;
-  padding: 0 14px;
+  padding: 0 13px 0 12px;
   background-color: #121212;
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 6px;
@@ -149,11 +149,12 @@
   font-weight: 500;
   cursor: pointer;
   user-select: none;
-  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  line-height: 1;
 }
 
 .study-graph-selector-trigger:hover {
-  background-color: #171717;
+  background-color: #181818;
   border-color: rgba(255, 255, 255, 0.18);
 }
 
@@ -164,13 +165,23 @@
 }
 
 .study-graph-selector-trigger.is-open {
-  background-color: #181818;
+  background-color: #161616;
   border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.40);
+}
+
+.study-graph-selector-pip-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
 }
 
 .study-graph-selector-pip {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background-color: var(--accent, #A3FF12);
   flex-shrink: 0;
@@ -186,8 +197,10 @@
 
 .study-graph-selector-chevron {
   color: #777777;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), color 0.16s ease;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
 }
 
 .study-graph-selector-chevron.open {
@@ -198,7 +211,7 @@
 /* Popover Panel */
 .study-graph-selector-popover {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 7px);
   right: 0;
   width: 320px;
   max-width: calc(100vw - 48px);
@@ -213,10 +226,11 @@
 }
 
 .study-graph-selector-popover-header {
-  padding: 12px 14px 8px 14px;
+  padding: 12px 14px 9px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .study-graph-selector-popover-kicker {
@@ -231,11 +245,12 @@
 .study-graph-selector-popover-count {
   font-family: var(--font-mono, monospace);
   font-size: 10px;
+  letter-spacing: 0.06em;
   color: #555555;
 }
 
 .study-graph-selector-search-box {
-  padding: 0 12px 8px 12px;
+  padding: 9px 12px 6px 12px;
   position: relative;
   display: flex;
   align-items: center;
@@ -250,7 +265,7 @@
 
 .study-graph-selector-search-input {
   width: 100%;
-  height: 32px;
+  height: 33px;
   background-color: #0A0A0A;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 5px;
@@ -259,11 +274,12 @@
   font-family: var(--font-body, sans-serif);
   font-size: 12.5px;
   outline: none;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .study-graph-selector-search-input:focus {
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: rgba(163, 255, 18, 0.40);
+  box-shadow: none;
 }
 
 .study-graph-selector-search-input::placeholder {
@@ -281,6 +297,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: color 0.15s ease;
 }
 
 .study-graph-selector-search-clear:hover {
@@ -292,7 +309,7 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  padding: 2px 6px;
+  padding: 4px 6px;
   gap: 2px;
   overscroll-behavior: contain;
 }
@@ -318,7 +335,7 @@
   cursor: pointer;
   text-align: left;
   user-select: none;
-  transition: background-color 0.12s ease;
+  transition: background-color 0.14s ease;
 }
 
 .study-graph-selector-option:hover,
@@ -327,7 +344,12 @@
 }
 
 .study-graph-selector-option.is-selected {
-  background-color: rgba(163, 255, 18, 0.06);
+  background-color: rgba(163, 255, 18, 0.07);
+}
+
+.study-graph-selector-option.is-selected:hover,
+.study-graph-selector-option.is-selected.is-highlighted {
+  background-color: rgba(163, 255, 18, 0.10);
 }
 
 .study-graph-selector-option-main {
@@ -338,11 +360,27 @@
   flex: 1;
 }
 
+.study-graph-selector-option-pip-wrap {
+  width: 6px;
+  height: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 .study-graph-selector-option-pip {
   width: 5px;
   height: 5px;
   border-radius: 50%;
   background-color: var(--accent, #A3FF12);
+  flex-shrink: 0;
+}
+
+.study-graph-selector-option-pip-placeholder {
+  width: 5px;
+  height: 5px;
+  display: inline-block;
   flex-shrink: 0;
 }
 
@@ -361,6 +399,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.3;
 }
 
 .study-graph-selector-option-meta {
@@ -368,6 +407,7 @@
   font-size: 10.5px;
   color: #777777;
   margin-top: 2px;
+  line-height: 1.2;
 }
 
 .study-graph-selector-option-score {
@@ -381,29 +421,45 @@
 }
 
 .study-graph-selector-empty-search {
-  padding: 24px 14px;
+  padding: 24px 14px 20px 14px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
   text-align: center;
 }
 
-.study-graph-selector-empty-text {
+.study-graph-selector-empty-title {
   font-family: var(--font-body, sans-serif);
-  font-size: 12px;
-  color: #777777;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #EEEEEE;
+}
+
+.study-graph-selector-empty-subtitle {
+  font-family: var(--font-body, sans-serif);
+  font-size: 11.5px;
+  color: #666666;
+  margin-bottom: 6px;
 }
 
 .study-graph-selector-empty-clear {
   background: transparent;
-  border: none;
+  border: 1px solid rgba(163, 255, 18, 0.25);
+  border-radius: 4px;
   color: var(--accent, #A3FF12);
   font-family: var(--font-mono, monospace);
-  font-size: 11px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
   cursor: pointer;
-  padding: 4px;
+  padding: 4px 10px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.study-graph-selector-empty-clear:hover {
+  background-color: rgba(163, 255, 18, 0.08);
+  border-color: var(--accent, #A3FF12);
 }
 
 .study-graph-selector-footer {
@@ -2727,7 +2783,14 @@
   .study-revisit-card,
   .study-historical-results-wrap,
   .study-disclosure-arrow,
-  .study-svg-point-node circle {
+  .study-svg-point-node circle,
+  .study-graph-selector-trigger,
+  .study-graph-selector-pip,
+  .study-graph-selector-chevron,
+  .study-graph-selector-popover,
+  .study-graph-selector-search-box,
+  .study-graph-selector-option,
+  .study-graph-selector-search-input {
     transition: none !important;
     animation: none !important;
     transform: none !important;
