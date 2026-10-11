@@ -1413,6 +1413,7 @@
   pointer-events: none;
   z-index: 0;
   box-shadow: none;
+  will-change: transform, width;
 }
 
 .study-filter-tab {
@@ -1429,7 +1430,7 @@
   min-height: 36px;
   border-radius: 6px;
   cursor: pointer;
-  transition: color 150ms ease;
+  transition: color 240ms cubic-bezier(0.22, 1, 0.36, 1);
   user-select: none;
   display: inline-flex;
   align-items: center;
@@ -1438,6 +1439,11 @@
   line-height: 1;
   white-space: nowrap;
   outline: none;
+}
+
+.study-filter-tab-label {
+  display: inline-block;
+  transition: color 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .study-filter-tab:hover:not(.active) {
@@ -1596,6 +1602,18 @@
   border-bottom: none;
 }
 
+/* Scroll-triggered and filter-switch entry animation keyframes */
+@keyframes studyAttemptRowEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Scroll-triggered entry animation states */
 .study-record-item[data-entry-state="initial"] {
   opacity: 0;
@@ -1606,6 +1624,7 @@
 .study-record-item[data-entry-state="animate"] {
   opacity: 1;
   transform: translateY(0);
+  animation: studyAttemptRowEnter 520ms cubic-bezier(0.22, 1, 0.36, 1) var(--study-row-delay, 0ms) both;
   transition:
     opacity 520ms cubic-bezier(0.22, 1, 0.36, 1) var(--study-row-delay, 0ms),
     transform 520ms cubic-bezier(0.22, 1, 0.36, 1) var(--study-row-delay, 0ms),
@@ -1616,6 +1635,7 @@
 .study-record-item[data-entry-state="settled"] {
   opacity: 1;
   transform: translateY(0);
+  animation: none;
 }
 
 .study-record-item:hover {
@@ -1763,6 +1783,18 @@
   padding-top: 14px;
 }
 
+/* Scroll-triggered entry animation keyframe for expand control */
+@keyframes studyExpandControlEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Scroll-triggered entry animation states for expand control */
 .study-records-expand-wrap[data-entry-state="initial"] {
   opacity: 0;
@@ -1773,6 +1805,7 @@
 .study-records-expand-wrap[data-entry-state="animate"] {
   opacity: 1;
   transform: translateY(0);
+  animation: studyExpandControlEnter 520ms cubic-bezier(0.22, 1, 0.36, 1) var(--study-row-delay, 0ms) both;
   transition:
     opacity 520ms cubic-bezier(0.22, 1, 0.36, 1) var(--study-row-delay, 0ms),
     transform 520ms cubic-bezier(0.22, 1, 0.36, 1) var(--study-row-delay, 0ms);
@@ -1782,6 +1815,7 @@
 .study-records-expand-wrap[data-entry-state="settled"] {
   opacity: 1;
   transform: translateY(0);
+  animation: none;
 }
 
 .study-records-expand-btn {
@@ -3548,7 +3582,10 @@
   .study-record-item[data-entry-state="animate"],
   .study-records-expand-wrap,
   .study-records-expand-wrap[data-entry-state="initial"],
-  .study-records-expand-wrap[data-entry-state="animate"] {
+  .study-records-expand-wrap[data-entry-state="animate"],
+  .study-filter-active-pill,
+  .study-filter-tab,
+  .study-filter-tab-label {
     transition: none !important;
     animation: none !important;
     transform: none !important;

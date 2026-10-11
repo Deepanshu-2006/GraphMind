@@ -2572,9 +2572,27 @@ export function StudySpaceView({
     settledAttemptIdsRef.current = new Set();
     isExpandControlAnimatedRef.current = false;
     isExpandControlSettledRef.current = false;
-    setAnimatedAttemptIds(new Set());
+
+    // Immediately queue entrance animation for in-view rows on filter switch
+    const targetAttemptIds = new Set<string>();
+    filteredGroups.forEach((g) => {
+      g.attempts.slice(0, 3).forEach((a) => targetAttemptIds.add(a.id));
+    });
+
+    if (hasHistoryEnteredView && !shouldReduceMotion) {
+      animatedAttemptIdsRef.current = new Set(targetAttemptIds);
+      setAnimatedAttemptIds(new Set(targetAttemptIds));
+      if (filteredGroups.some((g) => g.attempts.length > 3)) {
+        isExpandControlAnimatedRef.current = true;
+        setIsExpandControlAnimated(true);
+      } else {
+        setIsExpandControlAnimated(false);
+      }
+    } else {
+      setAnimatedAttemptIds(new Set());
+      setIsExpandControlAnimated(false);
+    }
     setSettledAttemptIds(new Set());
-    setIsExpandControlAnimated(false);
     setIsExpandControlSettled(false);
   }
 
@@ -2779,6 +2797,37 @@ export function StudySpaceView({
       }
       return rect.top < window.innerHeight && rect.bottom > 0;
     };
+
+    // Ensure rows animated immediately on filter switch begin their settle timers
+    visibleAttempts.forEach(({ id, index }) => {
+      if (animatedAttemptIdsRef.current.has(id) && !settledAttemptIdsRef.current.has(id)) {
+        const staggerIndex = index >= 3 ? index - 3 : index;
+        const delayMs = staggerIndex * 70;
+        const settleMs = delayMs + 540;
+
+        const timer = setTimeout(() => {
+          attemptsTimersRef.current.delete(timer);
+          settledAttemptIdsRef.current.add(id);
+          setSettledAttemptIds(new Set(settledAttemptIdsRef.current));
+        }, settleMs);
+
+        attemptsTimersRef.current.add(timer);
+      }
+    });
+
+    if (hasExpandControl && isExpandControlAnimatedRef.current && !isExpandControlSettledRef.current) {
+      const maxAttempts = filteredGroups[0]?.attempts?.length || 4;
+      const delayMs = Math.min(maxAttempts, 3) * 70;
+      const settleMs = delayMs + 540;
+
+      const timer = setTimeout(() => {
+        attemptsTimersRef.current.delete(timer);
+        isExpandControlSettledRef.current = true;
+        setIsExpandControlSettled(true);
+      }, settleMs);
+
+      attemptsTimersRef.current.add(timer);
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -3548,7 +3597,10 @@ export function StudySpaceView({
                         transition={
                           shouldReduceMotion 
                             ? { duration: 0 } 
-                            : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }
+                            : { 
+                                duration: 0.54, // cinematic 540ms glide (upgraded from legacy duration: 0.24)
+                                ease: [0.22, 1, 0.36, 1] 
+                              }
                         }
                         aria-hidden="true"
                       />
@@ -3607,7 +3659,13 @@ export function StudySpaceView({
                 )}
               </div>
             ) : filteredGroups.length === 0 ? (
-              <div className="study-search-empty">
+              <motion.div 
+                key={`empty-${filterMode}-${searchQuery}`}
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                className="study-search-empty"
+              >
                 <span className="study-search-empty-title">
                   {searchQuery.trim()
                     ? `No assessments found matching "${searchQuery}"`
@@ -3650,7 +3708,7 @@ export function StudySpaceView({
                     <span className="study-btn-underline" aria-hidden="true" />
                   </button>
                 </div>
-              </div>
+              </motion.div>
             ) : null}
 
             {/* Graph Groups List */}
