@@ -250,54 +250,123 @@
 }
 
 .study-graph-selector-search-box {
-  padding: 9px 12px 6px 12px;
+  padding: 8px 10px 6px 10px;
+  position: relative;
+}
+
+.study-graph-selector-search-control {
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
+  height: 33px;
+  padding: 0 8px 0 10px;
+  background-color: rgba(255, 255, 255, 0.018);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 6px;
+  box-sizing: border-box;
+  cursor: text;
+  transition: border-color 180ms ease, background-color 180ms ease;
+  user-select: none;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.study-graph-selector-search-control:hover:not(.focused) {
+  border-color: rgba(255, 255, 255, 0.12);
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.study-graph-selector-search-control:hover:not(.focused) .study-graph-selector-search-icon {
+  color: #909090;
+}
+
+.study-graph-selector-search-control.focused {
+  border-color: rgba(255, 255, 255, 0.11);
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.study-graph-selector-search-control.focused .study-graph-selector-search-icon {
+  color: #B8FF3D;
+  transform: translateX(1px);
+}
+
+.study-graph-selector-search-control:focus-within {
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .study-graph-selector-search-icon {
-  position: absolute;
-  left: 22px;
   color: #666666;
+  flex-shrink: 0;
+  margin-right: 8px;
+  transition: color 160ms ease, transform 160ms ease;
   pointer-events: none;
 }
 
-.study-graph-selector-search-input {
-  width: 100%;
-  height: 33px;
-  background-color: #0A0A0A;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 5px;
-  padding: 0 28px 0 28px;
-  color: #F5F5F5;
+.study-graph-selector-search-input,
+.study-graph-selector-search-input:focus,
+.study-graph-selector-search-input:focus-visible,
+.study-graph-selector-search-input:active {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-appearance: none;
   font-family: var(--font-body, sans-serif);
   font-size: 12.5px;
-  outline: none;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
-}
-
-.study-graph-selector-search-input:focus {
-  border-color: rgba(163, 255, 18, 0.40);
-  box-shadow: none;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: #D0D0D0;
+  padding: 0;
+  margin: 0;
+  cursor: text;
+  caret-color: var(--accent, #A3FF12);
 }
 
 .study-graph-selector-search-input::placeholder {
-  color: #555555;
+  color: #777777;
+  font-size: 12.5px;
+  font-weight: 400;
+  opacity: 1;
+  transition: color 160ms ease;
+}
+
+.study-graph-selector-search-focus-line {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: var(--accent, #A3FF12);
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1) 70ms;
+  pointer-events: none;
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+.study-graph-selector-search-control.focused .study-graph-selector-search-focus-line {
+  transform: scaleX(1);
 }
 
 .study-graph-selector-search-clear {
-  position: absolute;
-  right: 20px;
+  position: static;
   background: transparent;
   border: none;
   color: #777777;
   cursor: pointer;
-  padding: 2px;
+  padding: 3px;
+  margin-left: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 4px;
   transition: color 0.15s ease;
+  flex-shrink: 0;
 }
 
 .study-graph-selector-search-clear:hover {
@@ -319,7 +388,7 @@
 }
 
 .study-graph-selector-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 2px;
 }
 
@@ -328,34 +397,39 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 8px 10px;
+  padding: 7px 10px;
   background: transparent;
-  border: none;
-  border-radius: 5px;
+  border: 1px solid transparent;
+  border-radius: 6px;
   cursor: pointer;
   text-align: left;
   user-select: none;
-  transition: background-color 0.14s ease;
+  transition: background-color 0.14s ease, border-color 0.14s ease;
+  position: relative;
+  box-sizing: border-box;
 }
 
 .study-graph-selector-option:hover,
 .study-graph-selector-option.is-highlighted {
-  background-color: rgba(255, 255, 255, 0.06);
+  background-color: rgba(255, 255, 255, 0.04);
 }
 
+/* Minimal selected state: NO green-tinted background, dark neutral surface with subtle quiet border */
 .study-graph-selector-option.is-selected {
-  background-color: rgba(163, 255, 18, 0.07);
+  background-color: transparent;
+  border-color: rgba(255, 255, 255, 0.05);
 }
 
 .study-graph-selector-option.is-selected:hover,
 .study-graph-selector-option.is-selected.is-highlighted {
-  background-color: rgba(163, 255, 18, 0.10);
+  background-color: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .study-graph-selector-option-main {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   min-width: 0;
   flex: 1;
 }
@@ -393,31 +467,41 @@
 
 .study-graph-selector-option-title {
   font-family: var(--font-body, sans-serif);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 500;
-  color: #F5F5F5;
+  color: #CCCCCC;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   line-height: 1.3;
+  transition: color 0.14s ease;
+}
+
+.study-graph-selector-option.is-selected .study-graph-selector-option-title {
+  color: #FFFFFF;
 }
 
 .study-graph-selector-option-meta {
   font-family: var(--font-mono, monospace);
-  font-size: 10.5px;
+  font-size: 11px;
   color: #777777;
-  margin-top: 2px;
+  margin-top: 1.5px;
   line-height: 1.2;
 }
 
 .study-graph-selector-option-score {
   font-family: var(--font-mono, monospace);
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--accent, #A3FF12);
-  margin-left: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #8E8E8E;
+  margin-left: 12px;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
+  transition: color 0.14s ease;
+}
+
+.study-graph-selector-option-score.is-selected {
+  color: #E5E5E5;
 }
 
 .study-graph-selector-empty-search {
@@ -2789,6 +2873,9 @@
   .study-graph-selector-chevron,
   .study-graph-selector-popover,
   .study-graph-selector-search-box,
+  .study-graph-selector-search-control,
+  .study-graph-selector-search-focus-line,
+  .study-graph-selector-search-icon,
   .study-graph-selector-option,
   .study-graph-selector-search-input {
     transition: none !important;

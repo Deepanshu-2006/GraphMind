@@ -1122,6 +1122,7 @@ export function StudyGraphSelector({
 }: StudyGraphSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1152,6 +1153,7 @@ export function StudyGraphSelector({
       return () => clearTimeout(timer);
     } else {
       setSearchQuery('');
+      setIsSearchFocused(false);
     }
   }, [isOpen]);
 
@@ -1258,26 +1260,43 @@ export function StudyGraphSelector({
               animate={{ opacity: 1, y: 0 }}
               transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.20, delay: 0.04, ease: REVEAL_EASE }}
             >
-              <Search size={13} className="study-graph-selector-search-icon" aria-hidden="true" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                className="study-graph-selector-search-input"
-                placeholder="Search knowledge graphs…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                aria-label="Filter knowledge graphs by name"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  className="study-graph-selector-search-clear"
-                  onClick={() => setSearchQuery('')}
-                  aria-label="Clear search"
-                >
-                  <X size={12} />
-                </button>
-              )}
+              <div
+                className={`study-graph-selector-search-control ${isSearchFocused ? 'focused' : ''} ${searchQuery ? 'has-query' : ''}`}
+                onClick={() => searchInputRef.current?.focus()}
+              >
+                <Search
+                  size={13}
+                  strokeWidth={1.4}
+                  className="study-graph-selector-search-icon"
+                  aria-hidden="true"
+                />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  className="study-graph-selector-search-input"
+                  placeholder="Search knowledge graphs…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => setIsSearchFocused(false)}
+                  aria-label="Filter knowledge graphs by name"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    className="study-graph-selector-search-clear"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSearchQuery('');
+                      searchInputRef.current?.focus();
+                    }}
+                    aria-label="Clear search"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+                <div className="study-graph-selector-search-focus-line" aria-hidden="true" />
+              </div>
             </motion.div>
 
             <div
@@ -1329,7 +1348,7 @@ export function StudyGraphSelector({
                       </div>
                     </div>
                     {g.latestScore !== null && (
-                      <span className="study-graph-selector-option-score">
+                      <span className={`study-graph-selector-option-score ${isSelected ? 'is-selected' : ''}`}>
                         {g.latestScore}%
                       </span>
                     )}

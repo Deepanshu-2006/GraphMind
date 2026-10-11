@@ -7,24 +7,21 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-describe('GRAPHMIND — GRAPH SELECTOR REDESIGN SPECIFICATION', () => {
+describe('GRAPHMIND — GRAPH SELECTOR VISUAL REFINEMENT SPECIFICATION', () => {
   const studyViewPath = path.resolve(__dirname, '../src/components/study/StudySpaceView.tsx');
   const studyViewSrc = fs.readFileSync(studyViewPath, 'utf8');
 
   const studyCssPath = path.resolve(__dirname, '../src/styles/studySpace.css');
   const studyCss = fs.readFileSync(studyCssPath, 'utf8');
 
-  describe('1. Closed Selector Redesign (Section 2)', () => {
+  describe('1. Closed Selector (Section 5)', () => {
     it('renders a restrained lime-green indicator with transition on graph switch, without pulsing or permanent glow', () => {
-      // Must contain pip-slot and pip
       assert.ok(studyViewSrc.includes('study-graph-selector-pip-slot'), 'Must have pip slot');
       assert.ok(studyViewSrc.includes('study-graph-selector-pip'), 'Must have pip indicator');
-      // Motion animation keyed to selectedGraph.id
       assert.ok(
         studyViewSrc.includes('key={selectedGraph?.id || \'none\'}'),
         'Pip must have key on selectedGraph to trigger transition on graph switch'
       );
-      // CSS does not have permanent glow or pulse animation
       assert.doesNotMatch(
         studyCss,
         /\.study-graph-selector-pip\s*\{[\s\S]*?animation:\s*pulse/i,
@@ -85,40 +82,84 @@ describe('GRAPHMIND — GRAPH SELECTOR REDESIGN SPECIFICATION', () => {
     });
   });
 
-  describe('2. Positioning and Responsive Layout (Section 3)', () => {
-    it('positions selector in header right area aligned with header content', () => {
-      assert.ok(studyViewSrc.includes('study-header-main-row'));
-      assert.ok(studyViewSrc.includes('study-header-right'));
+  describe('2. Removal of Green Selected-Row Background & Minimal Selected State (Section 1)', () => {
+    it('completely removes persistent green background tint on selected option row', () => {
       assert.match(
         studyCss,
-        /\.study-header-main-row\s*\{[\s\S]*?justify-content:\s*space-between;/,
-        'Header row must justify content between title and selector'
+        /\.study-graph-selector-option\.is-selected\s*\{[\s\S]*?background-color:\s*transparent;/,
+        'Selected row must use transparent background matching dropdown surface'
+      );
+      assert.doesNotMatch(
+        studyCss,
+        /\.study-graph-selector-option\.is-selected\s*\{[^}]*background-color:\s*rgba\(163,\s*255,\s*18/i,
+        'Selected row must NOT have lime green background tint'
       );
     });
 
-    it('stacks selector cleanly below heading on narrower screens without colliding', () => {
+    it('differentiates selected state through crisp white title and lime pip indicator', () => {
       assert.match(
         studyCss,
-        /@media\s*\(max-width:\s*820px\)\s*\{[\s\S]*?\.study-header-main-row\s*\{[\s\S]*?flex-direction:\s*column;/,
-        'Must stack vertically on narrow screens'
+        /\.study-graph-selector-option\.is-selected\s+\.study-graph-selector-option-title\s*\{[\s\S]*?color:\s*#FFFFFF;/,
+        'Selected option title must be crisp white (#FFFFFF)'
       );
       assert.match(
         studyCss,
-        /@media\s*\(max-width:\s*820px\)\s*\{[\s\S]*?\.study-graph-selector-trigger\s*\{[\s\S]*?width:\s*100%;/,
-        'Selector trigger must span width on mobile'
+        /\.study-graph-selector-option-title\s*\{[\s\S]*?color:\s*#CCCCCC;/,
+        'Unselected option title must be slightly muted white (#CCCCCC)'
+      );
+      assert.ok(studyViewSrc.includes('study-graph-selector-option-pip'), 'Selected row has lime-green pip');
+    });
+
+    it('reserves lime green for indicator, rendering scores in white/muted text', () => {
+      assert.match(
+        studyCss,
+        /\.study-graph-selector-option-score\s*\{[\s\S]*?color:\s*#8E8E8E;/,
+        'Ordinary score must be muted gray (#8E8E8E), not lime green'
+      );
+      assert.match(
+        studyCss,
+        /\.study-graph-selector-option-score\.is-selected\s*\{[\s\S]*?color:\s*#E5E5E5;/,
+        'Selected row score must be clean light gray/white (#E5E5E5)'
       );
     });
   });
 
-  describe('3. Dropdown Panel Design (Section 4)', () => {
-    it('uses near-black surface with thin border and controlled corner radius', () => {
-      assert.match(
-        studyCss,
-        /\.study-graph-selector-popover\s*\{[\s\S]*?background-color:\s*#111111;[\s\S]*?border-radius:\s*8px;/,
-        'Popover surface must be near-black (#111111) with 8px border-radius'
-      );
+  describe('3. Matching GraphMind Main Search Bar Interaction (Section 4)', () => {
+    it('uses matching search control container, input, and focus line structure', () => {
+      assert.ok(studyViewSrc.includes('study-graph-selector-search-control'), 'Must have search control container');
+      assert.ok(studyViewSrc.includes('study-graph-selector-search-focus-line'), 'Must have signature focus line');
+      assert.ok(studyViewSrc.includes('study-graph-selector-search-input'), 'Must have search input');
+      assert.ok(studyViewSrc.includes('study-graph-selector-search-clear'), 'Must have clear button');
     });
 
+    it('implements main search bar animations: icon color transition, input borderless reset, and bottom focus line reveal', () => {
+      // Focus line animation matches main search bar
+      assert.match(
+        studyCss,
+        /\.study-graph-selector-search-focus-line\s*\{[\s\S]*?background-color:\s*var\(--accent,\s*#A3FF12\);[\s\S]*?transform:\s*scaleX\(0\);[\s\S]*?transition:\s*transform 220ms cubic-bezier\(0\.22,\s*1,\s*0\.36,\s*1\)/,
+        'Focus line must animate scaleX with 220ms cubic-bezier matching main search bar'
+      );
+      assert.match(
+        studyCss,
+        /\.study-graph-selector-search-control\.focused\s+\.study-graph-selector-search-focus-line\s*\{[\s\S]*?transform:\s*scaleX\(1\);/,
+        'Focus line must expand to scaleX(1) on focused container'
+      );
+      // Input has zero borders and zero outline
+      assert.match(
+        studyCss,
+        /\.study-graph-selector-search-input[\s\S]*?border:\s*none\s*!important;[\s\S]*?outline:\s*none\s*!important;/,
+        'Search input must have zero borders/outlines matching main search input'
+      );
+      // Icon color shift
+      assert.match(
+        studyCss,
+        /\.study-graph-selector-search-control\.focused\s+\.study-graph-selector-search-icon\s*\{[\s\S]*?color:\s*#B8FF3D;[\s\S]*?transform:\s*translateX\(1px\);/,
+        'Search icon must transition to #B8FF3D and translateX(1px) matching main search bar'
+      );
+    });
+  });
+
+  describe('4. Dropdown Panel Typography & Hierarchy (Section 2 & 3)', () => {
     it('renders panel header with KNOWLEDGE GRAPHS kicker and accurate dynamic graph count', () => {
       assert.ok(studyViewSrc.includes('KNOWLEDGE GRAPHS'), 'Header must contain KNOWLEDGE GRAPHS kicker');
       assert.ok(studyViewSrc.includes('{availableGraphs.length}'), 'Header must display dynamic graph count');
@@ -129,18 +170,7 @@ describe('GRAPHMIND — GRAPH SELECTOR REDESIGN SPECIFICATION', () => {
       );
     });
 
-    it('renders improved search field with subtle distinction and restrained focus border', () => {
-      assert.ok(studyViewSrc.includes('study-graph-selector-search-box'), 'Must have search box');
-      assert.ok(studyViewSrc.includes('study-graph-selector-search-input'), 'Must have search input');
-      assert.match(
-        studyCss,
-        /\.study-graph-selector-search-input:focus\s*\{[\s\S]*?border-color:\s*rgba\(163,\s*255,\s*18,\s*0\.40\);/,
-        'Focus must use restrained lime-green border without glowing green outline'
-      );
-      assert.ok(studyViewSrc.includes('study-graph-selector-search-clear'), 'Must have clear button');
-    });
-
-    it('renders graph options with structured left text group and right latest score', () => {
+    it('renders graph options with structured text group and right-aligned tabular scores', () => {
       assert.ok(studyViewSrc.includes('study-graph-selector-option-main'));
       assert.ok(studyViewSrc.includes('study-graph-selector-option-pip-wrap'));
       assert.ok(studyViewSrc.includes('study-graph-selector-option-info'));
@@ -149,18 +179,14 @@ describe('GRAPHMIND — GRAPH SELECTOR REDESIGN SPECIFICATION', () => {
       assert.ok(studyViewSrc.includes('study-graph-selector-option-score'));
       assert.match(
         studyCss,
+        /\.study-graph-selector-option-meta\s*\{[\s\S]*?font-size:\s*11px;[\s\S]*?color:\s*#777777;/,
+        'Meta must be 11px muted gray'
+      );
+      assert.match(
+        studyCss,
         /\.study-graph-selector-option-score\s*\{[\s\S]*?font-variant-numeric:\s*tabular-nums;/,
         'Score must use tabular-nums for vertical alignment'
       );
-    });
-
-    it('styles selected option with subtle lime-green background tint and restrained indicator', () => {
-      assert.match(
-        studyCss,
-        /\.study-graph-selector-option\.is-selected\s*\{[\s\S]*?background-color:\s*rgba\(163,\s*255,\s*18,\s*0\.07\);/,
-        'Selected row must use subtle lime tint background'
-      );
-      assert.ok(studyViewSrc.includes('study-graph-selector-option-pip'));
     });
 
     it('renders thoughtful empty search state with clear search button', () => {
@@ -170,7 +196,7 @@ describe('GRAPHMIND — GRAPH SELECTOR REDESIGN SPECIFICATION', () => {
     });
   });
 
-  describe('4. Opening & Closing Animation (Section 5 & 6)', () => {
+  describe('5. Opening & Closing Animation & Accessibility (Section 6 & 7)', () => {
     it('uses AnimatePresence for coordinated opening and closing animation', () => {
       assert.ok(studyViewSrc.includes('<AnimatePresence>'), 'Must wrap popover in AnimatePresence');
       assert.ok(studyViewSrc.includes('initial={shouldReduceMotion ? false : { opacity: 0, y: -6, scale: 0.99 }}'));
@@ -191,10 +217,13 @@ describe('GRAPHMIND — GRAPH SELECTOR REDESIGN SPECIFICATION', () => {
         /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?\.study-graph-selector-popover[\s\S]*?transition:\s*none\s*!important;/,
         'CSS must disable transitions and transforms on reduced motion'
       );
+      assert.match(
+        studyCss,
+        /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?\.study-graph-selector-search-focus-line/,
+        'CSS must disable focus line transitions on reduced motion'
+      );
     });
-  });
 
-  describe('5. Accessibility and Interaction Continuity (Section 7 & 8)', () => {
     it('provides ARIA attributes for listbox and trigger button', () => {
       assert.ok(studyViewSrc.includes('aria-haspopup="listbox"'));
       assert.ok(studyViewSrc.includes('aria-expanded={isOpen}'));
