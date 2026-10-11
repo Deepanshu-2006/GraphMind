@@ -110,8 +110,8 @@ export function LearningTrajectoryChart({
     return calculateTrajectoryGeometry(attempts, 760);
   }, [attempts]);
 
-  const LINE_DELAY = 0.28;
-  const LINE_DURATION = 1.15;
+  const LINE_DELAY = 0.25;
+  const LINE_DURATION = 1.35;
 
   const { pointArrivalDelays } = useMemo(() => {
     if (coords.length <= 1) {
