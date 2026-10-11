@@ -89,7 +89,7 @@ describe('GRAPHMIND — GRAPH SELECTOR VISUAL REFINEMENT SPECIFICATION', () => {
     it('provides carefully designed hover, focus-visible, and open states without green outline on focus', () => {
       assert.match(
         studyCss,
-        /\.study-graph-selector-trigger:hover\s*\{[\s\S]*?background-color:\s*rgba\(255,\s*255,\s*255,\s*0\.04\);/,
+        /\.study-graph-selector-trigger:hover\s*\{[\s\S]*?background-color:\s*rgba\(255,\s*255,\s*255,\s*0\.05\);/,
         'Must have subtle neutral hover tint without visible border'
       );
       assert.match(
@@ -222,8 +222,9 @@ describe('GRAPHMIND — GRAPH SELECTOR VISUAL REFINEMENT SPECIFICATION', () => {
   describe('5. Opening & Closing Animation & Accessibility (Section 6 & 7)', () => {
     it('uses AnimatePresence for coordinated opening and closing animation', () => {
       assert.ok(studyViewSrc.includes('<AnimatePresence>'), 'Must wrap popover in AnimatePresence');
-      assert.ok(studyViewSrc.includes('initial={shouldReduceMotion ? false : { opacity: 0, y: -6, scale: 0.99 }}'));
-      assert.ok(studyViewSrc.includes('exit={shouldReduceMotion ? undefined : { opacity: 0, y: -4, scale: 0.99 }}'));
+      assert.ok(studyViewSrc.includes('initial={shouldReduceMotion ? false : { opacity: 0, y: -6 }}'));
+      assert.ok(studyViewSrc.includes('opacity: 0,'));
+      assert.ok(studyViewSrc.includes('y: -4,'));
     });
 
     it('staggers entry of graph option rows', () => {

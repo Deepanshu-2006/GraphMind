@@ -137,37 +137,37 @@
 .study-graph-selector-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
-  height: auto;
-  padding: 5px 9px 5px 7px;
+  gap: 10px;
+  min-height: 38px;
+  padding: 8px 14px 8px 12px;
   background-color: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: 11px;
   color: #ECECEC;
   font-family: var(--font-body, sans-serif);
   font-size: 17px;
   font-weight: 500;
   cursor: pointer;
   user-select: none;
-  transition: color 180ms ease, background-color 180ms ease;
+  transition: background-color 180ms ease, color 180ms ease;
   line-height: 1.25;
   outline: none;
   box-shadow: none;
 }
 
 .study-graph-selector-trigger:hover {
-  background-color: rgba(255, 255, 255, 0.04);
+  background-color: rgba(255, 255, 255, 0.05);
   color: #FFFFFF;
 }
 
 .study-graph-selector-trigger:focus-visible {
   outline: 1px solid rgba(255, 255, 255, 0.35);
   outline-offset: 3px;
-  border-radius: 4px;
+  border-radius: 11px;
 }
 
 .study-graph-selector-trigger.is-open {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(255, 255, 255, 0.06);
   color: #FFFFFF;
 }
 
@@ -199,13 +199,24 @@
   transition: color 180ms ease;
 }
 
-.study-graph-selector-chevron {
-  color: #6E6E6E;
-  margin-left: 1px;
-  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms ease;
-  flex-shrink: 0;
+.study-graph-selector-chevron-slot {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+.study-graph-selector-chevron {
+  width: 10px;
+  height: 6px;
+  color: #6E6E6E;
+  display: block;
+  transform-origin: 50% 50%;
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms ease;
+  flex-shrink: 0;
 }
 
 .study-graph-selector-trigger:hover .study-graph-selector-chevron {
@@ -2847,8 +2858,9 @@
   .study-graph-selector-trigger {
     width: 100%;
     justify-content: space-between;
-    padding: 7px 4px 7px 0;
+    padding: 8px 12px;
     font-size: 16px;
+    border-radius: 11px;
   }
 
   .study-graph-selector-name {

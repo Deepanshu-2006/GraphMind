@@ -1113,6 +1113,28 @@ export interface StudyGraphSelectorProps {
   shouldReduceMotion?: boolean;
 }
 
+function SelectorChevronDown({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="10"
+      height="6"
+      viewBox="0 0 10 6"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M1 1.25L5 4.75L9 1.25"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function StudyGraphSelector({
   availableGraphs,
   selectedGraphId,
@@ -1217,23 +1239,16 @@ export function StudyGraphSelector({
         aria-label={`Knowledge graph: ${selectedGraph?.name || 'Select graph'}. Click to choose knowledge graph.`}
       >
         <span className="study-graph-selector-pip-slot" aria-hidden="true">
-          <motion.span 
-            key={selectedGraph?.id || 'none'}
-            className="study-graph-selector-pip"
-            initial={shouldReduceMotion ? false : { scale: 0.8, opacity: 0.7 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.22, ease: REVEAL_EASE }}
-          />
+          <span key={selectedGraph?.id || 'none'} className="study-graph-selector-pip" />
         </span>
         <span className="study-graph-selector-name">
           {selectedGraph?.name || 'Select knowledge graph'}
         </span>
-        <ChevronDown
-          size={13}
-          strokeWidth={1.8}
-          className={`study-graph-selector-chevron ${isOpen ? 'open' : ''}`}
-          aria-hidden="true"
-        />
+        <span className="study-graph-selector-chevron-slot" aria-hidden="true">
+          <SelectorChevronDown
+            className={`study-graph-selector-chevron ${isOpen ? 'open' : ''}`}
+          />
+        </span>
       </button>
 
       <AnimatePresence>
@@ -1243,10 +1258,17 @@ export function StudyGraphSelector({
             className="study-graph-selector-popover"
             role="dialog"
             aria-label="Select knowledge graph"
-            initial={shouldReduceMotion ? false : { opacity: 0, y: -6, scale: 0.99 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={shouldReduceMotion ? undefined : { opacity: 0, y: -4, scale: 0.99 }}
-            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.24, ease: REVEAL_EASE }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: -6 }}
+            animate={{ 
+              opacity: 1, 
+              y: 0,
+              transition: shouldReduceMotion ? { duration: 0 } : { duration: 0.20, ease: REVEAL_EASE }
+            }}
+            exit={shouldReduceMotion ? undefined : { 
+              opacity: 0, 
+              y: -4,
+              transition: { duration: 0.15, ease: 'easeOut' }
+            }}
           >
             <div className="study-graph-selector-popover-header">
               <span className="study-graph-selector-popover-kicker">KNOWLEDGE GRAPHS</span>
