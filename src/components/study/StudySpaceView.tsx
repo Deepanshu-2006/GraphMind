@@ -3332,36 +3332,39 @@ export function StudySpaceView({
                       {/* Latest Result Card (Level 2 — Latest Assessment) */}
                       <div className="study-latest-card">
                         <div className="study-latest-kicker">
-                          <span>Latest attempt · Attempt {latestAttemptNumber}</span>
+                          <span className="study-latest-kicker-label">Latest attempt · Attempt {latestAttemptNumber}</span>
                           {latest.completionReason === 'time_expired' && (
-                            <span className="study-badge-expired">Time expired</span>
+                            <span className="study-status-expired study-badge-expired" role="status" aria-label="Assessment expired">
+                              <span className="study-status-expired-dot" aria-hidden="true">●</span>
+                              <span>Expired</span>
+                            </span>
                           )}
                         </div>
 
                         <div className="study-metrics-grid">
                           <div className="study-metric-item">
-                            <span className="study-metric-val">
+                            <span className="study-metric-val study-metric-primary">
                               {pad(latest.correctAnswers)} / {pad(latest.totalQuestions)}
                             </span>
                             <span className="study-metric-lbl">Correct answers</span>
                           </div>
 
                           <div className="study-metric-item">
-                            <span className="study-metric-val">
+                            <span className="study-metric-val study-metric-primary">
                               {latest.scorePercentage}%
                             </span>
                             <span className="study-metric-lbl">Score</span>
                           </div>
 
                           <div className="study-metric-item">
-                            <span className="study-metric-val">
+                            <span className="study-metric-val study-metric-date">
                               {latestDate.dateStr}
                             </span>
                             <span className="study-metric-lbl">Completed</span>
                           </div>
 
                           <div className="study-metric-item">
-                            <span className={`study-metric-val ${missedInLatest > 0 ? 'study-meta-warm' : ''}`}>
+                            <span className={`study-metric-val ${missedInLatest > 0 ? 'study-metric-review' : 'study-metric-neutral'}`}>
                               {missedInLatest}
                             </span>
                             <span className="study-metric-lbl">Concepts to review</span>
@@ -3375,7 +3378,7 @@ export function StudySpaceView({
                               aria-label={`View latest results for ${group.graphName}`}
                             >
                               <span className="study-btn-content">
-                                <span>VIEW RESULTS</span>
+                                <span>View Results</span>
                                 <span className="study-btn-arrow" aria-hidden="true">→</span>
                               </span>
                               <span className="study-btn-underline" aria-hidden="true" />
@@ -3400,7 +3403,7 @@ export function StudySpaceView({
                             <span className="study-disclosure-action">
                               <span>{isExpanded ? 'HIDE HISTORY' : 'VIEW HISTORY'}</span>
                               <ChevronDown 
-                                size={14} 
+                                size={13} 
                                 className={`study-disclosure-arrow ${isExpanded ? 'open' : ''}`}
                                 aria-hidden="true"
                               />
@@ -3450,10 +3453,13 @@ export function StudySpaceView({
                                           >
                                             <td className="study-td">
                                               <div className="study-attempt-name">
-                                                ATTEMPT {attemptNum}
+                                                Attempt {attemptNum}
                                               </div>
                                               {attempt.completionReason === 'time_expired' && (
-                                                <span className="study-badge-expired">Time expired</span>
+                                                <span className="study-status-expired" role="status" aria-label="Assessment expired">
+                                                  <span className="study-status-expired-dot" aria-hidden="true">●</span>
+                                                  <span>Expired</span>
+                                                </span>
                                               )}
                                             </td>
 
@@ -3493,7 +3499,7 @@ export function StudySpaceView({
                                                 aria-label={`View results for attempt ${attemptNum}`}
                                               >
                                                 <span className="study-btn-content">
-                                                  <span>VIEW RESULTS</span>
+                                                  <span>View Results</span>
                                                   <span className="study-btn-arrow" aria-hidden="true">→</span>
                                                 </span>
                                                 <span className="study-btn-underline" aria-hidden="true" />

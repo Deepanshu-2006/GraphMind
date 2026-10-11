@@ -63,18 +63,26 @@ describe('GRAPHMIND ASSESSMENT HISTORY — PREMIUM REDESIGN VERIFICATION', () =>
       assert.ok(studyViewSrc.includes("e.key === 'ArrowLeft'"), 'Must handle ArrowLeft');
     });
 
-    it('styles active pill with restrained, low-opacity lime green tint and no heavy glow', () => {
+    it('styles active pill with solid lime-green fill, 6px rounding, and near-black active text', () => {
       assert.match(
         studyCss,
-        /\.study-filter-active-pill\s*\{[\s\S]*?background-color:\s*rgba\(163,\s*255,\s*18,\s*0\.08\);/
+        /\.study-filter-active-pill\s*\{[\s\S]*?background-color:\s*var\(--accent,\s*#A3FF12\);/
       );
       assert.match(
         studyCss,
-        /\.study-filter-active-pill\s*\{[\s\S]*?border:\s*1px solid rgba\(163,\s*255,\s*18,\s*0\.18\);/
+        /\.study-filter-active-pill\s*\{[\s\S]*?border:\s*none;/
       );
       assert.match(
         studyCss,
-        /\.study-filter-tab\.active\s*\{[\s\S]*?color:\s*#FFFFFF;/
+        /\.study-filter-active-pill\s*\{[\s\S]*?border-radius:\s*6px;/
+      );
+      assert.match(
+        studyCss,
+        /\.study-filter-tab\.active\s*\{[\s\S]*?color:\s*#0A0A0A;/
+      );
+      assert.match(
+        studyCss,
+        /\.study-filter-tab\.active\s*\{[\s\S]*?font-weight:\s*600;/
       );
     });
   });
@@ -110,7 +118,7 @@ describe('GRAPHMIND ASSESSMENT HISTORY — PREMIUM REDESIGN VERIFICATION', () =>
     });
   });
 
-  describe('4. Assessment Groups — Elimination of Boxing & 3-Level Hierarchy', () => {
+  describe('4. Assessment Groups — Elimination of Boxing & Editorial Hierarchy', () => {
     it('eliminates heavy outer card boxing and replaces with subtle hairline dividers', () => {
       assert.match(
         studyCss,
@@ -122,10 +130,14 @@ describe('GRAPHMIND ASSESSMENT HISTORY — PREMIUM REDESIGN VERIFICATION', () =>
       );
     });
 
-    it('implements Level 1 Graph Identity with 19px semibold name and muted attempt count', () => {
+    it('implements Level 1 Graph Identity with 20px semibold name and muted attempt count', () => {
       assert.ok(studyViewSrc.includes('className="study-group-name"'));
       assert.ok(studyViewSrc.includes('className="study-group-meta"'));
       assert.ok(studyViewSrc.includes('{group.totalAttempts} {group.totalAttempts === 1 ? \'attempt\' : \'attempts\'}'));
+      assert.match(
+        studyCss,
+        /\.study-group-name\s*\{[\s\S]*?font-size:\s*20px;/
+      );
     });
 
     it('formats Level 1 score comparison with two-line layout aligned right', () => {
@@ -138,7 +150,7 @@ describe('GRAPHMIND ASSESSMENT HISTORY — PREMIUM REDESIGN VERIFICATION', () =>
       );
     });
 
-    it('implements Level 2 Latest Assessment with kicker and aligned metrics columns', () => {
+    it('implements Level 2 Latest Assessment with borderless card and aligned metrics columns', () => {
       assert.ok(studyViewSrc.includes('className="study-latest-card"'));
       assert.ok(studyViewSrc.includes('className="study-latest-kicker"'));
       assert.ok(studyViewSrc.includes('Latest attempt · Attempt'));
@@ -146,12 +158,19 @@ describe('GRAPHMIND ASSESSMENT HISTORY — PREMIUM REDESIGN VERIFICATION', () =>
       assert.ok(studyViewSrc.includes('Score'));
       assert.ok(studyViewSrc.includes('Completed'));
       assert.ok(studyViewSrc.includes('Concepts to review'));
-      assert.ok(studyViewSrc.includes('VIEW RESULTS'));
+      assert.ok(studyViewSrc.includes('View Results'));
+      assert.match(
+        studyCss,
+        /\.study-latest-card\s*\{[\s\S]*?border:\s*none;/
+      );
     });
 
     it('implements Level 3 Previous Attempts minimal disclosure and clean table', () => {
       assert.ok(studyViewSrc.includes('className="study-disclosure-btn"'));
-      assert.ok(studyViewSrc.includes('PREVIOUS ATTEMPTS · {group.previousAttempts.length}'));
+      assert.ok(
+        studyViewSrc.includes('PREVIOUS ATTEMPTS · {group.previousAttempts.length}') ||
+        studyViewSrc.includes('Previous attempts · {group.previousAttempts.length}')
+      );
       assert.ok(studyViewSrc.includes('study-disclosure-arrow'));
       assert.match(
         studyCss,
@@ -165,18 +184,20 @@ describe('GRAPHMIND ASSESSMENT HISTORY — PREMIUM REDESIGN VERIFICATION', () =>
   });
 
   describe('5. Status Badges & Minimal Empty States', () => {
-    it('styles time expired badge as compact, restrained status label', () => {
+    it('styles time expired as a restrained inline status (● Expired)', () => {
+      assert.ok(studyViewSrc.includes('study-status-expired'));
+      assert.ok(studyViewSrc.includes('Expired'));
       assert.match(
         studyCss,
-        /\.study-badge-expired\s*\{[\s\S]*?background-color:\s*rgba\(239,\s*68,\s*68,\s*0\.08\);/
+        /\.study-status-expired[\s\S]*?color:\s*#F87171;/
       );
       assert.match(
         studyCss,
-        /\.study-badge-expired\s*\{[\s\S]*?border:\s*1px solid rgba\(239,\s*68,\s*68,\s*0\.2\);/
+        /\.study-status-expired[\s\S]*?background:\s*transparent;/
       );
       assert.match(
         studyCss,
-        /\.study-badge-expired\s*\{[\s\S]*?color:\s*#F87171;/
+        /\.study-status-expired[\s\S]*?border:\s*none;/
       );
     });
 
