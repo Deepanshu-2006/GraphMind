@@ -917,6 +917,37 @@
   border-radius: 2px;
 }
 
+/* Continue Learning Empty State (when selected graph has no completed assessments) */
+.study-continue-empty-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+}
+
+.study-continue-empty-msg {
+  margin: 0;
+  font-family: var(--font-body, sans-serif);
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #8E8E8E;
+  max-width: 500px;
+}
+
+.study-continue-circle-track-empty {
+  stroke-dasharray: 4 6;
+  opacity: 0.45;
+}
+
+.study-continue-empty-dash {
+  color: #555555;
+  font-size: clamp(56px, 5.5vw, 68px);
+}
+
 /* Editorial Button with Animated Signature Underline */
 .study-editorial-btn {
   background: transparent;
@@ -2441,6 +2472,14 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 16px;
+    width: 100%;
+  }
+
+  .study-continue-empty-body {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 16px;
     width: 100%;
   }
 

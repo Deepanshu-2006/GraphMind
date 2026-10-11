@@ -1770,8 +1770,26 @@ export function StudySpaceView({
     return ensureResultsSummary(selectedAttempt);
   }, [selectedAttempt]);
 
-  // Top/latest attempt for "Continue learning" section
-  const latestAttempt = attempts.length > 0 ? attempts[0] : null;
+  // Selected graph attempts: strictly filtered by effectiveSelectedGraphId
+  const selectedGraphAttempts = useMemo<AssessmentAttempt[]>(() => {
+    if (!effectiveSelectedGraphId || !Array.isArray(attempts)) return [];
+    return attempts.filter(a => {
+      const gid = a.graphId || `unassigned-${a.id}`;
+      return gid === effectiveSelectedGraphId;
+    });
+  }, [effectiveSelectedGraphId, attempts]);
+
+  // Top/latest attempt for selected knowledge graph
+  const latestAttempt = useMemo<AssessmentAttempt | null>(() => {
+    if (selectedGraphAttempts.length === 0) return null;
+    return [...selectedGraphAttempts].sort((a, b) => {
+      const timeA = new Date(a.completedAt).getTime() || 0;
+      const timeB = new Date(b.completedAt).getTime() || 0;
+      if (timeA !== timeB) return timeB - timeA;
+      return selectedGraphAttempts.indexOf(a) - selectedGraphAttempts.indexOf(b);
+    })[0];
+  }, [selectedGraphAttempts]);
+
   const latestDateInfo = latestAttempt ? formatAttemptDate(latestAttempt.completedAt) : null;
   const missedCount = latestAttempt?.resultsSummary?.reviewRecommendedConcepts?.length || 0;
 
@@ -1865,6 +1883,7 @@ export function StudySpaceView({
     };
   }, [progressInViewRaw, shouldReduceMotion]);
 
+  const lastAnimatedGraphIdRef = useRef<string | null>(null);
   const hasAnimatedRef = useRef(false);
   const endpointRef = useRef<SVGCircleElement | null>(null);
   const [displayedScore, setDisplayedScore] = useState<number>(() => {
@@ -1873,6 +1892,19 @@ export function StudySpaceView({
 
   useEffect(() => {
     if (!hasContinueEnteredView) return;
+
+    // Reset animation state when user switches to a different knowledge graph
+    if (lastAnimatedGraphIdRef.current !== effectiveSelectedGraphId) {
+      lastAnimatedGraphIdRef.current = effectiveSelectedGraphId;
+      hasAnimatedRef.current = false;
+      if (!shouldReduceMotion) {
+        setDisplayedScore(0);
+        if (endpointRef.current) {
+          endpointRef.current.style.opacity = '0';
+        }
+      }
+    }
+
     if (shouldReduceMotion) {
       setDisplayedScore(clampedScore);
       if (endpointRef.current && clampedScore > 0) {
@@ -1934,7 +1966,7 @@ export function StudySpaceView({
         controls.stop();
       }
     };
-  }, [hasContinueEnteredView, clampedScore, shouldReduceMotion]);
+  }, [hasContinueEnteredView, clampedScore, shouldReduceMotion, effectiveSelectedGraphId]);
 
 
   // Derive concepts worth revisiting across historical attempts (Prompt 5 Phase 5)
@@ -2150,7 +2182,7 @@ export function StudySpaceView({
       {!isLoading && !errorMessage && attempts.length > 0 && (
         <>
           {/* 3. Continue Learning Section (Asymmetric Editorial Composition) */}
-          {latestAttempt && latestDateInfo && (
+          {selectedGraphMeta && (
             <motion.section 
               ref={continueSectionRef}
               className="study-continue-section" 
@@ -2194,11 +2226,21 @@ export function StudySpaceView({
                           animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
                           transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.30, delay: 0.12, ease: REVEAL_EASE }}
                         >
-                          <span className="study-continue-graph-name">{latestAttempt.graphName}</span>
+                          {latestAttempt ? (
+                            <span className="study-continue-graph-name">{latestAttempt.graphName}</span>
+                          ) : (
+                            <span className="study-continue-graph-name">{selectedGraphMeta.name}</span>
+                          )}
                           <div className="study-continue-context-line">
-                            <span>{latestDateInfo.dateStr}</span>
-                            <span className="study-meta-dot" aria-hidden="true">·</span>
-                            <span>{latestAttempt.totalQuestions} questions</span>
+                            {latestAttempt && latestDateInfo ? (
+                              <>
+                                <span>{latestDateInfo.dateStr}</span>
+                                <span className="study-meta-dot" aria-hidden="true">·</span>
+                                <span>{latestAttempt.totalQuestions} questions</span>
+                              </>
+                            ) : (
+                              <span>No assessments yet</span>
+                            )}
                           </div>
                         </motion.div>
                       </div>
@@ -2211,58 +2253,81 @@ export function StudySpaceView({
                       animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
                       transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.18, ease: REVEAL_EASE }}
                     >
-                      {/* Three-Column Horizontal Results Distribution: Left (Score) - Middle (Insight) - Right (Action) */}
-                      <div className="study-continue-results-action-group">
-                        {/* LEFT: Correct-Answer Statistic */}
-                        <div className="study-continue-ratio-row">
-                          <div className="study-continue-ratio-num">
-                            <span className="study-ratio-numerator">{pad(latestAttempt.correctAnswers)}</span>
-                            <span className="study-continue-ratio-slash">/</span>
-                            <span className="study-ratio-denominator">{pad(latestAttempt.totalQuestions)}</span>
+                      {latestAttempt ? (
+                        /* Three-Column Horizontal Results Distribution: Left (Score) - Middle (Insight) - Right (Action) */
+                        <div className="study-continue-results-action-group">
+                          {/* LEFT: Correct-Answer Statistic */}
+                          <div className="study-continue-ratio-row">
+                            <div className="study-continue-ratio-num">
+                              <span className="study-ratio-numerator">{pad(latestAttempt.correctAnswers)}</span>
+                              <span className="study-continue-ratio-slash">/</span>
+                              <span className="study-ratio-denominator">{pad(latestAttempt.totalQuestions)}</span>
+                            </div>
+                            <span className="study-continue-ratio-lbl">CORRECT ANSWERS</span>
                           </div>
-                          <span className="study-continue-ratio-lbl">CORRECT ANSWERS</span>
-                        </div>
 
-                        {/* MIDDLE: Missed-Concept Count */}
-                        <div className="study-continue-meta">
-                          <span 
-                            className={`study-meta-indicator ${missedCount > 0 ? 'study-meta-indicator-warm' : 'study-meta-indicator-lime'}`} 
-                            aria-hidden="true" 
-                          />
-                          {missedCount > 0 ? (
-                            <span className="study-meta-insight-text study-meta-warm">
-                              {missedCount} concept{missedCount === 1 ? '' : 's'} to revisit
-                            </span>
-                          ) : (
-                            <span className="study-meta-insight-text study-meta-highlight">
-                              All concepts mastered · complete comprehension
-                            </span>
-                          )}
-                        </div>
-
-                        {/* RIGHT: Connected Next Action */}
-                        <div className="study-continue-action-row">
-                          <button
-                            type="button"
-                            className="study-editorial-btn study-continue-action-btn"
-                            onClick={() => handleOpenAttempt(
-                              latestAttempt.id, 
-                              missedCount > 0 ? 'review-missed' : 'historical-results'
+                          {/* MIDDLE: Missed-Concept Count */}
+                          <div className="study-continue-meta">
+                            <span 
+                              className={`study-meta-indicator ${missedCount > 0 ? 'study-meta-indicator-warm' : 'study-meta-indicator-lime'}`} 
+                              aria-hidden="true" 
+                            />
+                            {missedCount > 0 ? (
+                              <span className="study-meta-insight-text study-meta-warm">
+                                {missedCount} concept{missedCount === 1 ? '' : 's'} to revisit
+                              </span>
+                            ) : (
+                              <span className="study-meta-insight-text study-meta-highlight">
+                                All concepts mastered · complete comprehension
+                              </span>
                             )}
-                            aria-label={
-                              missedCount > 0 
-                                ? `Review missed concepts for ${latestAttempt.graphName}` 
-                                : `Review results for ${latestAttempt.graphName}`
-                            }
-                          >
-                            <span className="study-btn-content">
-                              <span>{missedCount > 0 ? 'REVIEW MISSED CONCEPTS' : 'REVIEW RESULTS'}</span>
-                              <span className="study-btn-arrow" aria-hidden="true">→</span>
-                            </span>
-                            <span className="study-btn-underline" aria-hidden="true" />
-                          </button>
+                          </div>
+
+                          {/* RIGHT: Connected Next Action */}
+                          <div className="study-continue-action-row">
+                            <button
+                              type="button"
+                              className="study-editorial-btn study-continue-action-btn"
+                              onClick={() => handleOpenAttempt(
+                                latestAttempt.id, 
+                                missedCount > 0 ? 'review-missed' : 'historical-results'
+                              )}
+                              aria-label={
+                                missedCount > 0 
+                                  ? `Review missed concepts for ${latestAttempt.graphName}` 
+                                  : `Review results for ${latestAttempt.graphName}`
+                              }
+                            >
+                              <span className="study-btn-content">
+                                <span>{missedCount > 0 ? 'REVIEW MISSED CONCEPTS' : 'REVIEW RESULTS'}</span>
+                                <span className="study-btn-arrow" aria-hidden="true">→</span>
+                              </span>
+                              <span className="study-btn-underline" aria-hidden="true" />
+                            </button>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        /* Empty state when selected knowledge graph has no assessment attempts yet */
+                        <div className="study-continue-empty-body">
+                          <p className="study-continue-empty-msg">
+                            Start your first assessment for this knowledge graph to track your understanding and identify concepts to revisit.
+                          </p>
+                          <div className="study-continue-action-row">
+                            <button
+                              type="button"
+                              className="study-editorial-btn study-continue-action-btn"
+                              onClick={onNavigateToGraph}
+                              aria-label={`Start assessment for ${selectedGraphMeta.name}`}
+                            >
+                              <span className="study-btn-content">
+                                <span>START ASSESSMENT</span>
+                                <span className="study-btn-arrow" aria-hidden="true">→</span>
+                              </span>
+                              <span className="study-btn-underline" aria-hidden="true" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </motion.div>
                   </div>
 
@@ -2281,39 +2346,51 @@ export function StudySpaceView({
                           height="320" 
                           viewBox="0 0 200 200" 
                           role="progressbar" 
-                          aria-valuenow={clampedScore} 
+                          aria-valuenow={latestAttempt ? clampedScore : 0} 
                           aria-valuemin={0} 
                           aria-valuemax={100} 
-                          aria-label={`Assessment score: ${clampedScore}%`}
+                          aria-label={latestAttempt ? `Assessment score: ${clampedScore}%` : `No assessments yet for ${selectedGraphMeta.name}`}
                         >
-                          <circle 
-                            cx="100" 
-                            cy="100" 
-                            r={CIRCLE_RADIUS} 
-                            className="study-continue-circle-track" 
-                          />
-                          <motion.circle 
-                            cx="100" 
-                            cy="100" 
-                            r={CIRCLE_RADIUS} 
-                            className="study-continue-circle-arc"
-                            transform="rotate(-90 100 100)"
-                            strokeDasharray={CIRCLE_CIRCUMFERENCE}
-                            strokeLinecap={clampedScore === 0 ? 'butt' : 'round'}
-                            initial={shouldReduceMotion ? false : { 
-                              strokeDashoffset: CIRCLE_CIRCUMFERENCE, 
-                              opacity: clampedScore === 0 ? 0 : 1 
-                            }}
-                            animate={hasContinueEnteredView ? {
-                              strokeDashoffset: CIRCLE_CIRCUMFERENCE * (1 - clampedScore / 100),
-                              opacity: clampedScore === 0 ? 0 : 1
-                            } : { strokeDashoffset: CIRCLE_CIRCUMFERENCE, opacity: 0 }}
-                            transition={shouldReduceMotion ? { duration: 0 } : { 
-                              strokeDashoffset: { duration: 1.2, delay: 0.32, ease: REVEAL_EASE },
-                              opacity: { duration: 0 }
-                            }}
-                          />
-                          {clampedScore > 0 && (
+                          {latestAttempt ? (
+                            <circle 
+                              cx="100" 
+                              cy="100" 
+                              r={CIRCLE_RADIUS} 
+                              className="study-continue-circle-track" 
+                            />
+                          ) : (
+                            <circle 
+                              cx="100" 
+                              cy="100" 
+                              r={CIRCLE_RADIUS} 
+                              className="study-continue-circle-track study-continue-circle-track-empty" 
+                            />
+                          )}
+                          {latestAttempt && (
+                            <motion.circle 
+                              key={`circle-arc-${effectiveSelectedGraphId || 'none'}-${latestAttempt.id}`}
+                              cx="100" 
+                              cy="100" 
+                              r={CIRCLE_RADIUS} 
+                              className="study-continue-circle-arc"
+                              transform="rotate(-90 100 100)"
+                              strokeDasharray={CIRCLE_CIRCUMFERENCE}
+                              strokeLinecap={clampedScore === 0 ? 'butt' : 'round'}
+                              initial={shouldReduceMotion ? false : { 
+                                strokeDashoffset: CIRCLE_CIRCUMFERENCE, 
+                                opacity: clampedScore === 0 ? 0 : 1 
+                              }}
+                              animate={hasContinueEnteredView ? {
+                                strokeDashoffset: CIRCLE_CIRCUMFERENCE * (1 - clampedScore / 100),
+                                opacity: clampedScore === 0 ? 0 : 1
+                              } : { strokeDashoffset: CIRCLE_CIRCUMFERENCE, opacity: 0 }}
+                              transition={shouldReduceMotion ? { duration: 0 } : { 
+                                strokeDashoffset: { duration: 1.2, delay: 0.32, ease: REVEAL_EASE },
+                                opacity: { duration: 0 }
+                              }}
+                            />
+                          )}
+                          {latestAttempt && clampedScore > 0 && (
                             <circle 
                               ref={endpointRef}
                               cx={getArcEndpoint(shouldReduceMotion ? clampedScore : 0, CIRCLE_RADIUS, 100, 100).x} 
@@ -2325,8 +2402,17 @@ export function StudySpaceView({
                           )}
                         </svg>
                         <div className="study-continue-circle-content" aria-hidden="true">
-                          <span className="study-continue-score-pct">{displayedScore}%</span>
-                          <span className="study-continue-circle-lbl">SCORE</span>
+                          {latestAttempt ? (
+                            <>
+                              <span className="study-continue-score-pct">{displayedScore}%</span>
+                              <span className="study-continue-circle-lbl">SCORE</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="study-continue-score-pct study-continue-empty-dash">—</span>
+                              <span className="study-continue-circle-lbl">NO ASSESSMENTS</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

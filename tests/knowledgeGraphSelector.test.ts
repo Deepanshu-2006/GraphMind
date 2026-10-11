@@ -303,4 +303,151 @@ describe('GRAPHMIND STUDY SPACE — KNOWLEDGE GRAPH SELECTOR & FILTERED LEARNING
       assert.ok(studyViewSrc.includes('availableGraphs.some(g => g.id === selectedGraphId)'));
     });
   });
+
+  describe('7. Synchronized Continue Learning with Selected Graph', () => {
+    it('consumes the single source of truth effectiveSelectedGraphId for both Continue Learning and Learning Progress', () => {
+      assert.ok(
+        studyViewSrc.includes('const selectedGraphAttempts = useMemo<AssessmentAttempt[]>('),
+        'Must filter attempts strictly by effectiveSelectedGraphId'
+      );
+      assert.ok(
+        studyViewSrc.includes('return gid === effectiveSelectedGraphId;'),
+        'Must match graphId against effectiveSelectedGraphId'
+      );
+      assert.ok(
+        studyViewSrc.includes('const latestAttempt = useMemo<AssessmentAttempt | null>('),
+        'Must derive latestAttempt from selectedGraphAttempts'
+      );
+    });
+
+    it('renders Continue Learning conditioned on selectedGraphMeta', () => {
+      assert.ok(
+        studyViewSrc.includes('{selectedGraphMeta && ('),
+        'Must render Continue Learning section based on selectedGraphMeta'
+      );
+    });
+
+    it('provides a clean empty state in Continue Learning when selected graph has no assessments', () => {
+      assert.ok(studyViewSrc.includes('className="study-continue-empty-body"'));
+      assert.ok(studyViewSrc.includes('className="study-continue-empty-msg"'));
+      assert.ok(studyViewSrc.includes('Start your first assessment for this knowledge graph to track your understanding and identify concepts to revisit.'));
+      assert.ok(studyViewSrc.includes('START ASSESSMENT'));
+      assert.ok(studyViewSrc.includes('study-continue-circle-track-empty'));
+      assert.ok(studyViewSrc.includes('study-continue-empty-dash'));
+      assert.ok(studyViewSrc.includes('NO ASSESSMENTS'));
+    });
+
+    it('restarts score animation and resets hasAnimatedRef when switching between knowledge graphs', () => {
+      assert.ok(studyViewSrc.includes('lastAnimatedGraphIdRef.current !== effectiveSelectedGraphId'));
+      assert.ok(studyViewSrc.includes('lastAnimatedGraphIdRef.current = effectiveSelectedGraphId;'));
+      assert.ok(studyViewSrc.includes('hasAnimatedRef.current = false;'));
+      assert.ok(studyViewSrc.includes('key={`circle-arc-${effectiveSelectedGraphId || \'none\'}-${latestAttempt.id}`}'));
+    });
+
+    it('includes CSS tokens for Continue Learning empty state and muted orbit track', () => {
+      assert.match(
+        studyCss,
+        /\.study-continue-empty-body\s*\{[\s\S]*?display:\s*flex;[\s\S]*?justify-content:\s*space-between;/,
+        'Must style Continue Learning empty body'
+      );
+      assert.match(
+        studyCss,
+        /\.study-continue-empty-msg\s*\{[\s\S]*?color:\s*#8E8E8E;/,
+        'Must style Continue Learning empty message'
+      );
+      assert.match(
+        studyCss,
+        /\.study-continue-circle-track-empty\s*\{[\s\S]*?stroke-dasharray:\s*4\s*6;/,
+        'Must style empty orbit track with dashed stroke'
+      );
+      assert.match(
+        studyCss,
+        /\.study-continue-empty-dash\s*\{[\s\S]*?color:\s*#555555;/,
+        'Must style quiet empty em-dash'
+      );
+    });
+
+    it('filters attempts strictly by selected graph in mathematical test', () => {
+      const mockAttempts: AssessmentAttempt[] = [
+        {
+          id: 'att-testing-1',
+          testId: 't-1',
+          graphId: 'graph-testing',
+          graphName: 'Testing',
+          startedAt: '2026-10-10T10:00:00.000Z',
+          completedAt: '2026-10-10T10:05:00.000Z',
+          scorePercentage: 80,
+          totalQuestions: 10,
+          correctAnswers: 8,
+          incorrectAnswers: 2,
+          unansweredCount: 0,
+          timeSpentSeconds: 300,
+          completionReason: 'submitted',
+          questions: [],
+          userAnswers: {},
+          flaggedQuestionIds: [],
+          conceptNames: ['Unit Testing']
+        },
+        {
+          id: 'att-os-1',
+          testId: 't-2',
+          graphId: 'graph-os',
+          graphName: 'Operating Systems',
+          startedAt: '2026-10-10T11:00:00.000Z',
+          completedAt: '2026-10-10T11:05:00.000Z',
+          scorePercentage: 90,
+          totalQuestions: 10,
+          correctAnswers: 9,
+          incorrectAnswers: 1,
+          unansweredCount: 0,
+          timeSpentSeconds: 300,
+          completionReason: 'submitted',
+          questions: [],
+          userAnswers: {},
+          flaggedQuestionIds: [],
+          conceptNames: ['Virtual Memory']
+        }
+      ];
+
+      // Operating Systems selected: only OS attempts returned
+      const osAttempts = mockAttempts.filter(a => (a.graphId || `unassigned-${a.id}`) === 'graph-os');
+      assert.equal(osAttempts.length, 1);
+      assert.equal(osAttempts[0].graphName, 'Operating Systems');
+      assert.equal(osAttempts[0].scorePercentage, 90);
+
+      // Testing selected: only Testing attempts returned
+      const testAttempts = mockAttempts.filter(a => (a.graphId || `unassigned-${a.id}`) === 'graph-testing');
+      assert.equal(testAttempts.length, 1);
+      assert.equal(testAttempts[0].graphName, 'Testing');
+      assert.equal(testAttempts[0].scorePercentage, 80);
+
+      // Graph with 0 assessments selected: empty list returned
+      const emptyAttempts = mockAttempts.filter(a => (a.graphId || `unassigned-${a.id}`) === 'graph-empty');
+      assert.equal(emptyAttempts.length, 0);
+
+      // Legitimate 0% attempt: non-null attempt with 0% score preserved
+      const zeroAttempt: AssessmentAttempt = {
+        id: 'att-zero-1',
+        testId: 't-3',
+        graphId: 'graph-zero',
+        graphName: 'Zero Graph',
+        startedAt: '2026-10-10T12:00:00.000Z',
+        completedAt: '2026-10-10T12:05:00.000Z',
+        scorePercentage: 0,
+        totalQuestions: 10,
+        correctAnswers: 0,
+        incorrectAnswers: 10,
+        unansweredCount: 0,
+        timeSpentSeconds: 300,
+        completionReason: 'submitted',
+        questions: [],
+        userAnswers: {},
+        flaggedQuestionIds: [],
+        conceptNames: []
+      };
+      const zeroAttempts = [zeroAttempt].filter(a => (a.graphId || `unassigned-${a.id}`) === 'graph-zero');
+      assert.equal(zeroAttempts.length, 1);
+      assert.equal(zeroAttempts[0].scorePercentage, 0);
+    });
+  });
 });
