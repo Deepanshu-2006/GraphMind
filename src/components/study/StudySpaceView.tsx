@@ -13,7 +13,7 @@ import {
   getAssessmentAttempts, 
   getAssessmentAttemptById 
 } from '../../services/assessmentHistory';
-import { loadGraphs, loadActiveGraphId } from '../../services/storage';
+import { loadGraphs, loadActiveGraphId, loadGraphData } from '../../services/storage';
 import { useOptionalGraph } from '../../context/GraphContext';
 import { TestResultsView } from '../test/TestResultsView';
 import { TestReviewView } from '../test/TestReviewView';
@@ -1959,6 +1959,14 @@ export function StudySpaceView({
     }
   }, [graphContext]);
 
+  // Keep internal selectedGraphId synchronized if activeGraph changes externally
+  useEffect(() => {
+    const externalActiveId = activeGraph?.id || graphContext?.activeGraphId;
+    if (externalActiveId && availableGraphs.some(g => g.id === externalActiveId)) {
+      setSelectedGraphId(externalActiveId);
+    }
+  }, [activeGraph?.id, graphContext?.activeGraphId, availableGraphs]);
+
   const selectedGraphMeta = useMemo(() => {
     if (!effectiveSelectedGraphId) return null;
     return availableGraphs.find(g => g.id === effectiveSelectedGraphId) || null;
@@ -2014,7 +2022,7 @@ export function StudySpaceView({
 
   useEffect(() => {
     updateFilterPillPosition();
-  }, [updateFilterPillPosition, filterTabsNode, isLoading, attempts.length]);
+  }, [updateFilterPillPosition, filterTabsNode, isLoading, attempts.length, effectiveSelectedGraphId]);
 
   useEffect(() => {
     const container = filterTabsRef.current;
@@ -2183,10 +2191,19 @@ export function StudySpaceView({
     loadAttempts();
   }, [loadAttempts]);
 
+  // Selected graph attempts: strictly filtered by effectiveSelectedGraphId
+  const selectedGraphAttempts = useMemo<AssessmentAttempt[]>(() => {
+    if (!effectiveSelectedGraphId || !Array.isArray(attempts)) return [];
+    return attempts.filter(a => {
+      const gid = a.graphId || `unassigned-${a.id}`;
+      return gid === effectiveSelectedGraphId;
+    });
+  }, [effectiveSelectedGraphId, attempts]);
+
   // Compute attempt numbers per graph chronologically (Attempt 01, 02...)
   const attemptNumberMap = useMemo(() => {
     const byGraph: Record<string, AssessmentAttempt[]> = {};
-    for (const a of attempts) {
+    for (const a of selectedGraphAttempts) {
       const key = a.graphId || a.graphName || 'default';
       if (!byGraph[key]) byGraph[key] = [];
       byGraph[key].push(a);
@@ -2203,18 +2220,20 @@ export function StudySpaceView({
       });
     }
     return map;
-  }, [attempts]);
+  }, [selectedGraphAttempts]);
 
-  // Organize attempts into Graph Groups
+  // Organize attempts into Graph Groups strictly scoped to effectiveSelectedGraphId
   const graphGroups = useMemo<GraphAttemptGroup[]>(() => {
+    if (!effectiveSelectedGraphId || selectedGraphAttempts.length === 0) return [];
+
     const groupsMap: Record<string, { graphName: string; list: AssessmentAttempt[] }> = {};
 
-    for (const a of attempts) {
+    for (const a of selectedGraphAttempts) {
       // Use stable graph identifier, fallback to graph name or attempt id if missing
       const key = a.graphId || a.graphName || `unassigned-${a.id}`;
       if (!groupsMap[key]) {
         groupsMap[key] = {
-          graphName: a.graphName || 'Assessment',
+          graphName: selectedGraphMeta?.name || a.graphName || 'Assessment',
           list: []
         };
       }
@@ -2252,7 +2271,7 @@ export function StudySpaceView({
     return result.sort((a, b) => {
       return new Date(b.latestAttempt.completedAt).getTime() - new Date(a.latestAttempt.completedAt).getTime();
     });
-  }, [attempts]);
+  }, [effectiveSelectedGraphId, selectedGraphAttempts, selectedGraphMeta?.name]);
 
   // Filtered graph groups based on search query and review filter
   const filteredGroups = useMemo<GraphAttemptGroup[]>(() => {
@@ -2329,14 +2348,6 @@ export function StudySpaceView({
     return ensureResultsSummary(selectedAttempt);
   }, [selectedAttempt]);
 
-  // Selected graph attempts: strictly filtered by effectiveSelectedGraphId
-  const selectedGraphAttempts = useMemo<AssessmentAttempt[]>(() => {
-    if (!effectiveSelectedGraphId || !Array.isArray(attempts)) return [];
-    return attempts.filter(a => {
-      const gid = a.graphId || `unassigned-${a.id}`;
-      return gid === effectiveSelectedGraphId;
-    });
-  }, [effectiveSelectedGraphId, attempts]);
 
   // Top/latest attempt for selected knowledge graph
   const latestAttempt = useMemo<AssessmentAttempt | null>(() => {
@@ -2507,11 +2518,31 @@ export function StudySpaceView({
     return shouldReduceMotion ? clampedScore : 0;
   });
 
+  // Show all concepts toggle for Concepts Worth Revisiting
+  const [isAllConceptsExpanded, setIsAllConceptsExpanded] = useState(false);
+
+  // Show all attempts toggle for Assessment History (defaults to 3 most recent)
+  const [isAttemptsExpanded, setIsAttemptsExpanded] = useState(false);
+
   // Track graph selection change to immediately reset score during render
   const [prevSelectedGraphId, setPrevSelectedGraphId] = useState(effectiveSelectedGraphId);
   if (prevSelectedGraphId !== effectiveSelectedGraphId) {
     setPrevSelectedGraphId(effectiveSelectedGraphId);
     setDisplayedScore(shouldReduceMotion ? clampedScore : 0);
+    setSearchQuery('');
+    setFilterMode('all');
+    setSelectedAttemptId(null);
+    setViewMode('list');
+    setIsAllConceptsExpanded(false);
+    setIsAttemptsExpanded(false);
+  }
+
+  // Reset attempt expansion whenever filter mode or search query changes
+  const [prevFilterKey, setPrevFilterKey] = useState(`${filterMode}:${searchQuery}`);
+  const currentFilterKey = `${filterMode}:${searchQuery}`;
+  if (prevFilterKey !== currentFilterKey) {
+    setPrevFilterKey(currentFilterKey);
+    setIsAttemptsExpanded(false);
   }
 
   useEffect(() => {
@@ -2593,16 +2624,25 @@ export function StudySpaceView({
   }, [hasContinueEnteredView, clampedScore, shouldReduceMotion, effectiveSelectedGraphId]);
 
 
-  // Derive concepts worth revisiting across historical attempts (Prompt 5 Phase 5)
+  // Full KnowledgeGraph object for the selected graph if available
+  const currentKnowledgeGraph = useMemo<KnowledgeGraph | null>(() => {
+    if (!effectiveSelectedGraphId) return null;
+    if (activeGraph?.id === effectiveSelectedGraphId) return activeGraph;
+    if (graphContext?.activeGraph?.id === effectiveSelectedGraphId) return graphContext.activeGraph;
+    try {
+      return loadGraphData(effectiveSelectedGraphId);
+    } catch {
+      return null;
+    }
+  }, [effectiveSelectedGraphId, activeGraph, graphContext?.activeGraph]);
+
+  // Derive concepts worth revisiting across historical attempts for the selected graph
   const conceptsWorthRevisiting = useMemo<ConceptRevisitItem[]>(() => {
-    return deriveConceptsWorthRevisiting(attempts, activeGraph);
-  }, [attempts, activeGraph]);
+    return deriveConceptsWorthRevisiting(selectedGraphAttempts, currentKnowledgeGraph || activeGraph);
+  }, [selectedGraphAttempts, currentKnowledgeGraph, activeGraph]);
 
   // Hovered attempt point for chart inspection
   const [hoveredPointAttemptId, setHoveredPointAttemptId] = useState<string | null>(null);
-
-  // Show all concepts toggle for Concepts Worth Revisiting
-  const [isAllConceptsExpanded, setIsAllConceptsExpanded] = useState(false);
 
   // Displayed concepts slice (first 5 by default if more than 5 exist)
   const displayedConcepts = useMemo(() => {
@@ -3237,94 +3277,121 @@ export function StudySpaceView({
               </motion.p>
 
               {/* Refined Search & Segmented Filter Toolbar */}
-              <div className="study-controls-bar">
-                <div 
-                  className={`study-search-wrap ${isHistorySearchFocused ? 'focused' : ''} ${searchQuery.trim() ? 'has-query' : ''}`}
-                  onClick={() => historySearchInputRef.current?.focus()}
-                >
-                  <Search size={14} strokeWidth={1.4} className="study-search-icon" aria-hidden="true" />
-                  <input
-                    ref={historySearchInputRef}
-                    type="text"
-                    className="study-search-input"
-                    placeholder="Search by graph or concept…"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onFocus={() => setIsHistorySearchFocused(true)}
-                    onBlur={() => setIsHistorySearchFocused(false)}
-                    aria-label="Search assessment history by graph or concept"
-                  />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      className="study-search-clear"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSearchQuery('');
-                        historySearchInputRef.current?.focus();
-                      }}
-                      aria-label="Clear search query"
-                    >
-                      <X size={13} />
-                    </button>
-                  )}
-                  {/* Focus accent: 1px GraphMind green line along bottom edge */}
-                  <div className="study-search-focus-line" aria-hidden="true" />
-                </div>
+              {selectedGraphAttempts.length > 0 && (
+                <div className="study-controls-bar">
+                  <div 
+                    className={`study-search-wrap ${isHistorySearchFocused ? 'focused' : ''} ${searchQuery.trim() ? 'has-query' : ''}`}
+                    onClick={() => historySearchInputRef.current?.focus()}
+                  >
+                    <Search size={14} strokeWidth={1.4} className="study-search-icon" aria-hidden="true" />
+                    <input
+                      ref={historySearchInputRef}
+                      type="text"
+                      className="study-search-input"
+                      placeholder="Search by graph or concept…"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onFocus={() => setIsHistorySearchFocused(true)}
+                      onBlur={() => setIsHistorySearchFocused(false)}
+                      aria-label="Search assessment history by graph or concept"
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        className="study-search-clear"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSearchQuery('');
+                          historySearchInputRef.current?.focus();
+                        }}
+                        aria-label="Clear search query"
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
+                    {/* Focus accent: 1px GraphMind green line along bottom edge */}
+                    <div className="study-search-focus-line" aria-hidden="true" />
+                  </div>
 
-                <div 
-                  ref={setFilterTabsRef}
-                  className="study-filter-tabs" 
-                  role="tablist" 
-                  aria-label="Assessment filter"
-                  onKeyDown={handleFilterTabKeyDown}
-                >
-                  {/* Moving active green-tinted selection pill */}
-                  {filterTabBounds && (
-                    <motion.div
-                      className="study-filter-active-pill"
-                      initial={false}
-                      animate={{
+                  <div 
+                    ref={setFilterTabsRef}
+                    className="study-filter-tabs" 
+                    role="tablist" 
+                    aria-label="Assessment filter"
+                    onKeyDown={handleFilterTabKeyDown}
+                  >
+                    {/* Moving active green-tinted selection pill */}
+                    {filterTabBounds && (
+                      <motion.div
+                        className="study-filter-active-pill"
+                        initial={false}
+                        animate={{
                         x: filterTabBounds.left,
                         width: filterTabBounds.width,
                         opacity: filterTabBounds.width > 0 ? 1 : 0
                       }}
-                      transition={
-                        shouldReduceMotion 
-                          ? { duration: 0 } 
-                          : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }
-                      }
-                      aria-hidden="true"
-                    />
-                  )}
+                        transition={
+                          shouldReduceMotion 
+                            ? { duration: 0 } 
+                            : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }
+                        }
+                        aria-hidden="true"
+                      />
+                    )}
 
-                  <button
-                    type="button"
-                    role="tab"
-                    data-tab-key="all"
-                    aria-selected={activeFilterKey === 'all'}
-                    className={`study-filter-tab ${activeFilterKey === 'all' ? 'active' : ''}`}
-                    onClick={() => setFilterMode('all')}
-                  >
-                    <span className="study-filter-tab-label">All assessments</span>
-                  </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      data-tab-key="all"
+                      aria-selected={activeFilterKey === 'all'}
+                      className={`study-filter-tab ${activeFilterKey === 'all' ? 'active' : ''}`}
+                      onClick={() => setFilterMode('all')}
+                    >
+                      <span className="study-filter-tab-label">All assessments</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    role="tab"
-                    data-tab-key="needs-review"
-                    aria-selected={activeFilterKey === 'needs-review'}
-                    className={`study-filter-tab ${activeFilterKey === 'needs-review' ? 'active' : ''}`}
-                    onClick={() => setFilterMode('needs-review')}
-                  >
-                    <span className="study-filter-tab-label">Needs review</span>
-                  </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      data-tab-key="needs-review"
+                      aria-selected={activeFilterKey === 'needs-review'}
+                      className={`study-filter-tab ${activeFilterKey === 'needs-review' ? 'active' : ''}`}
+                      onClick={() => setFilterMode('needs-review')}
+                    >
+                      <span className="study-filter-tab-label">Needs review</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Search/Filter Empty State */}
-            {filteredGroups.length === 0 && (
+            {/* Search/Filter or No History Empty State */}
+            {selectedGraphAttempts.length === 0 ? (
+              <div className="study-search-empty">
+                <span className="study-search-empty-title">
+                  No assessment history yet.
+                </span>
+                <p className="study-search-empty-sub">
+                  Completed assessments will appear here.
+                </p>
+                {onNavigateToGraph && (
+                  <div className="study-search-empty-actions">
+                    <button
+                      type="button"
+                      className="study-editorial-btn"
+                      onClick={onNavigateToGraph}
+                      aria-label={selectedGraphMeta ? `Start assessment for ${selectedGraphMeta.name}` : 'Start assessment'}
+                    >
+                      <span className="study-btn-content">
+                        <span>Start assessment</span>
+                        <span className="study-btn-arrow" aria-hidden="true">→</span>
+                      </span>
+                      <span className="study-btn-underline" aria-hidden="true" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : filteredGroups.length === 0 ? (
               <div className="study-search-empty">
                 <span className="study-search-empty-title">
                   {searchQuery.trim()
@@ -3369,7 +3436,7 @@ export function StudySpaceView({
                   </button>
                 </div>
               </div>
-            )}
+            ) : null}
 
             {/* Graph Groups List */}
             {filteredGroups.length > 0 && (
@@ -3394,6 +3461,11 @@ export function StudySpaceView({
                       {/* Direct List of Assessment Records */}
                       <div className="study-records-list">
                         {group.attempts.map((attempt) => {
+                          const attemptIndex = group.attempts.indexOf(attempt);
+                          if (!isAttemptsExpanded && attemptIndex >= 3) {
+                            return null;
+                          }
+
                           const dateInfo = formatAttemptDate(attempt.completedAt);
                           const attemptNumber = attemptNumberMap.get(attempt.id) || '01';
                           const missedConcepts = attempt.resultsSummary?.reviewRecommendedConcepts?.length || 0;
@@ -3401,28 +3473,27 @@ export function StudySpaceView({
 
                           return (
                             <article key={attempt.id} className="study-record-item">
-                              {/* Top row: Attempt identity */}
-                              <div className="study-record-header">
+                              {/* Left Area: Attempt Identity & Numerical Score */}
+                              <div className="study-record-left">
                                 <span className="study-record-identity">Attempt {attemptNumber}</span>
-                              </div>
-
-                              {/* Metrics row: 3 aligned columns */}
-                              <div className="study-record-metrics">
-                                <div className="study-record-metric">
+                                <div className="study-record-score-block">
                                   <span className="study-record-val study-record-val-primary">
                                     {pad(attempt.correctAnswers)} / {pad(attempt.totalQuestions)}
                                   </span>
                                   <span className="study-record-lbl">CORRECT ANSWERS</span>
                                 </div>
+                              </div>
 
-                                <div className="study-record-metric">
+                              {/* Center Area: Assessment Details (Date & Review Count) */}
+                              <div className="study-record-metrics">
+                                <div className="study-record-center-row">
                                   <span className="study-record-val study-record-val-date">
                                     {dateInfo.dateStr}
                                   </span>
                                   <span className="study-record-lbl">COMPLETED</span>
                                 </div>
 
-                                <div className="study-record-metric">
+                                <div className="study-record-center-row">
                                   <span className={`study-record-val study-record-val-review ${missedConcepts > 0 ? 'study-meta-warm' : 'study-meta-neutral'}`}>
                                     {missedConcepts} {missedConcepts === 1 ? 'concept' : 'concepts'}
                                   </span>
@@ -3430,20 +3501,19 @@ export function StudySpaceView({
                                 </div>
                               </div>
 
-                              {/* Footer row: Status on left, Primary action on right */}
-                              <div className="study-record-footer">
+                              {/* Right Area: Status & Action */}
+                              <div className="study-record-right">
                                 <div className="study-record-status-wrap">
                                   {isExpired && (
                                     <span className="study-status-expired" role="status" aria-label="Assessment expired">
-                                      <span className="study-status-expired-dot" aria-hidden="true">●</span>
-                                      <span>Expired</span>
+                                      Expired
                                     </span>
                                   )}
                                 </div>
 
                                 <button
                                   type="button"
-                                  className="study-editorial-btn"
+                                  className="study-editorial-btn study-record-action-btn"
                                   onClick={() => handleOpenAttempt(attempt.id)}
                                   aria-label={`View results for ${group.graphName} Attempt ${attemptNumber}`}
                                 >
@@ -3458,6 +3528,32 @@ export function StudySpaceView({
                           );
                         })}
                       </div>
+
+                      {/* Collapsible Assessment History Control */}
+                      {group.attempts.length > 3 && (
+                        <div className="study-records-expand-wrap">
+                          <button
+                            type="button"
+                            className="study-records-expand-btn"
+                            onClick={() => setIsAttemptsExpanded(!isAttemptsExpanded)}
+                            aria-expanded={isAttemptsExpanded}
+                            aria-label={
+                              isAttemptsExpanded
+                                ? 'Show fewer attempts'
+                                : `Show all ${group.attempts.length - 3} remaining attempts`
+                            }
+                          >
+                            <span className="study-records-expand-text">
+                              {isAttemptsExpanded
+                                ? 'Show fewer'
+                                : `Show all ${group.attempts.length - 3} remaining ${group.attempts.length - 3 === 1 ? 'attempt' : 'attempts'}`}
+                            </span>
+                            <span className="study-records-expand-chevron" aria-hidden="true">
+                              {isAttemptsExpanded ? '↑' : '↓'}
+                            </span>
+                          </button>
+                        </div>
+                      )}
                     </section>
                   );
                 })}
