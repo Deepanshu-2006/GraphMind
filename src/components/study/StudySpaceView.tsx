@@ -566,24 +566,70 @@ export function LearningTrajectoryRow({
     return shouldReduceMotion ? prog.latestScore : 0;
   });
   const hasAnimatedScoreRef = useRef(false);
+  const rafIdRef = useRef<number | null>(null);
+  const prevTargetScoreRef = useRef(prog.latestScore);
 
   useEffect(() => {
-    if (!rowInView) return;
     if (shouldReduceMotion) {
       setDisplayedScore(prog.latestScore);
       return;
     }
-    if (hasAnimatedScoreRef.current) {
-      setDisplayedScore(prog.latestScore);
+
+    if (!rowInView) {
       return;
     }
+
+    // Dynamic data update after initial scroll animation
+    if (hasAnimatedScoreRef.current) {
+      if (prevTargetScoreRef.current !== prog.latestScore) {
+        prevTargetScoreRef.current = prog.latestScore;
+        setDisplayedScore(prog.latestScore);
+      }
+      return;
+    }
+
     hasAnimatedScoreRef.current = true;
-    const controls = animate(0, prog.latestScore, {
-      duration: 0.65,
-      ease: REVEAL_EASE,
-      onUpdate: (val) => setDisplayedScore(Math.round(val))
-    });
-    return () => controls.stop();
+    prevTargetScoreRef.current = prog.latestScore;
+
+    // Zero score displays directly without an artificial counting sequence
+    if (prog.latestScore === 0) {
+      setDisplayedScore(0);
+      return;
+    }
+
+    const targetScore = prog.latestScore;
+    const duration = 920; // 800–1000ms target duration
+    let startTime: number | null = null;
+
+    // Cubic ease-out deceleration curve
+    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+    // Smoothly animate(0, prog.latestScore) via requestAnimationFrame with cubic ease-out deceleration
+    const step = (timestamp: number) => {
+      if (startTime === null) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      const eased = easeOutCubic(progress);
+      const current = Math.min(targetScore, Math.round(eased * targetScore));
+
+      setDisplayedScore(current);
+
+      if (progress < 1) {
+        rafIdRef.current = requestAnimationFrame(step);
+      } else {
+        setDisplayedScore(targetScore);
+        rafIdRef.current = null;
+      }
+    };
+
+    rafIdRef.current = requestAnimationFrame(step);
+
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+    };
   }, [rowInView, prog.latestScore, shouldReduceMotion]);
 
   const isUnchangedOrZero = prog.comparisonStatus === 'unchanged' || (prog.hasComparison && prog.latestScore === 0 && prog.previousScore === 0);
@@ -626,6 +672,39 @@ export function LearningTrajectoryRow({
   });
 
   const pathD = N >= 2 ? coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x} ${c.y}`).join(' ') : '';
+
+  // Synchronized animation timings calculated from actual path geometry
+  const LINE_DELAY = 0.28;
+  const LINE_DURATION = 1.15;
+
+  const { pointArrivalDelays } = useMemo(() => {
+    if (coords.length <= 1) {
+      return { totalPathLength: 0, pointArrivalDelays: [LINE_DELAY] };
+    }
+
+    const dists: number[] = [0];
+    let totalLen = 0;
+    for (let i = 0; i < coords.length - 1; i++) {
+      const dx = coords[i + 1].x - coords[i].x;
+      const dy = coords[i + 1].y - coords[i].y;
+      const d = Math.hypot(dx, dy);
+      totalLen += d;
+      dists.push(totalLen);
+    }
+
+    const delays = dists.map(dist => {
+      const progressFrac = totalLen > 0 ? dist / totalLen : 0;
+      // Cubic ease-out deceleration curve: p(t) = 1 - (1 - t)^3  =>  t = 1 - (1 - p)^(1/3)
+      const timeFrac = progressFrac <= 0
+        ? 0
+        : progressFrac >= 1
+          ? 1
+          : 1 - Math.pow(1 - progressFrac, 1 / 3);
+      return Math.round((LINE_DELAY + timeFrac * LINE_DURATION) * 1000) / 1000;
+    });
+
+    return { totalPathLength: Math.round(totalLen * 10) / 10, pointArrivalDelays: delays };
+  }, [coords]);
 
   // Deterministic collision avoidance for score labels
   const visibleLabels = useMemo(() => {
@@ -698,10 +777,13 @@ export function LearningTrajectoryRow({
               <span className="study-progress-metric-val study-trajectory-score-val">{displayedScore}%</span>
             </div>
             {prog.hasComparison && prog.previousScore !== undefined ? (
-              <div
+              <motion.div
                 className={`study-trajectory-inline-diff study-progress-badge study-progress-comparison ${diffStatus}`}
                 title={isUnchangedOrZero ? '0 percentage points' : prog.scoreChangeFormatted}
                 aria-label={`${diffValueFormatted} vs. previous attempt`}
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
+                animate={rowInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.38, delay: 0.45, ease: REVEAL_EASE }}
               >
                 <span className="study-trajectory-diff-val">
                   <span className="study-progress-badge-symbol study-trajectory-diff-arrow" aria-hidden="true">
@@ -710,7 +792,7 @@ export function LearningTrajectoryRow({
                   <span>{diffValueFormatted}</span>
                 </span>
                 <span className="study-trajectory-diff-context">vs. previous attempt</span>
-              </div>
+              </motion.div>
             ) : (
               <span className="study-trajectory-single-hint">
                 Complete another assessment to see your progress.
@@ -730,71 +812,78 @@ export function LearningTrajectoryRow({
             preserveAspectRatio="none"
             aria-label={`Score trajectory chart for ${prog.graphName}`}
           >
-            {/* Reference grid lines at 100%, 50%, 0% */}
-            <line
-              x1={X_MIN}
-              y1={Y_MIN}
-              x2={X_MAX}
-              y2={Y_MIN}
-              className="study-trajectory-grid-line line-100"
-              stroke="rgba(255, 255, 255, 0.035)"
-              strokeWidth="1"
-            />
-            <text
-              x={X_MIN - 10}
-              y={Y_MIN + 3}
-              textAnchor="end"
-              fill="#555555"
-              fontSize="9"
-              fontFamily="var(--font-mono, monospace)"
-              className="study-trajectory-axis-lbl"
+            {/* PHASE 2 — Reference grid lines at 100%, 50%, 0% */}
+            <motion.g
+              className="study-trajectory-reference-grid"
+              initial={shouldReduceMotion ? false : { opacity: 0 }}
+              animate={rowInView ? { opacity: 1 } : { opacity: 0 }}
+              transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.12, ease: REVEAL_EASE }}
             >
-              100%
-            </text>
+              <line
+                x1={X_MIN}
+                y1={Y_MIN}
+                x2={X_MAX}
+                y2={Y_MIN}
+                className="study-trajectory-grid-line line-100"
+                stroke="rgba(255, 255, 255, 0.035)"
+                strokeWidth="1"
+              />
+              <text
+                x={X_MIN - 10}
+                y={Y_MIN + 3}
+                textAnchor="end"
+                fill="#555555"
+                fontSize="9"
+                fontFamily="var(--font-mono, monospace)"
+                className="study-trajectory-axis-lbl"
+              >
+                100%
+              </text>
 
-            <line
-              x1={X_MIN}
-              y1={Y_MID}
-              x2={X_MAX}
-              y2={Y_MID}
-              className="study-trajectory-grid-line line-50"
-              stroke="rgba(255, 255, 255, 0.025)"
-              strokeWidth="1"
-            />
-            <text
-              x={X_MIN - 10}
-              y={Y_MID + 3}
-              textAnchor="end"
-              fill="#444444"
-              fontSize="9"
-              fontFamily="var(--font-mono, monospace)"
-              className="study-trajectory-axis-lbl"
-            >
-              50%
-            </text>
+              <line
+                x1={X_MIN}
+                y1={Y_MID}
+                x2={X_MAX}
+                y2={Y_MID}
+                className="study-trajectory-grid-line line-50"
+                stroke="rgba(255, 255, 255, 0.025)"
+                strokeWidth="1"
+              />
+              <text
+                x={X_MIN - 10}
+                y={Y_MID + 3}
+                textAnchor="end"
+                fill="#444444"
+                fontSize="9"
+                fontFamily="var(--font-mono, monospace)"
+                className="study-trajectory-axis-lbl"
+              >
+                50%
+              </text>
 
-            <line
-              x1={X_MIN}
-              y1={Y_MAX}
-              x2={X_MAX}
-              y2={Y_MAX}
-              className="study-trajectory-grid-line line-0"
-              stroke="rgba(255, 255, 255, 0.07)"
-              strokeWidth="1.25"
-            />
-            <text
-              x={X_MIN - 10}
-              y={Y_MAX + 3}
-              textAnchor="end"
-              fill="#555555"
-              fontSize="9"
-              fontFamily="var(--font-mono, monospace)"
-              className="study-trajectory-axis-lbl"
-            >
-              0%
-            </text>
+              <line
+                x1={X_MIN}
+                y1={Y_MAX}
+                x2={X_MAX}
+                y2={Y_MAX}
+                className="study-trajectory-grid-line line-0"
+                stroke="rgba(255, 255, 255, 0.07)"
+                strokeWidth="1.25"
+              />
+              <text
+                x={X_MIN - 10}
+                y={Y_MAX + 3}
+                textAnchor="end"
+                fill="#555555"
+                fontSize="9"
+                fontFamily="var(--font-mono, monospace)"
+                className="study-trajectory-axis-lbl"
+              >
+                0%
+              </text>
+            </motion.g>
 
-            {/* Trajectory Drawing Line (Phase 2 Motion Animation) */}
+            {/* PHASE 3 — Trajectory Drawing Line */}
             {N >= 2 && pathD && (
               <motion.path
                 d={pathD}
@@ -807,17 +896,22 @@ export function LearningTrajectoryRow({
                 style={isPathSettled ? { strokeDasharray: 'none' } : undefined}
                 initial={shouldReduceMotion ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }}
                 animate={rowInView ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }}
-                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.95, delay: 0.22, ease: REVEAL_EASE }}
+                transition={shouldReduceMotion ? { duration: 0 } : {
+                  pathLength: { duration: LINE_DURATION, delay: LINE_DELAY, ease: REVEAL_EASE },
+                  opacity: { duration: 0.2, delay: LINE_DELAY }
+                }}
                 onAnimationComplete={() => setIsPathSettled(true)}
               />
             )}
 
-            {/* Interactive Data Points */}
+            {/* PHASE 4 & 5 — Interactive Data Points and Score Labels */}
             {coords.map((c, idx) => {
               const isSelected = hoveredPointAttemptId === c.pt.attemptId;
               const isLatest = idx === N - 1;
               const isHighlighted = isSelected;
               const showLabel = visibleLabels.has(c.pt.attemptId);
+              const arrivalDelay = pointArrivalDelays[idx] ?? (LINE_DELAY + idx * 0.1);
+              const labelDelay = arrivalDelay + 0.08;
 
               return (
                 <motion.g
@@ -838,9 +932,9 @@ export function LearningTrajectoryRow({
                   onMouseOver={() => setHoveredPointAttemptId(c.pt.attemptId)}
                   onFocus={() => setHoveredPointAttemptId(c.pt.attemptId)}
                   onBlur={() => setHoveredPointAttemptId(null)}
-                  initial={shouldReduceMotion ? false : { scale: 0, opacity: 0 }}
-                  animate={rowInView ? { scale: 1, opacity: 1 } : { scale: 0, opacity: 0 }}
-                  transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.3, delay: 0.26 + idx * 0.05, ease: REVEAL_EASE }}
+                  initial={shouldReduceMotion ? false : { scale: 0.4, opacity: 0 }}
+                  animate={rowInView ? { scale: 1, opacity: 1 } : { scale: 0.4, opacity: 0 }}
+                  transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.22, delay: arrivalDelay, ease: REVEAL_EASE }}
                 >
                   {isHighlighted && (
                     <circle
@@ -863,7 +957,7 @@ export function LearningTrajectoryRow({
                     className="study-trajectory-point"
                   />
                   {showLabel && (
-                    <text
+                    <motion.text
                       x={c.x}
                       y={c.y < 42 ? c.y + 14 : c.y - 9}
                       textAnchor={c.x < X_MIN + 20 ? 'start' : c.x > X_MAX - 20 ? 'end' : 'middle'}
@@ -872,9 +966,12 @@ export function LearningTrajectoryRow({
                       fontWeight={isHighlighted ? '600' : '500'}
                       fontFamily="var(--font-mono, monospace)"
                       className={`study-trajectory-point-lbl ${isHighlighted ? 'highlight' : ''}`}
+                      initial={shouldReduceMotion ? false : { opacity: 0, y: c.y < 42 ? -3 : 3 }}
+                      animate={rowInView ? { opacity: 1, y: 0 } : { opacity: 0, y: c.y < 42 ? -3 : 3 }}
+                      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.25, delay: labelDelay, ease: REVEAL_EASE }}
                     >
                       {c.pt.scorePercentage}%
-                    </text>
+                    </motion.text>
                   )}
                 </motion.g>
               );
@@ -924,6 +1021,9 @@ export function LearningTrajectoryRow({
           {prog.chronologicalAttempts.map((pt, pIdx) => {
             const isSelected = hoveredPointAttemptId === pt.attemptId;
             const isLatest = pIdx === N - 1;
+            const timelineStart = N <= 1 ? 0.35 : LINE_DELAY + LINE_DURATION * 0.75;
+            const colDelay = timelineStart + pIdx * 0.035;
+
             return (
               <motion.button
                 key={pt.attemptId}
@@ -938,7 +1038,7 @@ export function LearningTrajectoryRow({
                 aria-label={`Attempt ${pad(pIdx + 1)}: ${pt.scorePercentage}% on ${pt.dateStr}. Select to review historical results.`}
                 initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
                 animate={rowInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.32, delay: 0.38 + pIdx * 0.035, ease: REVEAL_EASE }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.28, delay: colDelay, ease: REVEAL_EASE }}
               >
                 <div className="study-trajectory-col-top">
                   <span className="study-progress-chip-name study-trajectory-chip-num study-trajectory-col-num">

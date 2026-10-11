@@ -110,6 +110,37 @@ export function LearningTrajectoryChart({
     return calculateTrajectoryGeometry(attempts, 760);
   }, [attempts]);
 
+  const LINE_DELAY = 0.28;
+  const LINE_DURATION = 1.15;
+
+  const { pointArrivalDelays } = useMemo(() => {
+    if (coords.length <= 1) {
+      return { totalPathLength: 0, pointArrivalDelays: [LINE_DELAY] };
+    }
+
+    const dists: number[] = [0];
+    let totalLen = 0;
+    for (let i = 0; i < coords.length - 1; i++) {
+      const dx = coords[i + 1].x - coords[i].x;
+      const dy = coords[i + 1].y - coords[i].y;
+      const d = Math.hypot(dx, dy);
+      totalLen += d;
+      dists.push(totalLen);
+    }
+
+    const delays = dists.map(dist => {
+      const progressFrac = totalLen > 0 ? dist / totalLen : 0;
+      const timeFrac = progressFrac <= 0
+        ? 0
+        : progressFrac >= 1
+          ? 1
+          : 1 - Math.pow(1 - progressFrac, 1 / 3);
+      return Math.round((LINE_DELAY + timeFrac * LINE_DURATION) * 1000) / 1000;
+    });
+
+    return { totalPathLength: Math.round(totalLen * 10) / 10, pointArrivalDelays: delays };
+  }, [coords]);
+
   const [isPathSettled, setIsPathSettled] = useState(Boolean(shouldReduceMotion));
 
   const totalPoints = coords.length;
@@ -165,74 +196,78 @@ export function LearningTrajectoryChart({
         preserveAspectRatio="none"
         aria-label={`Score trajectory chart for ${graphName}`}
       >
-        {/* Subtle, thin reference grid levels (100%, 50%, 0%) */}
-        {/* 100% Guideline */}
-        <line
-          x1={X_MIN}
-          y1={Y_MIN}
-          x2={X_MAX}
-          y2={Y_MIN}
-          className="study-trajectory-grid-line line-100"
-          stroke="rgba(255, 255, 255, 0.035)"
-          strokeWidth="1"
-        />
-        <text
-          x={X_MIN - 10}
-          y={Y_MIN + 3}
-          textAnchor="end"
-          className="study-trajectory-axis-lbl"
-          fill="#555555"
-          fontSize="9"
-          fontFamily="var(--font-mono, monospace)"
+        {/* PHASE 2 — Reference grid lines at 100%, 50%, 0% */}
+        <motion.g
+          className="study-trajectory-reference-grid"
+          initial={shouldReduceMotion ? false : { opacity: 0 }}
+          animate={inView ? { opacity: 1 } : { opacity: 0 }}
+          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.12, ease: REVEAL_EASE }}
         >
-          100%
-        </text>
+          <line
+            x1={X_MIN}
+            y1={Y_MIN}
+            x2={X_MAX}
+            y2={Y_MIN}
+            className="study-trajectory-grid-line line-100"
+            stroke="rgba(255, 255, 255, 0.035)"
+            strokeWidth="1"
+          />
+          <text
+            x={X_MIN - 10}
+            y={Y_MIN + 3}
+            textAnchor="end"
+            className="study-trajectory-axis-lbl"
+            fill="#555555"
+            fontSize="9"
+            fontFamily="var(--font-mono, monospace)"
+          >
+            100%
+          </text>
 
-        {/* 50% Guideline */}
-        <line
-          x1={X_MIN}
-          y1={Y_MID}
-          x2={X_MAX}
-          y2={Y_MID}
-          className="study-trajectory-grid-line line-50"
-          stroke="rgba(255, 255, 255, 0.025)"
-          strokeWidth="1"
-        />
-        <text
-          x={X_MIN - 10}
-          y={Y_MID + 3}
-          textAnchor="end"
-          className="study-trajectory-axis-lbl"
-          fill="#444444"
-          fontSize="9"
-          fontFamily="var(--font-mono, monospace)"
-        >
-          50%
-        </text>
+          <line
+            x1={X_MIN}
+            y1={Y_MID}
+            x2={X_MAX}
+            y2={Y_MID}
+            className="study-trajectory-grid-line line-50"
+            stroke="rgba(255, 255, 255, 0.025)"
+            strokeWidth="1"
+          />
+          <text
+            x={X_MIN - 10}
+            y={Y_MID + 3}
+            textAnchor="end"
+            className="study-trajectory-axis-lbl"
+            fill="#444444"
+            fontSize="9"
+            fontFamily="var(--font-mono, monospace)"
+          >
+            50%
+          </text>
 
-        {/* 0% Baseline Guideline (slightly more distinguished) */}
-        <line
-          x1={X_MIN}
-          y1={Y_MAX}
-          x2={X_MAX}
-          y2={Y_MAX}
-          className="study-trajectory-grid-line line-0"
-          stroke="rgba(255, 255, 255, 0.07)"
-          strokeWidth="1.25"
-        />
-        <text
-          x={X_MIN - 10}
-          y={Y_MAX + 3}
-          textAnchor="end"
-          className="study-trajectory-axis-lbl"
-          fill="#555555"
-          fontSize="9"
-          fontFamily="var(--font-mono, monospace)"
-        >
-          0%
-        </text>
+          <line
+            x1={X_MIN}
+            y1={Y_MAX}
+            x2={X_MAX}
+            y2={Y_MAX}
+            className="study-trajectory-grid-line line-0"
+            stroke="rgba(255, 255, 255, 0.07)"
+            strokeWidth="1.25"
+          />
+          <text
+            x={X_MIN - 10}
+            y={Y_MAX + 3}
+            textAnchor="end"
+            className="study-trajectory-axis-lbl"
+            fill="#555555"
+            fontSize="9"
+            fontFamily="var(--font-mono, monospace)"
+          >
+            0%
+          </text>
+        </motion.g>
 
-        {/* Trajectory Drawing Line (Progressive Drawing) */}
+        {/* PHASE 3 — Trajectory Drawing Line */}
         {!isSingle && pathD && (
           <motion.path
             d={pathD}
@@ -245,18 +280,23 @@ export function LearningTrajectoryChart({
             style={isPathSettled ? { strokeDasharray: 'none' } : undefined}
             initial={shouldReduceMotion ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }}
             animate={inView ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }}
-            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.95, delay: 0.22, ease: REVEAL_EASE }}
+            transition={shouldReduceMotion ? { duration: 0 } : {
+              pathLength: { duration: LINE_DURATION, delay: LINE_DELAY, ease: REVEAL_EASE },
+              opacity: { duration: 0.2, delay: LINE_DELAY }
+            }}
             onAnimationComplete={() => setIsPathSettled(true)}
           />
         )}
 
-        {/* Interactive Data Points */}
+        {/* PHASE 4 & 5 — Interactive Data Points and Score Labels */}
         {coords.map((c, idx) => {
           const isSelected = activeAttemptId === c.pt.attemptId;
           const isHovered = hoveredAttemptId === c.pt.attemptId;
           const isLatest = idx === totalPoints - 1;
           const isHighlighted = isSelected || isHovered;
           const showLabel = visibleLabels.has(c.pt.attemptId);
+          const arrivalDelay = pointArrivalDelays[idx] ?? (LINE_DELAY + idx * 0.1);
+          const labelDelay = arrivalDelay + 0.08;
 
           return (
             <motion.g
@@ -276,9 +316,9 @@ export function LearningTrajectoryChart({
               onMouseLeave={() => onHoverAttempt(null)}
               onFocus={() => onHoverAttempt(c.pt.attemptId)}
               onBlur={() => onHoverAttempt(null)}
-              initial={shouldReduceMotion ? { scale: 1, opacity: 1 } : { scale: 0, opacity: 0 }}
-              animate={inView ? { scale: 1, opacity: 1 } : { scale: 0, opacity: 0 }}
-              transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.3, delay: 0.26 + idx * 0.05, ease: REVEAL_EASE }}
+              initial={shouldReduceMotion ? false : { scale: 0.4, opacity: 0 }}
+              animate={inView ? { scale: 1, opacity: 1 } : { scale: 0.4, opacity: 0 }}
+              transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.22, delay: arrivalDelay, ease: REVEAL_EASE }}
             >
               {/* Subtle hover pulse / focus ring */}
               {isHighlighted && (
@@ -306,7 +346,7 @@ export function LearningTrajectoryChart({
 
               {/* Score Value Label */}
               {showLabel && (
-                <text
+                <motion.text
                   x={c.x}
                   y={c.y < 42 ? c.y + 14 : c.y - 9}
                   textAnchor={c.x < X_MIN + 20 ? 'start' : c.x > X_MAX - 20 ? 'end' : 'middle'}
@@ -315,9 +355,12 @@ export function LearningTrajectoryChart({
                   fontSize={isHighlighted ? '10.5' : isLatest ? '9.5' : '9'}
                   fontWeight={isHighlighted ? '600' : '500'}
                   fontFamily="var(--font-mono, monospace)"
+                  initial={shouldReduceMotion ? false : { opacity: 0, y: c.y < 42 ? -3 : 3 }}
+                  animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: c.y < 42 ? -3 : 3 }}
+                  transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.25, delay: labelDelay, ease: REVEAL_EASE }}
                 >
                   {c.pt.scorePercentage}%
-                </text>
+                </motion.text>
               )}
             </motion.g>
           );

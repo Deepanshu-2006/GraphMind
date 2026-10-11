@@ -463,4 +463,55 @@ describe('GRAPHMIND STUDY SPACE — LEARNING TRAJECTORY REDESIGN VERIFICATION', 
       );
     });
   });
+
+  describe('11. Coordinated Scroll Animations & Geometry-Synchronized Trajectory (Final Polish)', () => {
+    it('animates latest score counter with requestAnimationFrame, easeOutCubic, and cleanup cancellation', () => {
+      assert.ok(
+        studyViewSrc.includes('requestAnimationFrame(step)'),
+        'Must drive counter animation via requestAnimationFrame'
+      );
+      assert.ok(
+        studyViewSrc.includes('cancelAnimationFrame(rafIdRef.current)'),
+        'Must cancel pending animation frame on cleanup'
+      );
+      assert.ok(
+        studyViewSrc.includes('easeOutCubic'),
+        'Must use cubic ease-out deceleration curve for smooth counter'
+      );
+      assert.ok(
+        studyViewSrc.includes('prog.latestScore === 0'),
+        'Must handle 0 score immediately without an artificial counting sequence'
+      );
+    });
+
+    it('synchronizes data points and score labels with actual path geometry and line drawing arrival', () => {
+      assert.ok(
+        studyViewSrc.includes('pointArrivalDelays'),
+        'Must calculate point arrival delays from geometric segment distances'
+      );
+      assert.ok(
+        studyViewSrc.includes('Math.hypot(dx, dy)'),
+        'Must compute exact Euclidean distances along trajectory segments'
+      );
+      assert.ok(
+        studyViewSrc.includes('study-trajectory-reference-grid'),
+        'Must reveal reference grid lines during coordinated Phase 2'
+      );
+      assert.ok(
+        studyViewSrc.includes('labelDelay'),
+        'Must reveal score labels with vertical settle right after corresponding points appear'
+      );
+    });
+
+    it('coordinates the timeline reveal to start when trajectory line drawing is nearly complete', () => {
+      assert.ok(
+        studyViewSrc.includes('timelineStart'),
+        'Must coordinate timeline reveal start based on line drawing completion'
+      );
+      assert.ok(
+        studyViewSrc.includes('colDelay'),
+        'Must apply controlled stagger across attempt timeline columns'
+      );
+    });
+  });
 });
