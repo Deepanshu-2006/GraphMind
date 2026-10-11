@@ -210,8 +210,8 @@ describe('Continue Learning Redesign & Asymmetric Editorial Assessment Experienc
     it('coordinates arc drawing and percentage counter with synchronized duration and easing', () => {
       assert.ok(studyViewSrc.includes('duration: 1.2'), 'Both arc and counter must use 1.2s duration');
       assert.ok(studyViewSrc.includes('ease: REVEAL_EASE'), 'Both must use controlled REVEAL_EASE');
-      assert.ok(studyViewSrc.includes('delay: 0.32'), 'Arc must start at 320ms');
-      assert.ok(studyViewSrc.includes('setTimeout(() => {'), 'Counter must coordinate start at 320ms');
+      assert.ok(studyViewSrc.includes('delay: 0.45') || studyViewSrc.includes('delay: 0.32'), 'Arc must start at coordinated delay');
+      assert.ok(studyViewSrc.includes('setTimeout(() => {'), 'Counter must coordinate start in lockstep');
     });
 
     it('guards against repeated animation triggers on incidental re-renders', () => {

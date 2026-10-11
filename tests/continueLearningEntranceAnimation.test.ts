@@ -7,27 +7,47 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-describe('GRAPHMIND CONTINUE LEARNING — TEXT ENTRANCE ANIMATION REDESIGN', () => {
+describe('GRAPHMIND CONTINUE LEARNING — SOPHISTICATED TYPOGRAPHY ENTRANCE ANIMATION', () => {
   const studyViewPath = path.resolve(__dirname, '../src/components/study/StudySpaceView.tsx');
   const studyCssPath = path.resolve(__dirname, '../src/styles/studySpace.css');
 
   const studyViewSrc = fs.readFileSync(studyViewPath, 'utf8');
   const studyCss = fs.readFileSync(studyCssPath, 'utf8');
 
-  describe('1. Coordinated Text Reveal & Visual Hierarchy (Phase 2)', () => {
-    it('reveals CONTINUE LEARNING kicker with subtle vertical rise and short controlled duration (0–150ms)', () => {
-      assert.ok(studyViewSrc.includes('className="study-continue-kicker"'));
+  describe('1. Eyebrow — Subtle Horizontal Clipping Reveal (0.00–0.04s)', () => {
+    it('reveals CONTINUE LEARNING kicker through a horizontal clipping mask emerging left-to-right', () => {
+      assert.ok(studyViewSrc.includes('className="study-continue-kicker-clip"'), 'Must have clipping container');
+      assert.ok(studyViewSrc.includes('className="study-continue-kicker"'), 'Must have kicker element');
       assert.ok(
-        studyViewSrc.includes("initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}"),
-        'Kicker must start slightly below with subtle y: 6 travel'
+        studyViewSrc.includes("clipPath: 'inset(0 100% 0 0)'"),
+        'Kicker must start masked horizontally at inset(0 100% 0 0)'
       );
       assert.ok(
-        studyViewSrc.includes("transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.28, delay: 0.04, ease: REVEAL_EASE }}"),
-        'Kicker must use 0.28s duration with 0.04s delay and REVEAL_EASE'
+        studyViewSrc.includes("clipPath: 'inset(0 0% 0 0)'"),
+        'Kicker must reveal to inset(0 0% 0 0)'
+      );
+      assert.ok(
+        studyViewSrc.includes("transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.48, delay: 0.04, ease: REVEAL_EASE }}"),
+        'Kicker must use relaxed 0.48s duration starting at 0.04s'
       );
     });
 
-    it('reveals main heading through vertical clipping mask without altering font or line wrapping (100–450ms)', () => {
+    it('defines CSS tokens for horizontal clipping container and performance optimization', () => {
+      assert.match(
+        studyCss,
+        /\.study-continue-kicker-clip\s*\{[\s\S]*?overflow:\s*hidden;/,
+        'Kicker clip container must have overflow: hidden'
+      );
+      assert.match(
+        studyCss,
+        /\.study-continue-kicker\s*\{[\s\S]*?will-change:[\s\S]*?clip-path;/,
+        'Kicker must optimize clip-path'
+      );
+    });
+  });
+
+  describe('2. Main Heading — Hero Line-Level Vertical Reveal (0.12s)', () => {
+    it('reveals main heading through vertical clipping mask without altering font or line wrapping (0.12s)', () => {
       assert.ok(studyViewSrc.includes('className="study-continue-title-clip"'), 'Must have clipping container');
       assert.ok(studyViewSrc.includes('className="study-continue-title-line"'), 'Must have animated line span');
       assert.ok(
@@ -39,8 +59,8 @@ describe('GRAPHMIND CONTINUE LEARNING — TEXT ENTRANCE ANIMATION REDESIGN', () 
         'Heading line must animate to y: 0%'
       );
       assert.ok(
-        studyViewSrc.includes("transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.44, delay: 0.10, ease: REVEAL_EASE }}"),
-        'Heading line must use 0.44s duration starting at 100ms'
+        studyViewSrc.includes("transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.62, delay: 0.12, ease: REVEAL_EASE }}"),
+        'Heading line must use relaxed 0.62s duration starting at 0.12s'
       );
       assert.ok(studyViewSrc.includes('Your learning, in progress.'), 'Must preserve exact heading copy');
     });
@@ -57,39 +77,51 @@ describe('GRAPHMIND CONTINUE LEARNING — TEXT ENTRANCE ANIMATION REDESIGN', () 
         'Title line must optimize transform and opacity'
       );
     });
+  });
 
-    it('staggers assessment metadata (graph name, date, question count) after heading begins to settle (240ms)', () => {
-      assert.ok(studyViewSrc.includes('className="study-continue-meta-stack"'));
+  describe('3. Transition into Details — Coordinated Stagger (0.34s–0.72s)', () => {
+    it('reveals selected graph name with subtle vertical reveal at 0.34s', () => {
       assert.ok(
-        studyViewSrc.includes("initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}"),
-        'Meta stack must start with restrained y: 8 travel'
+        studyViewSrc.includes("className=\"study-continue-graph-name\""),
+        'Graph name must be styled with study-continue-graph-name'
       );
       assert.ok(
-        studyViewSrc.includes("transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.32, delay: 0.24, ease: REVEAL_EASE }}"),
-        'Meta stack must enter at 240ms'
+        studyViewSrc.includes("transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.46, delay: 0.34, ease: REVEAL_EASE }}"),
+        'Graph name must enter at 0.34s'
       );
     });
 
-    it('reveals correct-answer count with upward motion and concepts-to-revisit understated (320–400ms)', () => {
+    it('reveals assessment metadata (date, question count) staggered at 0.44s', () => {
+      assert.ok(studyViewSrc.includes('className="study-continue-context-line"'));
+      assert.ok(
+        studyViewSrc.includes("transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.42, delay: 0.44, ease: REVEAL_EASE }}"),
+        'Assessment metadata must enter at 0.44s'
+      );
+    });
+
+    it('reveals correct-answer count with upward motion at 0.54s', () => {
       assert.ok(
         studyViewSrc.includes("className=\"study-continue-ratio-row\""),
         'Ratio row must be a motion element'
       );
       assert.ok(
-        studyViewSrc.includes("transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.36, delay: 0.32, ease: REVEAL_EASE }}"),
-        'Ratio row must enter at 320ms'
+        studyViewSrc.includes("transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.46, delay: 0.54, ease: REVEAL_EASE }}"),
+        'Ratio row must enter at 0.54s'
       );
+    });
+
+    it('reveals concepts-to-revisit indicator at 0.64s with preserved warm styling', () => {
       assert.ok(
         studyViewSrc.includes("className=\"study-continue-meta\""),
         'Meta row must be a motion element'
       );
       assert.ok(
-        studyViewSrc.includes("transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.32, delay: 0.38, ease: REVEAL_EASE }}"),
-        'Concepts indicator must enter at 380ms'
+        studyViewSrc.includes("transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.44, delay: 0.64, ease: REVEAL_EASE }}"),
+        'Concepts indicator must enter at 0.64s'
       );
     });
 
-    it('reveals review action with subtle horizontal slide toward final position (460ms)', () => {
+    it('reveals review action with subtle horizontal entrance at 0.72s', () => {
       assert.ok(
         studyViewSrc.includes("className=\"study-continue-action-row\""),
         'Action row must be a motion element'
@@ -103,37 +135,34 @@ describe('GRAPHMIND CONTINUE LEARNING — TEXT ENTRANCE ANIMATION REDESIGN', () 
         'Action row must animate to x: 0'
       );
       assert.ok(
-        studyViewSrc.includes("transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.34, delay: 0.46, ease: REVEAL_EASE }}"),
-        'Action row must enter after metrics at 460ms'
+        studyViewSrc.includes("transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.46, delay: 0.72, ease: REVEAL_EASE }}"),
+        'Action row must enter at 0.72s'
       );
     });
   });
 
-  describe('2. Score Ring Coordination (Phase 3 & 4)', () => {
-    it('reveals score ring container with subtle opacity and scale settling (160ms)', () => {
+  describe('4. Score Ring Synchronization (0.22s & 0.45s)', () => {
+    it('reveals score ring container with restrained opacity transition at 0.22s', () => {
       assert.ok(
         studyViewSrc.includes("className=\"study-continue-action-wrap\""),
         'Action wrap must be a motion container'
       );
       assert.ok(
-        studyViewSrc.includes("initial={shouldReduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.98 }}"),
-        'Ring wrap must start with subtle scale: 0.98'
-      );
-      assert.ok(
-        studyViewSrc.includes("transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.38, delay: 0.16, ease: REVEAL_EASE }}"),
-        'Ring wrap must enter at 160ms'
+        studyViewSrc.includes("transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.46, delay: 0.22, ease: REVEAL_EASE }}"),
+        'Ring wrap must enter with restrained opacity transition at 0.22s'
       );
     });
 
-    it('coordinates SVG progress arc drawing and count-up starting at 320ms for 1.2s', () => {
-      assert.ok(studyViewSrc.includes('strokeDashoffset: { duration: 1.2, delay: 0.32, ease: REVEAL_EASE }'));
+    it('coordinates SVG progress arc drawing and count-up starting at 0.45s (450ms) for 1.2s', () => {
+      assert.ok(studyViewSrc.includes('strokeDashoffset: { duration: 1.2, delay: 0.45, ease: REVEAL_EASE }'));
       assert.ok(studyViewSrc.includes('setTimeout(() => {'));
+      assert.ok(studyViewSrc.includes('450);'));
       assert.ok(studyViewSrc.includes('duration: 1.2'));
       assert.ok(studyViewSrc.includes('ease: REVEAL_EASE'));
     });
   });
 
-  describe('3. Replay Lifecycle on Graph Switching (Phase 5)', () => {
+  describe('5. Replay Lifecycle on Graph Switching', () => {
     it('binds key={effectiveSelectedGraphId || "none"} on study-continue-grid to replay on every graph change', () => {
       assert.ok(
         studyViewSrc.includes('key={effectiveSelectedGraphId || \'none\'}'),
@@ -167,7 +196,7 @@ describe('GRAPHMIND CONTINUE LEARNING — TEXT ENTRANCE ANIMATION REDESIGN', () 
     });
   });
 
-  describe('4. Accessibility & Reduced Motion (Phase 6)', () => {
+  describe('6. Accessibility & Reduced Motion', () => {
     it('disables animation durations and delays when shouldReduceMotion is true', () => {
       assert.ok(
         studyViewSrc.includes('transition={shouldReduceMotion ? { duration: 0 } :'),
@@ -179,11 +208,16 @@ describe('GRAPHMIND CONTINUE LEARNING — TEXT ENTRANCE ANIMATION REDESIGN', () 
       );
     });
 
-    it('includes .study-continue-title-line in CSS prefers-reduced-motion media query', () => {
+    it('includes .study-continue-kicker and .study-continue-title-line in CSS prefers-reduced-motion media query', () => {
+      assert.match(
+        studyCss,
+        /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.study-continue-kicker,/,
+        'Must include .study-continue-kicker in reduced motion rules'
+      );
       assert.match(
         studyCss,
         /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.study-continue-title-line,/,
-        'Must disable CSS transforms and transitions on .study-continue-title-line for reduced motion'
+        'Must include .study-continue-title-line in reduced motion rules'
       );
     });
   });

@@ -559,6 +559,12 @@
   width: 100%;
 }
 
+.study-continue-kicker-clip {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
 .study-continue-kicker {
   font-family: var(--font-mono, monospace);
   font-size: 10.5px;
@@ -568,6 +574,7 @@
   color: var(--accent, #A3FF12);
   display: inline-block;
   line-height: 1;
+  will-change: transform, opacity, clip-path;
 }
 
 .study-continue-eyebrow-tag {
@@ -2702,6 +2709,7 @@
    -------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   .study-title-line,
+  .study-continue-kicker,
   .study-continue-title-line,
   .study-header-divider,
   .study-btn-arrow,
@@ -2723,6 +2731,8 @@
     transition: none !important;
     animation: none !important;
     transform: none !important;
+    clip-path: none !important;
+    opacity: 1 !important;
   }
 
   .study-trajectory-line {

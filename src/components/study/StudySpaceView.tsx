@@ -1936,9 +1936,9 @@ export function StudySpaceView({
     hasAnimatedRef.current = true;
 
     // Coordinated entrance: counter animates in lockstep with the SVG arc drawing
-    // Arc delay is 320ms and runs for 1200ms with REVEAL_EASE.
-    // Counter timeout starts at 320ms and runs for 1200ms with REVEAL_EASE.
-    // Both finish simultaneously at 1520ms.
+    // Arc delay is 450ms and runs for 1200ms with REVEAL_EASE.
+    // Counter timeout starts at 450ms and runs for 1200ms with REVEAL_EASE.
+    // Both finish simultaneously at 1650ms.
     let controls: { stop: () => void } | null = null;
     const timer = setTimeout(() => {
       if (endpointRef.current && clampedScore > 0) {
@@ -1965,7 +1965,7 @@ export function StudySpaceView({
           }
         }
       });
-    }, 320);
+    }, 450);
 
     return () => {
       clearTimeout(timer);
@@ -2209,14 +2209,16 @@ export function StudySpaceView({
                     {/* AREA A — Section Context & Prominent Graph Title (Upper-Left) */}
                     <div className="study-continue-context-layer">
                       <div className="study-continue-eyebrow-row">
-                        <motion.span 
-                          className="study-continue-kicker"
-                          initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-                          animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-                          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.28, delay: 0.04, ease: REVEAL_EASE }}
-                        >
-                          CONTINUE LEARNING
-                        </motion.span>
+                        <span className="study-continue-kicker-clip">
+                          <motion.span 
+                            className="study-continue-kicker"
+                            initial={shouldReduceMotion ? { opacity: 1, clipPath: 'inset(0 0% 0 0)', x: 0 } : { opacity: 0, clipPath: 'inset(0 100% 0 0)', x: -6 }}
+                            animate={hasContinueEnteredView ? { opacity: 1, clipPath: 'inset(0 0% 0 0)', x: 0 } : { opacity: 0, clipPath: 'inset(0 100% 0 0)', x: -6 }}
+                            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.48, delay: 0.04, ease: REVEAL_EASE }}
+                          >
+                            CONTINUE LEARNING
+                          </motion.span>
+                        </span>
                       </div>
 
                       <div className="study-continue-identity-row">
@@ -2225,32 +2227,46 @@ export function StudySpaceView({
                           title="Your learning, in progress."
                           initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
                           animate={hasContinueEnteredView ? { opacity: 1 } : { opacity: 0 }}
-                          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.20, delay: 0.08 }}
+                          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.28, delay: 0.10 }}
                         >
                           <span className="study-continue-title-clip">
                             <motion.span 
                               className="study-continue-title-line"
                               initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: '105%' }}
                               animate={hasContinueEnteredView ? { opacity: 1, y: '0%' } : { opacity: 0, y: '105%' }}
-                              transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.44, delay: 0.10, ease: REVEAL_EASE }}
+                              transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.62, delay: 0.12, ease: REVEAL_EASE }}
                             >
                               Your learning, in progress.
                             </motion.span>
                           </span>
                         </motion.h2>
 
-                        <motion.div 
-                          className="study-continue-meta-stack"
-                          initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-                          animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-                          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.32, delay: 0.24, ease: REVEAL_EASE }}
-                        >
+                        <div className="study-continue-meta-stack">
                           {latestAttempt ? (
-                            <span className="study-continue-graph-name">{latestAttempt.graphName}</span>
+                            <motion.span 
+                              className="study-continue-graph-name"
+                              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+                              animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+                              transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.46, delay: 0.34, ease: REVEAL_EASE }}
+                            >
+                              {latestAttempt.graphName}
+                            </motion.span>
                           ) : (
-                            <span className="study-continue-graph-name">{selectedGraphMeta.name}</span>
+                            <motion.span 
+                              className="study-continue-graph-name"
+                              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+                              animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+                              transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.46, delay: 0.34, ease: REVEAL_EASE }}
+                            >
+                              {selectedGraphMeta.name}
+                            </motion.span>
                           )}
-                          <div className="study-continue-context-line">
+                          <motion.div 
+                            className="study-continue-context-line"
+                            initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+                            animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+                            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.42, delay: 0.44, ease: REVEAL_EASE }}
+                          >
                             {latestAttempt && latestDateInfo ? (
                               <>
                                 <span>{latestDateInfo.dateStr}</span>
@@ -2260,8 +2276,8 @@ export function StudySpaceView({
                             ) : (
                               <span>No assessments yet</span>
                             )}
-                          </div>
-                        </motion.div>
+                          </motion.div>
+                        </div>
                       </div>
                     </div>
 
@@ -2273,9 +2289,9 @@ export function StudySpaceView({
                           {/* LEFT: Correct-Answer Statistic */}
                           <motion.div 
                             className="study-continue-ratio-row"
-                            initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-                            animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-                            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.36, delay: 0.32, ease: REVEAL_EASE }}
+                            initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+                            animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+                            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.46, delay: 0.54, ease: REVEAL_EASE }}
                           >
                             <div className="study-continue-ratio-num">
                               <span className="study-ratio-numerator">{pad(latestAttempt.correctAnswers)}</span>
@@ -2288,9 +2304,9 @@ export function StudySpaceView({
                           {/* MIDDLE: Missed-Concept Count */}
                           <motion.div 
                             className="study-continue-meta"
-                            initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-                            animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-                            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.32, delay: 0.38, ease: REVEAL_EASE }}
+                            initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 5 }}
+                            animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 5 }}
+                            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.44, delay: 0.64, ease: REVEAL_EASE }}
                           >
                             <span 
                               className={`study-meta-indicator ${missedCount > 0 ? 'study-meta-indicator-warm' : 'study-meta-indicator-lime'}`} 
@@ -2312,7 +2328,7 @@ export function StudySpaceView({
                             className="study-continue-action-row"
                             initial={shouldReduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }}
                             animate={hasContinueEnteredView ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }}
-                            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.34, delay: 0.46, ease: REVEAL_EASE }}
+                            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.46, delay: 0.72, ease: REVEAL_EASE }}
                           >
                             <button
                               type="button"
@@ -2339,9 +2355,9 @@ export function StudySpaceView({
                         /* Empty state when selected knowledge graph has no assessment attempts yet */
                         <motion.div 
                           className="study-continue-empty-body"
-                          initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-                          animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-                          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, delay: 0.30, ease: REVEAL_EASE }}
+                          initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+                          animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+                          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.46, delay: 0.50, ease: REVEAL_EASE }}
                         >
                           <p className="study-continue-empty-msg">
                             Start your first assessment for this knowledge graph to track your understanding and identify concepts to revisit.
@@ -2350,7 +2366,7 @@ export function StudySpaceView({
                             className="study-continue-action-row"
                             initial={shouldReduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }}
                             animate={hasContinueEnteredView ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }}
-                            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.34, delay: 0.42, ease: REVEAL_EASE }}
+                            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.46, delay: 0.64, ease: REVEAL_EASE }}
                           >
                             <button
                               type="button"
@@ -2373,9 +2389,9 @@ export function StudySpaceView({
                   {/* AREA B — Performance Visualization (Focal Circular Score) */}
                   <motion.div 
                     className="study-continue-action-wrap"
-                    initial={shouldReduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.98 }}
-                    animate={hasContinueEnteredView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.98 }}
-                    transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.38, delay: 0.16, ease: REVEAL_EASE }}
+                    initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+                    animate={hasContinueEnteredView ? { opacity: 1 } : { opacity: 0 }}
+                    transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.46, delay: 0.22, ease: REVEAL_EASE }}
                   >
                     <div className="study-continue-score-block">
                       <div className="study-continue-circle-wrap">
@@ -2424,7 +2440,7 @@ export function StudySpaceView({
                                 opacity: clampedScore === 0 ? 0 : 1
                               } : { strokeDashoffset: CIRCLE_CIRCUMFERENCE, opacity: 0 }}
                               transition={shouldReduceMotion ? { duration: 0 } : { 
-                                strokeDashoffset: { duration: 1.2, delay: 0.32, ease: REVEAL_EASE },
+                                strokeDashoffset: { duration: 1.2, delay: 0.45, ease: REVEAL_EASE },
                                 opacity: { duration: 0 }
                               }}
                             />
