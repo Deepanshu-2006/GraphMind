@@ -600,6 +600,21 @@
   max-width: 820px;
 }
 
+.study-continue-title-clip {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.16em;
+  margin-bottom: -0.16em;
+}
+
+.study-continue-title-line {
+  display: block;
+  transform-origin: 0% 100%;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
 .study-continue-meta-stack {
   display: flex;
   flex-direction: column;
@@ -2687,6 +2702,7 @@
    -------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   .study-title-line,
+  .study-continue-title-line,
   .study-header-divider,
   .study-btn-arrow,
   .study-btn-underline,
