@@ -199,19 +199,18 @@ describe('GRAPHMIND STUDY SPACE — COMPLETE UI/UX OVERHAUL VERIFICATION', () =>
   });
 
   describe('5. Assessment History & Group Hierarchy', () => {
-    it('streamlines latest attempt and avoids nested bordered card repetition', () => {
-      assert.ok(studyViewSrc.includes('className="study-latest-card"'));
-      assert.ok(studyViewSrc.includes('className="study-metrics-grid"'));
-      assert.ok(studyViewSrc.includes('VIEW RESULTS'));
+    it('streamlines attempts and avoids nested bordered card repetition', () => {
+      assert.ok(studyViewSrc.includes('className="study-records-list"'));
+      assert.ok(studyViewSrc.includes('className="study-record-metrics"'));
+      assert.ok(studyViewSrc.includes('View results'));
     });
 
-    it('supports previous attempts disclosure with accessible aria controls and rotating chevron', () => {
-      assert.ok(studyViewSrc.includes('className="study-disclosure-btn"'));
-      assert.ok(studyViewSrc.includes('aria-expanded={isExpanded}'));
-      assert.ok(studyViewSrc.includes('study-disclosure-arrow'));
+    it('renders non-redundant editorial record items with attempt identity', () => {
+      assert.ok(studyViewSrc.includes('className="study-record-item"'));
+      assert.ok(studyViewSrc.includes('className="study-record-identity"'));
       assert.match(
         studyCss,
-        /\.study-disclosure-arrow\.open\s*\{[\s\S]*?transform:\s*rotate\(180deg\);/
+        /\.study-record-item\s*\{[\s\S]*?border-bottom:\s*1px solid rgba\(255,\s*255,\s*255,\s*0\.05\);/
       );
     });
 

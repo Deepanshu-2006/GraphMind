@@ -1515,13 +1515,15 @@
   padding-top: 0;
 }
 
-/* Level 1: Graph Identity */
+/* Level 1: Graph Identity Group Heading */
 .study-group-header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 20px;
+  gap: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 4px;
   flex-wrap: wrap;
 }
 
@@ -1542,95 +1544,130 @@
   line-height: 1.25;
 }
 
+.study-group-count,
 .study-group-meta {
   font-family: var(--font-body, sans-serif);
   font-size: 13px;
   font-weight: 400;
   color: #737373;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
-/* Level 1: Score Progress Comparison */
-.study-progress-comparison {
+/* Records List & Item */
+.study-records-list {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  text-align: right;
-  flex-shrink: 0;
 }
 
-.study-progress-diff-val {
-  font-family: var(--font-mono, monospace);
-  font-size: 13px;
-  font-weight: 550;
-  letter-spacing: -0.01em;
-}
-
-.study-progress-range-lbl {
-  font-family: var(--font-mono, monospace);
-  font-size: 11px;
-  color: #737373;
-  letter-spacing: 0.02em;
-}
-
-.study-progress-comparison.improved {
-  color: var(--accent, #A3FF12);
-}
-
-.study-progress-comparison.improved .study-progress-diff-val {
-  color: var(--accent, #A3FF12);
-}
-
-.study-progress-comparison.declined {
-  color: #F87171;
-}
-
-.study-progress-comparison.declined .study-progress-diff-val {
-  color: #F87171;
-}
-
-.study-progress-comparison.unchanged {
-  color: #8A8A8A;
-}
-
-.study-progress-comparison.unchanged .study-progress-diff-val {
-  color: #8A8A8A;
-}
-
-/* --------------------------------------------------------------------------
-   6. Level 2: Latest Result Presentation
-   -------------------------------------------------------------------------- */
-.study-latest-card {
-  background-color: rgba(255, 255, 255, 0.012);
-  border: none;
-  border-radius: 6px;
-  padding: 20px 24px;
+.study-record-item {
+  padding: 22px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  transition: background-color 180ms ease;
+  gap: 12px;
+  background: transparent;
+  border-radius: 0;
 }
 
-.study-latest-card:hover {
-  background-color: rgba(255, 255, 255, 0.02);
+.study-record-item:last-child {
+  border-bottom: none;
 }
 
-.study-latest-kicker {
-  font-family: var(--font-mono, monospace);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  color: #737373;
+/* Attempt Identity (e.g. Attempt 06) */
+.study-record-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.study-latest-kicker-label {
-  color: #737373;
+.study-record-identity {
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8A8A8A;
+  line-height: 1;
 }
 
-/* Inline restrained Expired status (● Expired) */
+/* Metrics 3-Column Grid */
+.study-record-metrics {
+  display: grid;
+  grid-template-columns: minmax(130px, 1.2fr) minmax(140px, 1.3fr) minmax(140px, 1.3fr);
+  gap: 32px;
+  align-items: flex-end;
+  margin-top: 2px;
+}
+
+.study-record-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.study-record-val {
+  font-family: var(--font-mono, monospace);
+  line-height: 1.1;
+  display: flex;
+  align-items: center;
+}
+
+.study-record-val-primary {
+  font-size: 24px;
+  font-weight: 600;
+  color: #FFFFFF;
+  letter-spacing: -0.02em;
+}
+
+.study-record-val-date {
+  font-family: var(--font-body, sans-serif);
+  font-size: 15.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: #D4D4D4;
+}
+
+.study-record-val-review {
+  font-family: var(--font-body, sans-serif);
+  font-size: 15.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.study-record-val-review.study-meta-warm {
+  color: #F87171;
+}
+
+.study-record-val-review.study-meta-neutral {
+  color: #8A8A8A;
+}
+
+.study-record-lbl {
+  font-family: var(--font-body, sans-serif);
+  font-size: 11px;
+  font-weight: 500;
+  color: #737373;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+
+/* Footer: Status on Left, View Results on Right */
+.study-record-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.study-record-status-wrap {
+  display: flex;
+  align-items: center;
+}
+
+/* Inline Restrained Status (● Expired) */
 .study-status-expired,
 .study-badge-expired {
   display: inline-flex;
@@ -1656,76 +1693,6 @@
   color: #EF4444;
 }
 
-.study-metrics-grid {
-  display: grid;
-  grid-template-columns: minmax(130px, 1.2fr) minmax(100px, 0.9fr) minmax(140px, 1.2fr) minmax(150px, 1.2fr) auto;
-  gap: 28px;
-  align-items: flex-end;
-}
-
-.study-metric-item {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.study-metric-val {
-  font-family: var(--font-mono, monospace);
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: #FFFFFF;
-  line-height: 1.1;
-  display: flex;
-  align-items: center;
-}
-
-.study-metric-val.study-metric-primary {
-  font-size: 24px;
-  font-weight: 600;
-  color: #FFFFFF;
-}
-
-.study-metric-val.study-metric-date {
-  font-family: var(--font-body, sans-serif);
-  font-size: 16.5px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  color: #C2C2C2;
-}
-
-.study-metric-val.study-metric-review {
-  font-size: 20px;
-  font-weight: 600;
-  color: #F87171;
-}
-
-.study-metric-val.study-metric-neutral {
-  font-size: 20px;
-  font-weight: 600;
-  color: #8A8A8A;
-}
-
-.study-metric-val.study-meta-warm {
-  color: #F87171;
-}
-
-.study-metric-lbl {
-  font-family: var(--font-body, sans-serif);
-  font-size: 11.5px;
-  font-weight: 500;
-  color: #7A7A7A;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-top: 2px;
-}
-
-.study-metric-item.action-col {
-  text-align: right;
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-}
 
 .study-editorial-btn {
   background: transparent;
@@ -3031,6 +2998,11 @@
     gap: 10px;
   }
 
+  .study-record-metrics {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px 24px;
+  }
+
   .study-progress-comparison {
     align-items: flex-start;
     text-align: left;
@@ -3318,6 +3290,21 @@
 }
 
 @media (max-width: 480px) {
+  .study-record-metrics {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .study-record-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .study-record-footer .study-editorial-btn {
+    align-self: flex-start;
+  }
+
   .study-progress-metrics {
     grid-template-columns: 1fr;
   }

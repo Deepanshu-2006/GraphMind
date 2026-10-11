@@ -130,55 +130,44 @@ describe('GRAPHMIND ASSESSMENT HISTORY — PREMIUM REDESIGN VERIFICATION', () =>
       );
     });
 
-    it('implements Level 1 Graph Identity with 20px semibold name and muted attempt count', () => {
+    it('implements Graph Identity with 20px semibold name and singular/plural assessment count', () => {
       assert.ok(studyViewSrc.includes('className="study-group-name"'));
-      assert.ok(studyViewSrc.includes('className="study-group-meta"'));
-      assert.ok(studyViewSrc.includes('{group.totalAttempts} {group.totalAttempts === 1 ? \'attempt\' : \'attempts\'}'));
+      assert.ok(studyViewSrc.includes('className="study-group-count study-group-meta"'));
+      assert.ok(studyViewSrc.includes("{group.totalAttempts} {group.totalAttempts === 1 ? 'assessment' : 'assessments'}"));
       assert.match(
         studyCss,
         /\.study-group-name\s*\{[\s\S]*?font-size:\s*20px;/
       );
     });
 
-    it('formats Level 1 score comparison with two-line layout aligned right', () => {
-      assert.ok(studyViewSrc.includes('className="study-progress-diff-val"'));
-      assert.ok(studyViewSrc.includes('className="study-progress-range-lbl"'));
-      assert.ok(studyViewSrc.includes('Previous {group.progressComparison.previousScore}% → Latest {group.progressComparison.latestScore}%'));
+    it('removes redundant score comparisons, percentage points, and percentage score from records', () => {
+      assert.ok(!studyViewSrc.includes('study-progress-diff-val'), 'Must not repeat percentage point comparisons in history');
+      assert.ok(!studyViewSrc.includes('study-progress-range-lbl'), 'Must not display previous to latest score ranges');
+    });
+
+    it('implements minimal editorial records list with clear metric columns and labels', () => {
+      assert.ok(studyViewSrc.includes('className="study-records-list"'));
+      assert.ok(studyViewSrc.includes('className="study-record-item"'));
+      assert.ok(studyViewSrc.includes('className="study-record-identity"'));
+      assert.ok(studyViewSrc.includes('Attempt {attemptNumber}'));
+      assert.ok(studyViewSrc.includes('CORRECT ANSWERS'));
+      assert.ok(studyViewSrc.includes('COMPLETED'));
+      assert.ok(studyViewSrc.includes('TO REVIEW'));
+      assert.ok(studyViewSrc.includes('View results'));
       assert.match(
         studyCss,
-        /\.study-progress-comparison\s*\{[\s\S]*?align-items:\s*flex-end;/
+        /\.study-record-val-primary\s*\{[\s\S]*?font-size:\s*24px;/
       );
     });
 
-    it('implements Level 2 Latest Assessment with borderless card and aligned metrics columns', () => {
-      assert.ok(studyViewSrc.includes('className="study-latest-card"'));
-      assert.ok(studyViewSrc.includes('className="study-latest-kicker"'));
-      assert.ok(studyViewSrc.includes('Latest attempt · Attempt'));
-      assert.ok(studyViewSrc.includes('Correct answers'));
-      assert.ok(studyViewSrc.includes('Score'));
-      assert.ok(studyViewSrc.includes('Completed'));
-      assert.ok(studyViewSrc.includes('Concepts to review'));
-      assert.ok(studyViewSrc.includes('View Results'));
+    it('styles records with clean hairline dividers and restrained whitespace', () => {
       assert.match(
         studyCss,
-        /\.study-latest-card\s*\{[\s\S]*?border:\s*none;/
-      );
-    });
-
-    it('implements Level 3 Previous Attempts minimal disclosure and clean table', () => {
-      assert.ok(studyViewSrc.includes('className="study-disclosure-btn"'));
-      assert.ok(
-        studyViewSrc.includes('PREVIOUS ATTEMPTS · {group.previousAttempts.length}') ||
-        studyViewSrc.includes('Previous attempts · {group.previousAttempts.length}')
-      );
-      assert.ok(studyViewSrc.includes('study-disclosure-arrow'));
-      assert.match(
-        studyCss,
-        /\.study-table-container\s*\{[\s\S]*?border:\s*none;/
+        /\.study-record-item\s*\{[\s\S]*?border-bottom:\s*1px solid rgba\(255,\s*255,\s*255,\s*0\.05\);/
       );
       assert.match(
         studyCss,
-        /\.study-table-container\s*\{[\s\S]*?background:\s*transparent;/
+        /\.study-record-item:last-child\s*\{[\s\S]*?border-bottom:\s*none;/
       );
     });
   });

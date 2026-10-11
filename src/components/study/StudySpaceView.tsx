@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, useReducedMotion, useInView, animate } from 'framer-motion';
-import { Search, X, ChevronDown } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import type { KnowledgeGraph } from '../../types/knowledgeGraph';
 import type { 
   KnowledgeTest, 
@@ -484,6 +484,7 @@ export interface GraphAttemptGroup {
   graphId: string;
   graphName: string;
   totalAttempts: number;
+  attempts: AssessmentAttempt[];
   latestAttempt: AssessmentAttempt;
   previousAttempts: AssessmentAttempt[];
   progressComparison?: ScoreComparison;
@@ -1842,8 +1843,6 @@ export function StudySpaceView({
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<StudyFilterMode>('all');
 
-  // Expanded graph groups map for previous attempts disclosure
-  const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(new Set());
 
   // View state: 'list' | 'historical-results' | 'review-answers' | 'review-missed'
   const [viewMode, setViewMode] = useState<StudyViewMode>('list');
@@ -1970,9 +1969,6 @@ export function StudySpaceView({
     return computeGraphLearningProgress(effectiveSelectedGraphId, attempts);
   }, [effectiveSelectedGraphId, attempts]);
 
-  // Assessment History scope filter: 'all' or 'selected'
-  const [historyScope, setHistoryScope] = useState<'all' | 'selected'>('all');
-
   // Assessment History search focus & input ref
   const [isHistorySearchFocused, setIsHistorySearchFocused] = useState(false);
   const historySearchInputRef = useRef<HTMLInputElement>(null);
@@ -1981,11 +1977,7 @@ export function StudySpaceView({
   const [filterTabBounds, setFilterTabBounds] = useState<{ left: number; width: number } | null>(null);
   const filterTabsRef = useRef<HTMLDivElement>(null);
 
-  const activeFilterKey = filterMode === 'needs-review' 
-    ? 'needs-review' 
-    : historyScope === 'selected' 
-    ? 'graph' 
-    : 'all';
+  const activeFilterKey = filterMode === 'needs-review' ? 'needs-review' : 'all';
 
   const updateFilterPillPosition = useCallback(() => {
     if (!filterTabsRef.current) return;
@@ -2002,7 +1994,7 @@ export function StudySpaceView({
 
   useEffect(() => {
     updateFilterPillPosition();
-  }, [updateFilterPillPosition, selectedGraphMeta?.name]);
+  }, [updateFilterPillPosition]);
 
   useEffect(() => {
     const container = filterTabsRef.current;
@@ -2106,18 +2098,6 @@ export function StudySpaceView({
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Toggle expanded state for a graph group
-  const toggleGroupExpanded = useCallback((groupId: string) => {
-    setExpandedGroupIds(prev => {
-      const next = new Set(prev);
-      if (next.has(groupId)) {
-        next.delete(groupId);
-      } else {
-        next.add(groupId);
-      }
-      return next;
-    });
-  }, []);
 
   // Navigate between historical sub-views (results, answers, missed) preserving attempt ID in URL
   const handleNavigateSubView = useCallback((targetView: StudyViewMode) => {
@@ -2203,7 +2183,7 @@ export function StudySpaceView({
     return map;
   }, [attempts]);
 
-  // Organize attempts into Graph Groups (Section 2, 3, 4, 5)
+  // Organize attempts into Graph Groups
   const graphGroups = useMemo<GraphAttemptGroup[]>(() => {
     const groupsMap: Record<string, { graphName: string; list: AssessmentAttempt[] }> = {};
 
@@ -2239,6 +2219,7 @@ export function StudySpaceView({
         graphId,
         graphName: data.graphName,
         totalAttempts: sorted.length,
+        attempts: sorted,
         latestAttempt,
         previousAttempts,
         progressComparison
@@ -2251,36 +2232,45 @@ export function StudySpaceView({
     });
   }, [attempts]);
 
-  // Filtered graph groups based on search query, review filter, and selected graph scope (Section 6 & 8)
+  // Filtered graph groups based on search query and review filter
   const filteredGroups = useMemo<GraphAttemptGroup[]>(() => {
-    return graphGroups.filter(group => {
-      // Filter by selected graph if historyScope is 'selected'
-      if (historyScope === 'selected' && effectiveSelectedGraphId && group.graphId !== effectiveSelectedGraphId) {
-        return false;
-      }
+    return graphGroups
+      .map(group => {
+        const matchingAttempts = group.attempts.filter(attempt => {
+          // Search matching: match graph name OR attempt concepts
+          if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase().trim();
+            const matchesName = group.graphName.toLowerCase().includes(q);
+            const matchesConcepts = attempt.conceptNames?.some(c => c.toLowerCase().includes(q));
+            if (!matchesName && !matchesConcepts) {
+              return false;
+            }
+          }
 
-      // Search matching
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchesName = group.graphName.toLowerCase().includes(q);
-        const matchesConcepts = group.latestAttempt.conceptNames?.some(c => c.toLowerCase().includes(q));
-        if (!matchesName && !matchesConcepts) {
-          return false;
-        }
-      }
+          // Filter: needs review
+          if (filterMode === 'needs-review') {
+            const score = attempt.scorePercentage;
+            const missed = attempt.resultsSummary?.reviewRecommendedConcepts?.length || 0;
+            if (score >= 80 && missed === 0) {
+              return false;
+            }
+          }
 
-      // Filter: needs review
-      if (filterMode === 'needs-review') {
-        const score = group.latestAttempt.scorePercentage;
-        const missed = group.latestAttempt.resultsSummary?.reviewRecommendedConcepts?.length || 0;
-        if (score >= 80 && missed === 0) {
-          return false;
-        }
-      }
+          return true;
+        });
 
-      return true;
-    });
-  }, [graphGroups, searchQuery, filterMode, historyScope, effectiveSelectedGraphId]);
+        if (matchingAttempts.length === 0) return null;
+
+        return {
+          ...group,
+          totalAttempts: matchingAttempts.length,
+          attempts: matchingAttempts,
+          latestAttempt: matchingAttempts[0],
+          previousAttempts: matchingAttempts.slice(1)
+        };
+      })
+      .filter((g): g is GraphAttemptGroup => g !== null);
+  }, [graphGroups, searchQuery, filterMode]);
 
   // Retrieve selected attempt from persistence service
   const selectedAttempt = useMemo<AssessmentAttempt | null>(() => {
@@ -3175,48 +3165,10 @@ export function StudySpaceView({
                     data-tab-key="all"
                     aria-selected={activeFilterKey === 'all'}
                     className={`study-filter-tab ${activeFilterKey === 'all' ? 'active' : ''}`}
-                    onClick={() => { setFilterMode('all'); setHistoryScope('all'); }}
+                    onClick={() => setFilterMode('all')}
                   >
                     <span className="study-filter-tab-label">All assessments</span>
                   </button>
-
-                  {selectedGraphMeta && (
-                    <button
-                      type="button"
-                      role="tab"
-                      data-tab-key="graph"
-                      aria-selected={activeFilterKey === 'graph'}
-                      className={`study-filter-tab study-filter-tab-graph ${activeFilterKey === 'graph' ? 'active' : ''}`}
-                      onClick={() => {
-                        setFilterMode('all');
-                        setHistoryScope(prev => prev === 'selected' ? 'all' : 'selected');
-                      }}
-                      title={`Filter history to ${selectedGraphMeta.name}`}
-                    >
-                      <span className="study-filter-tag-dot" aria-hidden="true" />
-                      <span className="study-filter-tab-label">{selectedGraphMeta.name}</span>
-                      {historyScope === 'selected' && (
-                        <span
-                          className="study-filter-tag-clear"
-                          role="button"
-                          tabIndex={0}
-                          aria-label="Clear graph filter and show all graphs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setHistoryScope('all');
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.stopPropagation();
-                              setHistoryScope('all');
-                            }
-                          }}
-                        >
-                          ×
-                        </span>
-                      )}
-                    </button>
-                  )}
 
                   <button
                     type="button"
@@ -3224,7 +3176,7 @@ export function StudySpaceView({
                     data-tab-key="needs-review"
                     aria-selected={activeFilterKey === 'needs-review'}
                     className={`study-filter-tab ${activeFilterKey === 'needs-review' ? 'active' : ''}`}
-                    onClick={() => { setFilterMode('needs-review'); setHistoryScope('all'); }}
+                    onClick={() => setFilterMode('needs-review')}
                   >
                     <span className="study-filter-tab-label">Needs review</span>
                   </button>
@@ -3238,8 +3190,6 @@ export function StudySpaceView({
                 <span className="study-search-empty-title">
                   {searchQuery.trim()
                     ? `No assessments found matching "${searchQuery}"`
-                    : historyScope === 'selected'
-                    ? `No assessments found for "${selectedGraphMeta?.name || 'this graph'}"`
                     : filterMode === 'needs-review'
                     ? 'No assessments need review'
                     : 'No assessments found for the selected filter.'}
@@ -3247,8 +3197,6 @@ export function StudySpaceView({
                 <p className="study-search-empty-sub">
                   {searchQuery.trim()
                     ? 'Check the spelling or try searching for another concept or knowledge graph.'
-                    : historyScope === 'selected'
-                    ? 'This knowledge graph has no assessment attempts matching the current filter.'
                     : filterMode === 'needs-review'
                     ? 'All completed assessments scored 80% or higher with zero missed concepts.'
                     : 'Try searching for another keyword or reset active filters.'}
@@ -3271,11 +3219,11 @@ export function StudySpaceView({
                   <button
                     type="button"
                     className="study-editorial-btn"
-                    onClick={() => { setSearchQuery(''); setFilterMode('all'); setHistoryScope('all'); }}
+                    onClick={() => { setSearchQuery(''); setFilterMode('all'); }}
                     aria-label="Reset all search filters"
                   >
                     <span className="study-btn-content">
-                      <span>{historyScope === 'selected' ? 'View all knowledge graphs' : 'Clear search filters'}</span>
+                      <span>Clear search filters</span>
                       <span className="study-btn-arrow" aria-hidden="true">→</span>
                     </span>
                     <span className="study-btn-underline" aria-hidden="true" />
@@ -3294,229 +3242,84 @@ export function StudySpaceView({
                 className="study-groups-list"
               >
                 {filteredGroups.map((group) => {
-                  const latest = group.latestAttempt;
-                  const latestDate = formatAttemptDate(latest.completedAt);
-                  const isExpanded = expandedGroupIds.has(group.graphId);
-                  const latestAttemptNumber = attemptNumberMap.get(latest.id) || '01';
-                  const missedInLatest = latest.resultsSummary?.reviewRecommendedConcepts?.length || 0;
-
                   return (
-                    <div key={group.graphId} className="study-graph-group">
-                      {/* Group Header (Level 1 — Graph Identity) */}
+                    <section key={group.graphId} className="study-graph-group" aria-label={`${group.graphName} assessments`}>
+                      {/* Group Header: Graph Name on Left, Assessment Count on Right */}
                       <div className="study-group-header">
-                        <div className="study-group-title-block">
-                          <h3 className="study-group-name">{group.graphName}</h3>
-                          <div className="study-group-meta">
-                            {group.totalAttempts} {group.totalAttempts === 1 ? 'attempt' : 'attempts'}
-                          </div>
-                        </div>
-
-                        {/* Level 1 — Learning Progress Comparison (when applicable) */}
-                        {group.progressComparison && group.progressComparison.status !== 'incompatible' && (
-                          <div 
-                            className={`study-progress-comparison ${group.progressComparison.status}`}
-                            title={`Previous: ${group.progressComparison.previousScore}% | Latest: ${group.progressComparison.latestScore}%`}
-                          >
-                            <span className="study-progress-diff-val">
-                              {group.progressComparison.status === 'improved' && `+${group.progressComparison.diffPoints} percentage points`}
-                              {group.progressComparison.status === 'declined' && `-${group.progressComparison.diffPoints} percentage points`}
-                              {group.progressComparison.status === 'unchanged' && `0 percentage points`}
-                            </span>
-                            <span className="study-progress-range-lbl">
-                              Previous {group.progressComparison.previousScore}% → Latest {group.progressComparison.latestScore}%
-                            </span>
-                          </div>
-                        )}
+                        <h3 className="study-group-name">{group.graphName}</h3>
+                        <span className="study-group-count study-group-meta">
+                          {group.totalAttempts} {group.totalAttempts === 1 ? 'assessment' : 'assessments'}
+                        </span>
                       </div>
 
-                      {/* Latest Result Card (Level 2 — Latest Assessment) */}
-                      <div className="study-latest-card">
-                        <div className="study-latest-kicker">
-                          <span className="study-latest-kicker-label">Latest attempt · Attempt {latestAttemptNumber}</span>
-                          {latest.completionReason === 'time_expired' && (
-                            <span className="study-status-expired study-badge-expired" role="status" aria-label="Assessment expired">
-                              <span className="study-status-expired-dot" aria-hidden="true">●</span>
-                              <span>Expired</span>
-                            </span>
-                          )}
-                        </div>
+                      {/* Direct List of Assessment Records */}
+                      <div className="study-records-list">
+                        {group.attempts.map((attempt) => {
+                          const dateInfo = formatAttemptDate(attempt.completedAt);
+                          const attemptNumber = attemptNumberMap.get(attempt.id) || '01';
+                          const missedConcepts = attempt.resultsSummary?.reviewRecommendedConcepts?.length || 0;
+                          const isExpired = attempt.completionReason === 'time_expired';
 
-                        <div className="study-metrics-grid">
-                          <div className="study-metric-item">
-                            <span className="study-metric-val study-metric-primary">
-                              {pad(latest.correctAnswers)} / {pad(latest.totalQuestions)}
-                            </span>
-                            <span className="study-metric-lbl">Correct answers</span>
-                          </div>
+                          return (
+                            <article key={attempt.id} className="study-record-item">
+                              {/* Top row: Attempt identity */}
+                              <div className="study-record-header">
+                                <span className="study-record-identity">Attempt {attemptNumber}</span>
+                              </div>
 
-                          <div className="study-metric-item">
-                            <span className="study-metric-val study-metric-primary">
-                              {latest.scorePercentage}%
-                            </span>
-                            <span className="study-metric-lbl">Score</span>
-                          </div>
-
-                          <div className="study-metric-item">
-                            <span className="study-metric-val study-metric-date">
-                              {latestDate.dateStr}
-                            </span>
-                            <span className="study-metric-lbl">Completed</span>
-                          </div>
-
-                          <div className="study-metric-item">
-                            <span className={`study-metric-val ${missedInLatest > 0 ? 'study-metric-review' : 'study-metric-neutral'}`}>
-                              {missedInLatest}
-                            </span>
-                            <span className="study-metric-lbl">Concepts to review</span>
-                          </div>
-
-                          <div className="study-metric-item action-col">
-                            <button
-                              type="button"
-                              className="study-editorial-btn"
-                              onClick={() => handleOpenAttempt(latest.id)}
-                              aria-label={`View latest results for ${group.graphName}`}
-                            >
-                              <span className="study-btn-content">
-                                <span>View Results</span>
-                                <span className="study-btn-arrow" aria-hidden="true">→</span>
-                              </span>
-                              <span className="study-btn-underline" aria-hidden="true" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Previous Attempts Disclosure (Section 4) */}
-                      {group.previousAttempts.length > 0 && (
-                        <div className="study-previous-section">
-                          <button
-                            type="button"
-                            className="study-disclosure-btn"
-                            onClick={() => toggleGroupExpanded(group.graphId)}
-                            aria-expanded={isExpanded}
-                            aria-controls={`prev-attempts-${group.graphId}`}
-                          >
-                            <span className="study-disclosure-kicker">
-                              PREVIOUS ATTEMPTS · {group.previousAttempts.length}
-                            </span>
-                            <span className="study-disclosure-action">
-                              <span>{isExpanded ? 'HIDE HISTORY' : 'VIEW HISTORY'}</span>
-                              <ChevronDown 
-                                size={13} 
-                                className={`study-disclosure-arrow ${isExpanded ? 'open' : ''}`}
-                                aria-hidden="true"
-                              />
-                            </span>
-                          </button>
-
-                          <AnimatePresence initial={false}>
-                            {isExpanded && (
-                              <motion.div
-                                id={`prev-attempts-${group.graphId}`}
-                                key={`panel-${group.graphId}`}
-                                initial={shouldReduceMotion ? false : { height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={shouldReduceMotion ? undefined : { height: 0, opacity: 0 }}
-                                transition={{ duration: 0.28, ease: REVEAL_EASE }}
-                                className="study-previous-panel"
-                              >
-                                <div className="study-table-container">
-                                  <table className="study-table" role="table">
-                                    <thead className="study-table-head">
-                                      <tr>
-                                        <th scope="col" className="study-th">ATTEMPT</th>
-                                        <th scope="col" className="study-th">COMPLETED</th>
-                                        <th scope="col" className="study-th">RESULT</th>
-                                        <th scope="col" className="study-th">QUESTIONS</th>
-                                        <th scope="col" className="study-th study-th-action">ACTION</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {group.previousAttempts.map((attempt) => {
-                                        const dateInfo = formatAttemptDate(attempt.completedAt);
-                                        const attemptNum = attemptNumberMap.get(attempt.id) || '01';
-
-                                        return (
-                                          <tr
-                                            key={attempt.id}
-                                            className="study-row"
-                                            tabIndex={0}
-                                            onClick={() => handleOpenAttempt(attempt.id)}
-                                            onKeyDown={(e) => {
-                                              if (e.key === 'Enter' || e.key === ' ') {
-                                                e.preventDefault();
-                                                handleOpenAttempt(attempt.id);
-                                              }
-                                            }}
-                                            aria-label={`View attempt ${attemptNum} for ${group.graphName}`}
-                                          >
-                                            <td className="study-td">
-                                              <div className="study-attempt-name">
-                                                Attempt {attemptNum}
-                                              </div>
-                                              {attempt.completionReason === 'time_expired' && (
-                                                <span className="study-status-expired" role="status" aria-label="Assessment expired">
-                                                  <span className="study-status-expired-dot" aria-hidden="true">●</span>
-                                                  <span>Expired</span>
-                                                </span>
-                                              )}
-                                            </td>
-
-                                            <td className="study-td">
-                                              <div className="study-date-text">{dateInfo.dateStr}</div>
-                                              {dateInfo.timeStr && (
-                                                <div className="study-time-text">{dateInfo.timeStr}</div>
-                                              )}
-                                            </td>
-
-                                            <td className="study-td">
-                                              <div className="study-result-score">
-                                                {pad(attempt.correctAnswers)} / {pad(attempt.totalQuestions)} correct
-                                              </div>
-                                              <div className="study-result-pct">
-                                                {attempt.scorePercentage}%
-                                              </div>
-                                            </td>
-
-                                            <td className="study-td">
-                                              <div className="study-questions-count">
-                                                {attempt.totalQuestions} questions
-                                              </div>
-                                              <div className="study-questions-time">
-                                                {formatDuration(attempt.timeSpentSeconds)}
-                                              </div>
-                                            </td>
-
-                                            <td className="study-td study-td-action">
-                                              <button
-                                                type="button"
-                                                className="study-editorial-btn"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleOpenAttempt(attempt.id);
-                                                }}
-                                                aria-label={`View results for attempt ${attemptNum}`}
-                                              >
-                                                <span className="study-btn-content">
-                                                  <span>View Results</span>
-                                                  <span className="study-btn-arrow" aria-hidden="true">→</span>
-                                                </span>
-                                                <span className="study-btn-underline" aria-hidden="true" />
-                                              </button>
-                                            </td>
-                                          </tr>
-                                        );
-                                      })}
-                                    </tbody>
-                                  </table>
+                              {/* Metrics row: 3 aligned columns */}
+                              <div className="study-record-metrics">
+                                <div className="study-record-metric">
+                                  <span className="study-record-val study-record-val-primary">
+                                    {pad(attempt.correctAnswers)} / {pad(attempt.totalQuestions)}
+                                  </span>
+                                  <span className="study-record-lbl">CORRECT ANSWERS</span>
                                 </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      )}
-                    </div>
+
+                                <div className="study-record-metric">
+                                  <span className="study-record-val study-record-val-date">
+                                    {dateInfo.dateStr}
+                                  </span>
+                                  <span className="study-record-lbl">COMPLETED</span>
+                                </div>
+
+                                <div className="study-record-metric">
+                                  <span className={`study-record-val study-record-val-review ${missedConcepts > 0 ? 'study-meta-warm' : 'study-meta-neutral'}`}>
+                                    {missedConcepts} {missedConcepts === 1 ? 'concept' : 'concepts'}
+                                  </span>
+                                  <span className="study-record-lbl">TO REVIEW</span>
+                                </div>
+                              </div>
+
+                              {/* Footer row: Status on left, Primary action on right */}
+                              <div className="study-record-footer">
+                                <div className="study-record-status-wrap">
+                                  {isExpired && (
+                                    <span className="study-status-expired" role="status" aria-label="Assessment expired">
+                                      <span className="study-status-expired-dot" aria-hidden="true">●</span>
+                                      <span>Expired</span>
+                                    </span>
+                                  )}
+                                </div>
+
+                                <button
+                                  type="button"
+                                  className="study-editorial-btn"
+                                  onClick={() => handleOpenAttempt(attempt.id)}
+                                  aria-label={`View results for ${group.graphName} Attempt ${attemptNumber}`}
+                                >
+                                  <span className="study-btn-content">
+                                    <span>View results</span>
+                                    <span className="study-btn-arrow" aria-hidden="true">→</span>
+                                  </span>
+                                  <span className="study-btn-underline" aria-hidden="true" />
+                                </button>
+                              </div>
+                            </article>
+                          );
+                        })}
+                      </div>
+                    </section>
                   );
                 })}
               </motion.div>

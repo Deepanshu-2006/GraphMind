@@ -140,14 +140,13 @@ describe('GRAPHMIND PHASE 1, PROMPT 2 — STUDY SPACE ARCHITECTURE', () => {
     });
   });
 
-  describe('4. Assessment History List & Table Architecture', () => {
-    it('defines exact column headers: ATTEMPT, COMPLETED, RESULT, QUESTIONS, ACTION', () => {
-      const headers = ['ATTEMPT', 'COMPLETED', 'RESULT', 'QUESTIONS', 'ACTION'];
-      headers.forEach(h => {
+  describe('4. Assessment History List & Record Architecture', () => {
+    it('defines exact record labels: CORRECT ANSWERS, COMPLETED, TO REVIEW, View results', () => {
+      const labels = ['CORRECT ANSWERS', 'COMPLETED', 'TO REVIEW', 'View results'];
+      labels.forEach(l => {
         assert.ok(
-          studyViewSrc.includes(`<th scope="col" className="study-th">${h}</th>`) ||
-          studyViewSrc.includes(`<th scope="col" className="study-th study-th-action">${h}</th>`),
-          `Table must include column header ${h}`
+          studyViewSrc.includes(l),
+          `Record must include label or action ${l}`
         );
       });
     });
@@ -480,85 +479,66 @@ describe('GRAPHMIND STUDY SPACE PROMPT 3 — ASSESSMENT HISTORY & ATTEMPT ORGANI
     });
   });
 
-  describe('3. Latest Attempt Presentation & Hierarchy', () => {
-    it('presents latest attempt with clear score, correct answers, and date metadata', () => {
+  describe('3. Attempt Presentation & Hierarchy', () => {
+    it('presents attempts with clear attempt identity, correct answers, and date metadata', () => {
       assert.ok(
-        studyViewSrc.includes('Latest attempt · Attempt'),
-        'Must display latest attempt label with attempt sequence number'
+        studyViewSrc.includes('Attempt {attemptNumber}'),
+        'Must display attempt identity with attempt number'
       );
       assert.ok(
-        studyViewSrc.includes('Correct answers'),
-        'Must include Correct answers label'
+        studyViewSrc.includes('CORRECT ANSWERS'),
+        'Must include CORRECT ANSWERS label'
       );
       assert.ok(
-        studyViewSrc.includes('Score'),
-        'Must include Score label'
+        studyViewSrc.includes('COMPLETED'),
+        'Must include COMPLETED label'
       );
       assert.ok(
-        studyViewSrc.includes('VIEW RESULTS'),
-        'Must include VIEW RESULTS action'
+        studyViewSrc.includes('TO REVIEW'),
+        'Must include TO REVIEW label'
+      );
+      assert.ok(
+        studyViewSrc.includes('View results'),
+        'Must include View results action'
       );
     });
 
-    it('displays time expired badge if latest attempt expired', () => {
+    it('displays time expired badge if attempt expired', () => {
       assert.ok(
-        studyViewSrc.includes("latest.completionReason === 'time_expired'"),
-        'Must check if latest attempt completed due to timer expiry'
+        studyViewSrc.includes("attempt.completionReason === 'time_expired'"),
+        'Must check if attempt completed due to timer expiry'
       );
       assert.ok(
-        studyViewSrc.includes('study-badge-expired'),
+        studyViewSrc.includes('study-status-expired'),
         'Must style time expired badge'
       );
     });
   });
 
-  describe('4. Previous Attempts Disclosure & Accessibility', () => {
-    it('renders disclosure button with total previous attempts count', () => {
+  describe('4. Assessment Groups & Record Listing', () => {
+    it('renders all attempts directly under knowledge graph group', () => {
       assert.ok(
-        studyViewSrc.includes('PREVIOUS ATTEMPTS · {group.previousAttempts.length}'),
-        'Must indicate previous attempts count on disclosure button'
+        studyViewSrc.includes('group.attempts.map((attempt) =>'),
+        'Must render all attempts for each graph group'
       );
       assert.ok(
-        studyViewSrc.includes("aria-expanded={isExpanded}"),
-        'Must provide accessible aria-expanded attribute'
+        studyViewSrc.includes('className="study-records-list"'),
+        'Must render clean records list'
       );
       assert.ok(
-        studyViewSrc.includes("aria-controls={`prev-attempts-${group.graphId}`}"),
-        'Must connect disclosure button to panel via aria-controls'
-      );
-    });
-
-    it('toggles label between VIEW HISTORY and HIDE HISTORY with rotating arrow', () => {
-      assert.ok(
-        studyViewSrc.includes("{isExpanded ? 'HIDE HISTORY' : 'VIEW HISTORY'}"),
-        'Must toggle between VIEW HISTORY and HIDE HISTORY'
-      );
-      assert.ok(
-        studyViewSrc.includes("study-disclosure-arrow ${isExpanded ? 'open' : ''}"),
-        'Must toggle .open class on disclosure arrow'
-      );
-      assert.match(
-        studyCss,
-        /\.study-disclosure-arrow\.open\s*\{[\s\S]*?transform:\s*rotate\(180deg\);/,
-        'CSS must rotate arrow 180deg when open'
+        studyViewSrc.includes('className="study-record-item"'),
+        'Must render editorial record items'
       );
     });
 
-    it('supports keyboard navigation on historical rows', () => {
+    it('displays graph name and assessment count once per group', () => {
       assert.ok(
-        studyViewSrc.includes("tabIndex={0}"),
-        'Must enable keyboard focus on attempt rows'
+        studyViewSrc.includes('className="study-group-name"'),
+        'Must display graph name once per group'
       );
       assert.ok(
-        studyViewSrc.includes("e.key === 'Enter' || e.key === ' '"),
-        'Must support Enter and Space keys to open historical results'
-      );
-    });
-
-    it('does not render disclosure toggle if only 1 attempt exists for the graph', () => {
-      assert.ok(
-        studyViewSrc.includes('{group.previousAttempts.length > 0 && ('),
-        'Only render previous attempts section when older attempts actually exist'
+        studyViewSrc.includes("{group.totalAttempts} {group.totalAttempts === 1 ? 'assessment' : 'assessments'}"),
+        'Must display assessment count once per group'
       );
     });
   });

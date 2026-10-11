@@ -284,16 +284,16 @@ describe('GRAPHMIND STUDY SPACE — KNOWLEDGE GRAPH SELECTOR & FILTERED LEARNING
     });
   });
 
-  describe('5. Assessment History Relationship & Filtering (Requirement 8)', () => {
-    it('supports all-graphs browsing by default with optional filter to selected graph', () => {
-      assert.ok(studyViewSrc.includes('study-filter-tab-graph'));
-      assert.ok(studyViewSrc.includes('study-filter-tag-clear'));
-      assert.ok(studyViewSrc.includes("setHistoryScope('all')"));
+  describe('5. Assessment History Relationship & Distinct Filtering', () => {
+    it('keeps history filters focused on All assessments and Needs review without redundant graph tab', () => {
+      assert.ok(studyViewSrc.includes('All assessments'));
+      assert.ok(studyViewSrc.includes('Needs review'));
+      assert.ok(studyViewSrc.includes('study-filter-tabs'));
     });
 
-    it('provides accessible reset action in search empty state when filtered to selected graph', () => {
-      assert.ok(studyViewSrc.includes("View all knowledge graphs"));
-      assert.ok(studyViewSrc.includes("No assessments found for"));
+    it('provides accessible reset action in search empty state', () => {
+      assert.ok(studyViewSrc.includes('Clear search filters'));
+      assert.ok(studyViewSrc.includes('No assessments found matching'));
     });
   });
 
