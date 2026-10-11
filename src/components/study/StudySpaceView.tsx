@@ -493,6 +493,7 @@ export interface LearningTrajectoryRowProps {
   prog: GraphLearningProgress;
   hoveredPointAttemptId: string | null;
   setHoveredPointAttemptId: (id: string | null) => void;
+  selectedAttemptId?: string | null;
   handleOpenAttempt: (attemptId: string) => void;
   shouldReduceMotion: boolean;
   isFirst: boolean;
@@ -502,6 +503,7 @@ export function LearningTrajectoryRow({
   prog,
   hoveredPointAttemptId,
   setHoveredPointAttemptId,
+  selectedAttemptId,
   handleOpenAttempt,
   shouldReduceMotion,
   isFirst
@@ -542,24 +544,31 @@ export function LearningTrajectoryRow({
         ? scrollContainer.scrollTop
         : (window.scrollY || document.documentElement.scrollTop || 0);
 
-      // Trigger only when user has scrolled into view or row is comfortably in mid-viewport
-      const isMeaningfullyVisible = (scrollTop > 35 && relativeTop < containerHeight * 0.92 && relativeTop > -rect.height + 40)
-        || (relativeTop < containerHeight * 0.62 && relativeTop > -rect.height + 40);
+      // Check chart visualization block specifically so drawing triggers when the graph is in view
+      const chartEl = (rowRef.current.querySelector('.study-trajectory-viz-block') as HTMLElement | null)
+        || (rowRef.current.querySelector('.study-trajectory-svg') as HTMLElement | null);
+      const chartRect = chartEl ? chartEl.getBoundingClientRect() : rect;
+      const chartRelTop = chartRect.top - containerTop;
+      const chartRelBottom = chartRect.bottom - containerTop;
+
+      const isMeaningfullyVisible = (chartRelTop < containerHeight * 0.85 && chartRelBottom > 40)
+        || (relativeTop < containerHeight * 0.50 && relativeTop > -rect.height + 40);
 
       if (isMeaningfullyVisible) {
         setRowInView(true);
         return true;
+      } else if (scrollTop < 40 || chartRelTop > containerHeight * 1.15) {
+        // Reset when user scrolls back to top so it draws itself again on scroll
+        setRowInView(false);
+        hasAnimatedScoreRef.current = false;
       }
       return false;
     };
 
-    if (checkVisibility()) return;
+    checkVisibility();
 
     const handleScroll = () => {
-      if (checkVisibility()) {
-        scrollContainer.removeEventListener('scroll', handleScroll);
-        window.removeEventListener('scroll', handleScroll);
-      }
+      checkVisibility();
     };
 
     scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
@@ -631,7 +640,7 @@ export function LearningTrajectoryRow({
     }
 
     const targetScore = prog.latestScore;
-    const duration = 1050; // 900–1200ms target duration
+    const duration = 1850; // Synchronized with deliberate cinematic trajectory line drawing
     let startTime: number | null = null;
 
     // Cubic ease-out deceleration curve: accelerates naturally and settles smoothly
@@ -665,6 +674,19 @@ export function LearningTrajectoryRow({
     };
   }, [rowInView, prog.latestScore, shouldReduceMotion]);
 
+  const [timelineSettled, setTimelineSettled] = useState(false);
+
+  useEffect(() => {
+    if (!rowInView) {
+      setTimelineSettled(false);
+      return;
+    }
+    const settleTimer = setTimeout(() => {
+      setTimelineSettled(true);
+    }, 2200);
+    return () => clearTimeout(settleTimer);
+  }, [rowInView]);
+
   const isUnchangedOrZero = prog.comparisonStatus === 'unchanged' || (prog.hasComparison && prog.latestScore === 0 && prog.previousScore === 0);
   const scoreDiff = prog.hasComparison && prog.previousScore !== undefined
     ? prog.latestScore - prog.previousScore
@@ -679,7 +701,7 @@ export function LearningTrajectoryRow({
       ? `−${Math.abs(scoreDiff)} pp`
       : '0 pp';
 
-  const [isPathSettled, setIsPathSettled] = useState(Boolean(shouldReduceMotion));
+
 
   const pts = prog.chronologicalAttempts;
   const N = pts.length;
@@ -692,23 +714,28 @@ export function LearningTrajectoryRow({
 
   const availableWidth = X_MAX - X_MIN;
   const step = N <= 1 ? 0 : Math.min(180, availableWidth / (N - 1));
-  const coords = pts.map((pt, i) => {
-    const x = N === 1 ? 76 : X_MIN + i * step;
-    const clampedScore = Math.max(0, Math.min(100, Number(pt.scorePercentage) || 0));
-    const y = Y_MAX - (clampedScore / 100) * H;
-    return {
-      x: Math.round(x * 10) / 10,
-      y: Math.round(y * 10) / 10,
-      pt,
-      index: i
-    };
-  });
+  const coords = useMemo(() => {
+    return pts.map((pt, i) => {
+      const x = N === 1 ? 76 : X_MIN + i * step;
+      const clampedScore = Math.max(0, Math.min(100, Number(pt.scorePercentage) || 0));
+      const y = Y_MAX - (clampedScore / 100) * H;
+      return {
+        x: Math.round(x * 10) / 10,
+        y: Math.round(y * 10) / 10,
+        pt,
+        index: i
+      };
+    });
+  }, [pts, N, step, H]);
 
   const pathD = N >= 2 ? coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x} ${c.y}`).join(' ') : '';
 
-  // Synchronized animation timings calculated from actual path geometry
+  // Cinematic trajectory line drawing curve:
+  // Deliberate, breathing take-off, steady graceful travel across data points,
+  // and an ultra-silky, gradual deceleration into the final resting point.
+  const TRAJECTORY_LINE_EASE = [0.32, 0.08, 0.24, 1.0] as const;
   const LINE_DELAY = 0.25;
-  const LINE_DURATION = 1.35;
+  const LINE_DURATION = 1.85;
 
   const { pointArrivalDelays } = useMemo(() => {
     if (coords.length <= 1) {
@@ -725,28 +752,34 @@ export function LearningTrajectoryRow({
       dists.push(totalLen);
     }
 
-    const delays = dists.map(dist => {
-      const progressFrac = totalLen > 0 ? dist / totalLen : 0;
-      // Cubic ease-out deceleration curve: p(t) = 1 - (1 - t)^3  =>  t = 1 - (1 - p)^(1/3)
-      const timeFrac = progressFrac <= 0
-        ? 0
-        : progressFrac >= 1
-          ? 1
-          : 1 - Math.pow(1 - progressFrac, 1 / 3);
+    // Inverts cubic-bezier(x1, y1, x2, y2) to find normalized time fraction `t` for a given path progress
+    const solveBezierTime = (progressFrac: number, x1 = 0.32, y1 = 0.08, x2 = 0.24, y2 = 1.0) => {
+      if (progressFrac <= 0) return 0;
+      if (progressFrac >= 1) return 1;
+      let low = 0;
+      let high = 1;
+      for (let it = 0; it < 20; it++) {
+        const mid = (low + high) / 2;
+        const y = 3 * (1 - mid) * (1 - mid) * mid * y1 + 3 * (1 - mid) * mid * mid * y2 + mid * mid * mid;
+        if (y < progressFrac) low = mid; else high = mid;
+      }
+      const u = (low + high) / 2;
+      return 3 * (1 - u) * (1 - u) * u * x1 + 3 * (1 - u) * u * u * x2 + u * u * u;
+    };
+
+    const delays = dists.map((dist) => {
+      const rawFrac = totalLen > 0 ? dist / totalLen : 0;
+      const timeFrac = solveBezierTime(rawFrac);
       return Math.round((LINE_DELAY + timeFrac * LINE_DURATION) * 1000) / 1000;
     });
 
     return { totalPathLength: Math.round(totalLen * 10) / 10, pointArrivalDelays: delays };
   }, [coords]);
 
-  // Deterministic collision avoidance for score labels
+  // Deterministic collision avoidance for score labels (stable across hover interactions)
   const visibleLabels = useMemo(() => {
     const visible = new Set<string>();
     if (N === 0) return visible;
-
-    if (hoveredPointAttemptId) {
-      visible.add(hoveredPointAttemptId);
-    }
 
     const latest = coords[N - 1];
     if (latest) {
@@ -779,11 +812,27 @@ export function LearningTrajectoryRow({
     });
 
     return visible;
-  }, [coords, N, hoveredPointAttemptId]);
+  }, [coords, N]);
 
   const activePointCoord = useMemo(() => {
     return hoveredPointAttemptId ? coords.find(c => c.pt.attemptId === hoveredPointAttemptId) : null;
   }, [coords, hoveredPointAttemptId]);
+
+  // Persistent reference to the last inspected coordinate for smooth gliding transitions without unmounting
+  const [displayedTooltipPoint, setDisplayedTooltipPoint] = useState<typeof coords[0] | null>(null);
+
+  useEffect(() => {
+    if (activePointCoord) {
+      setDisplayedTooltipPoint(prev => (prev?.pt.attemptId === activePointCoord.pt.attemptId ? prev : activePointCoord));
+    }
+  }, [activePointCoord]);
+
+  const isTooltipActive = Boolean(hoveredPointAttemptId && activePointCoord);
+  const isTooltipNearTop = displayedTooltipPoint ? displayedTooltipPoint.y < 55 : false;
+  const isTooltipNearLeft = displayedTooltipPoint ? displayedTooltipPoint.x < 110 : false;
+  const isTooltipNearRight = displayedTooltipPoint ? displayedTooltipPoint.x > 650 : false;
+  const tooltipVerticalClass = isTooltipNearTop ? 'bottom' : 'top';
+  const tooltipHorizontalClass = isTooltipNearLeft ? 'align-left' : isTooltipNearRight ? 'align-right' : 'align-center';
 
   return (
     <motion.div
@@ -798,9 +847,14 @@ export function LearningTrajectoryRow({
         <div className="study-progress-card-title-wrap study-trajectory-identity">
           <span className="study-progress-kicker study-trajectory-kicker">KNOWLEDGE GRAPH</span>
           <h3 className="study-progress-graph-name study-trajectory-graph-name">{prog.graphName}</h3>
-          <span className="study-progress-attempts-count study-trajectory-attempts-count">
+          <motion.span
+            className="study-progress-attempts-count study-trajectory-attempts-count"
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
+            animate={rowInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.36, delay: 0.16, ease: REVEAL_EASE }}
+          >
             {prog.totalAttempts} completed {prog.totalAttempts === 1 ? 'attempt' : 'attempts'}
-          </span>
+          </motion.span>
         </div>
 
         <div className="study-trajectory-perf">
@@ -816,7 +870,7 @@ export function LearningTrajectoryRow({
                 aria-label={`${diffValueFormatted} vs. previous attempt`}
                 initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
                 animate={rowInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
-                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.38, delay: 0.45, ease: REVEAL_EASE }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.38, delay: LINE_DELAY + LINE_DURATION * 0.9, ease: REVEAL_EASE }}
               >
                 <span className="study-trajectory-diff-val">
                   <span className="study-progress-badge-symbol study-trajectory-diff-arrow" aria-hidden="true">
@@ -916,40 +970,60 @@ export function LearningTrajectoryRow({
               </text>
             </motion.g>
 
-            {/* PHASE 3 — Trajectory Drawing Line */}
+            {/* PHASE 3 — Trajectory Drawing Line & Ambient Glow */}
             {N >= 2 && pathD && (
-              <motion.path
-                d={pathD}
-                fill="none"
-                className="study-trajectory-line"
-                stroke="var(--accent, #A3FF12)"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={isPathSettled ? { strokeDasharray: 'none' } : undefined}
-                initial={shouldReduceMotion ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }}
-                animate={rowInView ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }}
-                transition={shouldReduceMotion ? { duration: 0 } : {
-                  pathLength: { duration: LINE_DURATION, delay: LINE_DELAY, ease: REVEAL_EASE },
-                  opacity: { duration: 0.2, delay: LINE_DELAY }
-                }}
-                onAnimationComplete={() => setIsPathSettled(true)}
-              />
+              <>
+                {/* Cinematic ambient glow trail that traces and illuminates the curve */}
+                <motion.path
+                  key={`glow-${pathD}`}
+                  d={pathD}
+                  fill="none"
+                  className="study-trajectory-line-glow"
+                  stroke="var(--accent, #A3FF12)"
+                  strokeWidth="5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  initial={shouldReduceMotion ? { pathLength: 1, opacity: 0.16 } : { pathLength: 0, opacity: 0 }}
+                  animate={rowInView ? { pathLength: 1, opacity: 0.16 } : { pathLength: 0, opacity: 0 }}
+                  transition={shouldReduceMotion ? { duration: 0 } : {
+                    pathLength: { duration: LINE_DURATION, delay: LINE_DELAY, ease: TRAJECTORY_LINE_EASE },
+                    opacity: { duration: 0.25, delay: LINE_DELAY }
+                  }}
+                />
+                {/* Crisp hairline trajectory stroke */}
+                <motion.path
+                  key={pathD}
+                  d={pathD}
+                  fill="none"
+                  className="study-trajectory-line"
+                  stroke="var(--accent, #A3FF12)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  initial={shouldReduceMotion ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }}
+                  animate={rowInView ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }}
+                  transition={shouldReduceMotion ? { duration: 0 } : {
+                    pathLength: { duration: LINE_DURATION, delay: LINE_DELAY, ease: TRAJECTORY_LINE_EASE },
+                    opacity: { duration: 0.15, delay: LINE_DELAY }
+                  }}
+                />
+              </>
             )}
 
             {/* PHASE 4 & 5 — Interactive Data Points and Score Labels */}
             {coords.map((c, idx) => {
-              const isSelected = hoveredPointAttemptId === c.pt.attemptId;
+              const isHovered = hoveredPointAttemptId === c.pt.attemptId;
               const isLatest = idx === N - 1;
-              const isHighlighted = isSelected;
-              const showLabel = visibleLabels.has(c.pt.attemptId);
+              const hasAnyHovered = hoveredPointAttemptId !== null;
+              const isDimmed = hasAnyHovered && !isHovered;
+              const showLabel = visibleLabels.has(c.pt.attemptId) || isHovered;
               const arrivalDelay = pointArrivalDelays[idx] ?? (LINE_DELAY + idx * 0.1);
-              const labelDelay = arrivalDelay + 0.08;
+              const labelDelay = arrivalDelay;
 
               return (
                 <motion.g
                   key={c.pt.attemptId}
-                  className={`study-svg-point-node study-trajectory-node ${isHighlighted ? 'hovered active' : ''} ${isLatest ? 'latest' : ''}`}
+                  className={`study-svg-point-node study-trajectory-node ${isHovered ? 'hovered active' : ''} ${isLatest ? 'latest' : ''} ${isDimmed ? 'dimmed' : ''}`}
                   tabIndex={0}
                   role="button"
                   aria-label={`${c.pt.attemptNumber}: ${c.pt.scorePercentage}% on ${c.pt.dateStr}`}
@@ -965,77 +1039,100 @@ export function LearningTrajectoryRow({
                   onMouseOver={() => setHoveredPointAttemptId(c.pt.attemptId)}
                   onFocus={() => setHoveredPointAttemptId(c.pt.attemptId)}
                   onBlur={() => setHoveredPointAttemptId(null)}
-                  initial={shouldReduceMotion ? false : { scale: 0.4, opacity: 0 }}
-                  animate={rowInView ? { scale: 1, opacity: 1 } : { scale: 0.4, opacity: 0 }}
-                  transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.22, delay: arrivalDelay, ease: REVEAL_EASE }}
+                  initial={shouldReduceMotion ? false : { scale: 0.35, opacity: 0 }}
+                  animate={rowInView ? { scale: 1, opacity: 1 } : { scale: 0.35, opacity: 0 }}
+                  transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.28, delay: arrivalDelay, ease: [0.16, 1, 0.3, 1] }}
                 >
-                  {isHighlighted && (
-                    <circle
-                      cx={c.x}
-                      cy={c.y}
-                      r="10"
-                      fill="none"
-                      stroke="var(--accent, #A3FF12)"
-                      strokeWidth="1"
-                      strokeOpacity="0.3"
-                    />
-                  )}
+                  {/* Generous invisible hit target for effortless pointer and touch interaction */}
                   <circle
                     cx={c.x}
                     cy={c.y}
-                    r={isHighlighted ? 5.5 : isLatest ? 4.5 : 3.5}
-                    fill={isHighlighted ? 'var(--accent, #A3FF12)' : '#0A0A0A'}
-                    stroke={isHighlighted ? '#FFFFFF' : isLatest ? 'var(--accent, #A3FF12)' : 'rgba(163, 255, 18, 0.45)'}
-                    strokeWidth={isHighlighted ? 2 : isLatest ? 1.75 : 1.25}
+                    r="16"
+                    fill="transparent"
+                    stroke="none"
+                    className="study-trajectory-hit-target"
+                  />
+
+                  {/* Subtle outer halo on hovered point */}
+                  {isHovered && (
+                    <circle
+                      cx={c.x}
+                      cy={c.y}
+                      r="9.5"
+                      fill="none"
+                      stroke="var(--accent, #A3FF12)"
+                      strokeWidth="1"
+                      strokeOpacity="0.32"
+                      className="study-trajectory-point-halo"
+                    />
+                  )}
+
+                  {/* Refined static concentric indicator on latest point (coexists when not hovered) */}
+                  {isLatest && !isHovered && (
+                    <circle
+                      cx={c.x}
+                      cy={c.y}
+                      r="8"
+                      fill="none"
+                      stroke="var(--accent, #A3FF12)"
+                      strokeWidth="1"
+                      strokeOpacity="0.28"
+                      className="study-trajectory-latest-ring"
+                    />
+                  )}
+
+                  {/* Clean circular point marker */}
+                  <circle
+                    cx={c.x}
+                    cy={c.y}
+                    r={isHovered ? 5 : isLatest ? 4.5 : 3.5}
+                    fill="#0D0D0D"
+                    stroke={isHovered || isLatest ? 'var(--accent, #A3FF12)' : 'rgba(163, 255, 18, 0.65)'}
+                    strokeWidth={isHovered ? 2 : isLatest ? 1.75 : 1.25}
                     className="study-trajectory-point"
                   />
+
                   {showLabel && (
-                    <motion.text
+                    <text
                       x={c.x}
                       y={c.y < 42 ? c.y + 14 : c.y - 9}
                       textAnchor={c.x < X_MIN + 20 ? 'start' : c.x > X_MAX - 20 ? 'end' : 'middle'}
-                      fill={isHighlighted ? '#FFFFFF' : isLatest ? 'var(--text-primary, #F5F5F5)' : '#7A7A7A'}
-                      fontSize={isHighlighted ? '10.5' : isLatest ? '9.5' : '9'}
-                      fontWeight={isHighlighted ? '600' : '500'}
+                      fill={isHovered ? '#FFFFFF' : isLatest ? 'var(--text-primary, #F5F5F5)' : '#888888'}
+                      fontSize={isHovered ? '10' : isLatest ? '9.5' : '9'}
+                      fontWeight={isHovered ? '600' : '500'}
                       fontFamily="var(--font-mono, monospace)"
-                      className={`study-trajectory-point-lbl ${isHighlighted ? 'highlight' : ''}`}
-                      initial={shouldReduceMotion ? false : { opacity: 0, y: c.y < 42 ? -3 : 3 }}
-                      animate={rowInView ? { opacity: 1, y: 0 } : { opacity: 0, y: c.y < 42 ? -3 : 3 }}
-                      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.25, delay: labelDelay, ease: REVEAL_EASE }}
+                      className={`study-trajectory-point-lbl ${isHovered ? 'highlight' : ''}`}
                     >
                       {c.pt.scorePercentage}%
-                    </motion.text>
+                    </text>
                   )}
                 </motion.g>
               );
             })}
           </svg>
 
-          {/* Interactive Tooltip (HTML overlay, positioned over active/hovered node) */}
-          {activePointCoord && (
+          {/* Refined floating tooltip with smooth glide across points */}
+          {displayedTooltipPoint && (
             <div
-              className="study-trajectory-tooltip"
+              className={`study-trajectory-tooltip ${isTooltipActive ? 'visible' : ''} ${tooltipVerticalClass} ${tooltipHorizontalClass}`}
               role="tooltip"
+              aria-hidden={!isTooltipActive}
               style={{
-                left: `${(activePointCoord.x / 760) * 100}%`,
-                top: `${(activePointCoord.y / 180) * 100}%`,
-                transform: activePointCoord.y < 50
-                  ? 'translate(-50%, 14px)'
-                  : 'translate(-50%, -100%)',
-                marginTop: activePointCoord.y < 50 ? 0 : -10
+                left: `${(displayedTooltipPoint.x / 760) * 100}%`,
+                top: `${(displayedTooltipPoint.y / 180) * 100}%`,
               }}
             >
-              <div className="study-trajectory-tooltip-row">
-                <span className="study-trajectory-tooltip-num">
-                  {activePointCoord.pt.attemptNumber}
+              <div className="study-trajectory-tooltip-header study-trajectory-tooltip-row">
+                <span className="study-trajectory-tooltip-num study-trajectory-tooltip-attempt">
+                  {displayedTooltipPoint.pt.attemptNumber}
                 </span>
                 <span className="study-trajectory-tooltip-score">
-                  {activePointCoord.pt.scorePercentage}%
+                  {displayedTooltipPoint.pt.scorePercentage}%
                 </span>
               </div>
-              {activePointCoord.pt.dateStr && (
+              {displayedTooltipPoint.pt.dateStr && (
                 <div className="study-trajectory-tooltip-date">
-                  {activePointCoord.pt.dateStr}
+                  {displayedTooltipPoint.pt.dateStr}
                 </div>
               )}
             </div>
@@ -1047,21 +1144,32 @@ export function LearningTrajectoryRow({
       <div className="study-progress-history-strip study-trajectory-strip">
         <span className="sr-only study-progress-strip-label">Score history:</span>
         <div
-          className="study-progress-chips-wrap study-trajectory-chips-wrap study-trajectory-timeline"
+          className={`study-progress-chips-wrap study-trajectory-chips-wrap study-trajectory-timeline ${
+            hoveredPointAttemptId !== null ? 'has-hover' : ''
+          } ${timelineSettled ? 'settled' : ''}`}
           role="list"
           aria-label="Chronological assessment attempt timeline"
         >
           {prog.chronologicalAttempts.map((pt, pIdx) => {
-            const isSelected = hoveredPointAttemptId === pt.attemptId;
+            const isInspected = hoveredPointAttemptId === pt.attemptId;
+            const isSelected = selectedAttemptId === pt.attemptId;
+            const hasAnyHovered = hoveredPointAttemptId !== null;
+            const isDimmed = hasAnyHovered && !isInspected;
             const isLatest = pIdx === N - 1;
-            const timelineStart = N <= 1 ? 0.35 : LINE_DELAY + LINE_DURATION * 0.75;
-            const colDelay = timelineStart + pIdx * 0.035;
+            const timelineStart = Math.round((LINE_DELAY + (N <= 1 ? 0.08 : LINE_DURATION * 0.72)) * 100) / 100;
+            const arrivalDelay = pointArrivalDelays[pIdx] ?? (LINE_DELAY + pIdx * 0.1);
+            void arrivalDelay;
+            const colDelay = shouldReduceMotion
+              ? 0
+              : Math.round((timelineStart + pIdx * 0.045) * 1000) / 1000;
 
             return (
               <motion.button
                 key={pt.attemptId}
                 type="button"
-                className={`study-progress-chip study-trajectory-chip study-trajectory-timeline-col ${isSelected ? 'active' : ''} ${isLatest ? 'latest' : ''}`}
+                className={`study-progress-chip study-trajectory-chip study-trajectory-timeline-col ${
+                  isInspected ? 'inspected active' : ''
+                } ${isSelected ? 'selected' : ''} ${isDimmed ? 'dimmed' : ''} ${isLatest ? 'latest' : ''}`}
                 onClick={() => handleOpenAttempt(pt.attemptId)}
                 onMouseEnter={() => setHoveredPointAttemptId(pt.attemptId)}
                 onMouseLeave={() => setHoveredPointAttemptId(null)}
@@ -1069,9 +1177,9 @@ export function LearningTrajectoryRow({
                 onFocus={() => setHoveredPointAttemptId(pt.attemptId)}
                 onBlur={() => setHoveredPointAttemptId(null)}
                 aria-label={`Attempt ${pad(pIdx + 1)}: ${pt.scorePercentage}% on ${pt.dateStr}. Select to review historical results.`}
-                initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
-                animate={rowInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.28, delay: colDelay, ease: REVEAL_EASE }}
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
+                animate={rowInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.28, delay: colDelay, ease: [0.16, 1, 0.3, 1] }}
               >
                 <div className="study-trajectory-col-top">
                   <span className="study-progress-chip-name study-trajectory-chip-num study-trajectory-col-num">
@@ -1085,8 +1193,8 @@ export function LearningTrajectoryRow({
                 <span className="study-progress-chip-date study-trajectory-chip-date study-trajectory-col-date">
                   {pt.dateStr}
                 </span>
-                {isSelected && (
-                  <span className="study-trajectory-active-pip" aria-hidden="true" />
+                {(isSelected || isInspected) && (
+                  <span className={`study-trajectory-active-pip ${isSelected ? 'selected' : 'inspected'}`} aria-hidden="true" />
                 )}
               </motion.button>
             );
@@ -2589,6 +2697,7 @@ export function StudySpaceView({
                     prog={selectedGraphProgress}
                     hoveredPointAttemptId={hoveredPointAttemptId}
                     setHoveredPointAttemptId={setHoveredPointAttemptId}
+                    selectedAttemptId={selectedAttemptId}
                     handleOpenAttempt={handleOpenAttempt}
                     shouldReduceMotion={Boolean(shouldReduceMotion)}
                     isFirst={true}

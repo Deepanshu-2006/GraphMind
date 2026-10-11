@@ -2163,7 +2163,18 @@
 }
 
 .study-trajectory-line {
-  vector-effect: non-scaling-stroke;
+  shape-rendering: geometricPrecision;
+}
+
+.study-trajectory-line-glow {
+  filter: blur(4px);
+  pointer-events: none;
+  shape-rendering: geometricPrecision;
+}
+
+.study-trajectory-pulse-ring {
+  pointer-events: none;
+  transform-origin: center;
 }
 
 .study-trajectory-node {
@@ -2171,22 +2182,37 @@
   outline: none;
 }
 
+.study-trajectory-hit-target {
+  cursor: pointer;
+  pointer-events: all;
+}
+
 .study-trajectory-point {
-  transition: r 180ms ease, stroke-width 180ms ease, stroke 180ms ease, fill 180ms ease;
+  transition:
+    r 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    stroke-width 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    stroke 200ms ease,
+    opacity 200ms cubic-bezier(0.16, 1, 0.3, 1);
   vector-effect: non-scaling-stroke;
 }
 
-.study-trajectory-node:hover .study-trajectory-point,
-.study-trajectory-node:focus-visible .study-trajectory-point {
-  r: 5.5px;
-  stroke: #FFFFFF;
-  fill: var(--accent, #A3FF12);
-  stroke-width: 2px;
+.study-trajectory-point-halo {
+  pointer-events: none;
+  transition: opacity 180ms ease, r 180ms ease;
+}
+
+.study-trajectory-latest-ring {
+  pointer-events: none;
+  transition: opacity 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .study-trajectory-point-lbl {
   user-select: none;
-  transition: fill 180ms ease, font-weight 180ms ease;
+  pointer-events: none;
+  transition:
+    fill 200ms ease,
+    font-weight 200ms ease,
+    opacity 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .study-trajectory-point-lbl.highlight {
@@ -2194,62 +2220,116 @@
   font-weight: 600;
 }
 
-/* Tooltip (Unclipped HTML Overlay, Usable by Pointer, Touch & Keyboard) */
+/* Fluid, jitter-free Dimming on Non-Hovered Points & Labels */
+.study-trajectory-node.dimmed .study-trajectory-point,
+.study-trajectory-node.dimmed .study-trajectory-point-lbl,
+.study-trajectory-node.dimmed .study-trajectory-latest-ring {
+  opacity: 0.32 !important;
+}
+
+/* Hovered Point: Fully opaque, prominent and crisp */
+.study-trajectory-node.hovered .study-trajectory-point,
+.study-trajectory-node.hovered .study-trajectory-point-lbl {
+  opacity: 1 !important;
+}
+
+/* Tooltip (Unclipped Floating Overlay with Smooth Gliding Motion) */
 .study-trajectory-tooltip {
   position: absolute;
-  transform: translate(-50%, -100%);
-  margin-top: -10px;
-  background-color: #121212;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 4px;
-  padding: 6px 10px;
-  pointer-events: none;
   z-index: 20;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65);
+  pointer-events: none;
+  background: rgba(16, 16, 16, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9px;
+  padding: 6px 11px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4);
   display: flex;
   flex-direction: column;
   gap: 2px;
   white-space: nowrap;
-  animation: trajectoryTooltipFade 140ms ease-out forwards;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    left 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    top 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 140ms ease,
+    visibility 140ms ease;
+  will-change: left, top, transform, opacity;
 }
 
-@keyframes trajectoryTooltipFade {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -92%);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -100%);
-  }
+.study-trajectory-tooltip.visible {
+  opacity: 1;
+  visibility: visible;
 }
 
+/* Vertical Positioning Variants (Clear 12px gap from point) */
+.study-trajectory-tooltip.top {
+  transform: translate(-50%, -100%);
+  margin-top: -12px;
+}
+
+.study-trajectory-tooltip.bottom {
+  transform: translate(-50%, 0);
+  margin-top: 12px;
+}
+
+/* Horizontal Edge Clamping (Prevents boundary clipping) */
+.study-trajectory-tooltip.align-left.top {
+  transform: translate(0, -100%);
+  margin-left: -6px;
+}
+
+.study-trajectory-tooltip.align-left.bottom {
+  transform: translate(0, 0);
+  margin-left: -6px;
+}
+
+.study-trajectory-tooltip.align-right.top {
+  transform: translate(-100%, -100%);
+  margin-left: 6px;
+}
+
+.study-trajectory-tooltip.align-right.bottom {
+  transform: translate(-100%, 0);
+  margin-left: 6px;
+}
+
+.study-trajectory-tooltip-header,
 .study-trajectory-tooltip-row {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.study-trajectory-tooltip-num {
-  font-family: var(--font-mono, monospace);
-  font-size: 10.5px;
+.study-trajectory-tooltip-num,
+.study-trajectory-tooltip-attempt {
+  font-family: var(--font-body, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  font-size: 12px;
   font-weight: 500;
-  color: #888888;
-  letter-spacing: 0.04em;
+  color: #D4D4D4;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
 }
 
 .study-trajectory-tooltip-score {
-  font-family: var(--font-display, var(--font-mono, monospace));
-  font-size: 13.5px;
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
   font-weight: 600;
   color: var(--accent, #A3FF12);
   font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 
 .study-trajectory-tooltip-date {
-  font-family: var(--font-body, sans-serif);
+  font-family: var(--font-body, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
   font-size: 11px;
-  color: #666666;
+  color: #888888;
+  line-height: 1.2;
+  margin-top: 1px;
 }
 
 /* AREA C — Minimalist Historical Attempt Timeline (Section 7) */
@@ -2293,7 +2373,23 @@
   position: relative;
   min-width: 44px;
   box-sizing: border-box;
+}
+
+.study-progress-chip,
+.study-trajectory-chip {
   transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.study-trajectory-timeline-col {
+  /* Clean color transition; Framer Motion exclusively drives entry animation without CSS fighting */
+  transition: color 180ms ease;
+  will-change: transform, opacity;
+}
+
+/* Fluid, jitter-free hover/dim opacity transitions once timeline settles or is interacted with */
+.study-trajectory-timeline.settled .study-trajectory-timeline-col,
+.study-trajectory-timeline.has-hover .study-trajectory-timeline-col {
+  transition: opacity 220ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms ease;
 }
 
 .study-trajectory-col-top {
@@ -2337,6 +2433,53 @@
   transition: color 180ms ease;
 }
 
+/* Hover/Inspected Attempt State (Connected to Chart Point) */
+.study-trajectory-timeline-col.inspected,
+.study-trajectory-timeline-col.selected {
+  opacity: 1 !important;
+}
+
+.study-trajectory-timeline-col.inspected .study-trajectory-col-num,
+.study-trajectory-timeline-col:hover .study-trajectory-col-num {
+  color: var(--accent, #A3FF12);
+}
+
+.study-trajectory-timeline-col.inspected .study-trajectory-col-score,
+.study-trajectory-timeline-col:hover .study-trajectory-col-score {
+  color: var(--accent, #A3FF12);
+}
+
+.study-trajectory-timeline-col.inspected .study-trajectory-col-date,
+.study-trajectory-timeline-col:hover .study-trajectory-col-date {
+  color: #A0A0A0;
+}
+
+/* Dimmed non-hovered attempts */
+.study-trajectory-timeline-col.dimmed {
+  opacity: 0.38 !important;
+}
+
+.study-trajectory-timeline-col.dimmed .study-trajectory-col-num {
+  color: #555555;
+}
+
+.study-trajectory-timeline-col.dimmed .study-trajectory-col-score {
+  color: #888888;
+}
+
+.study-trajectory-timeline-col.dimmed .study-trajectory-col-date {
+  color: #444444;
+}
+
+/* Persistent Selected State */
+.study-trajectory-timeline-col.selected .study-trajectory-col-num {
+  color: #CCCCCC;
+}
+
+.study-trajectory-timeline-col.selected .study-trajectory-col-score {
+  color: #FFFFFF;
+}
+
 /* Active Attempt State: Lime Green Accent and Indicator Pip */
 .study-progress-chip.active .study-trajectory-col-num,
 .study-trajectory-chip.active .study-trajectory-col-num {
@@ -2361,6 +2504,16 @@
   height: 2px;
   background-color: var(--accent, #A3FF12);
   border-radius: 1px;
+  transition: opacity 180ms ease, width 180ms ease;
+}
+
+.study-trajectory-active-pip.inspected {
+  opacity: 0.85;
+}
+
+.study-trajectory-active-pip.selected {
+  opacity: 1;
+  background-color: #FFFFFF;
 }
 
 /* Hover State: Subtle text brightness */
@@ -2909,6 +3062,8 @@
   .study-progress-card,
   .study-trajectory-row,
   .study-trajectory-line,
+  .study-trajectory-line-glow,
+  .study-trajectory-pulse-ring,
   .study-trajectory-node,
   .study-trajectory-chip,
   .study-revisit-card,
