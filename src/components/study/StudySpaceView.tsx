@@ -13,6 +13,8 @@ import {
   getAssessmentAttempts, 
   getAssessmentAttemptById 
 } from '../../services/assessmentHistory';
+import { loadGraphs, loadActiveGraphId } from '../../services/storage';
+import { useOptionalGraph } from '../../context/GraphContext';
 import { TestResultsView } from '../test/TestResultsView';
 import { TestReviewView } from '../test/TestReviewView';
 import { MissedConceptsReview } from '../test/MissedConceptsReview';
@@ -506,28 +508,53 @@ export function LearningTrajectoryRow({
 }: LearningTrajectoryRowProps) {
   const rowRef = useRef<HTMLDivElement | null>(null);
   const inViewRaw = useInView(rowRef, { once: true, amount: 0.15 });
+  void inViewRaw;
   const [rowInView, setRowInView] = useState(false);
 
   useEffect(() => {
-    if (inViewRaw || typeof window === 'undefined' || typeof IntersectionObserver === 'undefined' || shouldReduceMotion) {
+    if (typeof window === 'undefined' || typeof IntersectionObserver === 'undefined' || shouldReduceMotion) {
       setRowInView(true);
       return;
     }
 
+    const scrollContainer = (rowRef.current?.closest('.workspace-viewport') as HTMLElement | null)
+      || (document.querySelector('.workspace-viewport') as HTMLElement | null)
+      || window;
+
     const checkVisibility = () => {
-      if (rowRef.current) {
-        const rect = rowRef.current.getBoundingClientRect();
-        if (rect.top < window.innerHeight * 0.95 && rect.bottom > 0) {
-          setRowInView(true);
-          return true;
-        }
+      if (!rowRef.current) return false;
+      const rect = rowRef.current.getBoundingClientRect();
+      // Non-layout test environments
+      if (rect.top === 0 && rect.bottom === 0 && rect.height === 0) {
+        setRowInView(true);
+        return true;
+      }
+
+      const containerHeight = scrollContainer instanceof HTMLElement
+        ? scrollContainer.clientHeight
+        : window.innerHeight;
+      const containerTop = scrollContainer instanceof HTMLElement
+        ? scrollContainer.getBoundingClientRect().top
+        : 0;
+
+      const relativeTop = rect.top - containerTop;
+      const scrollTop = scrollContainer instanceof HTMLElement
+        ? scrollContainer.scrollTop
+        : (window.scrollY || document.documentElement.scrollTop || 0);
+
+      // Trigger only when user has scrolled into view or row is comfortably in mid-viewport
+      const isMeaningfullyVisible = (scrollTop > 35 && relativeTop < containerHeight * 0.92 && relativeTop > -rect.height + 40)
+        || (relativeTop < containerHeight * 0.62 && relativeTop > -rect.height + 40);
+
+      if (isMeaningfullyVisible) {
+        setRowInView(true);
+        return true;
       }
       return false;
     };
 
     if (checkVisibility()) return;
 
-    const scrollContainer = document.querySelector('.workspace-viewport') || window;
     const handleScroll = () => {
       if (checkVisibility()) {
         scrollContainer.removeEventListener('scroll', handleScroll);
@@ -540,14 +567,19 @@ export function LearningTrajectoryRow({
 
     let observer: IntersectionObserver | null = null;
     try {
+      const rootEl = scrollContainer instanceof HTMLElement ? scrollContainer : null;
       observer = new IntersectionObserver((entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
-            setRowInView(true);
-            observer?.disconnect();
+            if (checkVisibility()) {
+              observer?.disconnect();
+            }
           }
         }
-      }, { threshold: 0.1 });
+      }, {
+        root: rootEl,
+        threshold: 0.15
+      });
       if (rowRef.current) {
         observer.observe(rowRef.current);
       }
@@ -560,7 +592,7 @@ export function LearningTrajectoryRow({
       window.removeEventListener('scroll', handleScroll);
       observer?.disconnect();
     };
-  }, [inViewRaw, shouldReduceMotion]);
+  }, [shouldReduceMotion]);
 
   const [displayedScore, setDisplayedScore] = useState<number>(() => {
     return shouldReduceMotion ? prog.latestScore : 0;
@@ -576,6 +608,7 @@ export function LearningTrajectoryRow({
     }
 
     if (!rowInView) {
+      setDisplayedScore(0);
       return;
     }
 
@@ -598,10 +631,10 @@ export function LearningTrajectoryRow({
     }
 
     const targetScore = prog.latestScore;
-    const duration = 920; // 800–1000ms target duration
+    const duration = 1050; // 900–1200ms target duration
     let startTime: number | null = null;
 
-    // Cubic ease-out deceleration curve
+    // Cubic ease-out deceleration curve: accelerates naturally and settles smoothly
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
     // Smoothly animate(0, prog.latestScore) via requestAnimationFrame with cubic ease-out deceleration
@@ -674,8 +707,8 @@ export function LearningTrajectoryRow({
   const pathD = N >= 2 ? coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x} ${c.y}`).join(' ') : '';
 
   // Synchronized animation timings calculated from actual path geometry
-  const LINE_DELAY = 0.28;
-  const LINE_DURATION = 1.15;
+  const LINE_DELAY = 0.25;
+  const LINE_DURATION = 1.35;
 
   const { pointArrivalDelays } = useMemo(() => {
     if (coords.length <= 1) {
@@ -1064,6 +1097,259 @@ export function LearningTrajectoryRow({
   );
 }
 
+export interface KnowledgeGraphOption {
+  id: string;
+  name: string;
+  totalAssessments: number;
+  latestScore: number | null;
+  latestCompletedAt?: string;
+}
+
+export interface StudyGraphSelectorProps {
+  availableGraphs: KnowledgeGraphOption[];
+  selectedGraphId: string | null;
+  onSelectGraph: (graphId: string) => void;
+  onNavigateToAllGraphs?: () => void;
+  shouldReduceMotion?: boolean;
+}
+
+export function StudyGraphSelector({
+  availableGraphs,
+  selectedGraphId,
+  onSelectGraph,
+  onNavigateToAllGraphs,
+  shouldReduceMotion = false
+}: StudyGraphSelectorProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const selectedGraph = useMemo(() => {
+    return availableGraphs.find(g => g.id === selectedGraphId) || availableGraphs[0] || null;
+  }, [availableGraphs, selectedGraphId]);
+
+  // Filter graphs by name
+  const filteredGraphs = useMemo(() => {
+    if (!searchQuery.trim()) return availableGraphs;
+    const q = searchQuery.toLowerCase().trim();
+    return availableGraphs.filter(g => g.name.toLowerCase().includes(q));
+  }, [availableGraphs, searchQuery]);
+
+  // Reset highlight index when filtered list changes
+  useEffect(() => {
+    setHighlightedIndex(0);
+  }, [filteredGraphs]);
+
+  // Focus search input when popover opens
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    } else {
+      setSearchQuery('');
+    }
+  }, [isOpen]);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!isOpen) return;
+    const handlePointerDown = (e: PointerEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [isOpen]);
+
+  // Close on Escape & keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setIsOpen(false);
+      return;
+    }
+
+    if (!isOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        setIsOpen(true);
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex(prev => (prev + 1) % Math.max(1, filteredGraphs.length));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex(prev => (prev - 1 + filteredGraphs.length) % Math.max(1, filteredGraphs.length));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (filteredGraphs[highlightedIndex]) {
+        onSelectGraph(filteredGraphs[highlightedIndex].id);
+        setIsOpen(false);
+      }
+    }
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className="study-graph-selector-container"
+      onKeyDown={handleKeyDown}
+    >
+      <button
+        type="button"
+        id="study-graph-selector-trigger"
+        className={`study-graph-selector-trigger ${isOpen ? 'is-open' : ''}`}
+        onClick={() => setIsOpen(prev => !prev)}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-controls="study-graph-selector-listbox"
+        aria-label={`Knowledge graph: ${selectedGraph?.name || 'Select graph'}. Click to choose knowledge graph.`}
+      >
+        <span className="study-graph-selector-pip" aria-hidden="true" />
+        <span className="study-graph-selector-name">
+          {selectedGraph?.name || 'Select knowledge graph'}
+        </span>
+        <ChevronDown
+          size={14}
+          className={`study-graph-selector-chevron ${isOpen ? 'open' : ''}`}
+          aria-hidden="true"
+        />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            id="study-graph-selector-popover"
+            className="study-graph-selector-popover"
+            role="dialog"
+            aria-label="Select knowledge graph"
+            initial={shouldReduceMotion ? false : { opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={shouldReduceMotion ? undefined : { opacity: 0, y: -4 }}
+            transition={{ duration: 0.18, ease: REVEAL_EASE }}
+          >
+            <div className="study-graph-selector-popover-header">
+              <span className="study-graph-selector-popover-kicker">KNOWLEDGE GRAPHS</span>
+              <span className="study-graph-selector-popover-count">
+                {availableGraphs.length} {availableGraphs.length === 1 ? 'graph' : 'graphs'}
+              </span>
+            </div>
+
+            <div className="study-graph-selector-search-box">
+              <Search size={13} className="study-graph-selector-search-icon" aria-hidden="true" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                className="study-graph-selector-search-input"
+                placeholder="Search knowledge graphs…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Filter knowledge graphs by name"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="study-graph-selector-search-clear"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
+            <div
+              id="study-graph-selector-listbox"
+              role="listbox"
+              className="study-graph-selector-list"
+              aria-label="Available knowledge graphs"
+            >
+              {filteredGraphs.map((g, idx) => {
+                const isSelected = g.id === selectedGraph?.id;
+                const isHighlighted = idx === highlightedIndex;
+
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    role="option"
+                    id={`graph-opt-${g.id}`}
+                    aria-selected={isSelected}
+                    className={`study-graph-selector-option ${isSelected ? 'is-selected' : ''} ${isHighlighted ? 'is-highlighted' : ''}`}
+                    onClick={() => {
+                      onSelectGraph(g.id);
+                      setIsOpen(false);
+                    }}
+                    onMouseEnter={() => setHighlightedIndex(idx)}
+                  >
+                    <div className="study-graph-selector-option-main">
+                      {isSelected && <span className="study-graph-selector-option-pip" aria-hidden="true" />}
+                      <div className="study-graph-selector-option-info">
+                        <span className="study-graph-selector-option-title">{g.name}</span>
+                        <span className="study-graph-selector-option-meta">
+                          {g.totalAssessments > 0
+                            ? `${g.totalAssessments} ${g.totalAssessments === 1 ? 'assessment' : 'assessments'}`
+                            : 'No assessments yet'}
+                        </span>
+                      </div>
+                    </div>
+                    {g.latestScore !== null && (
+                      <span className="study-graph-selector-option-score">
+                        {g.latestScore}%
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+
+              {filteredGraphs.length === 0 && (
+                <div className="study-graph-selector-empty-search">
+                  <span className="study-graph-selector-empty-text">
+                    No knowledge graphs match "{searchQuery}"
+                  </span>
+                  <button
+                    type="button"
+                    className="study-graph-selector-empty-clear"
+                    onClick={() => setSearchQuery('')}
+                  >
+                    Clear search
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {onNavigateToAllGraphs && (
+              <div className="study-graph-selector-footer">
+                <button
+                  type="button"
+                  className="study-graph-selector-footer-action"
+                  onClick={() => {
+                    setIsOpen(false);
+                    onNavigateToAllGraphs();
+                  }}
+                  aria-label="Explore knowledge graphs"
+                >
+                  <span>EXPLORE ALL GRAPHS</span>
+                  <span aria-hidden="true">→</span>
+                </button>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export function StudySpaceView({
   onNavigateToGraph,
   onNavigateToConcept,
@@ -1086,6 +1372,130 @@ export function StudySpaceView({
   // View state: 'list' | 'historical-results' | 'review-answers' | 'review-missed'
   const [viewMode, setViewMode] = useState<StudyViewMode>('list');
   const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(null);
+
+  // Context-aware and storage-aware knowledge graph options
+  const graphContext = useOptionalGraph();
+  const contextGraphs = graphContext?.graphs;
+
+  // Build complete list of available knowledge graphs
+  const availableGraphs = useMemo<KnowledgeGraphOption[]>(() => {
+    const map = new Map<string, { id: string; name: string }>();
+
+    if (contextGraphs && contextGraphs.length > 0) {
+      contextGraphs.forEach(g => {
+        map.set(g.id, { id: g.id, name: g.name });
+      });
+    }
+
+    if (map.size === 0) {
+      try {
+        const stored = loadGraphs();
+        if (stored && stored.length > 0) {
+          stored.forEach(g => {
+            map.set(g.id, { id: g.id, name: g.name });
+          });
+        }
+      } catch {
+        // In unit test or non-browser environment
+      }
+    }
+
+    if (activeGraph?.id && !map.has(activeGraph.id)) {
+      map.set(activeGraph.id, { id: activeGraph.id, name: activeGraph.name || 'Knowledge Graph' });
+    }
+
+    for (const a of attempts) {
+      const gid = a.graphId || `unassigned-${a.id}`;
+      if (!map.has(gid)) {
+        map.set(gid, { id: gid, name: a.graphName || 'Assessment' });
+      }
+    }
+
+    if (map.size === 0) return [];
+
+    const list: KnowledgeGraphOption[] = [];
+    for (const [id, meta] of map.entries()) {
+      const gAttempts = attempts.filter(a => (a.graphId || `unassigned-${a.id}`) === id);
+      const totalAssessments = gAttempts.length;
+
+      let latestScore: number | null = null;
+      let latestCompletedAt: string | undefined = undefined;
+
+      if (totalAssessments > 0) {
+        const sorted = [...gAttempts].sort((a, b) => {
+          return new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime();
+        });
+        latestScore = sorted[0].scorePercentage;
+        latestCompletedAt = sorted[0].completedAt;
+      }
+
+      list.push({
+        id,
+        name: meta.name,
+        totalAssessments,
+        latestScore,
+        latestCompletedAt
+      });
+    }
+
+    return list.sort((a, b) => {
+      if (a.latestCompletedAt && b.latestCompletedAt) {
+        return new Date(b.latestCompletedAt).getTime() - new Date(a.latestCompletedAt).getTime();
+      }
+      if (a.latestCompletedAt) return -1;
+      if (b.latestCompletedAt) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [contextGraphs, activeGraph, attempts]);
+
+  const [selectedGraphId, setSelectedGraphId] = useState<string | null>(() => {
+    if (activeGraph?.id) return activeGraph.id;
+    if (graphContext?.activeGraphId) return graphContext.activeGraphId;
+    try {
+      const stored = loadActiveGraphId();
+      if (stored) return stored;
+    } catch {}
+    return null;
+  });
+
+  // Effective selected graph ID (self-healing if selected graph is deleted or not in list)
+  const effectiveSelectedGraphId = useMemo<string | null>(() => {
+    if (availableGraphs.length === 0) return null;
+    if (selectedGraphId && availableGraphs.some(g => g.id === selectedGraphId)) {
+      return selectedGraphId;
+    }
+    if (activeGraph?.id && availableGraphs.some(g => g.id === activeGraph.id)) {
+      return activeGraph.id;
+    }
+    if (graphContext?.activeGraphId && availableGraphs.some(g => g.id === graphContext.activeGraphId)) {
+      return graphContext.activeGraphId;
+    }
+    return availableGraphs[0].id;
+  }, [availableGraphs, selectedGraphId, activeGraph?.id, graphContext?.activeGraphId]);
+
+  const handleSelectGraph = useCallback((graphId: string) => {
+    setSelectedGraphId(graphId);
+    if (graphContext?.switchGraph) {
+      try {
+        graphContext.switchGraph(graphId);
+      } catch (err) {
+        console.warn('[StudySpace] Error switching graph in context:', err);
+      }
+    }
+  }, [graphContext]);
+
+  const selectedGraphMeta = useMemo(() => {
+    if (!effectiveSelectedGraphId) return null;
+    return availableGraphs.find(g => g.id === effectiveSelectedGraphId) || null;
+  }, [availableGraphs, effectiveSelectedGraphId]);
+
+  const selectedGraphProgress = useMemo<GraphLearningProgress | null>(() => {
+    if (!effectiveSelectedGraphId) return null;
+    return computeGraphLearningProgress(effectiveSelectedGraphId, attempts);
+  }, [effectiveSelectedGraphId, attempts]);
+
+  // Assessment History scope filter: 'all' or 'selected'
+  const [historyScope, setHistoryScope] = useState<'all' | 'selected'>('all');
 
   // Load persistent assessment attempts
   const loadAttempts = useCallback(() => {
@@ -1294,9 +1704,14 @@ export function StudySpaceView({
     });
   }, [attempts]);
 
-  // Filtered graph groups based on search query and review filter (Section 6)
+  // Filtered graph groups based on search query, review filter, and selected graph scope (Section 6 & 8)
   const filteredGroups = useMemo<GraphAttemptGroup[]>(() => {
     return graphGroups.filter(group => {
+      // Filter by selected graph if historyScope is 'selected'
+      if (historyScope === 'selected' && effectiveSelectedGraphId && group.graphId !== effectiveSelectedGraphId) {
+        return false;
+      }
+
       // Search matching
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
@@ -1318,7 +1733,7 @@ export function StudySpaceView({
 
       return true;
     });
-  }, [graphGroups, searchQuery, filterMode]);
+  }, [graphGroups, searchQuery, filterMode, historyScope, effectiveSelectedGraphId]);
 
   // Retrieve selected attempt from persistence service
   const selectedAttempt = useMemo<AssessmentAttempt | null>(() => {
@@ -1521,33 +1936,6 @@ export function StudySpaceView({
     };
   }, [hasContinueEnteredView, clampedScore, shouldReduceMotion]);
 
-  // Compute learning progress across attempts grouped strictly by stable graphId (Prompt 5)
-  const allGraphProgress = useMemo<GraphLearningProgress[]>(() => {
-    const graphIds: string[] = [];
-    for (const a of attempts) {
-      const gid = a.graphId || `unassigned-${a.id}`;
-      if (!graphIds.includes(gid)) {
-        graphIds.push(gid);
-      }
-    }
-
-    const list: GraphLearningProgress[] = [];
-    for (const gid of graphIds) {
-      const prog = computeGraphLearningProgress(gid, attempts);
-      if (prog) {
-        list.push(prog);
-      }
-    }
-
-    // Sort: active graph first if matching, otherwise latest attempt completion descending
-    return list.sort((a, b) => {
-      if (activeGraph && a.graphId === activeGraph.id) return -1;
-      if (activeGraph && b.graphId === activeGraph.id) return 1;
-      const timeA = new Date(a.latestAttempt.completedAt).getTime() || 0;
-      const timeB = new Date(b.latestAttempt.completedAt).getTime() || 0;
-      return timeB - timeA;
-    });
-  }, [attempts, activeGraph]);
 
   // Derive concepts worth revisiting across historical attempts (Prompt 5 Phase 5)
   const conceptsWorthRevisiting = useMemo<ConceptRevisitItem[]>(() => {
@@ -1646,39 +2034,60 @@ export function StudySpaceView({
     <div className="study-space-container">
       {/* 1. Page Header (Editorial header matching Sources page typography & entry motion) */}
       <header className="study-header">
-        {/* Uppercase technical eyebrow: YOUR LEARNING */}
-        <motion.span
-          className="study-eyebrow"
-          initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.50, delay: 0.06, ease: REVEAL_EASE }}
-        >
-          YOUR LEARNING
-        </motion.span>
-
-        {/* Editorial section title: Study Space with masked clip line reveal */}
-        <h1 className="study-title" aria-label="Study Space">
-          <span className="study-title-clip">
+        <div className="study-header-main-row">
+          <div className="study-header-left">
+            {/* Uppercase technical eyebrow: YOUR LEARNING */}
             <motion.span
-              className="study-title-line"
-              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: '115%' }}
-              animate={{ opacity: 1, y: '0%' }}
-              transition={{ duration: 0.70, delay: 0.10, ease: REVEAL_EASE }}
+              className="study-eyebrow"
+              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.50, delay: 0.06, ease: REVEAL_EASE }}
             >
-              Study Space
+              YOUR LEARNING
             </motion.span>
-          </span>
-        </h1>
 
-        {/* Short supporting editorial statement */}
-        <motion.p
-          className="study-subtitle"
-          initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.22, ease: REVEAL_EASE }}
-        >
-          Your assessments, progress, and concepts worth revisiting.
-        </motion.p>
+            {/* Editorial section title: Study Space with masked clip line reveal */}
+            <h1 className="study-title" aria-label="Study Space">
+              <span className="study-title-clip">
+                <motion.span
+                  className="study-title-line"
+                  initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: '115%' }}
+                  animate={{ opacity: 1, y: '0%' }}
+                  transition={{ duration: 0.70, delay: 0.10, ease: REVEAL_EASE }}
+                >
+                  Study Space
+                </motion.span>
+              </span>
+            </h1>
+
+            {/* Short supporting editorial statement */}
+            <motion.p
+              className="study-subtitle"
+              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.22, ease: REVEAL_EASE }}
+            >
+              Your assessments, progress, and concepts worth revisiting.
+            </motion.p>
+          </div>
+
+          {availableGraphs.length > 0 && (
+            <motion.div
+              className="study-header-right"
+              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.50, delay: 0.25, ease: REVEAL_EASE }}
+            >
+              <StudyGraphSelector
+                availableGraphs={availableGraphs}
+                selectedGraphId={effectiveSelectedGraphId}
+                onSelectGraph={handleSelectGraph}
+                onNavigateToAllGraphs={onNavigateToGraph}
+                shouldReduceMotion={Boolean(shouldReduceMotion)}
+              />
+            </motion.div>
+          )}
+        </div>
 
         {/* Hairline divider with scaleX reveal */}
         <motion.div
@@ -1927,8 +2336,8 @@ export function StudySpaceView({
             </motion.section>
           )}
 
-          {/* 4. Learning Progress Section Across Assessment Attempts (Learning Trajectory Redesign) */}
-          {allGraphProgress.length > 0 && (
+          {/* 4. Learning Progress Section Filtered to Selected Knowledge Graph (Section 5) */}
+          {selectedGraphMeta && (
             <motion.section 
               ref={progressSectionRef}
               className="study-progress-section" 
@@ -1946,22 +2355,58 @@ export function StudySpaceView({
               </div>
 
               <div className="study-progress-cards-list study-trajectory-list">
-                {allGraphProgress.map((prog, idx) => (
+                {selectedGraphProgress ? (
                   <LearningTrajectoryRow
-                    key={prog.graphId}
-                    prog={prog}
+                    key={selectedGraphProgress.graphId}
+                    prog={selectedGraphProgress}
                     hoveredPointAttemptId={hoveredPointAttemptId}
                     setHoveredPointAttemptId={setHoveredPointAttemptId}
                     handleOpenAttempt={handleOpenAttempt}
                     shouldReduceMotion={Boolean(shouldReduceMotion)}
-                    isFirst={idx === 0}
+                    isFirst={true}
                   />
-                ))}
+                ) : (
+                  <div
+                    className="study-progress-empty-card"
+                    role="region"
+                    aria-label={`No assessments yet for ${selectedGraphMeta.name}`}
+                  >
+                    <div className="study-progress-empty-header">
+                      <div className="study-trajectory-identity">
+                        <span className="study-trajectory-dot" aria-hidden="true" />
+                        <span className="study-trajectory-graph-title">{selectedGraphMeta.name}</span>
+                      </div>
+                      <span className="study-trajectory-count">0 assessments</span>
+                    </div>
+                    <div className="study-progress-empty-body">
+                      <p className="study-progress-empty-msg">
+                        No assessments yet for this knowledge graph.
+                      </p>
+                      <p className="study-progress-empty-sub">
+                        Complete an assessment to start tracking your score trajectory, historical attempts, and learning progress over time.
+                      </p>
+                      {onNavigateToGraph && (
+                        <button
+                          type="button"
+                          className="study-editorial-btn study-progress-empty-action"
+                          onClick={onNavigateToGraph}
+                          aria-label={`Explore knowledge graph ${selectedGraphMeta.name}`}
+                        >
+                          <span className="study-btn-content">
+                            <span>Explore this graph</span>
+                            <span className="study-btn-arrow" aria-hidden="true">→</span>
+                          </span>
+                          <span className="study-btn-underline" aria-hidden="true" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </motion.section>
           )}
 
-          {/* 5. Assessment History Section Organized by Graph (Prompt 3) */}
+          {/* 5. Assessment History Section Organized by Graph (Prompt 3 & 8) */}
           <motion.section 
             className="study-history-section" 
             aria-label="Assessment history"
@@ -1973,7 +2418,7 @@ export function StudySpaceView({
               <h2 className="study-section-title">Assessment history</h2>
               <p className="study-section-desc">Every completed assessment, ready to revisit.</p>
 
-              {/* Compact Search & Filter Toolbar (Section 6) */}
+              {/* Compact Search & Filter Toolbar (Section 6 & 8) */}
               <div className="study-controls-bar">
                 <div className="study-search-wrap">
                   <Search size={14} className="study-search-icon" aria-hidden="true" />
@@ -2001,12 +2446,38 @@ export function StudySpaceView({
                   <button
                     type="button"
                     role="tab"
-                    aria-selected={filterMode === 'all'}
-                    className={`study-filter-tab ${filterMode === 'all' ? 'active' : ''}`}
-                    onClick={() => setFilterMode('all')}
+                    aria-selected={filterMode === 'all' && historyScope === 'all'}
+                    className={`study-filter-tab ${filterMode === 'all' && historyScope === 'all' ? 'active' : ''}`}
+                    onClick={() => { setFilterMode('all'); setHistoryScope('all'); }}
                   >
                     All assessments
                   </button>
+                  {selectedGraphMeta && (
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={historyScope === 'selected'}
+                      className={`study-filter-tab study-filter-tab-graph ${historyScope === 'selected' ? 'active' : ''}`}
+                      onClick={() => setHistoryScope(prev => prev === 'selected' ? 'all' : 'selected')}
+                      title={`Filter history to ${selectedGraphMeta.name}`}
+                    >
+                      <span className="study-filter-tag-dot" aria-hidden="true" />
+                      <span>{selectedGraphMeta.name}</span>
+                      {historyScope === 'selected' && (
+                        <span
+                          className="study-filter-tag-clear"
+                          role="button"
+                          aria-label="Clear graph filter and show all graphs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setHistoryScope('all');
+                          }}
+                        >
+                          ×
+                        </span>
+                      )}
+                    </button>
+                  )}
                   <button
                     type="button"
                     role="tab"
@@ -2024,18 +2495,24 @@ export function StudySpaceView({
             {filteredGroups.length === 0 && (
               <div className="study-search-empty">
                 <span className="study-search-empty-title">
-                  No assessments found matching "{searchQuery}"
+                  {historyScope === 'selected'
+                    ? `No assessments found for "${selectedGraphMeta?.name || 'this graph'}"`
+                    : searchQuery.trim()
+                    ? `No assessments found matching "${searchQuery}"`
+                    : 'No assessments found for the selected filter.'}
                 </span>
                 <p className="study-search-empty-sub">
-                  Try searching for another keyword or reset active filters.
+                  {historyScope === 'selected'
+                    ? 'This knowledge graph has no assessment attempts matching the current filter.'
+                    : 'Try searching for another keyword or reset active filters.'}
                 </p>
                 <button
                   type="button"
                   className="study-editorial-btn"
-                  onClick={() => { setSearchQuery(''); setFilterMode('all'); }}
+                  onClick={() => { setSearchQuery(''); setFilterMode('all'); setHistoryScope('all'); }}
                 >
                   <span className="study-btn-content">
-                    <span>Clear search filters</span>
+                    <span>{historyScope === 'selected' ? 'View all knowledge graphs' : 'Clear search filters'}</span>
                     <span className="study-btn-arrow" aria-hidden="true">→</span>
                   </span>
                   <span className="study-btn-underline" aria-hidden="true" />
