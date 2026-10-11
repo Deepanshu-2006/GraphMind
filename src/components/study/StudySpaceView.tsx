@@ -1973,6 +1973,77 @@ export function StudySpaceView({
   // Assessment History scope filter: 'all' or 'selected'
   const [historyScope, setHistoryScope] = useState<'all' | 'selected'>('all');
 
+  // Assessment History search focus & input ref
+  const [isHistorySearchFocused, setIsHistorySearchFocused] = useState(false);
+  const historySearchInputRef = useRef<HTMLInputElement>(null);
+
+  // Assessment History filter tabs moving pill bounds & measurement
+  const [filterTabBounds, setFilterTabBounds] = useState<{ left: number; width: number } | null>(null);
+  const filterTabsRef = useRef<HTMLDivElement>(null);
+
+  const activeFilterKey = filterMode === 'needs-review' 
+    ? 'needs-review' 
+    : historyScope === 'selected' 
+    ? 'graph' 
+    : 'all';
+
+  const updateFilterPillPosition = useCallback(() => {
+    if (!filterTabsRef.current) return;
+    const activeBtn = filterTabsRef.current.querySelector<HTMLButtonElement>(
+      `.study-filter-tab[data-tab-key="${activeFilterKey}"]`
+    );
+    if (activeBtn) {
+      setFilterTabBounds({
+        left: activeBtn.offsetLeft,
+        width: activeBtn.offsetWidth,
+      });
+    }
+  }, [activeFilterKey]);
+
+  useEffect(() => {
+    updateFilterPillPosition();
+  }, [updateFilterPillPosition, selectedGraphMeta?.name]);
+
+  useEffect(() => {
+    const container = filterTabsRef.current;
+    if (!container) return;
+
+    window.addEventListener('resize', updateFilterPillPosition);
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        updateFilterPillPosition();
+      });
+      resizeObserver.observe(container);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateFilterPillPosition);
+      if (resizeObserver) resizeObserver.disconnect();
+    };
+  }, [updateFilterPillPosition]);
+
+  const handleFilterTabKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!filterTabsRef.current) return;
+    const tabs = Array.from(
+      filterTabsRef.current.querySelectorAll<HTMLButtonElement>('.study-filter-tab')
+    );
+    const activeIndex = tabs.findIndex(tab => tab.getAttribute('aria-selected') === 'true');
+    if (activeIndex === -1) return;
+
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      const nextIndex = (activeIndex + 1) % tabs.length;
+      tabs[nextIndex].focus();
+      tabs[nextIndex].click();
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const prevIndex = (activeIndex - 1 + tabs.length) % tabs.length;
+      tabs[prevIndex].focus();
+      tabs[prevIndex].click();
+    }
+  }, []);
+
   // Load persistent assessment attempts
   const loadAttempts = useCallback(() => {
     setIsLoading(true);
@@ -3036,59 +3107,109 @@ export function StudySpaceView({
               <h2 className="study-section-title">Assessment history</h2>
               <p className="study-section-desc">Every completed assessment, ready to revisit.</p>
 
-              {/* Compact Search & Filter Toolbar (Section 6 & 8) */}
+              {/* Refined Search & Segmented Filter Toolbar */}
               <div className="study-controls-bar">
-                <div className="study-search-wrap">
-                  <Search size={14} className="study-search-icon" aria-hidden="true" />
+                <div 
+                  className={`study-search-wrap ${isHistorySearchFocused ? 'focused' : ''} ${searchQuery.trim() ? 'has-query' : ''}`}
+                  onClick={() => historySearchInputRef.current?.focus()}
+                >
+                  <Search size={14} strokeWidth={1.4} className="study-search-icon" aria-hidden="true" />
                   <input
+                    ref={historySearchInputRef}
                     type="text"
                     className="study-search-input"
                     placeholder="Search by graph or concept…"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => setIsHistorySearchFocused(true)}
+                    onBlur={() => setIsHistorySearchFocused(false)}
                     aria-label="Search assessment history by graph or concept"
                   />
                   {searchQuery && (
                     <button
                       type="button"
                       className="study-search-clear"
-                      onClick={() => setSearchQuery('')}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSearchQuery('');
+                        historySearchInputRef.current?.focus();
+                      }}
                       aria-label="Clear search query"
                     >
                       <X size={13} />
                     </button>
                   )}
+                  {/* Focus accent: 1px GraphMind green line along bottom edge */}
+                  <div className="study-search-focus-line" aria-hidden="true" />
                 </div>
 
-                <div className="study-filter-tabs" role="tablist" aria-label="Assessment filter">
+                <div 
+                  ref={filterTabsRef}
+                  className="study-filter-tabs" 
+                  role="tablist" 
+                  aria-label="Assessment filter"
+                  onKeyDown={handleFilterTabKeyDown}
+                >
+                  {/* Moving active green-tinted selection pill */}
+                  {filterTabBounds && (
+                    <motion.div
+                      className="study-filter-active-pill"
+                      initial={false}
+                      animate={{
+                        x: filterTabBounds.left,
+                        width: filterTabBounds.width,
+                        opacity: filterTabBounds.width > 0 ? 1 : 0
+                      }}
+                      transition={
+                        shouldReduceMotion 
+                          ? { duration: 0 } 
+                          : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }
+                      }
+                      aria-hidden="true"
+                    />
+                  )}
+
                   <button
                     type="button"
                     role="tab"
-                    aria-selected={filterMode === 'all' && historyScope === 'all'}
-                    className={`study-filter-tab ${filterMode === 'all' && historyScope === 'all' ? 'active' : ''}`}
+                    data-tab-key="all"
+                    aria-selected={activeFilterKey === 'all'}
+                    className={`study-filter-tab ${activeFilterKey === 'all' ? 'active' : ''}`}
                     onClick={() => { setFilterMode('all'); setHistoryScope('all'); }}
                   >
-                    All assessments
+                    <span className="study-filter-tab-label">All assessments</span>
                   </button>
+
                   {selectedGraphMeta && (
                     <button
                       type="button"
                       role="tab"
-                      aria-selected={historyScope === 'selected'}
-                      className={`study-filter-tab study-filter-tab-graph ${historyScope === 'selected' ? 'active' : ''}`}
-                      onClick={() => setHistoryScope(prev => prev === 'selected' ? 'all' : 'selected')}
+                      data-tab-key="graph"
+                      aria-selected={activeFilterKey === 'graph'}
+                      className={`study-filter-tab study-filter-tab-graph ${activeFilterKey === 'graph' ? 'active' : ''}`}
+                      onClick={() => {
+                        setFilterMode('all');
+                        setHistoryScope(prev => prev === 'selected' ? 'all' : 'selected');
+                      }}
                       title={`Filter history to ${selectedGraphMeta.name}`}
                     >
                       <span className="study-filter-tag-dot" aria-hidden="true" />
-                      <span>{selectedGraphMeta.name}</span>
+                      <span className="study-filter-tab-label">{selectedGraphMeta.name}</span>
                       {historyScope === 'selected' && (
                         <span
                           className="study-filter-tag-clear"
                           role="button"
+                          tabIndex={0}
                           aria-label="Clear graph filter and show all graphs"
                           onClick={(e) => {
                             e.stopPropagation();
                             setHistoryScope('all');
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.stopPropagation();
+                              setHistoryScope('all');
+                            }
                           }}
                         >
                           ×
@@ -3096,14 +3217,16 @@ export function StudySpaceView({
                       )}
                     </button>
                   )}
+
                   <button
                     type="button"
                     role="tab"
-                    aria-selected={filterMode === 'needs-review'}
-                    className={`study-filter-tab ${filterMode === 'needs-review' ? 'active' : ''}`}
-                    onClick={() => setFilterMode('needs-review')}
+                    data-tab-key="needs-review"
+                    aria-selected={activeFilterKey === 'needs-review'}
+                    className={`study-filter-tab ${activeFilterKey === 'needs-review' ? 'active' : ''}`}
+                    onClick={() => { setFilterMode('needs-review'); setHistoryScope('all'); }}
                   >
-                    Needs review
+                    <span className="study-filter-tab-label">Needs review</span>
                   </button>
                 </div>
               </div>
@@ -3113,34 +3236,63 @@ export function StudySpaceView({
             {filteredGroups.length === 0 && (
               <div className="study-search-empty">
                 <span className="study-search-empty-title">
-                  {historyScope === 'selected'
-                    ? `No assessments found for "${selectedGraphMeta?.name || 'this graph'}"`
-                    : searchQuery.trim()
+                  {searchQuery.trim()
                     ? `No assessments found matching "${searchQuery}"`
+                    : historyScope === 'selected'
+                    ? `No assessments found for "${selectedGraphMeta?.name || 'this graph'}"`
+                    : filterMode === 'needs-review'
+                    ? 'No assessments need review'
                     : 'No assessments found for the selected filter.'}
                 </span>
                 <p className="study-search-empty-sub">
-                  {historyScope === 'selected'
+                  {searchQuery.trim()
+                    ? 'Check the spelling or try searching for another concept or knowledge graph.'
+                    : historyScope === 'selected'
                     ? 'This knowledge graph has no assessment attempts matching the current filter.'
+                    : filterMode === 'needs-review'
+                    ? 'All completed assessments scored 80% or higher with zero missed concepts.'
                     : 'Try searching for another keyword or reset active filters.'}
                 </p>
-                <button
-                  type="button"
-                  className="study-editorial-btn"
-                  onClick={() => { setSearchQuery(''); setFilterMode('all'); setHistoryScope('all'); }}
-                >
-                  <span className="study-btn-content">
-                    <span>{historyScope === 'selected' ? 'View all knowledge graphs' : 'Clear search filters'}</span>
-                    <span className="study-btn-arrow" aria-hidden="true">→</span>
-                  </span>
-                  <span className="study-btn-underline" aria-hidden="true" />
-                </button>
+                <div className="study-search-empty-actions">
+                  {searchQuery.trim() && (
+                    <button
+                      type="button"
+                      className="study-editorial-btn"
+                      onClick={() => setSearchQuery('')}
+                      aria-label="Clear search query"
+                    >
+                      <span className="study-btn-content">
+                        <span>Clear search query</span>
+                        <span className="study-btn-arrow" aria-hidden="true">→</span>
+                      </span>
+                      <span className="study-btn-underline" aria-hidden="true" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="study-editorial-btn"
+                    onClick={() => { setSearchQuery(''); setFilterMode('all'); setHistoryScope('all'); }}
+                    aria-label="Reset all search filters"
+                  >
+                    <span className="study-btn-content">
+                      <span>{historyScope === 'selected' ? 'View all knowledge graphs' : 'Clear search filters'}</span>
+                      <span className="study-btn-arrow" aria-hidden="true">→</span>
+                    </span>
+                    <span className="study-btn-underline" aria-hidden="true" />
+                  </button>
+                </div>
               </div>
             )}
 
             {/* Graph Groups List */}
             {filteredGroups.length > 0 && (
-              <div className="study-groups-list">
+              <motion.div 
+                key={`${activeFilterKey}-${searchQuery ? 'search' : 'nosearch'}`}
+                initial={shouldReduceMotion ? false : { opacity: 0.88 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+                className="study-groups-list"
+              >
                 {filteredGroups.map((group) => {
                   const latest = group.latestAttempt;
                   const latestDate = formatAttemptDate(latest.completedAt);
@@ -3150,29 +3302,34 @@ export function StudySpaceView({
 
                   return (
                     <div key={group.graphId} className="study-graph-group">
-                      {/* Group Header (Section 2) */}
+                      {/* Group Header (Level 1 — Graph Identity) */}
                       <div className="study-group-header">
                         <div className="study-group-title-block">
                           <h3 className="study-group-name">{group.graphName}</h3>
                           <div className="study-group-meta">
-                            Knowledge graph · {group.totalAttempts} {group.totalAttempts === 1 ? 'attempt' : 'attempts'}
+                            {group.totalAttempts} {group.totalAttempts === 1 ? 'attempt' : 'attempts'}
                           </div>
                         </div>
 
-                        {/* Learning Progress Comparison (Section 5) */}
-                        {group.progressComparison && (
+                        {/* Level 1 — Learning Progress Comparison (when applicable) */}
+                        {group.progressComparison && group.progressComparison.status !== 'incompatible' && (
                           <div 
                             className={`study-progress-comparison ${group.progressComparison.status}`}
                             title={`Previous: ${group.progressComparison.previousScore}% | Latest: ${group.progressComparison.latestScore}%`}
                           >
-                            <span>PREVIOUS {group.progressComparison.previousScore}% → LATEST {group.progressComparison.latestScore}%</span>
-                            <span className="study-meta-dot" aria-hidden="true" />
-                            <span>{group.progressComparison.message}</span>
+                            <span className="study-progress-diff-val">
+                              {group.progressComparison.status === 'improved' && `+${group.progressComparison.diffPoints} percentage points`}
+                              {group.progressComparison.status === 'declined' && `-${group.progressComparison.diffPoints} percentage points`}
+                              {group.progressComparison.status === 'unchanged' && `0 percentage points`}
+                            </span>
+                            <span className="study-progress-range-lbl">
+                              Previous {group.progressComparison.previousScore}% → Latest {group.progressComparison.latestScore}%
+                            </span>
                           </div>
                         )}
                       </div>
 
-                      {/* Latest Result Card (Section 3) */}
+                      {/* Latest Result Card (Level 2 — Latest Assessment) */}
                       <div className="study-latest-card">
                         <div className="study-latest-kicker">
                           <span>Latest attempt · Attempt {latestAttemptNumber}</span>
@@ -3203,14 +3360,12 @@ export function StudySpaceView({
                             <span className="study-metric-lbl">Completed</span>
                           </div>
 
-                          {missedInLatest > 0 && (
-                            <div className="study-metric-item">
-                              <span className="study-metric-val study-meta-warm">
-                                {missedInLatest}
-                              </span>
-                              <span className="study-metric-lbl">Concepts to review</span>
-                            </div>
-                          )}
+                          <div className="study-metric-item">
+                            <span className={`study-metric-val ${missedInLatest > 0 ? 'study-meta-warm' : ''}`}>
+                              {missedInLatest}
+                            </span>
+                            <span className="study-metric-lbl">Concepts to review</span>
+                          </div>
 
                           <div className="study-metric-item action-col">
                             <button
@@ -3358,7 +3513,7 @@ export function StudySpaceView({
                     </div>
                   );
                 })}
-              </div>
+              </motion.div>
             )}
           </motion.section>
 
