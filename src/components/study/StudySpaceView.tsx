@@ -1973,32 +1973,54 @@ export function StudySpaceView({
   const [isHistorySearchFocused, setIsHistorySearchFocused] = useState(false);
   const historySearchInputRef = useRef<HTMLInputElement>(null);
 
-  // Assessment History filter tabs moving pill bounds & measurement
-  const [filterTabBounds, setFilterTabBounds] = useState<{ left: number; width: number } | null>(null);
-  const filterTabsRef = useRef<HTMLDivElement>(null);
-
   const activeFilterKey = filterMode === 'needs-review' ? 'needs-review' : 'all';
 
+  // Assessment History filter tabs moving pill bounds & measurement
+  const [filterTabBounds, setFilterTabBounds] = useState<{ left: number; width: number }>(() => ({
+    left: activeFilterKey === 'all' ? 3 : 138,
+    width: activeFilterKey === 'all' ? 134 : 116,
+  }));
+  const filterTabsRef = useRef<HTMLDivElement>(null);
+  const [filterTabsNode, setFilterTabsNode] = useState<HTMLDivElement | null>(null);
+
+  const setFilterTabsRef = useCallback((node: HTMLDivElement | null) => {
+    filterTabsRef.current = node;
+    setFilterTabsNode(node);
+  }, []);
+
   const updateFilterPillPosition = useCallback(() => {
-    if (!filterTabsRef.current) return;
-    const activeBtn = filterTabsRef.current.querySelector<HTMLButtonElement>(
+    const container = filterTabsRef.current;
+    if (!container) return;
+    const activeBtn = container.querySelector<HTMLButtonElement>(
       `.study-filter-tab[data-tab-key="${activeFilterKey}"]`
     );
     if (activeBtn) {
-      setFilterTabBounds({
-        left: activeBtn.offsetLeft,
-        width: activeBtn.offsetWidth,
-      });
+      const left = activeBtn.offsetLeft;
+      const width = activeBtn.offsetWidth;
+      if (width > 0) {
+        setFilterTabBounds({ left, width });
+      } else {
+        requestAnimationFrame(() => {
+          if (activeBtn && activeBtn.offsetWidth > 0) {
+            setFilterTabBounds({
+              left: activeBtn.offsetLeft,
+              width: activeBtn.offsetWidth,
+            });
+          }
+        });
+      }
     }
   }, [activeFilterKey]);
 
   useEffect(() => {
     updateFilterPillPosition();
-  }, [updateFilterPillPosition]);
+  }, [updateFilterPillPosition, filterTabsNode, isLoading, attempts.length]);
 
   useEffect(() => {
     const container = filterTabsRef.current;
     if (!container) return;
+
+    updateFilterPillPosition();
 
     window.addEventListener('resize', updateFilterPillPosition);
     let resizeObserver: ResizeObserver | null = null;
@@ -2013,7 +2035,7 @@ export function StudySpaceView({
       window.removeEventListener('resize', updateFilterPillPosition);
       if (resizeObserver) resizeObserver.disconnect();
     };
-  }, [updateFilterPillPosition]);
+  }, [updateFilterPillPosition, filterTabsNode, isLoading]);
 
   const handleFilterTabKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
     if (!filterTabsRef.current) return;
@@ -2419,6 +2441,64 @@ export function StudySpaceView({
       observer?.disconnect();
     };
   }, [progressInViewRaw, shouldReduceMotion]);
+
+  const historySectionRef = useRef<HTMLElement | null>(null);
+  const historyInViewRaw = useInView(historySectionRef, { once: true, amount: 0.1 });
+  const [hasHistoryEnteredView, setHasHistoryEnteredView] = useState(false);
+
+  useEffect(() => {
+    if (historyInViewRaw || typeof window === 'undefined' || typeof IntersectionObserver === 'undefined' || shouldReduceMotion) {
+      setHasHistoryEnteredView(true);
+      return;
+    }
+
+    const checkVisibility = () => {
+      if (historySectionRef.current) {
+        const rect = historySectionRef.current.getBoundingClientRect();
+        if (rect.top < window.innerHeight * 0.95 && rect.bottom > 0) {
+          setHasHistoryEnteredView(true);
+          return true;
+        }
+      }
+      return false;
+    };
+
+    if (checkVisibility()) return;
+
+    const scrollContainer = document.querySelector('.workspace-viewport') || window;
+    const handleScroll = () => {
+      if (checkVisibility()) {
+        scrollContainer.removeEventListener('scroll', handleScroll);
+        window.removeEventListener('scroll', handleScroll);
+      }
+    };
+
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    let observer: IntersectionObserver | null = null;
+    try {
+      observer = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setHasHistoryEnteredView(true);
+            observer?.disconnect();
+          }
+        }
+      }, { threshold: 0.1 });
+      if (historySectionRef.current) {
+        observer.observe(historySectionRef.current);
+      }
+    } catch {
+      // Ignore
+    }
+
+    return () => {
+      scrollContainer.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('scroll', handleScroll);
+      observer?.disconnect();
+    };
+  }, [historyInViewRaw, shouldReduceMotion]);
 
   const lastAnimatedGraphIdRef = useRef<string | null>(null);
   const hasAnimatedRef = useRef(false);
@@ -3025,11 +3105,44 @@ export function StudySpaceView({
               transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.42, delay: 0.05, ease: REVEAL_EASE }}
             >
               <div className="study-section-header-block study-trajectory-section-header">
-                <span className="study-eyebrow study-trajectory-eyebrow">LEARNING PROGRESS</span>
-                <h2 className="study-section-title study-trajectory-section-title">Your learning, over time.</h2>
-                <p className="study-section-desc study-trajectory-section-desc">
+                <span className="study-trajectory-eyebrow-clip">
+                  <motion.span 
+                    className="study-eyebrow study-trajectory-eyebrow"
+                    initial={shouldReduceMotion ? { opacity: 1, clipPath: 'inset(0 0% 0 0)', x: 0 } : { opacity: 0, clipPath: 'inset(0 100% 0 0)', x: -6 }}
+                    animate={hasProgressEnteredView ? { opacity: 1, clipPath: 'inset(0 0% 0 0)', x: 0 } : { opacity: 0, clipPath: 'inset(0 100% 0 0)', x: -6 }}
+                    transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.48, delay: 0.04, ease: REVEAL_EASE }}
+                  >
+                    LEARNING PROGRESS
+                  </motion.span>
+                </span>
+
+                <motion.h2 
+                  className="study-section-title study-trajectory-section-title"
+                  title="Your learning, over time."
+                  initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+                  animate={hasProgressEnteredView ? { opacity: 1 } : { opacity: 0 }}
+                  transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.28, delay: 0.10 }}
+                >
+                  <span className="study-trajectory-title-clip">
+                    <motion.span 
+                      className="study-trajectory-title-line"
+                      initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: '105%' }}
+                      animate={hasProgressEnteredView ? { opacity: 1, y: '0%' } : { opacity: 0, y: '105%' }}
+                      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.62, delay: 0.12, ease: REVEAL_EASE }}
+                    >
+                      Your learning, over time.
+                    </motion.span>
+                  </span>
+                </motion.h2>
+
+                <motion.p 
+                  className="study-section-desc study-trajectory-section-desc"
+                  initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+                  animate={hasProgressEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+                  transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.46, delay: 0.24, ease: REVEAL_EASE }}
+                >
                   See how your understanding changes with every assessment.
-                </p>
+                </motion.p>
               </div>
 
               <div className="study-progress-cards-list study-trajectory-list">
@@ -3087,15 +3200,41 @@ export function StudySpaceView({
 
           {/* 5. Assessment History Section Organized by Graph (Prompt 3 & 8) */}
           <motion.section 
+            ref={historySectionRef}
             className="study-history-section" 
             aria-label="Assessment history"
-            initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.12, ease: REVEAL_EASE }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
+            animate={hasHistoryEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.42, delay: 0.05, ease: REVEAL_EASE }}
           >
             <div className="study-history-header-block">
-              <h2 className="study-section-title">Assessment history</h2>
-              <p className="study-section-desc">Every completed assessment, ready to revisit.</p>
+              <motion.h2 
+                className="study-section-title"
+                title="Assessment history"
+                initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+                animate={hasHistoryEnteredView ? { opacity: 1 } : { opacity: 0 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.28, delay: 0.10 }}
+              >
+                <span className="study-history-title-clip">
+                  <motion.span 
+                    className="study-history-title-line"
+                    initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: '105%' }}
+                    animate={hasHistoryEnteredView ? { opacity: 1, y: '0%' } : { opacity: 0, y: '105%' }}
+                    transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.62, delay: 0.12, ease: REVEAL_EASE }}
+                  >
+                    Assessment history
+                  </motion.span>
+                </span>
+              </motion.h2>
+
+              <motion.p 
+                className="study-section-desc"
+                initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+                animate={hasHistoryEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.46, delay: 0.24, ease: REVEAL_EASE }}
+              >
+                Every completed assessment, ready to revisit.
+              </motion.p>
 
               {/* Refined Search & Segmented Filter Toolbar */}
               <div className="study-controls-bar">
@@ -3134,7 +3273,7 @@ export function StudySpaceView({
                 </div>
 
                 <div 
-                  ref={filterTabsRef}
+                  ref={setFilterTabsRef}
                   className="study-filter-tabs" 
                   role="tablist" 
                   aria-label="Assessment filter"

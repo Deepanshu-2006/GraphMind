@@ -53,6 +53,29 @@ describe('GRAPHMIND STUDY SPACE — LEARNING TRAJECTORY REDESIGN VERIFICATION', 
         'Supporting text must be muted and readable'
       );
     });
+
+    it('applies signature masked clip and slide entry animation to eyebrow and heading matching continue-learning', () => {
+      assert.ok(
+        studyViewSrc.includes('study-trajectory-eyebrow-clip'),
+        'Eyebrow must have clip wrapper'
+      );
+      assert.ok(
+        studyViewSrc.includes('study-trajectory-title-clip'),
+        'Heading must have title clip wrapper'
+      );
+      assert.ok(
+        studyViewSrc.includes('study-trajectory-title-line'),
+        'Heading line must have title line element'
+      );
+      assert.match(
+        studyCss,
+        /\.study-trajectory-title-clip\s*\{[\s\S]*?overflow:\s*hidden;/
+      );
+      assert.match(
+        studyCss,
+        /\.study-trajectory-title-line\s*\{[\s\S]*?transform-origin:\s*0%\s+100%;/
+      );
+    });
   });
 
   describe('2. Elimination of Enclosing Cards (Prompt Section 4)', () => {

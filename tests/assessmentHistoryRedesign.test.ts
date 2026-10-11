@@ -23,14 +23,14 @@ describe('GRAPHMIND ASSESSMENT HISTORY — PREMIUM REDESIGN VERIFICATION', () =>
       );
     });
 
-    it('styles heading with editorial 24-28px clamp typography and tight spacing', () => {
+    it('styles heading with editorial clamp typography matching Learning Progress and tight spacing', () => {
       assert.match(
         studyCss,
-        /\.study-history-header-block \.study-section-title\s*\{[\s\S]*?font-size:\s*clamp\(24px,\s*2\.5vw,\s*28px\);/
+        /\.study-history-header-block \.study-section-title\s*\{[\s\S]*?font-size:\s*clamp\(32px,\s*3\.2vw,\s*38px\);/
       );
       assert.match(
         studyCss,
-        /\.study-history-header-block \.study-section-desc\s*\{[\s\S]*?font-size:\s*clamp\(14px/
+        /\.study-history-header-block \.study-section-desc\s*\{[\s\S]*?font-size:\s*15px;/
       );
     });
   });
@@ -212,6 +212,84 @@ describe('GRAPHMIND ASSESSMENT HISTORY — PREMIUM REDESIGN VERIFICATION', () =>
       assert.match(
         studyCss,
         /@media\s*\(max-width:\s*768px\)\s*\{[\s\S]*?\.study-filter-tabs\s*\{[\s\S]*?overflow-x:\s*auto;/
+      );
+    });
+  });
+
+  describe('7. Typography Alignment & Section Separation Polish', () => {
+    it('matches typography language of Learning Progress for section heading and description', () => {
+      assert.match(
+        studyCss,
+        /\.study-history-header-block \.study-section-title\s*\{[\s\S]*?font-weight:\s*550;/
+      );
+      assert.match(
+        studyCss,
+        /\.study-history-header-block \.study-section-title\s*\{[\s\S]*?letter-spacing:\s*-0\.025em;/
+      );
+      assert.match(
+        studyCss,
+        /\.study-history-header-block \.study-section-title\s*\{[\s\S]*?line-height:\s*1\.15;/
+      );
+      assert.match(
+        studyCss,
+        /\.study-history-header-block \.study-section-desc\s*\{[\s\S]*?color:\s*#777777;/
+      );
+      assert.match(
+        studyCss,
+        /\.study-history-header-block \.study-section-desc\s*\{[\s\S]*?max-width:\s*520px;/
+      );
+      assert.match(
+        studyCss,
+        /\.study-history-header-block \.study-section-desc\s*\{[\s\S]*?margin-top:\s*8px;/
+      );
+    });
+
+    it('enforces identical section separation gap between Learning Progress and Assessment History as Continue Learning', () => {
+      assert.match(
+        studyCss,
+        /\.study-history-section\s*\{[\s\S]*?margin-top:\s*56px;/
+      );
+      assert.match(
+        studyCss,
+        /\.study-progress-section\s*\{[\s\S]*?margin-bottom:\s*64px;/
+      );
+    });
+
+    it('applies signature masked clip and slide entry animation to assessment history heading matching learning progress', () => {
+      assert.ok(
+        studyViewSrc.includes('study-history-title-clip'),
+        'History heading must have title clip wrapper'
+      );
+      assert.ok(
+        studyViewSrc.includes('study-history-title-line'),
+        'History heading line must have title line element'
+      );
+      assert.match(
+        studyCss,
+        /\.study-history-title-clip\s*\{[\s\S]*?overflow:\s*hidden;/
+      );
+      assert.match(
+        studyCss,
+        /\.study-history-title-line\s*\{[\s\S]*?transform-origin:\s*0%\s+100%;/
+      );
+    });
+
+    it('unifies muted metadata and metric labels with #777777 and compact letter-spacing', () => {
+      assert.match(
+        studyCss,
+        /\.study-group-count,\s*\n?\.study-group-meta\s*\{[\s\S]*?color:\s*#777777;/
+      );
+      assert.match(
+        studyCss,
+        /\.study-record-identity\s*\{[\s\S]*?color:\s*#777777;/
+      );
+      assert.match(
+        studyCss,
+        /\.study-record-identity\s*\{[\s\S]*?letter-spacing:\s*0\.04em;/
+      );
+      assert.match(
+        studyCss,
+        /\.study-record-lbl\s*\{[\s\S]*?color:\s*#777777;/
       );
     });
   });

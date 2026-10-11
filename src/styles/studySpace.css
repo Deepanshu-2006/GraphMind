@@ -1217,6 +1217,7 @@
    4. Assessment History Controls: Search & Filter Toolbar
    -------------------------------------------------------------------------- */
 .study-history-section {
+  margin-top: 56px;
   display: flex;
   flex-direction: column;
 }
@@ -1227,23 +1228,41 @@
   margin-bottom: clamp(20px, 2.8vw, 24px);
 }
 
+.study-history-title-clip {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.16em;
+  margin-bottom: -0.16em;
+}
+
+.study-history-title-line {
+  display: block;
+  transform-origin: 0% 100%;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
 .study-history-header-block .study-section-title {
   font-family: var(--font-display, var(--font-body, sans-serif));
-  font-size: clamp(24px, 2.5vw, 28px);
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-size: clamp(32px, 3.2vw, 38px);
+  font-weight: 550;
+  letter-spacing: -0.025em;
   color: var(--text-primary, #F5F5F5);
   margin: 0;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .study-history-header-block .study-section-desc {
   font-family: var(--font-body, sans-serif);
-  font-size: clamp(14px, 1.2vw, 15px);
-  color: var(--text-muted, #8A8A8A);
-  margin-top: clamp(8px, 1.2vw, 12px);
+  font-size: 15px;
+  font-weight: 400;
+  color: #777777;
+  max-width: 520px;
+  margin-top: 8px;
   margin-bottom: 0;
   line-height: 1.5;
+  will-change: transform, opacity;
 }
 
 /* --------------------------------------------------------------------------
@@ -1549,7 +1568,7 @@
   font-family: var(--font-body, sans-serif);
   font-size: 13px;
   font-weight: 400;
-  color: #737373;
+  color: #777777;
   letter-spacing: 0.01em;
   white-space: nowrap;
 }
@@ -1585,9 +1604,9 @@
   font-family: var(--font-mono, monospace);
   font-size: 11.5px;
   font-weight: 500;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #8A8A8A;
+  color: #777777;
   line-height: 1;
 }
 
@@ -1640,14 +1659,14 @@
 }
 
 .study-record-val-review.study-meta-neutral {
-  color: #8A8A8A;
+  color: #777777;
 }
 
 .study-record-lbl {
   font-family: var(--font-body, sans-serif);
   font-size: 11px;
   font-weight: 500;
-  color: #737373;
+  color: #777777;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-top: 2px;
@@ -2150,6 +2169,12 @@
   gap: 8px;
 }
 
+.study-trajectory-eyebrow-clip {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
 .study-trajectory-eyebrow {
   font-family: var(--font-mono, monospace);
   font-size: 10.5px;
@@ -2159,6 +2184,22 @@
   color: var(--accent, #A3FF12);
   display: inline-block;
   line-height: 1;
+  will-change: transform, opacity, clip-path;
+}
+
+.study-trajectory-title-clip {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.16em;
+  margin-bottom: -0.16em;
+}
+
+.study-trajectory-title-line {
+  display: block;
+  transform-origin: 0% 100%;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .study-trajectory-section-title {
@@ -2179,6 +2220,7 @@
   color: #777777;
   max-width: 520px;
   margin: 0;
+  will-change: transform, opacity;
 }
 
 /* TRAJECTORY LIST & REGIONS (Section 4) */
@@ -2964,12 +3006,17 @@
     gap: 20px;
   }
 
-  .study-trajectory-section-title {
+  .study-trajectory-section-title,
+  .study-history-header-block .study-section-title {
     font-size: clamp(30px, 3.8vw, 34px);
   }
 }
 
 @media (max-width: 768px) {
+  .study-progress-section {
+    margin-bottom: 64px;
+  }
+
   .study-controls-bar {
     flex-direction: column;
     align-items: stretch;
@@ -3213,7 +3260,8 @@
   }
 
   /* Responsive Learning Trajectory (Mobile <= 640px) */
-  .study-trajectory-section-title {
+  .study-trajectory-section-title,
+  .study-history-header-block .study-section-title {
     font-size: clamp(27px, 6vw, 30px);
   }
 
@@ -3290,6 +3338,10 @@
 }
 
 @media (max-width: 480px) {
+  .study-progress-section {
+    margin-bottom: 48px;
+  }
+
   .study-record-metrics {
     grid-template-columns: 1fr;
     gap: 14px;
@@ -3325,6 +3377,9 @@
   .study-title-line,
   .study-continue-kicker,
   .study-continue-title-line,
+  .study-trajectory-eyebrow,
+  .study-trajectory-title-line,
+  .study-history-title-line,
   .study-header-divider,
   .study-btn-arrow,
   .study-btn-underline,
