@@ -361,4 +361,122 @@ describe('GraphMind Feature: Deep Revision Workspace (Phase 1 — Foundation)', 
       assert.ok(kgWorkspaceContent.includes('setIsRevisionMode(true)'), 'Enters revision mode');
     });
   });
+
+  describe('8. Task 02: Typography & Visual Hierarchy Refinements', () => {
+    test('concept badge features subtle lime-green accent dot', () => {
+      const html = renderToString(
+        React.createElement(RevisionWorkspace, {
+          graph: mockGraph,
+          graphName: 'Operating Systems',
+          onBackToGraph: () => {}
+        })
+      );
+
+      assert.ok(html.includes('revision-concept-badge-dot'), 'Must render .revision-concept-badge-dot');
+      assert.ok(cssContent.includes('.revision-concept-badge-dot'), 'CSS must define .revision-concept-badge-dot');
+      assert.ok(cssContent.includes('background-color: var(--accent, #A3FF12)'), 'Dot must use lime-green accent');
+    });
+
+    test('concept title styling enforces dominant hierarchy and overflow protection', () => {
+      assert.ok(cssContent.includes('line-height: 1.12'), 'Title line-height must be tightened (1.12)');
+      assert.ok(cssContent.includes('letter-spacing: -0.035em'), 'Title letter-spacing must be tight (-0.035em)');
+      assert.ok(cssContent.includes('word-break: break-word'), 'Title must handle long words with word-break');
+      assert.ok(cssContent.includes('overflow-wrap: break-word'), 'Title must include overflow-wrap protection');
+    });
+
+    test('renders long concept names cleanly without throwing', () => {
+      const longTitleGraph: KnowledgeGraph = {
+        id: 'graph-long-titles',
+        name: 'Advanced Systems',
+        nodes: [
+          {
+            id: 'c-long',
+            name: 'Hierarchical Multi-Level Feedback Queue Scheduling and Priority Inversion Prevention Mechanism',
+            type: 'algorithm',
+            description: 'Advanced CPU scheduling combining multiple priority queues with dynamic aging.',
+            sourceIds: []
+          }
+        ],
+        relationships: [],
+        sources: []
+      };
+
+      const html = renderToString(
+        React.createElement(RevisionWorkspace, {
+          graph: longTitleGraph,
+          graphName: 'Advanced Systems',
+          onBackToGraph: () => {}
+        })
+      );
+
+      assert.ok(
+        html.includes('Hierarchical Multi-Level Feedback Queue Scheduling and Priority Inversion Prevention Mechanism'),
+        'Long title must render completely in DOM'
+      );
+    });
+
+    test('handles missing concept descriptions gracefully without empty paragraph tags', () => {
+      const noDescGraph: KnowledgeGraph = {
+        id: 'graph-no-desc',
+        name: 'Minimal Graph',
+        nodes: [
+          {
+            id: 'c-bare',
+            name: 'Bare Concept',
+            type: 'foundation',
+            sourceIds: []
+          }
+        ],
+        relationships: [],
+        sources: []
+      };
+
+      const html = renderToString(
+        React.createElement(RevisionWorkspace, {
+          graph: noDescGraph,
+          graphName: 'Minimal Graph',
+          onBackToGraph: () => {}
+        })
+      );
+
+      assert.ok(html.includes('Bare Concept'), 'Concept title must render');
+      assert.ok(
+        !html.includes('class="revision-concept-description"'),
+        'Must not render empty description paragraph when description is absent'
+      );
+    });
+
+    test('concept description uses comfortable reading measure max-width: 65ch', () => {
+      assert.ok(cssContent.includes('max-width: 65ch'), 'Description must enforce 65ch reading measure');
+    });
+
+    test('bottom navigation links include accessible concept titles in tooltips', () => {
+      const htmlFirst = renderToString(
+        React.createElement(RevisionWorkspace, {
+          graph: mockGraph,
+          graphName: 'Operating Systems',
+          revisionIndex: 0,
+          onBackToGraph: () => {}
+        })
+      );
+
+      assert.ok(htmlFirst.includes('title="Next: Process Management (→)"'), 'Next button must indicate next concept name');
+
+      const htmlLast = renderToString(
+        React.createElement(RevisionWorkspace, {
+          graph: mockGraph,
+          graphName: 'Operating Systems',
+          revisionIndex: 2,
+          onBackToGraph: () => {}
+        })
+      );
+
+      assert.ok(htmlLast.includes('title="Previous: Process Management (←)"'), 'Previous button must indicate previous concept name');
+    });
+
+    test('mobile responsive rules scale concept headings down for narrow viewports', () => {
+      assert.ok(cssContent.includes('@media (max-width: 640px)'), 'CSS must include mobile breakpoint');
+      assert.ok(cssContent.includes('clamp(26px, 7vw, 34px)'), 'Mobile title font size must scale cleanly with clamp');
+    });
+  });
 });
