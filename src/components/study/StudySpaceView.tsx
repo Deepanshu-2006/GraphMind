@@ -3452,7 +3452,7 @@ export function StudySpaceView({
                                       delay={shouldReduceMotion ? 0 : 0.45 + idx * 0.08}
                                       duration={shouldReduceMotion ? 0 : 1.20 + idx * 0.08}
                                       ease={EDITORIAL_EASE}
-                                      shouldReduceMotion={shouldReduceMotion}
+                                      shouldReduceMotion={Boolean(shouldReduceMotion)}
                                       hasEnteredView={hasContinueEnteredView}
                                       spinIfZero={clampedScore > 0 && digit === 0}
                                     />

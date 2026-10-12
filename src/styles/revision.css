@@ -326,6 +326,271 @@
 }
 
 /* --------------------------------------------------------------------------
+   5B. SOURCE-GROUNDED CONCEPT EXPLANATION STYLING (Phase 2 Task 05)
+   Editorial presentation for detailed, source-grounded explanations.
+   -------------------------------------------------------------------------- */
+.revision-explanation-lead {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 17px;
+  line-height: 1.68;
+  color: #ECECEC;
+  font-weight: 450;
+  letter-spacing: -0.01em;
+  margin: 0 0 20px 0;
+}
+
+.revision-explanation-paragraphs {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.revision-explanation-paragraph {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 15px;
+  line-height: 1.74;
+  color: #BDBDBD;
+  margin: 0;
+}
+
+/* Key Terminology Cards */
+.revision-terms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.revision-term-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 2px solid var(--accent, #A3FF12);
+  border-radius: 0 4px 4px 0;
+}
+
+.revision-term-name {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  font-weight: 600;
+  color: #F5F5F5;
+  letter-spacing: 0.02em;
+}
+
+.revision-term-def {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 14px;
+  line-height: 1.6;
+  color: #9E9E9E;
+  margin: 0;
+}
+
+/* Important Points List */
+.revision-points-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 4px 0 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.revision-point-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 14px;
+  line-height: 1.65;
+  color: #C2C2C2;
+}
+
+.revision-point-bullet {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: var(--accent, #A3FF12);
+  flex-shrink: 0;
+  transform: translateY(-2px);
+}
+
+/* Examples Box */
+.revision-example-box {
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 14px;
+  line-height: 1.68;
+  color: #C5C5C5;
+}
+
+/* Source Grounding References */
+.revision-sources-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.revision-source-card {
+  padding: 14px 18px;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.revision-source-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.revision-source-title {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  color: #E5E5E5;
+}
+
+.revision-source-badge {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent, #A3FF12);
+  background: rgba(163, 255, 18, 0.08);
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid rgba(163, 255, 18, 0.2);
+}
+
+.revision-source-quote {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  line-height: 1.65;
+  color: #9A9A9A;
+  font-style: italic;
+  border-left: 2px solid rgba(255, 255, 255, 0.12);
+  padding-left: 12px;
+  margin: 4px 0 0 0;
+}
+
+/* Explanation Loading Skeleton */
+.revision-explanation-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 0;
+}
+
+.revision-skeleton-line {
+  height: 14px;
+  background-color: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  animation: revision-skeleton-pulse 1.8s infinite ease-in-out;
+}
+
+.revision-skeleton-line.short {
+  width: 58%;
+}
+
+.revision-skeleton-line.medium {
+  width: 82%;
+}
+
+@keyframes revision-skeleton-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+
+/* Insufficient Source Material State */
+.revision-insufficient-card {
+  padding: 24px 28px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.revision-insufficient-kicker {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #E5A93C;
+}
+
+.revision-insufficient-title {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 16px;
+  font-weight: 600;
+  color: #EDEDED;
+  margin: 0;
+}
+
+.revision-insufficient-desc {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 14px;
+  line-height: 1.65;
+  color: #9E9E9E;
+  margin: 0;
+}
+
+/* Error & Retry State */
+.revision-error-card {
+  padding: 18px 22px;
+  background: rgba(255, 59, 48, 0.04);
+  border: 1px solid rgba(255, 59, 48, 0.2);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.revision-error-text {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 14px;
+  color: #EF5350;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.revision-retry-action {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  color: #F5F5F5;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+  padding: 6px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 180ms ease;
+}
+
+.revision-retry-action:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+
+/* --------------------------------------------------------------------------
    6. CONCEPT NAVIGATION (Section 5)
    Balanced bottom navigation | Left: Previous concept | Right: Next concept →
    Smooth color transition + restrained underline on hover
