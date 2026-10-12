@@ -60,7 +60,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <nav className="sidebar-nav-list" aria-label="Main Navigation">
           {mainNavItems.map((item) => {
             const Icon = item.icon;
-            const isActive = currentSection === item.id || (item.id === 'study' && currentSection === 'paths');
+            const isActive = currentSection === item.id || 
+              (item.id === 'study' && currentSection === 'paths') ||
+              (item.id === 'graph' && currentSection === 'revision');
             return (
               <button
                 key={item.id}

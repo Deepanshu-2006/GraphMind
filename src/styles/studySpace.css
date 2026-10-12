@@ -36,7 +36,7 @@
 /* --------------------------------------------------------------------------
    2. Editorial Page Header (Matching Sources page typography & composition)
    -------------------------------------------------------------------------- */
-.study-header {
+.study-header:not(.inspector-header) {
   display: flex;
   flex-direction: column;
   margin-bottom: 48px;

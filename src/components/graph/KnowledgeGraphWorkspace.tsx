@@ -20,6 +20,7 @@ import { GraphToolbar } from './GraphToolbar';
 import { NodeContextPanel } from './NodeContextPanel';
 import { CanvasEmptyState } from './CanvasEmptyState';
 import { TestWorkspace } from '../test/TestWorkspace';
+import { RevisionWorkspace } from '../revision/RevisionWorkspace';
 
 import { 
   initialNodes, 
@@ -127,7 +128,7 @@ function FlowCanvas({
   onOpenUpload,
   initialMode = 'interactive',
   graph,
-  graphName: _graphName,
+  graphName: graphNameProp,
   pipelineStage,
   pipelineStatusMessage,
   pipelineError,
@@ -142,6 +143,7 @@ function FlowCanvas({
 }: KnowledgeGraphWorkspaceProps) {
   const reactFlowInstance = useReactFlow();
 
+  const resolvedGraphName = graphNameProp || graph?.name || 'Knowledge Graph';
   const [internalFullscreen, setInternalFullscreen] = useState(false);
   const isGraphFullscreen = isGraphFullscreenProp !== undefined ? isGraphFullscreenProp : internalFullscreen;
   const savedViewportRef = useRef<{ x: number; y: number; zoom: number } | null>(null);
@@ -1374,7 +1376,7 @@ function FlowCanvas({
       const anchorNodeId = startNodeId || selectedNodeId || null;
       const hasReviewItems = reviewIds.size > 0;
 
-      const path = generateRevisionPath({
+      let path = generateRevisionPath({
         allNodes: effectiveNodes,
         allEdges: effectiveEdges,
         reviewConceptIds: reviewIds,
@@ -1384,12 +1386,25 @@ function FlowCanvas({
         onlyReviewQueue: !anchorNodeId && !hasReviewItems
       });
 
+      // If onlyReviewQueue returned an empty path but graph contains concepts, fallback to full curriculum revision sequence
+      if (path.length === 0 && effectiveNodes.length > 0) {
+        path = generateRevisionPath({
+          allNodes: effectiveNodes,
+          allEdges: effectiveEdges,
+          reviewConceptIds: new Set<string>(),
+          testedConceptIds: recallSession.testedConceptIds,
+          practiceStates,
+          startConceptId: anchorNodeId || effectiveNodes[0]?.id || null,
+          onlyReviewQueue: false
+        });
+      }
+
       setRevisionPath(path);
       setRevisionIndex(0);
       setRevisionVisitedIds(new Set());
       setIsRevisionMode(true);
       setIsTestMode(false);
-      setIsInspectorOpen(true);
+      setIsInspectorOpen(false);
 
       if (path.length > 0) {
         focusNodeOnCanvas(path[0].conceptId, true, 300);
@@ -1766,9 +1781,9 @@ function FlowCanvas({
       )}
 
 
-      {/* 4. Study / Inspector Context Panel (Interactive mode only: Concept or Relationship or Revision) */}
+      {/* 4. Study / Inspector Context Panel (Interactive mode only: Concept or Relationship when not in revision mode) */}
       <AnimatePresence>
-        {mode === 'interactive' && isInspectorOpen && !isTestMode && (activeConceptData || selectedRelationship || isRevisionMode) && (
+        {mode === 'interactive' && isInspectorOpen && !isTestMode && !isRevisionMode && (activeConceptData || selectedRelationship) && (
           <NodeContextPanel
             concept={activeConceptData}
             selectedRelationship={selectedRelationship}
@@ -1844,6 +1859,41 @@ function FlowCanvas({
               focusNodeOnCanvas(conceptId, true);
             }}
             onPracticeStatesUpdated={refreshPracticeStates}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 6. Dedicated Deep Revision Workspace */}
+      <AnimatePresence>
+        {mode === 'interactive' && isRevisionMode && !isTestMode && (
+          <RevisionWorkspace
+            graph={graph}
+            graphName={resolvedGraphName}
+            revisionPath={revisionPath}
+            revisionIndex={revisionIndex}
+            allNodes={effectiveNodes}
+            allEdges={effectiveEdges}
+            conceptDetails={effectiveConceptDetails}
+            onPrevConcept={handlePrevRevisionConcept}
+            onNextConcept={handleNextRevisionConcept}
+            onSelectConceptIndex={(idx) => {
+              setRevisionIndex(idx);
+              const step = revisionPath[idx];
+              if (step) {
+                focusNodeOnCanvas(step.conceptId, true, 300);
+              }
+            }}
+            onBackToGraph={() => {
+              handleToggleRevisionMode(false);
+            }}
+            onViewGraph={(conceptId) => {
+              const targetId = conceptId || revisionPath[revisionIndex]?.conceptId;
+              handleToggleRevisionMode(false);
+              if (targetId) {
+                setSelectedNodeId(targetId);
+                focusNodeOnCanvas(targetId, true, 300);
+              }
+            }}
           />
         )}
       </AnimatePresence>

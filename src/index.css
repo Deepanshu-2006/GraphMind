@@ -10,6 +10,7 @@
 @import './styles/uploadModal.css';
 @import './styles/settings.css';
 @import './styles/test.css';
+@import './styles/revision.css';
 
 :root {
   /* Typography System */

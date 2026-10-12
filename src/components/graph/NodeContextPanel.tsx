@@ -509,7 +509,7 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
         <div className="inspector-drag-handle" aria-hidden="true" />
         <div className="study-panel-scroll-container">
           <div className="study-panel-content revision-empty-workspace">
-            <header className="inspector-header study-header">
+            <header className="inspector-header inspector-study-header study-header">
               <div className="inspector-title-wrap">
                 <span className="study-section-label study-category-tag">
                   REVISION
@@ -695,7 +695,7 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
         exit={{ opacity: 0, x: 26 }}
         transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
       >
-        <header className="inspector-header study-header">
+        <header className="inspector-header inspector-study-header study-header">
           <div className="inspector-title-wrap">
             <h2 className="inspector-name study-concept-title">
               {panelMode === 'recall' ? 'TEST YOURSELF' : 'Concept Inspector'}
@@ -771,7 +771,7 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
               className="study-panel-content revision-panel-content"
             >
               {/* Header: Editorial Progress (e.g. REVISION · 04 OF 12) + Exit */}
-              <header className="inspector-header study-header revision-header">
+              <header className="inspector-header inspector-study-header study-header revision-header">
                 <div className="inspector-title-wrap">
                   <div className="revision-header-meta">
                     <span className="study-section-label study-category-tag revision-progress-tag">
@@ -967,7 +967,7 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
               className="study-panel-content"
             >
               {/* Header: Exact canonical concept name + Category + Close button */}
-              <header className="inspector-header study-header">
+              <header className="inspector-header inspector-study-header study-header">
                 <div className="inspector-title-wrap">
                   <span className="study-section-label study-category-tag">
                     CONCEPT · {concept.category}
@@ -1201,7 +1201,7 @@ export const NodeContextPanel: React.FC<NodeContextPanelProps> = ({
               className="study-panel-content recall-panel-content"
             >
               {/* Header: TEST YOURSELF tag + session counter + Back to concept + Close */}
-              <header className="inspector-header study-header">
+              <header className="inspector-header inspector-study-header study-header">
                 <div className="inspector-title-wrap">
                   <div className="recall-header-meta">
                     <div className="recall-header-left-meta">

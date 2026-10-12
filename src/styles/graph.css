@@ -1286,12 +1286,21 @@
 /* Header */
 .inspector-header {
   display: flex;
+  flex-direction: row;
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+  margin-bottom: 0;
 }
 
-.study-header {
+.inspector-study-header,
+.inspector-header.study-header {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 0;
   padding-bottom: 2px;
 }
 

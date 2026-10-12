@@ -9,6 +9,7 @@ import { DeleteGraphModal } from './components/modals/DeleteGraphModal';
 import { SourcesView } from './components/sources/SourcesView';
 import { StudySpaceView } from './components/study/StudySpaceView';
 import { SettingsView } from './components/settings/SettingsView';
+import { RevisionWorkspace } from './components/revision/RevisionWorkspace';
 import { demoKnowledgeGraph } from './data/graphData';
 import type { KnowledgeSource, KnowledgeGraph } from './types/knowledgeGraph';
 import { sourceToRecentMaterial } from './services/sourceIngestion';
@@ -25,6 +26,7 @@ export function AppContent() {
     if (path === 'study' || path === 'paths') return 'study';
     if (path === 'sources') return 'sources';
     if (path === 'settings') return 'settings';
+    if (path === 'revision') return 'revision';
     return 'overview';
   };
 
@@ -454,6 +456,21 @@ export function AppContent() {
         {/* Settings View (Accessible via ⌘,) */}
         {currentSection === 'settings' && (
           <SettingsView onOpenDeleteModal={() => setDeleteModalOpen(true)} />
+        )}
+
+        {/* Dedicated Deep Revision Workspace (/revision) */}
+        {currentSection === 'revision' && (
+          <RevisionWorkspace
+            graph={effectiveGraph}
+            graphName={activeGraphMeta?.name || 'Knowledge Graph'}
+            onBackToGraph={() => navigateToSection('graph')}
+            onViewGraph={(conceptId) => {
+              if (conceptId) {
+                setFocusedConceptId(conceptId);
+              }
+              navigateToSection('graph');
+            }}
+          />
         )}
       </AppShell>
 
