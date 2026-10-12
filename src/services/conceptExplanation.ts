@@ -44,12 +44,12 @@ export function loadStoredExplanation(graphId: string, conceptId: string): Conce
  * Saves a concept explanation to persistent cache.
  */
 export function saveStoredExplanation(explanation: ConceptExplanation): void {
-  if (typeof localStorage === 'undefined' || !explanation?.graphId || !explanation?.conceptId) return;
+  if (typeof localStorage === 'undefined' || !explanation?.graphId || !explanation?.conceptId) {
+    return;
+  }
   try {
-    localStorage.setItem(
-      getExplanationStorageKey(explanation.graphId, explanation.conceptId),
-      JSON.stringify(explanation)
-    );
+    const key = getExplanationStorageKey(explanation.graphId, explanation.conceptId);
+    localStorage.setItem(key, JSON.stringify(explanation));
   } catch (err) {
     console.warn('[ConceptExplanation] Error saving stored explanation:', err);
   }
@@ -96,6 +96,7 @@ export interface ConceptSourceContext {
     sourceId: string;
     sourceTitle: string;
     page?: number;
+    section?: string;
     chunkId?: string;
     text: string;
   }>;
@@ -109,6 +110,92 @@ export interface ConceptSourceContext {
   matchingSources: KnowledgeSource[];
   isSufficient: boolean;
   missingReason?: string;
+  sourceFingerprint?: string;
+}
+
+/**
+ * Fast, deterministic 32-bit FNV-1a string hashing for source fingerprinting.
+ */
+export function computeStringHash(str: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    hash ^= str.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+    hash = hash >>> 0;
+  }
+  return hash.toString(16).padStart(8, '0');
+}
+
+/**
+ * Computes a deterministic content fingerprint for a concept within a graph.
+ * Granular per-concept invalidation:
+ * - Includes only the sources, evidence items, node semantic fields, and connected edges
+ *   relevant to the specified conceptId.
+ * - Modifications to unrelated sources or isolated concepts do not alter this fingerprint.
+ */
+export function computeConceptSourceFingerprint(
+  graph: KnowledgeGraph,
+  conceptId: string
+): string {
+  if (!graph || !graph.nodes || !conceptId) return '';
+
+  const node = graph.nodes.find(n => n.id === conceptId);
+  if (!node) return '';
+
+  // 1. Collect relevant sources associated with this concept
+  const relevantSourceIdSet = new Set<string>(node.sourceIds || []);
+  if (node.evidenceItems) {
+    for (const e of node.evidenceItems) {
+      if (e.sourceId) relevantSourceIdSet.add(e.sourceId);
+    }
+  }
+
+  const conceptLower = (node.name || '').toLowerCase();
+  const matchingSources = (graph.sources || []).filter(s => {
+    if (relevantSourceIdSet.has(s.id)) return true;
+    if (conceptLower && s.text && s.text.toLowerCase().includes(conceptLower)) {
+      return true;
+    }
+    return false;
+  });
+
+  // Sort matching sources deterministically by ID
+  matchingSources.sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+
+  const sourceSnapshots = matchingSources.map(s => {
+    const textHash = s.text ? computeStringHash(s.text) : (s.sizeBytes || s.createdAt || '');
+    return `${s.id}:${s.name || ''}:${textHash}`;
+  });
+
+  // 2. Node intrinsic semantic fields
+  const nodeSnapshot = `${node.id}:${node.name}:${node.type || ''}:${computeStringHash(node.description || '')}:${computeStringHash(node.evidence || '')}`;
+
+  // 3. Evidence items
+  const evidenceItems = [...(node.evidenceItems || [])];
+  evidenceItems.sort((a, b) => 
+    (a.sourceId || '').localeCompare(b.sourceId || '') || 
+    (a.chunkId || '').localeCompare(b.chunkId || '') || 
+    (a.text || '').localeCompare(b.text || '')
+  );
+  const evidenceSnapshot = evidenceItems
+    .map(e => `${e.sourceId}:${e.page ?? ''}:${(e as any).section ?? ''}:${e.chunkId ?? ''}:${computeStringHash(e.text || '')}`)
+    .join(';');
+
+  // 4. Prerequisites
+  const prereqSnapshot = [...(node.prerequisites || [])].sort().join(',');
+
+  // 5. Connected relationships
+  const connectedRels = (graph.relationships || []).filter(
+    r => r.source === conceptId || r.target === conceptId
+  );
+  connectedRels.sort((a, b) => (a.source + a.target + (a.type || '')).localeCompare(b.source + b.target + (b.type || '')));
+  const relSnapshot = connectedRels
+    .map(r => `${r.source}->${r.target}:${r.type || ''}:${computeStringHash(r.description || '')}`)
+    .join(';');
+
+  const composite = `NODE[${nodeSnapshot}]|EVID[${evidenceSnapshot}]|PREREQ[${prereqSnapshot}]|SRCS[${sourceSnapshots.join('|')}]|RELS[${relSnapshot}]`;
+
+  return `fp_${computeStringHash(composite)}`;
 }
 
 /**
@@ -146,6 +233,7 @@ export function extractConceptSourceContext(
         sourceId: item.sourceId || '',
         sourceTitle: src?.name || src?.fileName || 'Document Source',
         page: item.page,
+        section: (item as any).section,
         chunkId: item.chunkId,
         text: item.text.trim()
       });
@@ -155,6 +243,8 @@ export function extractConceptSourceContext(
     evidenceItems.push({
       sourceId: firstSrc?.id || '',
       sourceTitle: firstSrc?.name || firstSrc?.fileName || 'Document Source',
+      page: undefined,
+      section: undefined,
       text: evidenceText
     });
   }
@@ -219,6 +309,8 @@ export function extractConceptSourceContext(
     };
   }
 
+  const sourceFingerprint = computeConceptSourceFingerprint(graph, conceptId);
+
   return {
     status: 'found',
     context: {
@@ -231,7 +323,8 @@ export function extractConceptSourceContext(
       evidenceItems,
       relatedRelationships,
       matchingSources,
-      isSufficient: true
+      isSufficient: true,
+      sourceFingerprint
     }
   };
 }
@@ -332,7 +425,10 @@ export function validateWorkedExample(
  * in the real graph node, evidence passages, relationships, and source texts.
  * Used when offline, when no API key is configured, or as a reliable fallback.
  */
-export function synthesizeGroundedExplanation(context: ConceptSourceContext): ConceptExplanation {
+export function synthesizeGroundedExplanation(
+  context: ConceptSourceContext,
+  fingerprint?: string
+): ConceptExplanation {
   const { node, graphId, conceptName, category, description, evidenceItems, relatedRelationships, matchingSources } = context;
 
   // 1. Overview (Clear, understandable high-level foundation)
@@ -485,8 +581,9 @@ export function synthesizeGroundedExplanation(context: ConceptSourceContext): Co
   const sourceReferences: ExplanationSourceReference[] = evidenceItems.map(item => ({
     sourceId: item.sourceId,
     sourceTitle: item.sourceTitle,
-    page: item.page,
-    chunkId: item.chunkId,
+    page: typeof item.page === 'number' && !isNaN(item.page) ? item.page : undefined,
+    section: item.section || undefined,
+    chunkId: item.chunkId || undefined,
     excerpt: item.text
   }));
 
@@ -494,9 +591,18 @@ export function synthesizeGroundedExplanation(context: ConceptSourceContext): Co
     sourceReferences.push({
       sourceId: matchingSources[0].id,
       sourceTitle: matchingSources[0].name || matchingSources[0].fileName || 'Associated Document',
+      page: undefined,
+      section: undefined,
       excerpt: overview
     });
   }
+
+  const computedFingerprint = fingerprint || context.sourceFingerprint || (node ? computeConceptSourceFingerprint({
+    id: graphId,
+    nodes: [node],
+    sources: matchingSources,
+    relationships: []
+  } as any, node.id) : undefined);
 
   return {
     graphId,
@@ -513,6 +619,8 @@ export function synthesizeGroundedExplanation(context: ConceptSourceContext): Co
     sourceReferences,
     isSourceGrounded: sourceReferences.length > 0,
     groundingConfidence: sourceReferences.length > 1 ? 'high' : 'moderate',
+    sourceFingerprint: computedFingerprint,
+    sourceDocumentIds: matchingSources.map(s => s.id),
     generatedAt: new Date().toISOString()
   };
 }
@@ -524,6 +632,7 @@ export function synthesizeGroundedExplanation(context: ConceptSourceContext): Co
 async function generateGeminiExplanation(
   context: ConceptSourceContext,
   apiKey: string,
+  fingerprint?: string,
   signal?: AbortSignal
 ): Promise<ConceptExplanation> {
   const { graphId, node, conceptName, category, description, evidenceItems, relatedRelationships, matchingSources } = context;
@@ -632,8 +741,9 @@ Synthesize a clear, source-grounded explanation for this concept.
   const sourceReferences: ExplanationSourceReference[] = evidenceItems.map(item => ({
     sourceId: item.sourceId,
     sourceTitle: item.sourceTitle,
-    page: item.page,
-    chunkId: item.chunkId,
+    page: typeof item.page === 'number' && !isNaN(item.page) ? item.page : undefined,
+    section: item.section || undefined,
+    chunkId: item.chunkId || undefined,
     excerpt: item.text
   }));
 
@@ -641,6 +751,8 @@ Synthesize a clear, source-grounded explanation for this concept.
     sourceReferences.push({
       sourceId: matchingSources[0].id,
       sourceTitle: matchingSources[0].name || matchingSources[0].fileName || 'Associated Document',
+      page: undefined,
+      section: undefined,
       excerpt: parsed.overview
     });
   }
@@ -659,6 +771,13 @@ Synthesize a clear, source-grounded explanation for this concept.
     parsed.workedExample,
     evidenceItems.map(e => e.text).join('\n')
   );
+
+  const computedFingerprint = fingerprint || context.sourceFingerprint || (node ? computeConceptSourceFingerprint({
+    id: graphId,
+    nodes: [node],
+    sources: matchingSources,
+    relationships: []
+  } as any, node.id) : undefined);
 
   return {
     graphId,
@@ -680,12 +799,21 @@ Synthesize a clear, source-grounded explanation for this concept.
     sourceReferences,
     isSourceGrounded: sourceReferences.length > 0,
     groundingConfidence: sourceReferences.length > 1 ? 'high' : 'moderate',
+    sourceFingerprint: computedFingerprint,
+    sourceDocumentIds: matchingSources.map(s => s.id),
     generatedAt: new Date().toISOString()
   };
 }
 
 // In-flight request deduplication map (Section 6F: Prevent duplicate requests)
 const inFlightRequests = new Map<string, Promise<ExplanationState>>();
+
+/**
+ * Clears active in-flight request promises.
+ */
+export function clearInFlightRequests(): void {
+  inFlightRequests.clear();
+}
 
 export interface FetchExplanationOptions {
   graph: KnowledgeGraph;
@@ -711,22 +839,52 @@ export async function getOrGenerateConceptExplanation(
   }
 
   const graphId = graph.id || 'default_graph';
-  const requestKey = `${graphId}:${conceptId}`;
+  const currentFingerprint = computeConceptSourceFingerprint(graph, conceptId);
+  const requestKey = `${graphId}:${conceptId}:${currentFingerprint}`;
 
   // 1. Check persistent cache if not forcing regeneration
   if (!forceRegenerate) {
     const cached = loadStoredExplanation(graphId, conceptId);
     if (cached) {
-      return {
-        status: 'ready',
-        explanation: cached,
-        conceptId,
-        graphId
-      };
+      // Check if cache has a fingerprint
+      if (cached.sourceFingerprint) {
+        if (cached.sourceFingerprint === currentFingerprint) {
+          return {
+            status: 'ready',
+            explanation: cached,
+            conceptId,
+            graphId
+          };
+        } else {
+          // Source material changed! The cached explanation is outdated.
+          // Invalidate/flag as outdated, preserve previously stored explanation so student can still inspect it
+          return {
+            status: 'outdated',
+            explanation: {
+              ...cached,
+              isOutdated: true
+            },
+            conceptId,
+            graphId,
+            outdatedReason: 'Underlying source material has been modified since this explanation was generated.'
+          };
+        }
+      } else {
+        // Backward compatibility: Historical cached explanation without a fingerprint.
+        // Backfill current fingerprint so future calls check validity smoothly, and return ready.
+        cached.sourceFingerprint = currentFingerprint;
+        saveStoredExplanation(cached);
+        return {
+          status: 'ready',
+          explanation: cached,
+          conceptId,
+          graphId
+        };
+      }
     }
   }
 
-  // 2. Prevent duplicate in-flight requests for the same graph + concept
+  // 2. Prevent duplicate in-flight requests for the same graph + concept + source version
   const existingPromise = inFlightRequests.get(requestKey);
   if (existingPromise) {
     return existingPromise;
@@ -734,6 +892,8 @@ export async function getOrGenerateConceptExplanation(
 
   // 3. Execute generation promise
   const generationPromise = (async (): Promise<ExplanationState> => {
+    // Yield to microtask queue so concurrent callers in the same tick share the in-flight promise
+    await Promise.resolve();
     try {
       // Step A: Extract and verify source context
       const contextResult = extractConceptSourceContext(graph, conceptId);
@@ -759,14 +919,14 @@ export async function getOrGenerateConceptExplanation(
 
       if (apiKey) {
         try {
-          explanation = await generateGeminiExplanation(context, apiKey, signal);
+          explanation = await generateGeminiExplanation(context, apiKey, currentFingerprint, signal);
         } catch (aiErr) {
           console.warn('[ConceptExplanation] Gemini API failed, using grounded synthesizer:', aiErr);
-          explanation = synthesizeGroundedExplanation(context);
+          explanation = synthesizeGroundedExplanation(context, currentFingerprint);
         }
       } else {
         // High-precision deterministic grounded synthesizer
-        explanation = synthesizeGroundedExplanation(context);
+        explanation = synthesizeGroundedExplanation(context, currentFingerprint);
       }
 
       // Step C: Persist generated explanation to scoped storage
@@ -788,11 +948,14 @@ export async function getOrGenerateConceptExplanation(
         conceptId,
         graphId
       };
-    } finally {
-      inFlightRequests.delete(requestKey);
     }
   })();
 
   inFlightRequests.set(requestKey, generationPromise);
+
+  generationPromise.finally(() => {
+    inFlightRequests.delete(requestKey);
+  });
+
   return generationPromise;
 }

@@ -17,7 +17,8 @@ import {
   getOrGenerateConceptExplanation,
   loadStoredExplanation,
   extractConceptSourceContext,
-  synthesizeGroundedExplanation
+  synthesizeGroundedExplanation,
+  computeConceptSourceFingerprint
 } from '../../services/conceptExplanation';
 
 export const WORKSPACE_EASING = [0.16, 1, 0.3, 1] as const;
@@ -387,6 +388,7 @@ export interface RevisionWorkspaceProps {
   onBackToGraph: () => void;
   onViewGraph?: (conceptId?: string) => void;
   onSelectGraph?: () => void;
+  onOpenSource?: (sourceId: string, page?: number) => void;
   isLoading?: boolean;
   isNewSession?: boolean;
   skipEntryAnimation?: boolean;
@@ -415,6 +417,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   onBackToGraph,
   onViewGraph,
   onSelectGraph,
+  onOpenSource,
   isLoading = false,
   isNewSession: _isNewSession = false,
   skipEntryAnimation = false
@@ -742,13 +745,26 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   // Resolve current concept
   const currentConcept: RevisionConceptItem | null = concepts[currentIndex] || null;
 
-  // Concept explanation lifecycle state (Phase 2 Task 05)
+  // Concept explanation lifecycle state (Phase 2 Task 05 & Task 09)
   const [explanationState, setExplanationState] = useState<ExplanationState>(() => {
     if (!graph || !currentConcept) return { status: 'empty' };
     const currentGraphId = graph.id || 'default_graph';
     const targetConceptId = currentConcept.id;
+    const currentFingerprint = computeConceptSourceFingerprint(graph, targetConceptId);
     const cached = loadStoredExplanation(currentGraphId, targetConceptId);
     if (cached) {
+      if (cached.sourceFingerprint && cached.sourceFingerprint !== currentFingerprint) {
+        return {
+          status: 'outdated',
+          explanation: {
+            ...cached,
+            isOutdated: true
+          },
+          conceptId: targetConceptId,
+          graphId: currentGraphId,
+          outdatedReason: 'Underlying source material has been modified since this explanation was generated.'
+        };
+      }
       return {
         status: 'ready',
         explanation: cached,
@@ -768,7 +784,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     if (ctx.status === 'empty') {
       return { status: 'empty', conceptId: targetConceptId, graphId: currentGraphId };
     }
-    const synthesized = synthesizeGroundedExplanation(ctx.context);
+    const synthesized = synthesizeGroundedExplanation(ctx.context, currentFingerprint);
     return {
       status: 'ready',
       explanation: synthesized,
@@ -958,7 +974,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     const seenIds = new Set<string>();
 
     const refNameMap = new Map<string, string>();
-    if (explanationState.status === 'ready' && explanationState.explanation?.relatedConceptReferences) {
+    if ((explanationState.status === 'ready' || explanationState.status === 'outdated') && explanationState.explanation?.relatedConceptReferences) {
       explanationState.explanation.relatedConceptReferences.forEach(ref => {
         if (ref.conceptId && ref.conceptName) {
           refNameMap.set(ref.conceptId, ref.conceptName);
@@ -1008,7 +1024,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
       });
     }
 
-    if (explanationState.status === 'ready' && explanationState.explanation?.relatedConceptReferences) {
+    if ((explanationState.status === 'ready' || explanationState.status === 'outdated') && explanationState.explanation?.relatedConceptReferences) {
       explanationState.explanation.relatedConceptReferences.forEach(ref => {
         if (ref.conceptId) {
           addRelated(ref.conceptId, ref.conceptName, ref.relationshipType, 'outgoing');
@@ -1079,7 +1095,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
 
   // Active sections computation for Section Navigation (Task 06 & 07)
   const activeSections = useMemo(() => {
-    if (explanationState.status !== 'ready' || !explanationState.explanation) {
+    if ((explanationState.status !== 'ready' && explanationState.status !== 'outdated') || !explanationState.explanation) {
       return [];
     }
     const exp = explanationState.explanation;
@@ -1446,6 +1462,15 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                     >
                       <span className="revision-concept-badge-dot" aria-hidden="true" />
                       <span className="revision-concept-badge-text">{`CONCEPT ${formattedIndex}`}</span>
+                      {explanationState.explanation?.sourceReferences && explanationState.explanation.sourceReferences.length > 0 && (
+                        <a
+                          href="#section-sources"
+                          className="revision-source-inspect-link"
+                          aria-label="View sources supporting this explanation"
+                        >
+                          {`View sources (${explanationState.explanation.sourceReferences.length})`}
+                        </a>
+                      )}
                     </motion.div>
                     <motion.h1
                       id="revision-concept-title"
@@ -1534,9 +1559,30 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                       </div>
                     )}
 
-                    {/* State B: Explanation ready */}
-                    {explanationState.status === 'ready' && explanationState.explanation && (
+                    {/* State B: Explanation ready or outdated */}
+                    {(explanationState.status === 'ready' || explanationState.status === 'outdated') && explanationState.explanation && (
                       <>
+                        {/* Outdated Notice Banner (Task 09 — Source Material Invalidation) */}
+                        {explanationState.status === 'outdated' && (
+                          <div className="revision-outdated-banner" role="alert" aria-label="Explanation outdated notice">
+                            <div className="revision-outdated-content">
+                              <span className="revision-outdated-kicker">SOURCE MATERIAL UPDATED • EXPLANATION OUTDATED</span>
+                              <h3 className="revision-outdated-title">Source material has changed</h3>
+                              <p className="revision-outdated-desc">
+                                {explanationState.outdatedReason ||
+                                  `The underlying learning materials for "${conceptTitle}" were modified after this explanation was generated. You can review the previous explanation below or regenerate it to reflect recent source updates.`}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              className="revision-outdated-action-btn"
+                              onClick={handleRetryExplanation}
+                            >
+                              Regenerate explanation
+                            </button>
+                          </div>
+                        )}
+
                         {/* Compact Unobtrusive Section Jump Navigation (Task 06 Section 5) */}
                         {activeSections.length >= 2 && (
                           <nav className="revision-section-nav" aria-label="Section navigation">
@@ -1923,21 +1969,50 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                               <span>Source References</span>
                             </h2>
                             <div className="revision-sources-container">
-                              {explanationState.explanation.sourceReferences.map((ref, idx) => (
-                                <div key={idx} className="revision-source-card">
-                                  <div className="revision-source-card-header">
-                                    <span className="revision-source-title">{ref.sourceTitle}</span>
-                                    <span className="revision-source-badge">
-                                      {ref.page ? `PAGE ${ref.page} • SOURCE GROUNDED` : 'SOURCE GROUNDED'}
-                                    </span>
+                              {explanationState.explanation.sourceReferences.map((ref, idx) => {
+                                const isOutdated = Boolean(explanationState.explanation?.isOutdated || explanationState.status === 'outdated');
+                                const badgeLabel = isOutdated
+                                  ? 'OUTDATED SOURCE RECORD'
+                                  : (ref.page
+                                    ? `PAGE ${ref.page} • SOURCE GROUNDED`
+                                    : (ref.section
+                                      ? `${ref.section.toUpperCase()} • SOURCE GROUNDED`
+                                      : 'SOURCE GROUNDED'));
+
+                                return (
+                                  <div key={idx} className="revision-source-card">
+                                    <div className="revision-source-card-header">
+                                      <span className="revision-source-title">{ref.sourceTitle}</span>
+                                      <div className="revision-source-card-actions">
+                                        {ref.chunkId && (
+                                          <span className="revision-source-chunk-tag">
+                                            {`PASSAGE ${ref.chunkId}`}
+                                          </span>
+                                        )}
+                                        <span className={`revision-source-badge ${isOutdated ? 'outdated' : ''}`}>
+                                          {badgeLabel}
+                                        </span>
+                                        {onOpenSource && ref.sourceId && (
+                                          <button
+                                            type="button"
+                                            className="revision-source-open-btn"
+                                            onClick={() => onOpenSource(ref.sourceId, ref.page)}
+                                            aria-label={`Open ${ref.sourceTitle} in library`}
+                                          >
+                                            <span>Open in Library</span>
+                                            <span className="revision-source-arrow" aria-hidden="true">↗</span>
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {ref.excerpt && (
+                                      <blockquote className="revision-source-quote">
+                                        "{ref.excerpt}"
+                                      </blockquote>
+                                    )}
                                   </div>
-                                  {ref.excerpt && (
-                                    <blockquote className="revision-source-quote">
-                                      "{ref.excerpt}"
-                                    </blockquote>
-                                  )}
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         )}

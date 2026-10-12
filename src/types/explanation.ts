@@ -15,6 +15,7 @@ export interface ExplanationSourceReference {
   sourceId: string;
   sourceTitle: string;
   page?: number;
+  section?: string;
   chunkId?: string;
   excerpt: string;
 }
@@ -102,11 +103,16 @@ export interface ConceptExplanation {
   // Section 07: Source references
   sourceReferences: ExplanationSourceReference[];
 
-  // 2. Grounding Metadata & Integrity Verification (Section 3)
+  // 2. Grounding Metadata & Integrity Verification (Task 05)
   isSourceGrounded: boolean;
   groundingConfidence: 'high' | 'moderate' | 'limited';
   limitations?: string;
   generatedAt: string;
+
+  // 3. Cache Versioning & Source Fingerprint (Task 09)
+  sourceFingerprint?: string;
+  sourceDocumentIds?: string[];
+  isOutdated?: boolean;
 }
 
 export type ExplanationStatus =
@@ -115,13 +121,15 @@ export type ExplanationStatus =
   | 'ready'
   | 'insufficient'
   | 'empty'
-  | 'error';
+  | 'error'
+  | 'outdated';
 
 export interface ExplanationState {
   status: ExplanationStatus;
   explanation?: ConceptExplanation | null;
   errorMessage?: string;
   insufficientReason?: string;
+  outdatedReason?: string;
   conceptId?: string;
   graphId?: string;
 }
