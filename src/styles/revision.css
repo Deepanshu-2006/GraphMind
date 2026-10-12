@@ -1,0 +1,503 @@
+/* ==========================================================================
+   GRAPHMIND — DEEP REVISION WORKSPACE
+   Phase 1: Foundation — Editorial Layout, Navigation, and Typography
+   Minimal, editorial, Swiss-academic typography, whitespace-driven
+   ========================================================================== */
+
+/* Full dedicated revision workspace root */
+.revision-workspace-root {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-app, #0A0A0A);
+  color: var(--text-primary, #F5F5F5);
+  font-family: var(--font-body, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* --------------------------------------------------------------------------
+   TOP WORKSPACE HEADER (Section 2 & 7)
+   Left: Back to graph | Center: Knowledge graph name | Right: View graph
+   -------------------------------------------------------------------------- */
+.revision-workspace-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  padding: 0 32px;
+  background-color: var(--bg-app, #0A0A0A);
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.revision-header-left,
+.revision-header-right {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.revision-header-right {
+  justify-content: flex-end;
+}
+
+.revision-header-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  max-width: 480px;
+  overflow: hidden;
+}
+
+.revision-graph-name {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--text-muted, #8A8A8A);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Minimal text-based header actions */
+.revision-header-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  padding: 8px 0;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary, #A1A1A1);
+  cursor: pointer;
+  transition: color var(--transition-fast, 150ms ease);
+}
+
+.revision-header-action:hover {
+  color: var(--text-primary, #F5F5F5);
+}
+
+.revision-header-action:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: 4px;
+}
+
+.revision-header-action .revision-arrow {
+  font-size: 14px;
+  line-height: 1;
+  transition: transform var(--transition-fast, 150ms ease);
+}
+
+.revision-header-action.revision-back-action:hover .revision-arrow {
+  transform: translateX(-2px);
+  color: var(--accent, #A3FF12);
+}
+
+.revision-header-action.revision-view-graph-action:hover .revision-arrow {
+  transform: translateX(2px);
+  color: var(--accent, #A3FF12);
+}
+
+/* Subtle horizontal divider */
+.revision-header-divider {
+  width: 100%;
+  height: 1px;
+  background-color: var(--border-default, #242424);
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   MAIN READING AREA (Section 2: Centered reading column 760–820px)
+   -------------------------------------------------------------------------- */
+.revision-reading-area {
+  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.revision-reading-column {
+  max-width: 780px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 48px 32px 96px;
+  box-sizing: border-box;
+}
+
+/* --------------------------------------------------------------------------
+   REVISION PROGRESS HEADER (Section 3)
+   "REVISION SESSION" on left | "01 / 18" on right | Thin lime-green progress
+   -------------------------------------------------------------------------- */
+.revision-progress-header {
+  margin-bottom: 56px;
+}
+
+.revision-progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.revision-progress-kicker {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8A8A8A);
+}
+
+.revision-progress-counter {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary, #A1A1A1);
+}
+
+.revision-progress-track {
+  width: 100%;
+  height: 2px;
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.revision-progress-fill {
+  height: 100%;
+  background-color: var(--accent, #A3FF12);
+  border-radius: 1px;
+  transition: width 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* --------------------------------------------------------------------------
+   CONCEPT INTRODUCTION (Section 4)
+   "CONCEPT 01" label | Large bold title | Short description
+   -------------------------------------------------------------------------- */
+.revision-concept-intro {
+  margin-bottom: 48px;
+}
+
+.revision-concept-badge {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8A8A8A);
+  margin-bottom: 16px;
+}
+
+.revision-concept-title {
+  font-family: var(--font-display, var(--font-body, 'Inter', sans-serif));
+  font-size: clamp(32px, 3.8vw, 44px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--text-primary, #F5F5F5);
+  margin: 0 0 20px 0;
+  padding: 0;
+}
+
+.revision-concept-description {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.65;
+  letter-spacing: -0.01em;
+  color: var(--text-secondary, #A1A1A1);
+  margin: 0;
+  max-width: 68ch;
+}
+
+/* --------------------------------------------------------------------------
+   CONTENT PLACEHOLDER STRUCTURE (Section 5)
+   Prepared sections: Understanding, How it works, Details, Examples,
+   Related concepts, Knowledge checks.
+   Only existing data rendered; unavailable sections cleanly hidden.
+   -------------------------------------------------------------------------- */
+.revision-content-structure {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.revision-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.revision-section-heading {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8A8A8A);
+  margin: 0;
+  padding: 0;
+}
+
+.revision-section-body {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--text-secondary, #A1A1A1);
+}
+
+/* Related Concepts List (Rendered from real graph data) */
+.revision-related-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.revision-related-item {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.revision-related-item:last-child {
+  border-bottom: none;
+}
+
+.revision-related-relation {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8A8A8A);
+  min-width: 100px;
+  flex-shrink: 0;
+}
+
+.revision-related-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary, #F5F5F5);
+  letter-spacing: -0.01em;
+}
+
+/* --------------------------------------------------------------------------
+   CONCEPT NAVIGATION (Section 6)
+   Text-based navigation | Subtle green text or underline animation on hover
+   Disabled states on first/last concept
+   -------------------------------------------------------------------------- */
+.revision-concept-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 64px;
+  padding-top: 32px;
+  border-top: 1px solid var(--border-default, #242424);
+}
+
+.revision-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  padding: 8px 0;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--text-secondary, #A1A1A1);
+  cursor: pointer;
+  position: relative;
+  text-decoration: none;
+  transition: color var(--transition-fast, 150ms ease);
+}
+
+.revision-nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: var(--accent, #A3FF12);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--transition-fast, 150ms ease);
+}
+
+.revision-nav-link:hover:not(:disabled) {
+  color: var(--accent, #A3FF12);
+}
+
+.revision-nav-link:hover:not(:disabled)::after {
+  transform: scaleX(1);
+}
+
+.revision-nav-link:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: 4px;
+}
+
+.revision-nav-link.disabled,
+.revision-nav-link:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+  pointer-events: none;
+  color: var(--text-muted, #8A8A8A);
+}
+
+.revision-nav-link.disabled::after,
+.revision-nav-link:disabled::after {
+  display: none;
+}
+
+.revision-nav-arrow {
+  font-size: 14px;
+  line-height: 1;
+  transition: transform var(--transition-fast, 150ms ease);
+}
+
+.revision-nav-prev:hover:not(:disabled) .revision-nav-arrow {
+  transform: translateX(-3px);
+}
+
+.revision-nav-next:hover:not(:disabled) .revision-nav-arrow {
+  transform: translateX(3px);
+}
+
+/* --------------------------------------------------------------------------
+   CALM EDITORIAL EMPTY & LOADING STATES (Section 9)
+   -------------------------------------------------------------------------- */
+.revision-empty-state,
+.revision-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 540px;
+  padding: 64px 0;
+}
+
+.revision-empty-kicker {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8A8A8A);
+  margin-bottom: 16px;
+}
+
+.revision-empty-title {
+  font-family: var(--font-display, var(--font-body, 'Inter', sans-serif));
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--text-primary, #F5F5F5);
+  margin: 0 0 16px 0;
+}
+
+.revision-empty-desc {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-secondary, #A1A1A1);
+  margin: 0 0 32px 0;
+}
+
+.revision-empty-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid var(--border-default, #242424);
+  border-radius: var(--radius-btn, 6px);
+  padding: 10px 18px;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary, #F5F5F5);
+  cursor: pointer;
+  transition: all var(--transition-fast, 150ms ease);
+}
+
+.revision-empty-action:hover {
+  border-color: var(--text-secondary, #A1A1A1);
+  color: var(--accent, #A3FF12);
+}
+
+/* --------------------------------------------------------------------------
+   RESPONSIVENESS (Section 10)
+   Desktop: 780px centered column
+   Tablet: reduced horizontal spacing
+   Mobile: scaled typography, prevent horizontal overflow
+   -------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .revision-workspace-header {
+    padding: 0 24px;
+  }
+
+  .revision-reading-column {
+    padding: 40px 24px 80px;
+  }
+
+  .revision-progress-header {
+    margin-bottom: 44px;
+  }
+}
+
+@media (max-width: 640px) {
+  .revision-workspace-header {
+    padding: 0 16px;
+    height: 50px;
+  }
+
+  .revision-graph-name {
+    font-size: 12px;
+    max-width: 180px;
+  }
+
+  .revision-header-action {
+    font-size: 12px;
+  }
+
+  .revision-reading-column {
+    padding: 28px 16px 64px;
+  }
+
+  .revision-progress-header {
+    margin-bottom: 36px;
+  }
+
+  .revision-concept-title {
+    font-size: 26px;
+    line-height: 1.2;
+    margin-bottom: 14px;
+  }
+
+  .revision-concept-description {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .revision-concept-navigation {
+    margin-top: 48px;
+    padding-top: 24px;
+  }
+
+  .revision-nav-link {
+    font-size: 13px;
+  }
+}
