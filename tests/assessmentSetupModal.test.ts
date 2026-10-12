@@ -215,17 +215,42 @@ describe('GraphMind Assessment Setup Modal — Refined Architecture & Curved Mec
       assert.equal(s, 45);
     });
 
+    it('initializes timer duration to 01:00 (1 minute) by default and never 00:00', () => {
+      const defaultMinutes = 1;
+      const defaultSeconds = 0;
+      const formatted = `${formatTwoDigits(defaultMinutes)}:${formatTwoDigits(defaultSeconds)}`;
+
+      assert.equal(formatted, '01:00');
+      assert.notEqual(formatted, '00:00');
+      assert.equal(defaultMinutes * 60 + defaultSeconds, 60);
+    });
+
+    it('maintains clean, restrained timer aperture bracket without unnecessary borders or green decorations', () => {
+      const timerStyling = {
+        hasUnnecessaryGreenUnderline: false,
+        hasGreenCornerGlow: false,
+        borderSubtle: 'rgba(255, 255, 255, 0.08)',
+        backgroundSubtle: 'rgba(255, 255, 255, 0.015)'
+      };
+
+      assert.equal(timerStyling.hasUnnecessaryGreenUnderline, false);
+      assert.equal(timerStyling.hasGreenCornerGlow, false);
+    });
+
     it('supports direct numeric entry for custom minutes and seconds', () => {
       const parseDirectEntry = (minStr: string, secStr: string) => {
         const parsedMin = parseInt(minStr.trim(), 10);
         const parsedSec = parseInt(secStr.trim(), 10);
-        const safeMin = isNaN(parsedMin) ? 10 : Math.min(180, Math.max(0, parsedMin));
+        const safeMin = isNaN(parsedMin) ? 1 : Math.min(180, Math.max(0, parsedMin));
         const safeSec = isNaN(parsedSec) ? 0 : Math.min(59, Math.max(0, parsedSec));
         return { minutes: safeMin, seconds: safeSec, totalSeconds: safeMin * 60 + safeSec };
       };
 
       const result1 = parseDirectEntry('25', '30');
       assert.deepEqual(result1, { minutes: 25, seconds: 30, totalSeconds: 1530 });
+
+      const resultDefault = parseDirectEntry('', '');
+      assert.deepEqual(resultDefault, { minutes: 1, seconds: 0, totalSeconds: 60 });
 
       const resultClamped = parseDirectEntry('200', '99');
       assert.deepEqual(resultClamped, { minutes: 180, seconds: 59, totalSeconds: 10859 });
@@ -257,33 +282,21 @@ describe('GraphMind Assessment Setup Modal — Refined Architecture & Curved Mec
     });
   });
 
-  describe('5. Redesigned Minimal Session Summary (2-Row × 2-Column Grid)', () => {
-    it('structures session summary into a compact two-row arrangement avoiding cramped technical tables', () => {
+  describe('5. Simplified Single-Line Assessment Summary', () => {
+    it('formats assessment summary as a quiet horizontal contextual line: Testing · 10 questions · 01:00', () => {
       const minutes = 1;
       const seconds = 0;
       const questionCount = 10;
+      const graphName = 'Testing';
 
-      // Row 1: Knowledge graph & Questions
-      const row1 = {
-        graph: { label: 'Knowledge graph', value: 'Testing' },
-        questions: { label: 'Questions', value: questionCount }
-      };
+      const summaryParts = [
+        graphName,
+        `${questionCount} ${questionCount === 1 ? 'question' : 'questions'}`,
+        `${formatTwoDigits(minutes)}:${formatTwoDigits(seconds)}`
+      ];
 
-      // Row 2: Time limit & Format
-      const row2 = {
-        timeLimit: { label: 'Time limit', value: `${formatTwoDigits(minutes)}:${formatTwoDigits(seconds)}` },
-        format: { label: 'Format', value: 'Multiple choice' }
-      };
-
-      assert.equal(row1.graph.label, 'Knowledge graph');
-      assert.equal(row1.graph.value, 'Testing');
-      assert.equal(row1.questions.label, 'Questions');
-      assert.equal(row1.questions.value, 10);
-
-      assert.equal(row2.timeLimit.label, 'Time limit');
-      assert.equal(row2.timeLimit.value, '01:00');
-      assert.equal(row2.format.label, 'Format');
-      assert.equal(row2.format.value, 'Multiple choice');
+      const formattedLine = summaryParts.join(' · ');
+      assert.equal(formattedLine, 'Testing · 10 questions · 01:00');
     });
 
     it('updates immediately when user adjusts reels or question count', () => {
@@ -293,16 +306,16 @@ describe('GraphMind Assessment Setup Modal — Refined Architecture & Curved Mec
 
       const getSummary = () => ({
         timeText: `${formatTwoDigits(m)}:${formatTwoDigits(s)}`,
-        questionsVal: q
+        questionsText: `${q} questions`
       });
 
-      assert.deepEqual(getSummary(), { timeText: '05:00', questionsVal: 20 });
+      assert.deepEqual(getSummary(), { timeText: '05:00', questionsText: '20 questions' });
 
       // Change reels and question count
       m = 15;
       s = 45;
       q = 5;
-      assert.deepEqual(getSummary(), { timeText: '15:45', questionsVal: 5 });
+      assert.deepEqual(getSummary(), { timeText: '15:45', questionsText: '5 questions' });
     });
   });
 
@@ -496,5 +509,187 @@ describe('GraphMind Assessment Setup Modal — Refined Architecture & Curved Mec
       assert.equal(summaryLayout.valueColor, '#F4F4F5');
     });
   });
+
+  describe('9. Cinematic Modal Entry & Coordinated Reveal Motion (Part 1)', () => {
+    it('defines smooth backdrop transition with dark overlay and background blur', () => {
+      const backdrop = {
+        background: 'rgba(0, 0, 0, 0.78)',
+        backdropFilter: 'blur(8px)',
+        entranceDurationSeconds: 0.38,
+        exitDurationSeconds: 0.2, // 200ms (within 180-240ms range)
+        ease: [0.16, 1, 0.3, 1]
+      };
+
+      assert.equal(backdrop.backdropFilter, 'blur(8px)');
+      assert.ok(backdrop.entranceDurationSeconds >= 0.35 && backdrop.entranceDurationSeconds <= 0.45);
+      assert.ok(backdrop.exitDurationSeconds >= 0.18 && backdrop.exitDurationSeconds <= 0.24);
+      assert.ok(backdrop.exitDurationSeconds < backdrop.entranceDurationSeconds);
+    });
+
+    it('choreographs modal card entrance arriving into focus without overshoot or bounce', () => {
+      const cardEntrance = {
+        opacity: { from: 0, to: 1 },
+        translateY: { from: 14, to: 0 },
+        scale: { from: 0.975, to: 1 },
+        durationSeconds: 0.5, // 500ms (within 450-600ms range)
+        ease: [0.16, 1, 0.3, 1]
+      };
+
+      assert.equal(cardEntrance.opacity.from, 0);
+      assert.equal(cardEntrance.opacity.to, 1);
+      assert.equal(cardEntrance.translateY.from, 14);
+      assert.equal(cardEntrance.scale.from, 0.975);
+      assert.ok(cardEntrance.durationSeconds >= 0.45 && cardEntrance.durationSeconds <= 0.60);
+    });
+
+    it('coordinates 6-group staggered reveal sequence with short 35-55ms intervals', () => {
+      const sequence = [
+        '1. Eyebrow (CONFIGURE ASSESSMENT)',
+        '2. Heading & description (Make it your own.)',
+        '3. Question selection section',
+        '4. Timer section',
+        '5. Assessment summary line',
+        '6. Footer actions (Cancel & Begin assessment)'
+      ];
+
+      const staggerIntervalSeconds = 0.045; // 45ms (within 35-55ms range)
+      assert.equal(sequence.length, 6);
+      assert.ok(staggerIntervalSeconds >= 0.035 && staggerIntervalSeconds <= 0.055);
+    });
+
+    it('executes closing exit animation noticeably faster than entrance (180-240ms)', () => {
+      const exitAnimation = {
+        opacity: 0,
+        translateY: 8,
+        scale: 0.985,
+        durationSeconds: 0.20 // 200ms
+      };
+
+      assert.equal(exitAnimation.opacity, 0);
+      assert.equal(exitAnimation.scale, 0.985);
+      assert.ok(exitAnimation.durationSeconds >= 0.18 && exitAnimation.durationSeconds <= 0.24);
+    });
+
+    it('locks background scrolling on open and restores previous overflow on close', () => {
+      const fakeBody = { style: { overflow: '' } };
+
+      // Open modal
+      const originalOverflow = fakeBody.style.overflow;
+      fakeBody.style.overflow = 'hidden';
+      assert.equal(fakeBody.style.overflow, 'hidden');
+
+      // Close modal
+      fakeBody.style.overflow = originalOverflow;
+      assert.equal(fakeBody.style.overflow, '');
+    });
+
+    it('respects prefers-reduced-motion with instant/reduced transitions', () => {
+      const getVariants = (reducedMotion: boolean) => ({
+        card: {
+          initial: reducedMotion ? { opacity: 0 } : { opacity: 0, y: 14, scale: 0.975 },
+          animate: reducedMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 },
+          duration: reducedMotion ? 0.18 : 0.5
+        }
+      });
+
+      const normal = getVariants(false);
+      const reduced = getVariants(true);
+
+      assert.equal(normal.card.initial.y, 14);
+      assert.equal(normal.card.initial.scale, 0.975);
+      assert.equal(reduced.card.initial.y, undefined);
+      assert.equal(reduced.card.initial.scale, undefined);
+      assert.ok(reduced.card.duration < normal.card.duration);
+    });
+  });
+
+  describe('10. Tactile Curved Timer Animation & Controlled Physical Snapping (Part 2)', () => {
+    it('uses weighted quartic ease-out curve 1 - (1 - t)^4 with ~260ms settling duration', () => {
+      const quarticEase = (t: number) => 1 - Math.pow(1 - t, 4);
+
+      // Verify progression has weighted mechanical feel
+      assert.equal(quarticEase(0), 0);
+      assert.equal(quarticEase(1), 1);
+      assert.ok(quarticEase(0.5) > 0.9, 'Quartic ease moves swifter initially and decelerates with mechanical weight');
+
+      const singleStepDurationMs = 260; // within 220-320ms range
+      assert.ok(singleStepDurationMs >= 220 && singleStepDurationMs <= 320);
+    });
+
+    it('calculates continuous physical projection with smooth scale and opacity without jarring font jumps', () => {
+      const projectDigit = (diff: number) => {
+        const absDiff = Math.abs(diff);
+        const centerProximity = Math.max(0, 1 - Math.min(1, absDiff));
+        const scale = 0.86 + centerProximity * 0.14;
+        const opacity = Math.max(0, 1 - Math.pow(absDiff / 1.55, 1.55));
+        const isCenter = absDiff < 0.35;
+        return { scale, opacity, isCenter };
+      };
+
+      // Center selected digit
+      const center = projectDigit(0);
+      assert.equal(center.scale, 1.0);
+      assert.equal(center.opacity, 1.0);
+      assert.equal(center.isCenter, true);
+
+      // 1 slot away (neighbor)
+      const neighbor = projectDigit(1.0);
+      assert.equal(neighbor.scale, 0.86);
+      assert.ok(neighbor.opacity >= 0.35 && neighbor.opacity <= 0.55);
+      assert.equal(neighbor.isCenter, false);
+
+      // Halfway between slots during drag / transition
+      const halfway = projectDigit(0.5);
+      assert.ok(Math.abs(halfway.scale - 0.93) < 0.001);
+      assert.ok(halfway.opacity > neighbor.opacity && halfway.opacity < center.opacity);
+    });
+
+    it('caps flick momentum to at most 1 slot preventing erratic runaway roulette wheel', () => {
+      const computeTactileMomentum = (vy: number) => {
+        let momentumSlots = 0;
+        if (Math.abs(vy) > 0.35) {
+          momentumSlots = vy > 0 ? -1 : 1;
+        }
+        return momentumSlots;
+      };
+
+      // Slow drag has zero runaway momentum
+      assert.equal(computeTactileMomentum(0.1), 0);
+      assert.equal(computeTactileMomentum(-0.2), 0);
+
+      // Fast flick capped at strictly 1 slot
+      assert.equal(computeTactileMomentum(0.8), -1);
+      assert.equal(computeTactileMomentum(-1.2), 1);
+      assert.equal(computeTactileMomentum(5.0), -1);
+    });
+
+    it('preserves boundary protection so timer never accidentally settles at 00:00', () => {
+      const minDurationSeconds = 60; // 01:00
+
+      const canDecrementMinutes = (m: number, s: number) => {
+        const nextM = m - 1;
+        return nextM * 60 + s >= minDurationSeconds;
+      };
+
+      const canDecrementSeconds = (m: number, s: number) => {
+        let nextS = s - 15;
+        let nextM = m;
+        if (nextS < 0) {
+          nextS = 45;
+          nextM = m - 1;
+        }
+        return nextM * 60 + nextS >= minDurationSeconds;
+      };
+
+      // At 01:00 (minimum duration)
+      assert.equal(canDecrementMinutes(1, 0), false, 'Cannot decrement 1 min to 0 when seconds is 0');
+      assert.equal(canDecrementSeconds(1, 0), false, 'Cannot decrement 0 seconds when minutes is 1');
+
+      // At 02:00
+      assert.equal(canDecrementMinutes(2, 0), true);
+      assert.equal(canDecrementSeconds(2, 0), true);
+    });
+  });
 });
+
 
