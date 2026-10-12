@@ -10,7 +10,8 @@ import {
   loadRevisionSession,
   saveRevisionSession,
   jumpToIndex,
-  jumpToConceptId
+  jumpToConceptId,
+  navigateOrAppendToRevisionSession
 } from '../../services/revisionSession';
 import {
   getOrGenerateConceptExplanation,
@@ -418,72 +419,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   isNewSession: _isNewSession = false,
   skipEntryAnimation = false
 }) => {
-  // 1. Resolve deterministic concept sequence from revisionPath or graph data
-  const concepts: RevisionConceptItem[] = useMemo(() => {
-    // If a revisionPath sequence is provided and non-empty, follow it
-    if (revisionPath && revisionPath.length > 0) {
-      return revisionPath.map((step) => {
-        const detail = conceptDetails[step.conceptId];
-        const rawNode = allNodes.find((n) => n.id === step.conceptId) ||
-          graph?.nodes.find((n) => n.id === step.conceptId);
-
-        return {
-          id: step.conceptId,
-          name: step.conceptName || detail?.label || detail?.name || rawNode?.name || rawNode?.data?.label || step.conceptId,
-          category: step.category || detail?.category || rawNode?.category || rawNode?.data?.category || rawNode?.type,
-          description: detail?.description || rawNode?.description || rawNode?.data?.description || '',
-          relationships: detail?.relationships || (rawNode?.relationships as ConceptRelationship[]) || [],
-          keyIdeas: detail?.keyIdeas || rawNode?.keyIdeas || rawNode?.data?.keyIdeas,
-          evidence: detail?.evidence || rawNode?.evidence || rawNode?.data?.evidence,
-          isCore: rawNode?.isCore || rawNode?.data?.isCore
-        };
-      });
-    }
-
-    // Otherwise, derive concepts deterministically from the selected graph's actual nodes
-    const sourceNodes = (graph?.nodes && graph.nodes.length > 0) ? graph.nodes : (allNodes.length > 0 ? allNodes : []);
-    if (sourceNodes.length === 0) return [];
-
-    // Deterministically build relationships from graph.relationships or allEdges if needed
-    const relMap = new Map<string, ConceptRelationship[]>();
-    const effectiveRels = (graph?.relationships && graph.relationships.length > 0) ? graph.relationships : allEdges;
-    effectiveRels.forEach((rel) => {
-      const source = rel.source;
-      const target = rel.target;
-      if (!source || !target) return;
-
-      const targetNode = sourceNodes.find((n: any) => n.id === target);
-      const targetName = targetNode?.name || (targetNode as any)?.data?.label || target;
-
-      if (!relMap.has(source)) relMap.set(source, []);
-      relMap.get(source)!.push({
-        id: rel.id,
-        type: rel.type || rel.label || 'related-to',
-        targetId: target,
-        targetName,
-        direction: 'outgoing',
-        description: rel.description
-      });
-    });
-
-    return sourceNodes.map((n: any) => {
-      const id = n.id;
-      const detail = conceptDetails[id];
-      const rels = detail?.relationships || relMap.get(id) || [];
-      return {
-        id,
-        name: detail?.label || detail?.name || n.name || n.data?.label || id,
-        category: detail?.category || n.category || n.data?.category || n.type,
-        description: detail?.description || n.description || n.data?.description || '',
-        relationships: rels,
-        keyIdeas: detail?.keyIdeas || n.keyIdeas || n.data?.keyIdeas,
-        evidence: detail?.evidence || n.evidence || n.data?.evidence,
-        isCore: n.isCore || n.data?.isCore
-      };
-    });
-  }, [revisionPath, conceptDetails, allNodes, graph?.nodes, graph?.relationships]);
-
-  // 2. Manage revision session state (restores previous session when available)
+  // 1. Manage revision session state (restores previous session when available)
   const [internalSession, setInternalSession] = useState<RevisionSessionState>(() => {
     if (controlledSession && graph) {
       const valid = validateRevisionSession(controlledSession, graph);
@@ -526,6 +462,78 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   });
 
   const activeSession = controlledSession || internalSession;
+
+  // 2. Resolve deterministic concept sequence from revisionPath or graph data
+  const concepts: RevisionConceptItem[] = useMemo(() => {
+    const sourceNodes = (graph?.nodes && graph.nodes.length > 0) ? graph.nodes : (allNodes.length > 0 ? allNodes : []);
+    if (sourceNodes.length === 0 && (!revisionPath || revisionPath.length === 0)) return [];
+
+    // Deterministically build relationships from graph.relationships or allEdges (both outgoing and incoming)
+    const relMap = new Map<string, ConceptRelationship[]>();
+    const effectiveRels = (graph?.relationships && graph.relationships.length > 0) ? graph.relationships : allEdges;
+    effectiveRels.forEach((rel) => {
+      const source = rel.source;
+      const target = rel.target;
+      if (!source || !target) return;
+
+      const sourceNode = sourceNodes.find((n: any) => n.id === source) || allNodes.find((n: any) => n.id === source);
+      const targetNode = sourceNodes.find((n: any) => n.id === target) || allNodes.find((n: any) => n.id === target);
+      const sourceName = sourceNode?.name || (sourceNode as any)?.data?.label || conceptDetails[source]?.name || conceptDetails[source]?.label || source;
+      const targetName = targetNode?.name || (targetNode as any)?.data?.label || conceptDetails[target]?.name || conceptDetails[target]?.label || target;
+
+      if (!relMap.has(source)) relMap.set(source, []);
+      relMap.get(source)!.push({
+        id: rel.id,
+        type: rel.type || (rel as any).label || 'related-to',
+        targetId: target,
+        targetName,
+        direction: 'outgoing',
+        description: rel.description
+      });
+
+      if (!relMap.has(target)) relMap.set(target, []);
+      relMap.get(target)!.push({
+        id: rel.id ? `${rel.id}-in` : undefined,
+        type: rel.type || (rel as any).label || 'related-to',
+        targetId: source,
+        targetName: sourceName,
+        direction: 'incoming',
+        description: rel.description
+      });
+    });
+
+    const createItemForId = (id: string, step?: RevisionPathStep): RevisionConceptItem => {
+      const detail = conceptDetails[id];
+      const rawNode = sourceNodes.find((n: any) => n.id === id) || allNodes.find((n: any) => n.id === id);
+      const rels = (detail?.relationships && detail.relationships.length > 0)
+        ? detail.relationships
+        : (rawNode?.relationships && (rawNode.relationships as ConceptRelationship[]).length > 0)
+          ? (rawNode.relationships as ConceptRelationship[])
+          : (relMap.get(id) || []);
+
+      return {
+        id,
+        name: step?.conceptName || detail?.label || detail?.name || rawNode?.name || rawNode?.data?.label || id,
+        category: step?.category || detail?.category || rawNode?.category || rawNode?.data?.category || rawNode?.type,
+        description: detail?.description || rawNode?.description || rawNode?.data?.description || '',
+        relationships: rels,
+        keyIdeas: detail?.keyIdeas || rawNode?.keyIdeas || rawNode?.data?.keyIdeas,
+        evidence: detail?.evidence || rawNode?.evidence || rawNode?.data?.evidence,
+        isCore: rawNode?.isCore || rawNode?.data?.isCore
+      };
+    };
+
+    if (revisionPath && revisionPath.length > 0) {
+      const baseItems = revisionPath.map(step => createItemForId(step.conceptId, step));
+      // Include any dynamically appended concepts from activeSession
+      const appendedIds = activeSession.conceptIds.filter(id => !revisionPath.some(step => step.conceptId === id));
+      const appendedItems = appendedIds.map(id => createItemForId(id));
+      return [...baseItems, ...appendedItems];
+    }
+
+    return sourceNodes.map((n: any) => createItemForId(n.id));
+  }, [revisionPath, conceptDetails, allNodes, graph?.nodes, graph?.relationships, activeSession.conceptIds]);
+
   const totalConcepts = concepts.length;
 
   // Resolve active index: controlledIndex takes precedence if provided, otherwise activeSession.currentIndex
@@ -894,13 +902,133 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   // Check existing concept data for content structure sections
   const conceptTitle = currentConcept?.name || '';
   const conceptDescription = currentConcept?.description || '';
-  const relatedConcepts = currentConcept?.relationships || [];
+
+  // Quick Exploration state (Task 08: inspect related concepts without replacing active concept)
+  const [inspectedRelatedId, setInspectedRelatedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setInspectedRelatedId(null);
+  }, [currentConcept?.id]);
+
+  const handleToggleInspect = useCallback((targetId: string) => {
+    setInspectedRelatedId(prev => prev === targetId ? null : targetId);
+  }, []);
+
+  const handleOpenRelatedInRevision = useCallback((targetId: string) => {
+    if (!targetId) return;
+    const nextSession = navigateOrAppendToRevisionSession(activeSession, targetId);
+    setInternalSession(nextSession);
+    if (graph?.id) {
+      saveRevisionSession(nextSession, graph.id);
+    }
+    onSessionChange?.(nextSession);
+    if (onSelectConceptIndex) {
+      onSelectConceptIndex(nextSession.currentIndex);
+    }
+    setInspectedRelatedId(null);
+  }, [activeSession, graph?.id, onSessionChange, onSelectConceptIndex]);
+
+  const handleExploreRelatedInGraph = useCallback((targetId: string) => {
+    if (!targetId) return;
+    if (graph?.id && activeSession) {
+      saveRevisionSession(activeSession, graph.id);
+    }
+    if (onViewGraph) {
+      onViewGraph(targetId);
+    } else {
+      onBackToGraph();
+    }
+  }, [graph?.id, activeSession, onViewGraph, onBackToGraph]);
+
+  // Resolve related concepts strictly from real graph edges and nodes (Task 08)
+  const resolvedRelatedConcepts = useMemo(() => {
+    if (!currentConcept) return [];
+
+    const sourceNodes = (graph?.nodes && graph.nodes.length > 0) ? graph.nodes : (allNodes.length > 0 ? allNodes : []);
+    const items: Array<{
+      id: string;
+      name: string;
+      category?: string;
+      description?: string;
+      relationType: string;
+      direction: 'outgoing' | 'incoming';
+      relationDescription?: string;
+      isInCurrentSession: boolean;
+    }> = [];
+    const seenIds = new Set<string>();
+
+    const refNameMap = new Map<string, string>();
+    if (explanationState.status === 'ready' && explanationState.explanation?.relatedConceptReferences) {
+      explanationState.explanation.relatedConceptReferences.forEach(ref => {
+        if (ref.conceptId && ref.conceptName) {
+          refNameMap.set(ref.conceptId, ref.conceptName);
+        }
+      });
+    }
+
+    const addRelated = (
+      targetId: string,
+      targetName: string,
+      relationType: string,
+      direction: 'outgoing' | 'incoming',
+      relationDescription?: string
+    ) => {
+      if (!targetId || targetId === currentConcept.id || seenIds.has(targetId)) return;
+      seenIds.add(targetId);
+
+      const targetNode = sourceNodes.find((n: any) => n.id === targetId) || allNodes.find((n: any) => n.id === targetId) || concepts.find(c => c.id === targetId);
+      const targetDetail = conceptDetails[targetId];
+
+      const preferredName = (targetName && targetName !== targetId) ? targetName : (refNameMap.get(targetId) || targetName || targetId);
+      const resolvedName = targetDetail?.label || targetDetail?.name || targetNode?.name || (targetNode as any)?.data?.label || preferredName;
+      const resolvedCategory = targetDetail?.category || targetNode?.category || (targetNode as any)?.data?.category || targetNode?.type;
+      const resolvedDesc = targetDetail?.description || targetNode?.description || (targetNode as any)?.data?.description || '';
+
+      items.push({
+        id: targetId,
+        name: resolvedName,
+        category: resolvedCategory,
+        description: resolvedDesc,
+        relationType: relationType || 'related-to',
+        direction: direction || 'outgoing',
+        relationDescription,
+        isInCurrentSession: activeSession.conceptIds.includes(targetId)
+      });
+    };
+
+    if (currentConcept.relationships && currentConcept.relationships.length > 0) {
+      currentConcept.relationships.forEach(rel => {
+        addRelated(
+          rel.targetId,
+          rel.targetName,
+          rel.type,
+          rel.direction,
+          rel.description
+        );
+      });
+    }
+
+    if (explanationState.status === 'ready' && explanationState.explanation?.relatedConceptReferences) {
+      explanationState.explanation.relatedConceptReferences.forEach(ref => {
+        if (ref.conceptId) {
+          addRelated(ref.conceptId, ref.conceptName, ref.relationshipType, 'outgoing');
+        } else {
+          const matchNode = sourceNodes.find((n: any) => n.name === ref.conceptName || (n as any)?.data?.label === ref.conceptName);
+          if (matchNode) {
+            addRelated(matchNode.id, ref.conceptName, ref.relationshipType, 'outgoing');
+          }
+        }
+      });
+    }
+
+    return items;
+  }, [currentConcept, graph?.nodes, allNodes, concepts, conceptDetails, activeSession.conceptIds, explanationState]);
 
   // Understanding section only renders if there are extra key ideas or evidence
   const hasExtraKeyIdeas = Boolean(currentConcept?.keyIdeas && currentConcept.keyIdeas.length > 0);
   const hasEvidence = Boolean(currentConcept?.evidence && currentConcept.evidence.trim().length > 0);
   const hasUnderstandingData = hasExtraKeyIdeas || hasEvidence;
-  const hasRelatedConcepts = relatedConcepts.length > 0;
+  const hasRelatedConcepts = resolvedRelatedConcepts.length > 0;
 
   const workspaceRootRef = useRef<HTMLDivElement | null>(null);
 
@@ -989,7 +1117,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
       list.push({ id: 'section-examples', num: String(counter++).padStart(2, '0'), label: 'Example' });
     }
     // 06. Related concepts
-    if ((exp.relatedConceptReferences && exp.relatedConceptReferences.length > 0) || hasRelatedConcepts) {
+    if (hasRelatedConcepts) {
       list.push({ id: 'section-related-concepts', num: String(counter++).padStart(2, '0'), label: 'Related' });
     }
     // 07. Source references
@@ -1001,6 +1129,150 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   }, [explanationState, hasUnderstandingData, hasRelatedConcepts]);
 
   const getSecNum = (id: string) => activeSections.find(s => s.id === id)?.num || '01';
+
+  // Section 06 Editorial Related Concepts renderer
+  const renderRelatedConceptsSection = (secNum?: string) => {
+    if (resolvedRelatedConcepts.length === 0) return null;
+
+    return (
+      <div className="revision-section revision-section-related" id="section-related-concepts">
+        <h2 className="revision-section-heading">
+          {secNum && <span className="revision-section-num">{secNum}</span>}
+          <span>Related concepts</span>
+        </h2>
+        <div className="revision-related-list">
+          {resolvedRelatedConcepts.map((rel) => {
+            const isInspected = inspectedRelatedId === rel.id;
+            const formattedType = rel.relationType.replace(/-/g, ' ');
+            return (
+              <div key={rel.id} className="revision-related-item-wrapper">
+                <div className="revision-related-item">
+                  <div className="revision-related-info">
+                    <div className="revision-related-relation-row">
+                      <span className="revision-related-relation">
+                        {formattedType}
+                      </span>
+                      <span className="revision-related-dir-badge" aria-label={`Relationship direction: ${rel.direction}`}>
+                        {rel.direction === 'incoming' ? '← Incoming' : '→ Outgoing'}
+                      </span>
+                    </div>
+                    <span className="revision-related-name">
+                      {rel.name}
+                    </span>
+                    {rel.description && (
+                      <p className="revision-related-desc">
+                        {rel.description}
+                      </p>
+                    )}
+                  </div>
+                  <div className="revision-related-actions">
+                    <button
+                      type="button"
+                      className="revision-related-inspect-btn"
+                      onClick={() => handleToggleInspect(rel.id)}
+                      aria-expanded={isInspected}
+                      aria-label={`Inspect ${rel.name}`}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="16" x2="12" y2="12" />
+                        <line x1="12" y1="8" x2="12.01" y2="8" />
+                      </svg>
+                      <span>{isInspected ? 'Close preview' : 'Inspect'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="revision-related-graph-btn"
+                      onClick={() => handleExploreRelatedInGraph(rel.id)}
+                      aria-label={`Explore ${rel.name} in graph`}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="18" cy="5" r="3" />
+                        <circle cx="6" cy="12" r="3" />
+                        <circle cx="18" cy="19" r="3" />
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                      </svg>
+                      <span>Explore in graph</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Quick Exploration Contextual Preview Box */}
+                {isInspected && (
+                  <div
+                    className="revision-related-inspect-box"
+                    role="region"
+                    aria-label={`Preview of ${rel.name}`}
+                  >
+                    <div className="revision-inspect-header">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <h4 className="revision-inspect-title">{rel.name}</h4>
+                        {rel.category && (
+                          <span className="revision-inspect-category">{rel.category}</span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="revision-inspect-close-btn"
+                        onClick={() => setInspectedRelatedId(null)}
+                        aria-label="Close preview"
+                      >
+                        ✕ Close
+                      </button>
+                    </div>
+
+                    <div className="revision-inspect-rel-note">
+                      <span>Relationship:</span>
+                      <strong>{formattedType}</strong>
+                      <span>({rel.direction === 'incoming' ? `incoming to ${conceptTitle}` : `outgoing from ${conceptTitle}`})</span>
+                      {rel.relationDescription && (
+                        <span style={{ color: 'var(--text-muted, #8A8A8A)', marginLeft: '4px' }}>— {rel.relationDescription}</span>
+                      )}
+                    </div>
+
+                    <p className="revision-inspect-desc">
+                      {rel.description || 'No extended concept description provided in knowledge graph.'}
+                    </p>
+
+                    <div className="revision-inspect-actions">
+                      <button
+                        type="button"
+                        className="revision-inspect-open-btn"
+                        onClick={() => handleOpenRelatedInRevision(rel.id)}
+                        aria-label={`Revise ${rel.name} in workspace`}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <polygon points="5 3 19 12 5 21 5 3" />
+                        </svg>
+                        <span>{rel.isInCurrentSession ? 'Revise concept' : 'Add to session & revise'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="revision-inspect-graph-btn"
+                        onClick={() => handleExploreRelatedInGraph(rel.id)}
+                        aria-label={`Explore ${rel.name} in interactive knowledge graph`}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <circle cx="18" cy="5" r="3" />
+                          <circle cx="6" cy="12" r="3" />
+                          <circle cx="18" cy="19" r="3" />
+                          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                        </svg>
+                        <span>Explore in graph</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <motion.div
@@ -1229,16 +1501,19 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
 
                     {/* State C: Insufficient source material */}
                     {explanationState.status === 'insufficient' && (
-                      <div className="revision-section revision-section-insufficient">
-                        <div className="revision-insufficient-card" role="region" aria-label="Source Grounding Notice">
-                          <span className="revision-insufficient-kicker">SOURCE GROUNDING / INSUFFICIENT MATERIAL</span>
-                          <h3 className="revision-insufficient-title">Detailed explanation unavailable</h3>
-                          <p className="revision-insufficient-desc">
-                            {explanationState.insufficientReason ||
-                              `The learning materials associated with this knowledge graph do not contain enough documented passages or evidence for "${conceptTitle}". GraphMind avoids generating speculative explanations to ensure academic integrity.`}
-                          </p>
+                      <>
+                        <div className="revision-section revision-section-insufficient">
+                          <div className="revision-insufficient-card" role="region" aria-label="Source Grounding Notice">
+                            <span className="revision-insufficient-kicker">SOURCE GROUNDING / INSUFFICIENT MATERIAL</span>
+                            <h3 className="revision-insufficient-title">Detailed explanation unavailable</h3>
+                            <p className="revision-insufficient-desc">
+                              {explanationState.insufficientReason ||
+                                `The learning materials associated with this knowledge graph do not contain enough documented passages or evidence for "${conceptTitle}". GraphMind avoids generating speculative explanations to ensure academic integrity.`}
+                            </p>
+                          </div>
                         </div>
-                      </div>
+                        {renderRelatedConceptsSection()}
+                      </>
                     )}
 
                     {/* State D: Generation failure with retry */}
@@ -1638,37 +1913,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                         )}
 
                         {/* 06. Related Concepts */}
-                        {((explanationState.explanation.relatedConceptReferences && explanationState.explanation.relatedConceptReferences.length > 0) || hasRelatedConcepts) && (
-                          <div className="revision-section revision-section-related" id="section-related-concepts">
-                            <h2 className="revision-section-heading">
-                              <span className="revision-section-num">{getSecNum('section-related-concepts')}</span>
-                              <span>Related concepts</span>
-                            </h2>
-                            <div className="revision-related-list">
-                              {explanationState.explanation.relatedConceptReferences && explanationState.explanation.relatedConceptReferences.length > 0
-                                ? explanationState.explanation.relatedConceptReferences.map((rel, idx) => (
-                                    <div key={rel.conceptId || idx} className="revision-related-item">
-                                      <span className="revision-related-relation">
-                                        {rel.relationshipType ? rel.relationshipType.replace(/-/g, ' ') : 'Related to'}
-                                      </span>
-                                      <span className="revision-related-name">
-                                        {rel.conceptName}
-                                      </span>
-                                    </div>
-                                  ))
-                                : relatedConcepts.map((rel, idx) => (
-                                    <div key={rel.id || `${rel.targetId}-${idx}`} className="revision-related-item">
-                                      <span className="revision-related-relation">
-                                        {rel.type ? rel.type.replace(/-/g, ' ') : 'Related to'}
-                                      </span>
-                                      <span className="revision-related-name">
-                                        {rel.targetName}
-                                      </span>
-                                    </div>
-                                  ))}
-                            </div>
-                          </div>
-                        )}
+                        {renderRelatedConceptsSection(getSecNum('section-related-concepts'))}
 
                         {/* 07. Source References */}
                         {explanationState.explanation.sourceReferences && explanationState.explanation.sourceReferences.length > 0 && (
@@ -1722,23 +1967,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                           </div>
                         )}
 
-                        {hasRelatedConcepts && (
-                          <div className="revision-section revision-section-related">
-                            <h2 className="revision-section-heading">Related concepts</h2>
-                            <div className="revision-related-list">
-                              {relatedConcepts.map((rel, idx) => (
-                                <div key={rel.id || `${rel.targetId}-${idx}`} className="revision-related-item">
-                                  <span className="revision-related-relation">
-                                    {rel.type ? rel.type.replace(/-/g, ' ') : 'Related to'}
-                                  </span>
-                                  <span className="revision-related-name">
-                                    {rel.targetName}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
+                        {renderRelatedConceptsSection()}
                       </>
                     )}
                   </motion.section>
