@@ -218,6 +218,7 @@ export interface RevisionSessionState {
   reviewedConceptIds: string[];
   markedForReviewIds: string[];
   path?: RevisionPathStep[];
+  entryAnimationPlayed?: boolean;
 }
 
 

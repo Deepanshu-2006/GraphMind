@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { motion, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
 import type { KnowledgeGraph } from '../../types/knowledgeGraph';
 import type { GraphConceptData, ConceptRelationship } from '../../types/graph';
 import type { RevisionPathStep, RevisionSessionState } from '../../types/practice';
@@ -10,6 +11,212 @@ import {
   jumpToIndex,
   jumpToConceptId
 } from '../../services/revisionSession';
+
+export const WORKSPACE_EASING = [0.16, 1, 0.3, 1] as const;
+
+/**
+ * Stage 1: Workspace Arrival (Section 1)
+ * The main reading area transitions from a slightly displaced position into its final position.
+ * Subtle opacity transition without large scaling.
+ */
+export const createWorkspaceArrivalVariants = (shouldReduceMotion = false): Variants => ({
+  hidden: {
+    opacity: 0,
+    y: shouldReduceMotion ? 0 : 12
+  },
+  settled: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.32,
+      ease: WORKSPACE_EASING
+    }
+  }
+});
+
+/**
+ * Stage 2: Session Metadata (Section 1)
+ * Reveal the revision label and progress indicator with a small, restrained delay.
+ */
+export const createSessionMetadataVariants = (
+  shouldReduceMotion = false,
+  skipDelay = false
+): Variants => ({
+  hidden: {
+    opacity: 0,
+    y: shouldReduceMotion ? 0 : 8
+  },
+  settled: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.28,
+      delay: shouldReduceMotion || skipDelay ? 0 : 0.08,
+      ease: WORKSPACE_EASING
+    }
+  }
+});
+
+/**
+ * Stage 3A: Concept Identifier / Badge (Section 1)
+ * Reveal the concept identifier first.
+ */
+export const createConceptBadgeVariants = (
+  shouldReduceMotion = false,
+  skipDelay = false
+): Variants => ({
+  hidden: {
+    opacity: 0,
+    y: shouldReduceMotion ? 0 : 6
+  },
+  settled: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.24,
+      delay: shouldReduceMotion || skipDelay ? 0 : 0.14,
+      ease: WORKSPACE_EASING
+    }
+  }
+});
+
+/**
+ * Stage 3B: Concept Title (Section 1)
+ * The concept title should receive the most visual attention with a deliberate reveal.
+ */
+export const createConceptTitleVariants = (
+  shouldReduceMotion = false,
+  skipDelay = false
+): Variants => ({
+  hidden: {
+    opacity: 0,
+    y: shouldReduceMotion ? 0 : 10
+  },
+  settled: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.36,
+      delay: shouldReduceMotion || skipDelay ? 0 : 0.20,
+      ease: WORKSPACE_EASING
+    }
+  }
+});
+
+/**
+ * Stage 3C: Concept Description & Content Sections (Section 1)
+ * Reveal concept description and learning sections after the title.
+ */
+export const createConceptDescriptionVariants = (
+  shouldReduceMotion = false,
+  skipDelay = false
+): Variants => ({
+  hidden: {
+    opacity: 0,
+    y: shouldReduceMotion ? 0 : 8
+  },
+  settled: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.30,
+      delay: shouldReduceMotion || skipDelay ? 0 : 0.28,
+      ease: WORKSPACE_EASING
+    }
+  }
+});
+
+/**
+ * Stage 4: Navigation (Section 1)
+ * Reveal previous/next navigation after the main content has settled.
+ */
+export const createNavigationVariants = (
+  shouldReduceMotion = false,
+  skipDelay = false
+): Variants => ({
+  hidden: {
+    opacity: 0,
+    y: shouldReduceMotion ? 0 : 6
+  },
+  settled: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.26,
+      delay: shouldReduceMotion || skipDelay ? 0 : 0.36,
+      ease: WORKSPACE_EASING
+    }
+  }
+});
+
+/**
+ * Full Workspace Root Backdrop Transition
+ */
+export const createWorkspaceRootVariants = (shouldReduceMotion = false): Variants => ({
+  hidden: {
+    opacity: 0
+  },
+  settled: {
+    opacity: 1,
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.28,
+      ease: WORKSPACE_EASING
+    }
+  },
+  exit: {
+    opacity: 0,
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.2,
+      ease: WORKSPACE_EASING
+    }
+  }
+});
+
+/**
+ * Direction-Aware Concept-to-Concept Transitions (Section 3)
+ * Moving forward (Next): Content enters from +14px, exits to -14px.
+ * Moving backward (Previous): Content enters from -14px, exits to +14px.
+ */
+export const createConceptCanvasVariants = (shouldReduceMotion = false): Variants => ({
+  hidden: {
+    opacity: 0,
+    y: shouldReduceMotion ? 0 : 8
+  },
+  settled: {
+    opacity: 1,
+    y: 0,
+    x: 0,
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.32,
+      ease: WORKSPACE_EASING
+    }
+  },
+  enter: (dir: number) => ({
+    opacity: 0,
+    x: shouldReduceMotion ? 0 : (dir >= 0 ? 14 : -14),
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.22,
+      ease: WORKSPACE_EASING
+    }
+  }),
+  center: {
+    opacity: 1,
+    x: 0,
+    y: 0,
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.24,
+      ease: WORKSPACE_EASING
+    }
+  },
+  exit: (dir: number) => ({
+    opacity: 0,
+    x: shouldReduceMotion ? 0 : (dir >= 0 ? -14 : 14),
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.16,
+      ease: WORKSPACE_EASING
+    }
+  })
+});
 
 export interface RevisionConceptItem {
   id: string;
@@ -40,6 +247,8 @@ export interface RevisionWorkspaceProps {
   onViewGraph?: (conceptId?: string) => void;
   onSelectGraph?: () => void;
   isLoading?: boolean;
+  isNewSession?: boolean;
+  skipEntryAnimation?: boolean;
 }
 
 /**
@@ -65,7 +274,9 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   onBackToGraph,
   onViewGraph,
   onSelectGraph,
-  isLoading = false
+  isLoading = false,
+  isNewSession = false,
+  skipEntryAnimation = false
 }) => {
   // 1. Resolve deterministic concept sequence from revisionPath or graph data
   const concepts: RevisionConceptItem[] = useMemo(() => {
@@ -248,9 +459,89 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     }
   }, [controlledIndex, initialConceptId, concepts, graph?.id, onSessionChange]);
 
+  // Reduced motion preference (Section 7)
+  const shouldReduceMotion = useReducedMotion() ?? false;
+
+  // Direction tracking for Section 3 concept transitions: 1 = forward (Next), -1 = backward (Previous)
+  const [direction, setDirection] = useState<number>(1);
+  const prevIndexRef = useRef(currentIndex);
+
+  useEffect(() => {
+    if (currentIndex > prevIndexRef.current) {
+      setDirection(1);
+    } else if (currentIndex < prevIndexRef.current) {
+      setDirection(-1);
+    }
+    prevIndexRef.current = currentIndex;
+  }, [currentIndex]);
+
+  // Session entry animation tracking (Section 4: Avoid replaying everything)
+  const [hasPlayedEntry, setHasPlayedEntry] = useState<boolean>(() => Boolean(skipEntryAnimation));
+
+  useEffect(() => {
+    if (skipEntryAnimation) {
+      setHasPlayedEntry(true);
+      return;
+    }
+    // Allow entry animation sequence (Stage 1-4, up to ~450ms) to complete smoothly
+    const timer = setTimeout(() => {
+      setHasPlayedEntry(true);
+      if (activeSession && !activeSession.entryAnimationPlayed) {
+        const updated = { ...activeSession, entryAnimationPlayed: true };
+        setInternalSession(updated);
+        if (graph?.id) saveRevisionSession(updated, graph.id);
+        onSessionChange?.(updated);
+      }
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [skipEntryAnimation, graph?.id, activeSession, onSessionChange]);
+
+  // Framer Motion variants memoized to prevent re-creation on ordinary renders
+  const workspaceRootVariants = useMemo(
+    () => createWorkspaceRootVariants(shouldReduceMotion),
+    [shouldReduceMotion]
+  );
+
+  const workspaceArrivalVariants = useMemo(
+    () => createWorkspaceArrivalVariants(shouldReduceMotion),
+    [shouldReduceMotion]
+  );
+
+  const sessionMetadataVariants = useMemo(
+    () => createSessionMetadataVariants(shouldReduceMotion, hasPlayedEntry),
+    [shouldReduceMotion, hasPlayedEntry]
+  );
+
+  const conceptBadgeVariants = useMemo(
+    () => createConceptBadgeVariants(shouldReduceMotion, hasPlayedEntry),
+    [shouldReduceMotion, hasPlayedEntry]
+  );
+
+  const conceptTitleVariants = useMemo(
+    () => createConceptTitleVariants(shouldReduceMotion, hasPlayedEntry),
+    [shouldReduceMotion, hasPlayedEntry]
+  );
+
+  const conceptDescriptionVariants = useMemo(
+    () => createConceptDescriptionVariants(shouldReduceMotion, hasPlayedEntry),
+    [shouldReduceMotion, hasPlayedEntry]
+  );
+
+  const navigationVariants = useMemo(
+    () => createNavigationVariants(shouldReduceMotion, hasPlayedEntry),
+    [shouldReduceMotion, hasPlayedEntry]
+  );
+
+  const conceptCanvasVariants = useMemo(
+    () => createConceptCanvasVariants(shouldReduceMotion),
+    [shouldReduceMotion]
+  );
+
   // Concept navigation step handlers
   const handlePrev = useCallback(() => {
     if (isFirst) return;
+    setDirection(-1);
     const prevIdx = Math.max(0, currentIndex - 1);
     const nextSession = jumpToIndex(activeSession, prevIdx);
     setInternalSession(nextSession);
@@ -262,6 +553,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
 
   const handleNext = useCallback(() => {
     if (isLast) return;
+    setDirection(1);
     const nextIdx = Math.min(totalConcepts - 1, currentIndex + 1);
     const nextSession = jumpToIndex(activeSession, nextIdx);
     const currentConceptId = concepts[currentIndex]?.id;
@@ -340,10 +632,14 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   const hasKnowledgeChecksData = false;
 
   return (
-    <div
+    <motion.div
       className="revision-workspace-root"
       role="region"
       aria-label="GraphMind Dedicated Revision Workspace"
+      variants={workspaceRootVariants}
+      initial={hasPlayedEntry ? "settled" : "hidden"}
+      animate="settled"
+      exit="exit"
     >
       {/* --------------------------------------------------------------------
           TOP WORKSPACE HEADER (Section 2 & 7)
@@ -391,7 +687,12 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
           Centered reading column (760–820px max-width, generous margins)
           -------------------------------------------------------------------- */}
       <main className="revision-reading-area" id="revision-content" tabIndex={-1}>
-        <div className="revision-reading-column">
+        <motion.div
+          className="revision-reading-column"
+          variants={workspaceArrivalVariants}
+          initial={hasPlayedEntry ? "settled" : "hidden"}
+          animate="settled"
+        >
           {/* State 1: Loading state */}
           {isLoading && (
             <div className="revision-loading-state" role="status" aria-live="polite">
@@ -438,10 +739,15 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
           {!isLoading && totalConcepts > 0 && currentConcept && (
             <>
               {/* --------------------------------------------------------------
-                  REVISION PROGRESS HEADER (Section 3)
+                  REVISION PROGRESS HEADER (Stage 2: Session Metadata)
                   "REVISION SESSION" on left | "01 / 18" on right | Thin lime-green progress
                   -------------------------------------------------------------- */}
-              <div className="revision-progress-header">
+              <motion.div
+                className="revision-progress-header"
+                variants={sessionMetadataVariants}
+                initial={hasPlayedEntry ? "settled" : "hidden"}
+                animate="settled"
+              >
                 <div className="revision-progress-meta">
                   <span className="revision-progress-kicker">REVISION SESSION</span>
                   <span
@@ -459,120 +765,167 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                   aria-valuemax={totalConcepts}
                   aria-label="Revision session progress"
                 >
-                  <div
+                  <motion.div
                     className="revision-progress-fill"
-                    style={{ width: `${progressPercentage}%` }}
+                    initial={false}
+                    animate={{ width: `${progressPercentage}%` }}
+                    transition={{
+                      duration: shouldReduceMotion ? 0 : 0.3,
+                      ease: WORKSPACE_EASING
+                    }}
                   />
                 </div>
-              </div>
+              </motion.div>
 
               {/* --------------------------------------------------------------
-                  CONCEPT INTRODUCTION (Section 4)
-                  Small label "CONCEPT 01" | Large bold title | Short description
+                  DIRECTION-AWARE CONCEPT CANVAS (Stage 3 & Concept Transitions)
+                  Forward: enters from +14px, exits to -14px
+                  Backward: enters from -14px, exits to +14px
                   -------------------------------------------------------------- */}
-              <section className="revision-concept-intro" aria-labelledby="revision-concept-title">
-                <div className="revision-concept-badge">
-                  <span className="revision-concept-badge-dot" aria-hidden="true" />
-                  <span className="revision-concept-badge-text">{`CONCEPT ${formattedIndex}`}</span>
-                </div>
-                <h1 id="revision-concept-title" className="revision-concept-title">
-                  {conceptTitle}
-                </h1>
-                {conceptDescription ? (
-                  <p className="revision-concept-description">
-                    {conceptDescription}
-                  </p>
-                ) : null}
-              </section>
+              <AnimatePresence mode="wait" custom={direction}>
+                <motion.div
+                  key={currentConcept.id}
+                  custom={direction}
+                  variants={conceptCanvasVariants}
+                  initial={hasPlayedEntry ? "enter" : "hidden"}
+                  animate={hasPlayedEntry ? "center" : "settled"}
+                  exit="exit"
+                  className="revision-concept-canvas"
+                >
+                  {/* Concept Introduction (Stage 3: Identifier -> Title -> Description) */}
+                  <section className="revision-concept-intro" aria-labelledby="revision-concept-title">
+                    <motion.div
+                      className="revision-concept-badge"
+                      variants={conceptBadgeVariants}
+                      initial={hasPlayedEntry ? "settled" : "hidden"}
+                      animate="settled"
+                    >
+                      <span className="revision-concept-badge-dot" aria-hidden="true" />
+                      <span className="revision-concept-badge-text">{`CONCEPT ${formattedIndex}`}</span>
+                    </motion.div>
+                    <motion.h1
+                      id="revision-concept-title"
+                      className="revision-concept-title"
+                      variants={conceptTitleVariants}
+                      initial={hasPlayedEntry ? "settled" : "hidden"}
+                      animate="settled"
+                    >
+                      {conceptTitle}
+                    </motion.h1>
+                    {conceptDescription ? (
+                      <motion.p
+                        className="revision-concept-description"
+                        variants={conceptDescriptionVariants}
+                        initial={hasPlayedEntry ? "settled" : "hidden"}
+                        animate="settled"
+                      >
+                        {conceptDescription}
+                      </motion.p>
+                    ) : null}
+                  </section>
 
-              {/* --------------------------------------------------------------
-                  CONTENT PLACEHOLDER / STRUCTURE (Section 5)
-                  Prepared sections:
-                  - Understanding the concept
-                  - How it works
-                  - Important details
-                  - Examples
-                  - Related concepts
-                  - Knowledge checks
-                  Only existing concept data is rendered.
-                  Unavailable sections are kept hidden until Phase 2 implementation.
-                  -------------------------------------------------------------- */}
-              <section className="revision-content-structure" aria-label="Concept sections">
-                {/* 1. Understanding the concept (Renders real key ideas/evidence if present) */}
-                {hasUnderstandingData && (
-                  <div className="revision-section revision-section-understanding">
-                    <h2 className="revision-section-heading">Understanding the concept</h2>
-                    <div className="revision-section-body">
-                      {hasExtraKeyIdeas && (
-                        <ul className="revision-key-ideas-list" style={{ margin: 0, paddingLeft: '20px' }}>
-                          {currentConcept.keyIdeas!.map((idea, idx) => (
-                            <li key={idx} style={{ marginBottom: '6px' }}>{idea}</li>
-                          ))}
-                        </ul>
-                      )}
-                      {hasEvidence && (
-                        <p style={{ margin: hasExtraKeyIdeas ? '12px 0 0 0' : 0 }}>
-                          {currentConcept.evidence}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* 2. How it works (Phase 2 Slot — hidden when unavailable) */}
-                {hasHowItWorksData && (
-                  <div className="revision-section revision-section-how-it-works">
-                    <h2 className="revision-section-heading">How it works</h2>
-                  </div>
-                )}
-
-                {/* 3. Important details (Phase 2 Slot — hidden when unavailable) */}
-                {hasImportantDetailsData && (
-                  <div className="revision-section revision-section-details">
-                    <h2 className="revision-section-heading">Important details</h2>
-                  </div>
-                )}
-
-                {/* 4. Examples (Phase 2 Slot — hidden when unavailable) */}
-                {hasExamplesData && (
-                  <div className="revision-section revision-section-examples">
-                    <h2 className="revision-section-heading">Examples</h2>
-                  </div>
-                )}
-
-                {/* 5. Related concepts (Renders real relationships from graph) */}
-                {hasRelatedConcepts && (
-                  <div className="revision-section revision-section-related">
-                    <h2 className="revision-section-heading">Related concepts</h2>
-                    <div className="revision-related-list">
-                      {relatedConcepts.map((rel, idx) => (
-                        <div key={rel.id || `${rel.targetId}-${idx}`} className="revision-related-item">
-                          <span className="revision-related-relation">
-                            {rel.type ? rel.type.replace(/-/g, ' ') : 'Related to'}
-                          </span>
-                          <span className="revision-related-name">
-                            {rel.targetName}
-                          </span>
+                  {/* --------------------------------------------------------------
+                      CONTENT PLACEHOLDER / STRUCTURE (Section 5)
+                      Prepared sections:
+                      - Understanding the concept
+                      - How it works
+                      - Important details
+                      - Examples
+                      - Related concepts
+                      - Knowledge checks
+                      Only existing concept data is rendered.
+                      Unavailable sections are kept hidden until Phase 2 implementation.
+                      -------------------------------------------------------------- */}
+                  <motion.section
+                    className="revision-content-structure"
+                    aria-label="Concept sections"
+                    variants={conceptDescriptionVariants}
+                    initial={hasPlayedEntry ? "settled" : "hidden"}
+                    animate="settled"
+                  >
+                    {/* 1. Understanding the concept (Renders real key ideas/evidence if present) */}
+                    {hasUnderstandingData && (
+                      <div className="revision-section revision-section-understanding">
+                        <h2 className="revision-section-heading">Understanding the concept</h2>
+                        <div className="revision-section-body">
+                          {hasExtraKeyIdeas && (
+                            <ul className="revision-key-ideas-list" style={{ margin: 0, paddingLeft: '20px' }}>
+                              {currentConcept.keyIdeas!.map((idea, idx) => (
+                                <li key={idx} style={{ marginBottom: '6px' }}>{idea}</li>
+                              ))}
+                            </ul>
+                          )}
+                          {hasEvidence && (
+                            <p style={{ margin: hasExtraKeyIdeas ? '12px 0 0 0' : 0 }}>
+                              {currentConcept.evidence}
+                            </p>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                      </div>
+                    )}
 
-                {/* 6. Knowledge checks (Phase 2 Slot — hidden when unavailable) */}
-                {hasKnowledgeChecksData && (
-                  <div className="revision-section revision-section-checks">
-                    <h2 className="revision-section-heading">Knowledge checks</h2>
-                  </div>
-                )}
-              </section>
+                    {/* 2. How it works (Phase 2 Slot — hidden when unavailable) */}
+                    {hasHowItWorksData && (
+                      <div className="revision-section revision-section-how-it-works">
+                        <h2 className="revision-section-heading">How it works</h2>
+                      </div>
+                    )}
+
+                    {/* 3. Important details (Phase 2 Slot — hidden when unavailable) */}
+                    {hasImportantDetailsData && (
+                      <div className="revision-section revision-section-details">
+                        <h2 className="revision-section-heading">Important details</h2>
+                      </div>
+                    )}
+
+                    {/* 4. Examples (Phase 2 Slot — hidden when unavailable) */}
+                    {hasExamplesData && (
+                      <div className="revision-section revision-section-examples">
+                        <h2 className="revision-section-heading">Examples</h2>
+                      </div>
+                    )}
+
+                    {/* 5. Related concepts (Renders real relationships from graph) */}
+                    {hasRelatedConcepts && (
+                      <div className="revision-section revision-section-related">
+                        <h2 className="revision-section-heading">Related concepts</h2>
+                        <div className="revision-related-list">
+                          {relatedConcepts.map((rel, idx) => (
+                            <div key={rel.id || `${rel.targetId}-${idx}`} className="revision-related-item">
+                              <span className="revision-related-relation">
+                                {rel.type ? rel.type.replace(/-/g, ' ') : 'Related to'}
+                              </span>
+                              <span className="revision-related-name">
+                                {rel.targetName}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 6. Knowledge checks (Phase 2 Slot — hidden when unavailable) */}
+                    {hasKnowledgeChecksData && (
+                      <div className="revision-section revision-section-checks">
+                        <h2 className="revision-section-heading">Knowledge checks</h2>
+                      </div>
+                    )}
+                  </motion.section>
+                </motion.div>
+              </AnimatePresence>
 
               {/* --------------------------------------------------------------
-                  CONCEPT NAVIGATION (Section 6)
+                  CONCEPT NAVIGATION (Stage 4: Navigation Reveal)
                   Text-based navigation | On hover subtle green / underline
                   Disabled on first and last concepts
                   -------------------------------------------------------------- */}
-              <nav className="revision-concept-navigation" aria-label="Concept navigation">
+              <motion.nav
+                className="revision-concept-navigation"
+                aria-label="Concept navigation"
+                variants={navigationVariants}
+                initial={hasPlayedEntry ? "settled" : "hidden"}
+                animate="settled"
+              >
                 <button
                   type="button"
                   className={`revision-nav-link revision-nav-prev ${isFirst ? 'disabled' : ''}`}
@@ -596,7 +949,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                   <span>Next concept</span>
                   <span className="revision-nav-arrow" aria-hidden="true">→</span>
                 </button>
-              </nav>
+              </motion.nav>
             </>
           )}
 
@@ -621,8 +974,8 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
               </button>
             </div>
           )}
-        </div>
+        </motion.div>
       </main>
-    </div>
+    </motion.div>
   );
 };

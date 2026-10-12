@@ -14,6 +14,7 @@
   background-color: var(--bg-app, #0A0A0A);
   color: var(--text-primary, #F5F5F5);
   font-family: var(--font-body, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
+  --ease-editorial: cubic-bezier(0.16, 1, 0.3, 1);
   overflow-y: auto;
   overflow-x: hidden;
   box-sizing: border-box;
@@ -572,5 +573,39 @@
   .revision-nav-link {
     font-size: 13px;
     min-height: 36px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   9. CONCEPT CANVAS CONTAINER (Task 04 — Fluid Motion)
+   -------------------------------------------------------------------------- */
+.revision-concept-canvas {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   10. ACCESSIBILITY: REDUCED MOTION (Section 7)
+   Removes displacement and staged reveals when user prefers reduced motion
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .revision-reading-column,
+  .revision-progress-header,
+  .revision-concept-intro,
+  .revision-concept-badge,
+  .revision-concept-title,
+  .revision-concept-description,
+  .revision-content-structure,
+  .revision-concept-navigation,
+  .revision-concept-canvas,
+  .revision-progress-fill,
+  .revision-header-action,
+  .revision-nav-link,
+  .revision-arrow,
+  .revision-nav-arrow {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
   }
 }

@@ -14,6 +14,7 @@ export interface CreateRevisionSessionParams {
   path?: RevisionPathStep[];
   reviewedConceptIds?: string[];
   markedForReviewIds?: string[];
+  entryAnimationPlayed?: boolean;
 }
 
 /**
@@ -27,7 +28,8 @@ export function createRevisionSession({
   currentIndex = 0,
   path,
   reviewedConceptIds = [],
-  markedForReviewIds = []
+  markedForReviewIds = [],
+  entryAnimationPlayed = false
 }: CreateRevisionSessionParams): RevisionSessionState {
   if (!graphId) {
     throw new Error('graphId is required to create a revision session.');
@@ -60,7 +62,8 @@ export function createRevisionSession({
     updatedAt: now,
     reviewedConceptIds: [...reviewedConceptIds],
     markedForReviewIds: [...markedForReviewIds],
-    path
+    path,
+    entryAnimationPlayed
   };
 }
 
@@ -147,7 +150,18 @@ export function validateRevisionSession(
     markedForReviewIds,
     path: Array.isArray(raw.path)
       ? (raw.path as RevisionPathStep[]).filter(s => s && graphNodeIds.has(s.conceptId))
-      : undefined
+      : undefined,
+    entryAnimationPlayed: typeof raw.entryAnimationPlayed === 'boolean' ? raw.entryAnimationPlayed : true
+  };
+}
+
+/**
+ * Marks the entry animation as played for a revision session.
+ */
+export function markEntryAnimationPlayed(session: RevisionSessionState): RevisionSessionState {
+  return {
+    ...session,
+    entryAnimationPlayed: true
   };
 }
 

@@ -325,6 +325,7 @@ function FlowCanvas({
   const [revisionPath, setRevisionPath] = useState<RevisionPathStep[]>([]);
   const [revisionIndex, setRevisionIndex] = useState<number>(0);
   const [revisionVisitedIds, setRevisionVisitedIds] = useState<Set<string>>(new Set());
+  const [isReturningFromGraphView, setIsReturningFromGraphView] = useState<boolean>(false);
 
   // Active Recall Dynamic Graph Testing State (Phase 4 Polish)
   const [testActiveQuestion, setTestActiveQuestion] = useState<ActiveRecallQuestion | null>(null);
@@ -1367,6 +1368,7 @@ function FlowCanvas({
   const handleToggleRevisionMode = useCallback((forceState?: boolean, startNodeId?: string) => {
     const nextState = forceState !== undefined ? forceState : !isRevisionMode;
     if (nextState) {
+      setIsReturningFromGraphView(false);
       const reviewIds = new Set<string>();
       recallSession.reviewConceptIds.forEach(id => reviewIds.add(id));
       Object.entries(practiceStates).forEach(([id, st]) => {
@@ -1940,16 +1942,19 @@ function FlowCanvas({
               }
             }}
             onBackToGraph={() => {
+              setIsReturningFromGraphView(false);
               handleToggleRevisionMode(false);
             }}
             onViewGraph={(conceptId) => {
               const targetId = conceptId || revisionPath[revisionIndex]?.conceptId;
+              setIsReturningFromGraphView(true);
               handleToggleRevisionMode(false);
               if (targetId) {
                 setSelectedNodeId(targetId);
                 focusNodeOnCanvas(targetId, true, 300);
               }
             }}
+            skipEntryAnimation={isReturningFromGraphView}
           />
         )}
       </AnimatePresence>
