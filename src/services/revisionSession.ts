@@ -254,6 +254,40 @@ export function jumpToConceptId(session: RevisionSessionState, conceptId: string
 }
 
 /**
+ * Deliberately navigates to a concept in the revision session (Task 08).
+ * If the concept is already in the session sequence, jumps to its existing position.
+ * If not present, appends it without silently mutating past review order.
+ */
+export function navigateOrAppendToRevisionSession(
+  session: RevisionSessionState,
+  conceptId: string
+): RevisionSessionState {
+  const currentDepartingId = session.currentConceptId || session.conceptIds[session.currentIndex];
+  const reviewed = currentDepartingId && !session.reviewedConceptIds.includes(currentDepartingId)
+    ? [...session.reviewedConceptIds, currentDepartingId]
+    : [...session.reviewedConceptIds];
+
+  const existingIdx = session.conceptIds.indexOf(conceptId);
+  if (existingIdx >= 0) {
+    return {
+      ...jumpToIndex(session, existingIdx),
+      reviewedConceptIds: reviewed
+    };
+  }
+
+  const updatedIds = [...session.conceptIds, conceptId];
+  return {
+    ...session,
+    conceptIds: updatedIds,
+    totalConcepts: updatedIds.length,
+    currentIndex: updatedIds.length - 1,
+    currentConceptId: conceptId,
+    reviewedConceptIds: reviewed,
+    updatedAt: new Date().toISOString()
+  };
+}
+
+/**
  * Helper to get or initialize an active revision session for a graph.
  */
 export function getOrCreateRevisionSession(
