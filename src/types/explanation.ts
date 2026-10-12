@@ -26,19 +26,55 @@ export interface RelatedConceptReference {
   context: string;
 }
 
+export interface KeyComponentItem {
+  name: string;
+  description: string;
+  role?: string;
+}
+
+export interface ExplanationTableData {
+  caption?: string;
+  headers: string[];
+  rows: string[][];
+}
+
+export interface ExplanationCodeSnippet {
+  language: string;
+  code: string;
+  caption?: string;
+}
+
 export interface ConceptExplanation {
   graphId: string;
   conceptId: string;
   conceptName: string;
   category?: string;
 
-  // 1. Core Explanation Structure (Section 2)
+  // 1. Structured Learning Sections (Task 06)
+  // Section 01: Understand the concept
   overview: string;
-  detailedExplanation: string[];
+  detailedExplanation?: string[];
+
+  // Section 02: How it works (operational mechanism & code)
+  howItWorks?: string[];
+  codeSnippet?: ExplanationCodeSnippet;
+
+  // Section 03: Key components / terminology / comparison tables
+  keyComponents?: KeyComponentItem[];
   keyTerminology?: KeyTerminologyItem[];
+  comparisonTable?: ExplanationTableData;
+
+  // Section 04: Important details / key points
+  importantDetails?: string[];
   importantPoints?: string[];
+
+  // Section 05: Concrete examples (when supported)
   examples?: string[];
+
+  // Section 06: Related concepts
   relatedConceptReferences?: RelatedConceptReference[];
+
+  // Section 07: Source references
   sourceReferences: ExplanationSourceReference[];
 
   // 2. Grounding Metadata & Integrity Verification (Section 3)

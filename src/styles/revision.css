@@ -261,14 +261,27 @@
 }
 
 .revision-section-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
   font-family: var(--font-body, 'Inter', sans-serif);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-muted, #8A8A8A);
+  color: var(--text-secondary, #A1A1A1);
   margin: 0;
   padding: 0;
+}
+
+.revision-section-num {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent, #A3FF12);
+  letter-spacing: 0.05em;
+  opacity: 0.95;
+  display: inline-block;
 }
 
 .revision-section-body {
@@ -587,6 +600,303 @@
 .revision-retry-action:hover {
   background: rgba(255, 255, 255, 0.14);
   border-color: rgba(255, 255, 255, 0.28);
+}
+
+/* --------------------------------------------------------------------------
+   5C. SECTION JUMP NAVIGATION (Task 06 — Compact & Unobtrusive)
+   -------------------------------------------------------------------------- */
+.revision-section-nav {
+  margin-bottom: 32px;
+  padding: 8px 0 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  width: 100%;
+}
+
+.revision-section-nav-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.revision-section-nav-kicker {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--text-muted, #8A8A8A);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.revision-section-nav-items {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.revision-section-nav-items::-webkit-scrollbar {
+  display: none;
+}
+
+.revision-section-nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary, #A1A1A1);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 150ms ease;
+}
+
+.revision-section-nav-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: var(--text-primary, #F5F5F5);
+}
+
+.revision-section-nav-item:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: 2px;
+}
+
+.revision-section-nav-item .revision-nav-num {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent, #A3FF12);
+}
+
+.revision-section-nav-item .revision-nav-label {
+  font-size: 12px;
+}
+
+/* --------------------------------------------------------------------------
+   5D. STRUCTURED LEARNING SECTIONS CONTENT STYLES (Task 06)
+   -------------------------------------------------------------------------- */
+/* How it works steps */
+.revision-how-it-works-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.revision-how-it-works-step {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.revision-step-marker {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent, #A3FF12);
+  background: rgba(163, 255, 18, 0.06);
+  border: 1px solid rgba(163, 255, 18, 0.2);
+  border-radius: 4px;
+  padding: 2px 7px;
+  flex-shrink: 0;
+}
+
+.revision-step-content {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 15px;
+  line-height: 1.72;
+  color: #C5C5C5;
+  flex: 1;
+}
+
+/* Key Components Grid */
+.revision-components-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.revision-component-card {
+  padding: 14px 18px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.revision-component-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.revision-component-name {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 14px;
+  font-weight: 600;
+  color: #F5F5F5;
+}
+
+.revision-component-role {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8A8A8A);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.revision-component-desc {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13.5px;
+  line-height: 1.62;
+  color: #A1A1A1;
+  margin: 0;
+}
+
+/* Editorial Tables (Responsive & Safe) */
+.revision-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 16px 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+}
+
+.revision-table-caption {
+  display: block;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8A8A8A);
+  padding: 10px 14px 4px;
+}
+
+.revision-editorial-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13.5px;
+}
+
+.revision-editorial-table th {
+  background: rgba(255, 255, 255, 0.035);
+  color: #F5F5F5;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.revision-editorial-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: #C5C5C5;
+  line-height: 1.55;
+}
+
+.revision-editorial-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Code Snippets & Technical Notation */
+.revision-code-block-wrapper,
+.revision-code-snippet-box {
+  margin: 14px 0;
+}
+
+.revision-code-caption {
+  display: block;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, #8A8A8A);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.revision-code-block {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  line-height: 1.6;
+  color: #E2E2E2;
+  margin: 0;
+}
+
+.revision-inline-code {
+  font-family: var(--font-mono, monospace);
+  font-size: 12.5px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #EDEDED;
+  padding: 2px 6px;
+  border-radius: 3px;
+  word-break: break-word;
+}
+
+.revision-math-token {
+  font-family: var(--font-mono, monospace);
+  color: var(--accent, #A3FF12);
+  background: rgba(163, 255, 18, 0.06);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.revision-inline-bold {
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
+.revision-inline-italic {
+  font-style: italic;
+  color: #D6D6D6;
+}
+
+/* Formatted Lists */
+.revision-ordered-list {
+  margin: 10px 0 14px 0;
+  padding-left: 22px;
+  color: #C5C5C5;
+  line-height: 1.7;
+}
+
+.revision-ordered-list li {
+  margin-bottom: 6px;
+}
+
+.revision-unordered-list {
+  margin: 10px 0 14px 0;
+  padding-left: 20px;
+  color: #C5C5C5;
+  line-height: 1.7;
+}
+
+.revision-unordered-list li {
+  margin-bottom: 6px;
 }
 
 
