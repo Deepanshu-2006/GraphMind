@@ -904,6 +904,44 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
 
   const workspaceRootRef = useRef<HTMLDivElement | null>(null);
 
+  // Step reveal progress map keyed by conceptId (Task 07: Avoid resetting example if user temporarily opens graph)
+  const [revealedStepsMap, setRevealedStepsMap] = useState<Record<string, number>>({});
+
+  const workedExample = explanationState.explanation?.workedExample;
+  const totalWorkedSteps = workedExample?.steps?.length || 0;
+  const currentRevealedSteps = currentConcept?.id
+    ? (revealedStepsMap[currentConcept.id] !== undefined
+        ? revealedStepsMap[currentConcept.id]
+        : (totalWorkedSteps > 0 ? 1 : 0))
+    : 1;
+
+  const handleShowNextStep = useCallback(() => {
+    if (!currentConcept?.id || totalWorkedSteps === 0) return;
+    setRevealedStepsMap(prev => {
+      const current = prev[currentConcept.id] !== undefined ? prev[currentConcept.id] : 1;
+      return {
+        ...prev,
+        [currentConcept.id]: Math.min(current + 1, totalWorkedSteps)
+      };
+    });
+  }, [currentConcept?.id, totalWorkedSteps]);
+
+  const handleShowAllSteps = useCallback(() => {
+    if (!currentConcept?.id || totalWorkedSteps === 0) return;
+    setRevealedStepsMap(prev => ({
+      ...prev,
+      [currentConcept.id]: totalWorkedSteps
+    }));
+  }, [currentConcept?.id, totalWorkedSteps]);
+
+  const handleHideSteps = useCallback(() => {
+    if (!currentConcept?.id) return;
+    setRevealedStepsMap(prev => ({
+      ...prev,
+      [currentConcept.id]: 1
+    }));
+  }, [currentConcept?.id]);
+
   // Preserve scroll position across explanation loading; reset only on concept change
   useEffect(() => {
     if (workspaceRootRef.current) {
@@ -911,7 +949,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     }
   }, [currentConcept?.id]);
 
-  // Active sections computation for Section Navigation (Task 06)
+  // Active sections computation for Section Navigation (Task 06 & 07)
   const activeSections = useMemo(() => {
     if (explanationState.status !== 'ready' || !explanationState.explanation) {
       return [];
@@ -946,8 +984,8 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
         label: isPoints ? 'Points' : 'Details'
       });
     }
-    // 05. Examples
-    if (exp.examples && exp.examples.length > 0) {
+    // 05. Examples (including structured worked example)
+    if ((exp.examples && exp.examples.length > 0) || Boolean(exp.workedExample)) {
       list.push({ id: 'section-examples', num: String(counter++).padStart(2, '0'), label: 'Example' });
     }
     // 06. Related concepts
@@ -1416,20 +1454,186 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                           </div>
                         )}
 
-                        {/* 05. Examples (if present and supported) */}
-                        {explanationState.explanation.examples && explanationState.explanation.examples.length > 0 && (
+                        {/* 05. Examples & Structured Worked Example (Task 07) */}
+                        {((explanationState.explanation.examples && explanationState.explanation.examples.length > 0) ||
+                          Boolean(workedExample)) && (
                           <div className="revision-section revision-section-examples" id="section-examples">
                             <h2 className="revision-section-heading">
                               <span className="revision-section-num">{getSecNum('section-examples')}</span>
-                              <span>Examples</span>
+                              <span>{workedExample ? 'Worked Example' : 'Examples'}</span>
                             </h2>
-                            <div className="revision-example-box">
-                              {explanationState.explanation.examples.map((ex, idx) => (
-                                <div key={idx} style={{ marginTop: idx === 0 ? 0 : '8px' }}>
-                                  <EditorialFormattedContent content={ex} />
+
+                            {/* Structured Worked Example (Step-by-Step with Interactive Reveal) */}
+                            {workedExample && (
+                              <div className="revision-worked-example" role="region" aria-label="Worked Example Problem and Solution">
+                                {/* Header with Title and Provenance Badge */}
+                                <div className="revision-worked-header">
+                                  <h3 className="revision-worked-title">{workedExample.title}</h3>
+                                  <span
+                                    className={`revision-provenance-badge ${
+                                      workedExample.isSourceDerived ? 'revision-provenance-source' : 'revision-provenance-illustrative'
+                                    }`}
+                                  >
+                                    {workedExample.sourceLabel || (workedExample.isSourceDerived ? 'SOURCE-DERIVED EXAMPLE' : 'ILLUSTRATIVE APPLICATION')}
+                                  </span>
                                 </div>
-                              ))}
-                            </div>
+
+                                {/* Problem Statement */}
+                                <div className="revision-problem-box">
+                                  <span className="revision-problem-kicker">PROBLEM STATEMENT</span>
+                                  <p className="revision-problem-statement">
+                                    <EditorialFormattedContent content={workedExample.problemStatement} />
+                                  </p>
+                                </div>
+
+                                {/* Given Information (if present) */}
+                                {workedExample.givenInfo && workedExample.givenInfo.length > 0 && (
+                                  <div className="revision-given-box">
+                                    <span className="revision-given-kicker">GIVEN INFORMATION</span>
+                                    <div className="revision-given-grid">
+                                      {workedExample.givenInfo.map((given, gIdx) => (
+                                        <div key={gIdx} className="revision-given-item">
+                                          {parseInlineMarkup(given)}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Required Result (if present) */}
+                                {workedExample.requiredResult && (
+                                  <div className="revision-required-box">
+                                    <span className="revision-required-kicker">REQUIRED RESULT</span>
+                                    <div>{parseInlineMarkup(workedExample.requiredResult)}</div>
+                                  </div>
+                                )}
+
+                                {/* Step-by-Step Solution Sequence with Interactive Reveal Controls */}
+                                {workedExample.steps && workedExample.steps.length > 0 && (
+                                  <div className="revision-steps-section">
+                                    <div className="revision-steps-header">
+                                      <span className="revision-steps-counter">
+                                        {`SOLUTION STEPS (${Math.min(currentRevealedSteps, totalWorkedSteps)} OF ${totalWorkedSteps} REVEALED)`}
+                                      </span>
+                                      <div className="revision-step-controls" role="group" aria-label="Step reveal controls">
+                                        {currentRevealedSteps < totalWorkedSteps && (
+                                          <button
+                                            type="button"
+                                            className="revision-step-action-btn"
+                                            onClick={handleShowNextStep}
+                                            aria-label="Show next step"
+                                          >
+                                            <span>Show next step</span>
+                                            <span aria-hidden="true">↓</span>
+                                          </button>
+                                        )}
+                                        {currentRevealedSteps < totalWorkedSteps && (
+                                          <button
+                                            type="button"
+                                            className="revision-step-action-btn-secondary"
+                                            onClick={handleShowAllSteps}
+                                            aria-label="Show all steps"
+                                          >
+                                            Show all steps
+                                          </button>
+                                        )}
+                                        {currentRevealedSteps >= totalWorkedSteps && totalWorkedSteps > 1 && (
+                                          <button
+                                            type="button"
+                                            className="revision-step-action-btn-secondary"
+                                            onClick={handleHideSteps}
+                                            aria-label="Hide steps"
+                                          >
+                                            <span>Hide steps</span>
+                                            <span aria-hidden="true">↑</span>
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Steps List */}
+                                    <div className="revision-worked-steps-list">
+                                      {workedExample.steps.slice(0, currentRevealedSteps).map((step, sIdx) => {
+                                        const isLatest = sIdx === currentRevealedSteps - 1;
+                                        return (
+                                          <div
+                                            key={sIdx}
+                                            className={`revision-worked-step ${isLatest ? 'revision-worked-step-active' : ''}`}
+                                          >
+                                            <div className="revision-step-top">
+                                              <span className="revision-step-num-badge">{`STEP ${String(step.stepNumber).padStart(2, '0')}`}</span>
+                                              <span className="revision-step-title">{step.title}</span>
+                                            </div>
+
+                                            <p className="revision-step-action">
+                                              <EditorialFormattedContent content={step.action} />
+                                            </p>
+
+                                            {step.reasoning && (
+                                              <div className="revision-step-reasoning">
+                                                <strong>Why: </strong>
+                                                <EditorialFormattedContent content={step.reasoning} />
+                                              </div>
+                                            )}
+
+                                            {(step.calculation || step.intermediateResult) && (
+                                              <div className="revision-step-calc-box">
+                                                {step.calculation && (
+                                                  <span className="revision-calculation-token">
+                                                    {parseInlineMarkup(step.calculation)}
+                                                  </span>
+                                                )}
+                                                {step.intermediateResult && (
+                                                  <span className="revision-intermediate-result">
+                                                    ➔ {parseInlineMarkup(step.intermediateResult)}
+                                                  </span>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Final Answer (Rendered when all steps are revealed, or if single step) */}
+                                {workedExample.finalAnswer && (currentRevealedSteps >= totalWorkedSteps || totalWorkedSteps === 0) && (
+                                  <div className="revision-final-answer-box">
+                                    <span className="revision-final-kicker">FINAL ANSWER</span>
+                                    <div className="revision-final-answer-value">
+                                      <EditorialFormattedContent content={workedExample.finalAnswer} />
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Important Observation / Key Takeaway */}
+                                {workedExample.importantObservation && (currentRevealedSteps >= totalWorkedSteps || totalWorkedSteps === 0) && (
+                                  <div className="revision-observation-box">
+                                    <span className="revision-observation-kicker">KEY TAKEAWAY</span>
+                                    <div>
+                                      <EditorialFormattedContent content={workedExample.importantObservation} />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Additional or Legacy Examples List */}
+                            {explanationState.explanation.examples && explanationState.explanation.examples.length > 0 && (
+                              <div className="revision-example-box" style={{ marginTop: workedExample ? '14px' : 0 }}>
+                                {workedExample && (
+                                  <span className="revision-problem-kicker" style={{ marginBottom: '8px' }}>
+                                    ADDITIONAL EXAMPLES
+                                  </span>
+                                )}
+                                {explanationState.explanation.examples.map((ex, idx) => (
+                                  <div key={idx} style={{ marginTop: idx === 0 ? 0 : '8px' }}>
+                                    <EditorialFormattedContent content={ex} />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )}
 

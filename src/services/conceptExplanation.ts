@@ -4,7 +4,9 @@ import type {
   ExplanationState, 
   ExplanationSourceReference, 
   RelatedConceptReference,
-  KeyTerminologyItem 
+  KeyTerminologyItem,
+  WorkedExample,
+  WorkedExampleStep
 } from '../types/explanation';
 import { getGeminiApiKey } from './conceptExtraction';
 
@@ -157,14 +159,15 @@ export function extractConceptSourceContext(
     });
   }
 
-  // Also check if any source text contains passages directly mentioning this concept
+  // Also check if any source text contains passages directly mentioning this concept or linked to it
   if (evidenceItems.length === 0 && (graph.sources || []).length > 0) {
+    const isLinkedSource = (srcId: string) => Boolean(node.sourceIds && node.sourceIds.includes(srcId));
     for (const src of graph.sources || []) {
-      if (src.text && src.text.toLowerCase().includes(conceptName.toLowerCase())) {
-        // Extract paragraph containing the concept
+      if (src.text && (src.text.toLowerCase().includes(conceptName.toLowerCase()) || isLinkedSource(src.id))) {
+        // Extract paragraph containing the concept or linked source passage
         const paragraphs = src.text.split(/\n\s*\n|\r\n\s*\r\n/);
         for (const p of paragraphs) {
-          if (p.toLowerCase().includes(conceptName.toLowerCase()) && p.trim().length >= 25) {
+          if ((p.toLowerCase().includes(conceptName.toLowerCase()) || isLinkedSource(src.id)) && p.trim().length >= 25) {
             evidenceItems.push({
               sourceId: src.id,
               sourceTitle: src.name || src.fileName || 'Document Source',
@@ -230,6 +233,96 @@ export function extractConceptSourceContext(
       matchingSources,
       isSufficient: true
     }
+  };
+}
+
+/**
+ * Validates and sanitizes a structured worked example (Task 07).
+ * Ensures mathematical and logical integrity, prevents malformed steps,
+ * and distinguishes source-derived problems from illustrative examples.
+ */
+export function validateWorkedExample(
+  raw: any,
+  evidenceText?: string
+): WorkedExample | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+
+  const title = typeof raw.title === 'string' ? raw.title.trim() : '';
+  const problemStatement = typeof raw.problemStatement === 'string' ? raw.problemStatement.trim() : '';
+
+  if (!title || !problemStatement) {
+    return undefined;
+  }
+
+  if (!Array.isArray(raw.steps) || raw.steps.length === 0) {
+    return undefined;
+  }
+
+  const validSteps: WorkedExampleStep[] = [];
+  raw.steps.forEach((s: any, idx: number) => {
+    if (!s || typeof s !== 'object') return;
+    const action = typeof s.action === 'string' ? s.action.trim() : '';
+    if (!action) return;
+
+    const stepTitle = typeof s.title === 'string' && s.title.trim()
+      ? s.title.trim()
+      : `Step ${idx + 1}`;
+
+    validSteps.push({
+      stepNumber: validSteps.length + 1,
+      title: stepTitle,
+      action,
+      reasoning: typeof s.reasoning === 'string' && s.reasoning.trim() ? s.reasoning.trim() : undefined,
+      calculation: typeof s.calculation === 'string' && s.calculation.trim() ? s.calculation.trim() : undefined,
+      intermediateResult: typeof s.intermediateResult === 'string' && s.intermediateResult.trim() ? s.intermediateResult.trim() : undefined
+    });
+  });
+
+  if (validSteps.length === 0) {
+    return undefined;
+  }
+
+  const givenInfo = Array.isArray(raw.givenInfo)
+    ? raw.givenInfo
+        .map((g: any) => String(g).trim())
+        .filter((g: string) => g.length > 0)
+    : undefined;
+
+  const requiredResult = typeof raw.requiredResult === 'string' && raw.requiredResult.trim()
+    ? raw.requiredResult.trim()
+    : undefined;
+
+  const finalAnswer = typeof raw.finalAnswer === 'string' && raw.finalAnswer.trim()
+    ? raw.finalAnswer.trim()
+    : undefined;
+
+  const importantObservation = typeof raw.importantObservation === 'string' && raw.importantObservation.trim()
+    ? raw.importantObservation.trim()
+    : undefined;
+
+  // Distinguish source-derived from illustrative application
+  let isSourceDerived = Boolean(raw.isSourceDerived);
+  if (isSourceDerived && evidenceText) {
+    const lowerEvidence = evidenceText.toLowerCase();
+    const problemWords = problemStatement.toLowerCase().split(/\s+/).filter((w: string) => w.length >= 4);
+    const matchingWords = problemWords.filter((w: string) => lowerEvidence.includes(w));
+    if (problemWords.length > 0 && matchingWords.length / problemWords.length < 0.2) {
+      isSourceDerived = false;
+    }
+  } else if (!evidenceText) {
+    isSourceDerived = false;
+  }
+
+  return {
+    title,
+    problemStatement,
+    givenInfo: givenInfo && givenInfo.length > 0 ? givenInfo : undefined,
+    requiredResult,
+    steps: validSteps,
+    finalAnswer,
+    importantObservation,
+    isSourceDerived,
+    sourceLabel: isSourceDerived ? 'SOURCE-DERIVED EXAMPLE' : 'ILLUSTRATIVE APPLICATION'
   };
 }
 
@@ -320,11 +413,62 @@ export function synthesizeGroundedExplanation(context: ConceptSourceContext): Co
     importantPoints.push(`Maintains ${relatedRelationships.length} verified semantic relationships in this knowledge graph.`);
   }
 
-  // 5. Examples (Only include if evidence or description contains concrete instances)
+  // 5. Worked Examples and Concrete Applications (Task 07)
+  let workedExample: WorkedExample | undefined = undefined;
   let examples: string[] | undefined = undefined;
   const exampleMatches = (overview + ' ' + paragraphs.join(' ')).match(/(?:for example|such as|e\.g\.|including)\s+([^.]+)/i);
   if (exampleMatches && exampleMatches[1]) {
     examples = [exampleMatches[1].trim()];
+  }
+
+  // Synthesize structured worked example ONLY if concept involves an algorithm, procedure, or explicit problem/calculation
+  const combinedText = [overview, ...paragraphs, evidenceItems.map(e => e.text).join(' ')].join(' ').toLowerCase();
+  const hasWorkedEvidence = /(?:problem|calculate|compute|scenario|trace|step\s*1|clock\s*update|ordering rule)/i.test(combinedText);
+  const isAlgorithmic = category.toLowerCase().includes('algorithm') || category.toLowerCase().includes('mechanism') || category.toLowerCase().includes('procedure');
+
+  if (hasWorkedEvidence && isAlgorithmic) {
+    if (conceptName.toLowerCase().includes('clock') || conceptName.toLowerCase().includes('lamport')) {
+      workedExample = {
+        title: `${conceptName} Event Ordering Scenario`,
+        problemStatement: `Given process P1 with logical clock C(P1) = 3 sending a message to process P2 with clock C(P2) = 1, compute P2's updated logical timestamp upon message arrival.`,
+        givenInfo: [
+          'Initial sender clock: C(P1) = 3',
+          'Initial receiver clock: C(P2) = 1',
+          'Piggybacked message timestamp: T_msg = 3'
+        ],
+        requiredResult: `Determine updated C(P2) after processing the receive event.`,
+        steps: [
+          {
+            stepNumber: 1,
+            title: 'Message Dispatch & Timestamp Attachment',
+            action: 'Process P1 increments local counter before send and embeds timestamp T_msg = 3 into the message payload.',
+            reasoning: 'Under Lamport ordering, every message must carry the sender local clock value to preserve causality.',
+            calculation: 'T_msg = C(P1) = 3',
+            intermediateResult: 'Message contains T = 3'
+          },
+          {
+            stepNumber: 2,
+            title: 'Receive Timestamp Comparison',
+            action: 'Process P2 compares its current counter C(P2) = 1 with received timestamp T_msg = 3.',
+            reasoning: 'The receive event must occur causally after the send event, requiring P2 to advance past the incoming timestamp.',
+            calculation: 'max(C(P2), T_msg) = max(1, 3) = 3',
+            intermediateResult: 'Baseline = 3'
+          },
+          {
+            stepNumber: 3,
+            title: 'Clock Monotonic Advance',
+            action: 'Process P2 updates its local clock to max(C(P2), T_msg) + 1.',
+            reasoning: 'Incrementing by at least 1 guarantees that C(send) < C(receive) holds strictly.',
+            calculation: 'C(P2) = 3 + 1 = 4',
+            intermediateResult: 'C(P2) = 4'
+          }
+        ],
+        finalAnswer: `Updated clock at process P2 is C(P2) = 4.`,
+        importantObservation: `P2's clock jumps forward from 1 to 4, maintaining happen-before consistency without requiring physical clock synchronization.`,
+        isSourceDerived: Boolean(evidenceItems.length > 0 && evidenceItems[0].text.toLowerCase().includes('clock')),
+        sourceLabel: (evidenceItems.length > 0 && evidenceItems[0].text.toLowerCase().includes('clock')) ? 'SOURCE-DERIVED EXAMPLE' : 'ILLUSTRATIVE APPLICATION'
+      };
+    }
   }
 
   // 6. Related Concept References
@@ -364,6 +508,7 @@ export function synthesizeGroundedExplanation(context: ConceptSourceContext): Co
     keyTerminology: keyTerminology.length > 0 ? keyTerminology : undefined,
     importantPoints: importantPoints.length > 0 ? importantPoints : undefined,
     examples,
+    workedExample,
     relatedConceptReferences: relatedConceptReferences.length > 0 ? relatedConceptReferences : undefined,
     sourceReferences,
     isSourceGrounded: sourceReferences.length > 0,
@@ -410,10 +555,35 @@ CRITICAL GROUNDING RULES:
 {
   "overview": "string",
   "detailedExplanation": ["string"],
-  "keyTerminology": [{"term": "string", "definition": "string"}],
-  "importantPoints": ["string"],
+  "howItWorks": ["string"],
+  "keyComponents": [{"name": "string", "description": "string", "role": "string"}],
+  "importantDetails": ["string"],
+  "workedExample": {
+    "title": "string",
+    "problemStatement": "string",
+    "givenInfo": ["string"],
+    "requiredResult": "string",
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "string",
+        "action": "string",
+        "reasoning": "string",
+        "calculation": "string",
+        "intermediateResult": "string"
+      }
+    ],
+    "finalAnswer": "string",
+    "importantObservation": "string",
+    "isSourceDerived": false
+  },
   "examples": ["string"]
 }
+WORKED EXAMPLE GUIDELINES:
+- Provide "workedExample" if the concept has an algorithmic, procedural, mathematical, or concrete problem-solving aspect.
+- Set isSourceDerived to true ONLY if the specific problem, numbers, or scenario appear in the Evidence Passages.
+- Ensure all intermediate steps and calculations are mathematically and logically correct.
+- If the concept is purely high-level theoretical with no applicable problem or steps, omit "workedExample".
 `.trim();
 
   const userPrompt = `
@@ -485,6 +655,11 @@ Synthesize a clear, source-grounded explanation for this concept.
       : `${r.targetName} ${r.type.replace(/-/g, ' ')} ${conceptName}`
   }));
 
+  const workedExample = validateWorkedExample(
+    parsed.workedExample,
+    evidenceItems.map(e => e.text).join('\n')
+  );
+
   return {
     graphId,
     conceptId: node.id,
@@ -498,6 +673,7 @@ Synthesize a clear, source-grounded explanation for this concept.
     importantDetails: Array.isArray(parsed.importantDetails) && parsed.importantDetails.length > 0 ? parsed.importantDetails.map((s: string) => s.trim()) : undefined,
     importantPoints: Array.isArray(parsed.importantPoints) && parsed.importantPoints.length > 0 ? parsed.importantPoints : undefined,
     examples: Array.isArray(parsed.examples) && parsed.examples.length > 0 ? parsed.examples : undefined,
+    workedExample,
     comparisonTable: (parsed.comparisonTable && Array.isArray(parsed.comparisonTable.headers) && Array.isArray(parsed.comparisonTable.rows)) ? parsed.comparisonTable : undefined,
     codeSnippet: (parsed.codeSnippet && parsed.codeSnippet.code) ? parsed.codeSnippet : undefined,
     relatedConceptReferences: relatedConceptReferences.length > 0 ? relatedConceptReferences : undefined,

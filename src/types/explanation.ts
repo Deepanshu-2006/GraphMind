@@ -44,6 +44,30 @@ export interface ExplanationCodeSnippet {
   caption?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Worked Examples & Step-by-Step Learning Models (Task 07)
+// ---------------------------------------------------------------------------
+export interface WorkedExampleStep {
+  stepNumber: number;
+  title: string;
+  action: string;
+  reasoning?: string;
+  calculation?: string;
+  intermediateResult?: string;
+}
+
+export interface WorkedExample {
+  title: string;
+  problemStatement: string;
+  givenInfo?: string[];
+  requiredResult?: string;
+  steps: WorkedExampleStep[];
+  finalAnswer?: string;
+  importantObservation?: string;
+  isSourceDerived: boolean;
+  sourceLabel?: string;
+}
+
 export interface ConceptExplanation {
   graphId: string;
   conceptId: string;
@@ -68,8 +92,9 @@ export interface ConceptExplanation {
   importantDetails?: string[];
   importantPoints?: string[];
 
-  // Section 05: Concrete examples (when supported)
+  // Section 05: Concrete examples & worked step-by-step solutions (Task 07)
   examples?: string[];
+  workedExample?: WorkedExample;
 
   // Section 06: Related concepts
   relatedConceptReferences?: RelatedConceptReference[];
