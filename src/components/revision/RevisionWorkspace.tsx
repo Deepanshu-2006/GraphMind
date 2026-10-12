@@ -209,6 +209,9 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   const formattedTotal = String(Math.max(totalConcepts, 1)).padStart(2, '0');
   const progressPercentage = totalConcepts > 0 ? ((currentIndex + 1) / totalConcepts) * 100 : 0;
 
+  const prevConcept = currentIndex > 0 ? concepts[currentIndex - 1] : null;
+  const nextConcept = currentIndex < totalConcepts - 1 ? concepts[currentIndex + 1] : null;
+
   // Check existing concept data for content structure sections
   const conceptTitle = currentConcept?.name || '';
   const conceptDescription = currentConcept?.description || '';
@@ -346,16 +349,17 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                   -------------------------------------------------------------- */}
               <section className="revision-concept-intro" aria-labelledby="revision-concept-title">
                 <div className="revision-concept-badge">
-                  {`CONCEPT ${formattedIndex}`}
+                  <span className="revision-concept-badge-dot" aria-hidden="true" />
+                  <span className="revision-concept-badge-text">{`CONCEPT ${formattedIndex}`}</span>
                 </div>
                 <h1 id="revision-concept-title" className="revision-concept-title">
                   {conceptTitle}
                 </h1>
-                {conceptDescription && (
+                {conceptDescription ? (
                   <p className="revision-concept-description">
                     {conceptDescription}
                   </p>
-                )}
+                ) : null}
               </section>
 
               {/* --------------------------------------------------------------
@@ -452,7 +456,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                   onClick={handlePrev}
                   disabled={isFirst}
                   aria-disabled={isFirst}
-                  title={isFirst ? undefined : 'Previous concept (←)'}
+                  title={isFirst ? undefined : (prevConcept ? `Previous: ${prevConcept.name} (←)` : 'Previous concept (←)')}
                 >
                   <span className="revision-nav-arrow" aria-hidden="true">←</span>
                   <span>Previous concept</span>
@@ -464,7 +468,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                   onClick={handleNext}
                   disabled={isLast}
                   aria-disabled={isLast}
-                  title={isLast ? undefined : 'Next concept (→)'}
+                  title={isLast ? undefined : (nextConcept ? `Next: ${nextConcept.name} (→)` : 'Next concept (→)')}
                 >
                   <span>Next concept</span>
                   <span className="revision-nav-arrow" aria-hidden="true">→</span>
