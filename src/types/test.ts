@@ -99,6 +99,7 @@ export interface AssessmentAttempt {
   correctAnswers: number;
   scorePercentage: number; // 0–100 integer
   timeSpentSeconds: number;
+  timeLimitSeconds?: number; // Configured total assessment duration in seconds
   questions: TestQuestion[]; // Deep immutable snapshot of questions and choices
   userAnswers: Record<string, string>; // Recorded user answers; unanswered questions are absent
   conceptIds: string[]; // Aggregated unique concept IDs covered
@@ -107,3 +108,13 @@ export interface AssessmentAttempt {
   completionReason: AssessmentCompletionReason; // 'submission' | 'time_expired'
   resultsSummary: TestResultsSummary; // Calculated results summary
 }
+
+/**
+ * Persisted configuration for assessment setup modal.
+ */
+export interface AssessmentSetupConfig {
+  questionCount: number | 'all';
+  timeLimitMinutes: number;
+  isCustomTime?: boolean;
+}
+

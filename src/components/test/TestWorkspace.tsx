@@ -6,11 +6,18 @@ import type {
   KnowledgeTest, 
   TestResultsSummary 
 } from '../../types/test';
-import { generateKnowledgeTest } from '../../services/knowledgeTestGenerator';
-import { recordKnowledgeTestCompletion } from '../../services/storage';
+import { 
+  generateKnowledgeTest,
+  getMaxAvailableQuestions 
+} from '../../services/knowledgeTestGenerator';
+import { 
+  recordKnowledgeTestCompletion,
+  loadAssessmentSetupConfig 
+} from '../../services/storage';
 
 import { BigTimer } from './BigTimer';
 import { TestIntroScreen } from './TestIntroScreen';
+import { AssessmentSetupModal } from './AssessmentSetupModal';
 import { TestQuestionView } from './TestQuestionView';
 import { QuestionNavigator } from './QuestionNavigator';
 import { SubmitConfirmationModal } from './SubmitConfirmationModal';
@@ -45,28 +52,60 @@ export function TestWorkspace({
   onPracticeStatesUpdated,
   targetQuestionCount = 10
 }: TestWorkspaceProps) {
-  // Test generation on mount or graph change (10 seconds for testing purpose)
+  // Compute total available questions for graph capacity
+  const maxAvailableQuestions = useMemo(() => {
+    return getMaxAvailableQuestions(graph);
+  }, [graph]);
+
+  // Load persisted setup configuration if available
+  const persistedSetup = useMemo(() => {
+    return loadAssessmentSetupConfig();
+  }, []);
+
+  const initialTimeLimitMinutes = persistedSetup?.timeLimitMinutes ?? 10;
+  const initialQuestionCount = useMemo(() => {
+    if (persistedSetup?.questionCount === 'all') {
+      return maxAvailableQuestions > 0 ? maxAvailableQuestions : targetQuestionCount;
+    }
+    if (typeof persistedSetup?.questionCount === 'number') {
+      return persistedSetup.questionCount;
+    }
+    return targetQuestionCount;
+  }, [persistedSetup, maxAvailableQuestions, targetQuestionCount]);
+
+  // Test generation on mount or graph change (defaults to 10 minutes or persisted setting)
   const testGenResult = useMemo(() => {
     return generateKnowledgeTest(graph, {
-      questionCount: targetQuestionCount,
+      questionCount: initialQuestionCount,
       title: graph?.name || 'Knowledge Graph Assessment',
-      timeLimitSeconds: 10 // testing purpose: 10 seconds (changed from 10 minutes)
+      timeLimitSeconds: initialTimeLimitMinutes * 60
     });
-  }, [graph, targetQuestionCount]);
+  }, [graph, initialQuestionCount, initialTimeLimitMinutes]);
 
   const [mode, setMode] = useState<TestWorkspaceMode>('intro');
-  const [test] = useState<KnowledgeTest | null>(testGenResult.test || null);
-  const [conceptsCovered] = useState<string[]>(testGenResult.conceptsCovered || []);
-  const [isInsufficientMaterial] = useState<boolean>(!testGenResult.success);
+  const [test, setTest] = useState<KnowledgeTest | null>(testGenResult.test || null);
+  const [conceptsCovered, setConceptsCovered] = useState<string[]>(testGenResult.conceptsCovered || []);
+  const [isInsufficientMaterial, setIsInsufficientMaterial] = useState<boolean>(!testGenResult.success);
 
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [flaggedIds, setFlaggedIds] = useState<Set<string>>(new Set());
 
   const [remainingSeconds, setRemainingSeconds] = useState<number>(
-    testGenResult.test?.timeLimitSeconds || 10
+    testGenResult.test?.timeLimitSeconds || (initialTimeLimitMinutes * 60)
   );
   const [isTimerActive, setIsTimerActive] = useState<boolean>(false);
+  const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
+
+  // Synchronize test data when graph changes
+  useEffect(() => {
+    if (mode === 'intro') {
+      setTest(testGenResult.test || null);
+      setConceptsCovered(testGenResult.conceptsCovered || []);
+      setIsInsufficientMaterial(!testGenResult.success);
+      setRemainingSeconds(testGenResult.test?.timeLimitSeconds || (initialTimeLimitMinutes * 60));
+    }
+  }, [testGenResult, mode, initialTimeLimitMinutes]);
 
   // Cinematic timer-transition state & coordinate tracking
   const [timeTransitionPhase, setTimeTransitionPhase] = useState<TimeTransitionPhase>('idle');
@@ -207,19 +246,45 @@ export function TestWorkspace({
     };
   }, [isTimerActive, mode, test, handleTimeExpired]);
 
-  // Start Test Action
-  const handleStartTest = useCallback(() => {
-    if (!test) return;
-    startTimeRef.current = Date.now();
-    hasSubmittedRef.current = false;
-    isTransitionTriggeredRef.current = false;
-    setTimeTransitionPhase('idle');
-    setTimerStartOffset({ x: -280, y: -220 });
-    clearTransitionTimeouts();
-    setIsTimerActive(true);
-    setMode('testing');
-    setCurrentIndex(0);
-  }, [test, clearTransitionTimeouts]);
+  // Open Assessment Setup Modal when user clicks "START TEST" on intro screen
+  const handleStartTestClick = useCallback(() => {
+    setIsSetupModalOpen(true);
+  }, []);
+
+  // Begin assessment after user finishes configuration in Assessment Setup Modal
+  const handleBeginConfiguredAssessment = useCallback(
+    (config: { questionCount: number; timeLimitSeconds: number }) => {
+      if (!graph) return;
+
+      const result = generateKnowledgeTest(graph, {
+        questionCount: config.questionCount,
+        title: graph.name || 'Knowledge Graph Assessment',
+        timeLimitSeconds: config.timeLimitSeconds
+      });
+
+      if (result.success && result.test) {
+        setTest(result.test);
+        setConceptsCovered(result.conceptsCovered || []);
+        setIsInsufficientMaterial(false);
+        setRemainingSeconds(result.test.timeLimitSeconds);
+        setAnswers({});
+        setFlaggedIds(new Set());
+        setCurrentIndex(0);
+        hasSubmittedRef.current = false;
+        isTransitionTriggeredRef.current = false;
+        setTimeTransitionPhase('idle');
+        setTimerStartOffset({ x: -280, y: -220 });
+        clearTransitionTimeouts();
+
+        // Start countdown only when assessment actually begins
+        startTimeRef.current = Date.now();
+        setIsTimerActive(true);
+        setIsSetupModalOpen(false);
+        setMode('testing');
+      }
+    },
+    [graph, clearTransitionTimeouts]
+  );
 
   // Submit Test Action
   const handleConfirmSubmit = useCallback(() => {
@@ -414,7 +479,7 @@ export function TestWorkspace({
                 test={test}
                 conceptsCovered={conceptsCovered}
                 isInsufficientMaterial={isInsufficientMaterial}
-                onStartTest={handleStartTest}
+                onStartTest={handleStartTestClick}
                 onExitTest={onClose}
               />
             )}
@@ -530,6 +595,15 @@ export function TestWorkspace({
           onClose();
         }}
         onCancel={() => setIsLeaveModalOpen(false)}
+      />
+
+      {/* Assessment Setup Configuration Modal */}
+      <AssessmentSetupModal
+        isOpen={isSetupModalOpen}
+        graph={graph}
+        maxAvailableQuestions={maxAvailableQuestions}
+        onCancel={() => setIsSetupModalOpen(false)}
+        onBeginAssessment={handleBeginConfiguredAssessment}
       />
     </motion.div>
   );

@@ -5,7 +5,8 @@ import type {
   TestResultsSummary,
   MissedConceptItem,
   AssessmentAttempt,
-  AssessmentCompletionReason
+  AssessmentCompletionReason,
+  AssessmentSetupConfig
 } from '../types/test';
 import {
   saveAssessmentAttempt,
@@ -25,6 +26,7 @@ const STORAGE_KEYS = {
   GRAPH_SOURCE_TYPE_PREFIX: 'graphmind_graph_source_type_v1_',
   TEST_HISTORY_PREFIX: 'graphmind_test_history_v1_',
   ASSESSMENT_ATTEMPTS: ASSESSMENT_HISTORY_STORAGE_KEY,
+  ASSESSMENT_SETUP_CONFIG: 'graphmind_assessment_setup_config_v1',
   // Canonical user sources collection (contains sources for all graphs, keyed by graphId)
   USER_SOURCES: 'graphmind_user_sources_v1',
   // Legacy keys for backward compatibility and migration
@@ -901,6 +903,7 @@ export function recordKnowledgeTestCompletion(
     correctAnswers: score,
     scorePercentage: percentage,
     timeSpentSeconds,
+    timeLimitSeconds: test.timeLimitSeconds,
     questions: test.questions,
     userAnswers,
     conceptIds: Array.from(allConceptIdsSet),
@@ -959,8 +962,37 @@ export function clearAllUserData(): void {
     localStorage.removeItem(STORAGE_KEYS.LEGACY_GRAPH_SOURCE_TYPE);
     localStorage.removeItem(STORAGE_KEYS.LEGACY_USER_COMPLETED_CONCEPTS);
     localStorage.removeItem(STORAGE_KEYS.ASSESSMENT_ATTEMPTS);
+    localStorage.removeItem(STORAGE_KEYS.ASSESSMENT_SETUP_CONFIG);
   } catch (err) {
     console.warn('[Storage] Failed to clear user data:', err);
+  }
+}
+
+/**
+ * Loads the user's most recently configured assessment settings.
+ */
+export function loadAssessmentSetupConfig(): AssessmentSetupConfig | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.ASSESSMENT_SETUP_CONFIG);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed as AssessmentSetupConfig;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Persists the user's configured assessment settings for their next session.
+ */
+export function saveAssessmentSetupConfig(config: AssessmentSetupConfig): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEYS.ASSESSMENT_SETUP_CONFIG, JSON.stringify(config));
+  } catch {
+    // Ignore quota errors
   }
 }
 

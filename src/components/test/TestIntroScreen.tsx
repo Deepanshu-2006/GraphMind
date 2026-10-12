@@ -21,7 +21,7 @@ export function TestIntroScreen({
   onExitTest
 }: TestIntroScreenProps) {
   // State for coordinated assessment transition (Section 14)
-  const [isTransitioningOut, setIsTransitioningOut] = useState(false);
+  const [isTransitioningOut] = useState(false);
 
   // Intentional line wrapping for dominant hero title (Section 1 & 2)
   // Keeps desktop composition strictly as:
@@ -67,13 +67,9 @@ export function TestIntroScreen({
     conceptsCovered.length - MAX_DISPLAYED_CONCEPTS
   );
 
-  // Trigger choreographed transition into the exam workspace
+  // Open the Assessment Setup Modal on START TEST click
   const handleStartExam = () => {
-    if (isTransitioningOut) return;
-    setIsTransitioningOut(true);
-    setTimeout(() => {
-      onStartTest();
-    }, 320);
+    onStartTest();
   };
 
   // Insufficient study material state

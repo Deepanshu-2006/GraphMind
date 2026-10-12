@@ -325,6 +325,16 @@ export interface GenerateTestOptions {
 }
 
 /**
+ * Calculates the total number of unique, valid questions that can be generated for a graph.
+ */
+export function getMaxAvailableQuestions(graph: KnowledgeGraph | null | undefined): number {
+  if (!graph || !graph.nodes || graph.nodes.length === 0) return 0;
+  const result = generateKnowledgeTest(graph, { questionCount: 999 });
+  if (!result.success || !result.test) return 0;
+  return result.test.questions.length;
+}
+
+/**
  * Generates an authentic academic MCQ test grounded strictly in the Knowledge Graph.
  * Never invents facts or unrelated questions.
  */
