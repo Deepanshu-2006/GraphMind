@@ -31,6 +31,7 @@ type StudyViewMode = 'list' | 'historical-results' | 'review-answers' | 'review-
 type StudyFilterMode = 'all' | 'needs-review';
 
 const REVEAL_EASE = [0.16, 1, 0.3, 1] as const;
+const EDITORIAL_EASE = [0.22, 1, 0.36, 1] as const;
 const CIRCLE_RADIUS = 82;
 const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS;
 
@@ -2511,6 +2512,64 @@ export function StudySpaceView({
     };
   }, [historyInViewRaw, shouldReduceMotion]);
 
+  const revisitSectionRef = useRef<HTMLElement | null>(null);
+  const revisitInViewRaw = useInView(revisitSectionRef, { once: true, amount: 0.1 });
+  const [hasRevisitEnteredView, setHasRevisitEnteredView] = useState(false);
+
+  useEffect(() => {
+    if (revisitInViewRaw || typeof window === 'undefined' || typeof IntersectionObserver === 'undefined' || shouldReduceMotion) {
+      setHasRevisitEnteredView(true);
+      return;
+    }
+
+    const checkVisibility = () => {
+      if (revisitSectionRef.current) {
+        const rect = revisitSectionRef.current.getBoundingClientRect();
+        if (rect.top < window.innerHeight * 0.95 && rect.bottom > 0) {
+          setHasRevisitEnteredView(true);
+          return true;
+        }
+      }
+      return false;
+    };
+
+    if (checkVisibility()) return;
+
+    const scrollContainer = document.querySelector('.workspace-viewport') || window;
+    const handleScroll = () => {
+      if (checkVisibility()) {
+        scrollContainer.removeEventListener('scroll', handleScroll);
+        window.removeEventListener('scroll', handleScroll);
+      }
+    };
+
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    let observer: IntersectionObserver | null = null;
+    try {
+      observer = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setHasRevisitEnteredView(true);
+            observer?.disconnect();
+          }
+        }
+      }, { threshold: 0.1 });
+      if (revisitSectionRef.current) {
+        observer.observe(revisitSectionRef.current);
+      }
+    } catch {
+      // Ignore
+    }
+
+    return () => {
+      scrollContainer.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('scroll', handleScroll);
+      observer?.disconnect();
+    };
+  }, [revisitInViewRaw, shouldReduceMotion]);
+
   const lastAnimatedGraphIdRef = useRef<string | null>(null);
   const hasAnimatedRef = useRef(false);
   const endpointRef = useRef<SVGCircleElement | null>(null);
@@ -3870,34 +3929,81 @@ export function StudySpaceView({
             )}
           </motion.section>
 
-          {/* 6. Concepts Worth Revisiting Section (Prompt 5 Phase 5) */}
+          {/* 6. Concepts Worth Revisiting Section (Redesigned Editorial Layout) */}
           {conceptsWorthRevisiting.length > 0 && (
             <motion.section 
+              ref={revisitSectionRef}
               className="study-revisit-section" 
               aria-label="Concepts worth revisiting"
-              initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.16, ease: REVEAL_EASE }}
+              initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
+              animate={hasRevisitEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+              transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.42, delay: 0.05, ease: EDITORIAL_EASE }}
             >
               <div className="study-revisit-header-block">
-                <span className="study-eyebrow">WORTH ANOTHER LOOK</span>
-                <h2 className="study-section-title">Concepts worth revisiting</h2>
-                <p className="study-section-desc">
+                <span className="study-revisit-eyebrow-clip">
+                  <motion.span 
+                    className="study-eyebrow study-revisit-eyebrow"
+                    initial={shouldReduceMotion ? { opacity: 1, clipPath: 'inset(0 0% 0 0)', x: 0 } : { opacity: 0, clipPath: 'inset(0 100% 0 0)', x: -6 }}
+                    animate={hasRevisitEnteredView ? { opacity: 1, clipPath: 'inset(0 0% 0 0)', x: 0 } : { opacity: 0, clipPath: 'inset(0 100% 0 0)', x: -6 }}
+                    transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.48, delay: 0.04, ease: EDITORIAL_EASE }}
+                  >
+                    WORTH ANOTHER LOOK
+                  </motion.span>
+                </span>
+
+                <motion.h2 
+                  className="study-section-title"
+                  title="Concepts worth revisiting"
+                  initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+                  animate={hasRevisitEnteredView ? { opacity: 1 } : { opacity: 0 }}
+                  transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.28, delay: 0.10 }}
+                >
+                  <span className="study-revisit-title-clip">
+                    <motion.span 
+                      className="study-revisit-title-line"
+                      initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: '105%' }}
+                      animate={hasRevisitEnteredView ? { opacity: 1, y: '0%' } : { opacity: 0, y: '105%' }}
+                      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.62, delay: 0.12, ease: EDITORIAL_EASE }}
+                    >
+                      Concepts worth revisiting
+                    </motion.span>
+                  </span>
+                </motion.h2>
+
+                <motion.p 
+                  className="study-section-desc"
+                  initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+                  animate={hasRevisitEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+                  transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.46, delay: 0.24, ease: EDITORIAL_EASE }}
+                >
                   Identified from questions answered incorrectly or left unanswered in your assessment history.
-                </p>
+                </motion.p>
               </div>
 
               <div className="study-revisit-list">
                 {displayedConcepts.map((item, idx) => (
-                  <div key={`${item.graphId}-${item.conceptId}`} className="study-revisit-card">
+                  <motion.div 
+                    key={`${item.graphId}-${item.conceptId}`} 
+                    className="study-revisit-row study-revisit-card"
+                    initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
+                    animate={hasRevisitEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+                    transition={shouldReduceMotion ? { duration: 0 } : {
+                      duration: 0.46,
+                      delay: 0.14 + idx * 0.05,
+                      ease: EDITORIAL_EASE
+                    }}
+                  >
                     <span className="study-revisit-num" aria-hidden="true">{pad(idx + 1)}</span>
                     <div className="study-revisit-info">
                       <div className="study-revisit-top">
                         <h3 className="study-revisit-name">{item.conceptName}</h3>
                         {item.graphName && (
-                          <span className="study-revisit-graph-tag">
-                            {item.graphName}
-                          </span>
+                          <div className="study-revisit-graph-wrap">
+                            <span className="study-revisit-meta-sep" aria-hidden="true">•</span>
+                            <span className="study-revisit-graph-tag" aria-label={`Knowledge graph: ${item.graphName}`}>
+                              {item.graphName}
+                            </span>
+                          </div>
                         )}
                       </div>
                       <p className="study-revisit-status">{item.statusMessage}</p>
@@ -3907,13 +4013,13 @@ export function StudySpaceView({
                       {item.availableInGraph ? (
                         <button
                           type="button"
-                          className="study-editorial-btn"
+                          className="study-editorial-btn study-revisit-action-btn"
                           onClick={() => onNavigateToConcept?.(item.conceptId)}
                           aria-label={`Review ${item.conceptName} in knowledge graph`}
                         >
                           <span className="study-btn-content">
                             <span>REVIEW IN GRAPH</span>
-                            <span className="study-btn-arrow" aria-hidden="true">→</span>
+                            <span className="study-btn-arrow study-revisit-arrow" aria-hidden="true">→</span>
                           </span>
                           <span className="study-btn-underline" aria-hidden="true" />
                         </button>
@@ -3923,7 +4029,7 @@ export function StudySpaceView({
                         </span>
                       )}
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
 
@@ -3942,7 +4048,7 @@ export function StudySpaceView({
                           ? 'Show fewer concepts' 
                           : `Show all ${conceptsWorthRevisiting.length} concepts worth revisiting`}
                       </span>
-                      <span className="study-btn-arrow" aria-hidden="true">
+                      <span className={`study-btn-arrow study-concepts-expand-arrow ${isAllConceptsExpanded ? 'expanded' : ''}`} aria-hidden="true">
                         {isAllConceptsExpanded ? '↑' : '↓'}
                       </span>
                     </span>
