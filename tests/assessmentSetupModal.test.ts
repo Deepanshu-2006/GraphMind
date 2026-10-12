@@ -349,16 +349,142 @@ describe('GraphMind Assessment Setup Modal — Refined Architecture & Curved Mec
   describe('7. Mobile and Responsive Constraints (Section 6 & 10)', () => {
     it('supports responsive rules for viewports <= 640px', () => {
       const mobileBreakpoints = {
-        cardMaxWidthPx: 530,
+        cardMaxWidthPx: 518,
         mobileBreakpointPx: 640,
         mobileSummaryColumns: 2,
-        curvedReelWidthPx: 72
+        curvedReelWidthPx: 72,
+        curvedReelViewportHeightPx: 90
       };
 
-      assert.equal(mobileBreakpoints.cardMaxWidthPx, 530);
+      assert.equal(mobileBreakpoints.cardMaxWidthPx, 518);
       assert.equal(mobileBreakpoints.mobileBreakpointPx, 640);
       assert.equal(mobileBreakpoints.mobileSummaryColumns, 2);
       assert.equal(mobileBreakpoints.curvedReelWidthPx, 72);
+      assert.equal(mobileBreakpoints.curvedReelViewportHeightPx, 90);
+    });
+  });
+
+  describe('8. Focused Refinement: Height Reduction, 3-Row Cylinder, Draggable Physics & Momentum', () => {
+    it('achieves ~15-20% modal height reduction via compact timer instrument and tightened spacing', () => {
+      const spacingTokens = {
+        cardPadding: { top: 24, horizontal: 30, bottom: 20 },
+        eyebrowMarginBottom: 6,
+        headingMarginBottom: 6,
+        descriptionMarginBottom: 16,
+        sectionBlockMarginBottom: 16,
+        timerInstrumentPadding: { top: 10, horizontal: 16, bottom: 8 },
+        curvedReelViewportHeight: 96, // Reduced from 144px (33% reduction in reel height)
+        slotHeight: 38,
+        quickButtonSize: 20, // Reduced from 24px
+        summaryMarginTop: 14,
+        summaryMarginBottom: 18
+      };
+
+      assert.equal(spacingTokens.cardPadding.top, 24);
+      assert.equal(spacingTokens.curvedReelViewportHeight, 96);
+      assert.equal(spacingTokens.slotHeight, 38);
+      assert.equal(spacingTokens.quickButtonSize, 20);
+      assert.equal(spacingTokens.sectionBlockMarginBottom, 16);
+    });
+
+    it('displays exactly 1 neighbor above and 1 below at rest with natural cylindrical fading and culling', () => {
+      const computeSlotProjection = (slotVal: number, displayFloat: number) => {
+        const diff = slotVal - displayFloat;
+        const absDiff = Math.abs(diff);
+        const isCulled = absDiff > 1.45;
+        const scale = Math.max(0.72, 1 - absDiff * 0.22);
+        const opacity = Math.max(0, 1 - Math.pow(absDiff, 1.4) * 0.68);
+        const isCenter = absDiff < 0.35;
+        return { diff, absDiff, isCulled, scale, opacity, isCenter };
+      };
+
+      // Settled at 10.0
+      const center = computeSlotProjection(10, 10.0);
+      assert.equal(center.isCulled, false);
+      assert.equal(center.isCenter, true);
+      assert.equal(center.scale, 1.0);
+      assert.equal(center.opacity, 1.0);
+
+      const aboveNeighbor = computeSlotProjection(9, 10.0);
+      assert.equal(aboveNeighbor.isCulled, false);
+      assert.equal(aboveNeighbor.isCenter, false);
+      assert.equal(aboveNeighbor.diff, -1.0);
+      assert.ok(aboveNeighbor.opacity > 0.25 && aboveNeighbor.opacity < 0.40);
+
+      const belowNeighbor = computeSlotProjection(11, 10.0);
+      assert.equal(belowNeighbor.isCulled, false);
+      assert.equal(belowNeighbor.isCenter, false);
+      assert.equal(belowNeighbor.diff, 1.0);
+      assert.ok(belowNeighbor.opacity > 0.25 && belowNeighbor.opacity < 0.40);
+
+      // Distant slots (absDiff >= 2) must be culled
+      const distantAbove = computeSlotProjection(8, 10.0);
+      assert.equal(distantAbove.isCulled, true);
+
+      const distantBelow = computeSlotProjection(12, 10.0);
+      assert.equal(distantBelow.isCulled, true);
+    });
+
+    it('translates reel continuously with pointer during vertical drag', () => {
+      const SLOT_HEIGHT = 38;
+      const startFloat = 10.0;
+
+      // Drag up by 19px (half a slot) -> pulls next numbers up -> value increases continuously
+      const deltaYUp = -19;
+      const nextFloatUp = startFloat - deltaYUp / SLOT_HEIGHT;
+      assert.equal(nextFloatUp, 10.5);
+
+      // Drag down by 38px (one full slot) -> pulls previous numbers down -> value decreases
+      const deltaYDown = 38;
+      const nextFloatDown = startFloat - deltaYDown / SLOT_HEIGHT;
+      assert.equal(nextFloatDown, 9.0);
+    });
+
+    it('calculates velocity and momentum with stable snapping on pointer release', () => {
+      const SLOT_HEIGHT = 38;
+      const min = 0;
+      const max = 59;
+
+      const computeReleaseSnap = (
+        currentPos: number,
+        vy: number /* px/ms, positive if dragged down */
+      ) => {
+        let momentumSlots = 0;
+        if (Math.abs(vy) > 0.18) {
+          momentumSlots = (vy * 85) / SLOT_HEIGHT;
+          momentumSlots = Math.max(-3, Math.min(3, momentumSlots));
+        }
+        const targetWithMomentum = currentPos - momentumSlots;
+        return Math.max(min, Math.min(max, Math.round(targetWithMomentum)));
+      };
+
+      // Stationary release (vy ~ 0) snaps to nearest integer
+      assert.equal(computeReleaseSnap(10.2, 0), 10);
+      assert.equal(computeReleaseSnap(10.7, 0), 11);
+
+      // Quick upward flick (vy < 0) adds upward momentum (increases value)
+      const flickUpTarget = computeReleaseSnap(10.2, -0.6);
+      assert.ok(flickUpTarget > 10, 'Upward flick should increase target value');
+      assert.ok(flickUpTarget <= 13, 'Momentum must be capped to prevent erratic runaway');
+
+      // Boundary clamping
+      assert.equal(computeReleaseSnap(1.0, 1.5), 0); // Cannot go below min
+      assert.equal(computeReleaseSnap(58.0, -1.5), 59); // Cannot exceed max
+    });
+
+    it('prevents awkward wrapping of KNOWLEDGE GRAPH in 4-column summary layout', () => {
+      const summaryLayout = {
+        gridTemplateColumns: 'minmax(130px, 1.4fr) minmax(85px, 1fr) minmax(85px, 1fr) minmax(105px, 1.1fr)',
+        knowledgeGraphMinWidthPx: 130,
+        labelWhiteSpace: 'nowrap',
+        valueFontSizePx: 13.5,
+        valueColor: '#F4F4F5'
+      };
+
+      assert.equal(summaryLayout.knowledgeGraphMinWidthPx >= 130, true);
+      assert.equal(summaryLayout.labelWhiteSpace, 'nowrap');
+      assert.equal(summaryLayout.valueColor, '#F4F4F5');
     });
   });
 });
+

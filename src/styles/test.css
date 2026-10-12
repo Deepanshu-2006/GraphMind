@@ -4516,11 +4516,11 @@
 .assessment-setup-card {
   position: relative;
   width: 100%;
-  max-width: 530px;
+  max-width: 518px;
   background: #0E0E0E;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
-  padding: 36px 38px 30px;
+  padding: 24px 30px 20px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
   display: flex;
   flex-direction: column;
@@ -4531,14 +4531,14 @@
 .setup-modal-eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   font-family: var(--font-mono, monospace);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--accent, #A3FF12);
-  margin-bottom: 12px;
+  margin-bottom: 6px;
 }
 
 .setup-eyebrow-marker {
@@ -4551,19 +4551,19 @@
 
 .setup-modal-heading {
   font-family: var(--font-display, sans-serif);
-  font-size: 29px;
+  font-size: 26px;
   font-weight: 600;
   line-height: 1.15;
   letter-spacing: -0.025em;
   color: #FFFFFF;
-  margin: 0 0 8px;
+  margin: 0 0 6px;
 }
 
 .setup-modal-description {
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 13.5px;
+  line-height: 1.45;
   color: #8E8E93;
-  margin: 0 0 28px;
+  margin: 0 0 16px;
 }
 
 .setup-alert-insufficient {
@@ -4573,8 +4573,8 @@
   background: rgba(255, 92, 92, 0.08);
   border: 1px solid rgba(255, 92, 92, 0.25);
   border-radius: 8px;
-  padding: 12px 14px;
-  margin-bottom: 22px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
 }
 
 .setup-alert-icon {
@@ -4602,14 +4602,14 @@
 }
 
 .setup-section-block {
-  margin-bottom: 26px;
+  margin-bottom: 16px;
 }
 
 .setup-section-header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .setup-section-title {
@@ -4671,7 +4671,7 @@
   flex: 1;
   background: transparent;
   border: none;
-  padding: 9px 10px;
+  padding: 7px 10px;
   border-radius: 6px;
   cursor: pointer;
   display: flex;
@@ -4717,7 +4717,7 @@
   background: #121212;
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 12px;
-  padding: 18px 20px 16px;
+  padding: 10px 16px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -4726,12 +4726,12 @@
 
 .curved-timer-top-label {
   font-family: var(--font-mono, monospace);
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: #666666;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
   user-select: none;
 }
 
@@ -4739,7 +4739,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 18px;
+  gap: 16px;
   width: 100%;
 }
 
@@ -4747,15 +4747,15 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .curved-reel-quick-btn {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 50%;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4766,30 +4766,36 @@
 }
 
 .curved-reel-quick-btn:hover:not(:disabled) {
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.2);
   color: #FFFFFF;
 }
 
 .curved-reel-quick-btn:disabled {
-  opacity: 0.25;
+  opacity: 0.2;
   cursor: not-allowed;
 }
 
 .curved-reel-viewport {
   position: relative;
-  height: 144px;
-  width: 86px;
+  height: 96px;
+  width: 82px;
   overflow: hidden;
-  perspective: 380px;
+  perspective: 340px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  mask-image: linear-gradient(to bottom, transparent 0%, black 22%, black 78%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 22%, black 78%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 18%, black 82%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 18%, black 82%, transparent 100%);
   cursor: grab;
   user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
   outline: none;
+}
+
+.curved-reel-viewport.is-dragging {
+  cursor: grabbing;
 }
 
 .curved-reel-viewport:focus-visible {
@@ -4802,11 +4808,11 @@
   top: 50%;
   left: 2px;
   right: 2px;
-  height: 46px;
+  height: 38px;
   transform: translateY(-50%);
-  border-top: 1px solid rgba(255, 255, 255, 0.09);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
-  background: rgba(255, 255, 255, 0.018);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.015);
   border-radius: 6px;
   pointer-events: none;
   z-index: 1;
@@ -4816,27 +4822,30 @@
   position: absolute;
   inset: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
+  pointer-events: none;
 }
 
 .curved-reel-slot {
-  height: 44px;
-  width: 100%;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 38px;
+  margin-top: -19px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   user-select: none;
   transform-origin: center center;
-  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-              opacity 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, opacity;
 }
 
 .curved-reel-slot-num {
   font-family: var(--font-display, sans-serif);
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 500;
   letter-spacing: -0.02em;
   color: #8E8E93;
@@ -4845,19 +4854,19 @@
 .curved-reel-slot.is-center .curved-reel-slot-num {
   color: #FFFFFF;
   font-weight: 600;
-  font-size: 38px;
+  font-size: 36px;
 }
 
 .curved-timer-separator-wrap {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 44px;
+  height: 38px;
 }
 
 .curved-timer-separator-colon {
   font-family: var(--font-display, sans-serif);
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 300;
   color: rgba(255, 255, 255, 0.35);
   user-select: none;
@@ -4865,7 +4874,7 @@
 
 .curved-reel-unit-label {
   font-family: var(--font-mono, monospace);
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.12em;
   color: #666666;
@@ -4949,41 +4958,44 @@
 /* 4. Minimal Session Summary */
 .setup-session-summary {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-  padding: 16px 0 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-  margin-top: 6px;
-  margin-bottom: 28px;
+  grid-template-columns: minmax(130px, 1.4fr) minmax(85px, 1fr) minmax(85px, 1fr) minmax(105px, 1.1fr);
+  gap: 12px;
+  padding: 12px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin-top: 14px;
+  margin-bottom: 18px;
 }
 
 .summary-col {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
 }
 
 .summary-meta-label {
   font-family: var(--font-mono, monospace);
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #666666;
+  color: #71717A;
+  white-space: nowrap;
 }
 
 .summary-meta-val {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 500;
-  color: #E2E2E2;
+  color: #F4F4F5;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.01em;
 }
 
 .summary-meta-val.graph-name {
   color: #FFFFFF;
+  font-weight: 600;
 }
 
 /* 5. Minimal Text-Only Modal Footer Actions */
@@ -4991,7 +5003,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 4px;
+  padding-top: 0;
 }
 
 .setup-cancel-text-btn {
@@ -5094,26 +5106,44 @@
 
 @media (max-width: 640px) {
   .assessment-setup-card {
-    padding: 26px 22px 22px;
+    padding: 20px 18px 16px;
     margin: 12px;
   }
 
   .setup-session-summary {
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    gap: 10px;
+    margin-bottom: 16px;
   }
 
   .curved-reel-viewport {
     width: 72px;
-    height: 130px;
+    height: 90px;
+  }
+
+  .curved-reel-center-bracket {
+    height: 34px;
+  }
+
+  .curved-reel-slot {
+    height: 34px;
+    margin-top: -17px;
   }
 
   .curved-reel-slot-num {
-    font-size: 30px;
+    font-size: 28px;
   }
 
   .curved-reel-slot.is-center .curved-reel-slot-num {
     font-size: 32px;
+  }
+
+  .curved-timer-separator-wrap {
+    height: 34px;
+  }
+
+  .curved-timer-separator-colon {
+    font-size: 24px;
   }
 
   .setup-modal-actions {

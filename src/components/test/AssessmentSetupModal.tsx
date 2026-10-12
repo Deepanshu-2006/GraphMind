@@ -100,9 +100,12 @@ export function computeQuestionCountOptions(maxAvailable: number): QuestionCount
   return options;
 }
 
+const SLOT_HEIGHT = 38; // Mechanical slot height in pixels
+
 /**
  * Curved Mechanical Reel Component for Minutes and Seconds
- * Uses cylindrical 3D rotation, scaling, and smooth mechanical translation.
+ * Genuinely draggable with pointer capture, sub-pixel physical cylinder rotation,
+ * controlled momentum physics, and smooth mechanical snap easing.
  */
 interface CurvedReelProps {
   value: number;
@@ -129,18 +132,188 @@ function CurvedReel({
   disabled
 }: CurvedReelProps) {
   const shouldReduceMotion = useReducedMotion();
+  const [displayFloat, setDisplayFloat] = useState<number>(value);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const displayFloatRef = useRef<number>(value);
+  const rafIdRef = useRef<number | null>(null);
   const lastWheelTimeRef = useRef<number>(0);
-  const touchStartYRef = useRef<number | null>(null);
 
-  // Visible slots around the center: -2, -1, 0, 1, 2
-  const visibleOffsets = [-2, -1, 0, 1, 2];
+  // Synchronize displayFloatRef
+  useEffect(() => {
+    displayFloatRef.current = displayFloat;
+  }, [displayFloat]);
+
+  // Pointer drag tracking refs
+  const dragStartRef = useRef<{
+    startY: number;
+    startFloat: number;
+    pointerId: number;
+  } | null>(null);
+  const velocityHistoryRef = useRef<Array<{ y: number; time: number }>>([]);
+
+  // Smooth mechanical animation to target value using easeOutCubic
+  const animateToValue = useCallback((target: number, durationMs = 240) => {
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    if (shouldReduceMotion) {
+      setDisplayFloat(target);
+      displayFloatRef.current = target;
+      return;
+    }
+    const start = displayFloatRef.current;
+    const delta = target - start;
+    if (Math.abs(delta) < 0.001) {
+      setDisplayFloat(target);
+      displayFloatRef.current = target;
+      return;
+    }
+    const startTime = performance.now();
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / durationMs);
+      // easeOutCubic: 1 - (1 - t)^3
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = start + delta * eased;
+      setDisplayFloat(current);
+      displayFloatRef.current = current;
+      if (progress < 1) {
+        rafIdRef.current = requestAnimationFrame(tick);
+      } else {
+        setDisplayFloat(target);
+        displayFloatRef.current = target;
+        rafIdRef.current = null;
+      }
+    };
+    rafIdRef.current = requestAnimationFrame(tick);
+  }, [shouldReduceMotion]);
+
+  // Synchronize when value changes externally (e.g. initial load, direct entry, plus/minus)
+  useEffect(() => {
+    if (dragStartRef.current) return;
+    if (Math.abs(displayFloatRef.current - value) > 0.001) {
+      animateToValue(value, 260);
+    }
+  }, [value, animateToValue]);
+
+  // Cleanup animation on unmount
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
+  }, []);
+
+  // Pointer Down: Capture pointer & initiate drag
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (disabled || e.button !== 0) return;
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // safe fallback if pointer capture is not supported
+    }
+    setIsDragging(true);
+    dragStartRef.current = {
+      startY: e.clientY,
+      startFloat: displayFloatRef.current,
+      pointerId: e.pointerId
+    };
+    velocityHistoryRef.current = [{ y: e.clientY, time: performance.now() }];
+  };
+
+  // Pointer Move: Real-time continuous translation
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragStartRef.current || dragStartRef.current.pointerId !== e.pointerId) return;
+
+    const now = performance.now();
+    const deltaY = e.clientY - dragStartRef.current.startY;
+
+    // Track rolling velocity within the last 120ms
+    velocityHistoryRef.current.push({ y: e.clientY, time: now });
+    velocityHistoryRef.current = velocityHistoryRef.current.filter(
+      s => now - s.time <= 120
+    );
+
+    // Continuous translation math:
+    // Drag down (deltaY > 0) -> pulls previous numbers down (decreases value)
+    // Drag up (deltaY < 0) -> pulls next numbers up (increases value)
+    const deltaSlots = deltaY / SLOT_HEIGHT;
+    let nextFloat = dragStartRef.current.startFloat - deltaSlots;
+
+    // Boundary resistance: soft dampening when pulled beyond min/max
+    if (nextFloat < min) {
+      const over = min - nextFloat;
+      nextFloat = min - Math.sqrt(over) * 0.35;
+    } else if (nextFloat > max) {
+      const over = nextFloat - max;
+      nextFloat = max + Math.sqrt(over) * 0.35;
+    }
+
+    setDisplayFloat(nextFloat);
+    displayFloatRef.current = nextFloat;
+  };
+
+  // Pointer Up / Cancel: Momentum calculation & snap to nearest valid value
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragStartRef.current || dragStartRef.current.pointerId !== e.pointerId) return;
+
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      // ignore
+    }
+
+    setIsDragging(false);
+
+    // Estimate release velocity
+    let vy = 0; // px / ms
+    const samples = velocityHistoryRef.current;
+    if (samples.length >= 2) {
+      const first = samples[0];
+      const last = samples[samples.length - 1];
+      const dt = last.time - first.time;
+      if (dt > 10) {
+        vy = (last.y - first.y) / dt;
+      }
+    }
+
+    dragStartRef.current = null;
+    velocityHistoryRef.current = [];
+
+    // Controlled momentum calculation (clamped to +/- 3 slots)
+    let momentumSlots = 0;
+    if (Math.abs(vy) > 0.18) {
+      momentumSlots = (vy * 85) / SLOT_HEIGHT;
+      momentumSlots = Math.max(-3, Math.min(3, momentumSlots));
+    }
+
+    const currentPos = displayFloatRef.current;
+    const targetWithMomentum = currentPos - momentumSlots;
+    const snapped = Math.max(min, Math.min(max, Math.round(targetWithMomentum)));
+
+    // Immediately trigger change to update session summary
+    onChange(snapped);
+
+    // Animate to snapped integer position
+    const distance = Math.abs(snapped - currentPos);
+    const duration = Math.min(360, Math.max(160, Math.round(distance * 110)));
+    animateToValue(snapped, duration);
+  };
 
   // Wheel / Trackpad scroll interaction
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     if (disabled) return;
     e.preventDefault();
-    const now = Date.now();
-    if (now - lastWheelTimeRef.current < 50) return; // Prevent runaway scrolling
+    const now = performance.now();
+    if (now - lastWheelTimeRef.current < 60) return;
     lastWheelTimeRef.current = now;
 
     if (e.deltaY < 0) {
@@ -168,33 +341,19 @@ function CurvedReel({
     }
   };
 
-  // Touch swipe interactions
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (disabled || e.touches.length === 0) return;
-    touchStartYRef.current = e.touches[0].clientY;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (disabled || touchStartYRef.current === null || e.touches.length === 0) return;
-    const currentY = e.touches[0].clientY;
-    const deltaY = currentY - touchStartYRef.current;
-    if (Math.abs(deltaY) > 20) {
-      if (deltaY < 0) {
-        onDecrement();
-      } else {
-        onIncrement();
-      }
-      touchStartYRef.current = currentY;
-    }
-  };
-
-  const handleTouchEnd = () => {
-    touchStartYRef.current = null;
-  };
+  // Candidate integers to render around current continuous float
+  const centerInt = Math.round(displayFloat);
+  const slotsToRender = [
+    centerInt - 2,
+    centerInt - 1,
+    centerInt,
+    centerInt + 1,
+    centerInt + 2
+  ];
 
   return (
     <div className="curved-reel-column">
-      {/* Quick Plus Control */}
+      {/* Quick Plus Control (Secondary, visually quiet) */}
       <button
         type="button"
         className="curved-reel-quick-btn"
@@ -203,52 +362,61 @@ function CurvedReel({
         title={`Increase ${label}`}
         aria-label={`Increase ${label}`}
       >
-        <Plus size={12} strokeWidth={2.4} aria-hidden="true" />
+        <Plus size={10} strokeWidth={2.2} aria-hidden="true" />
       </button>
 
-      {/* 3D Curved Cylindrical Viewport */}
+      {/* 3D Curved Cylindrical Viewport (Directly draggable) */}
       <div
-        className="curved-reel-viewport"
+        className={`curved-reel-viewport ${isDragging ? 'is-dragging' : ''}`}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
         onWheel={handleWheel}
         onKeyDown={handleKeyDown}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
         tabIndex={disabled ? -1 : 0}
         role="spinbutton"
         aria-label={label}
-        aria-valuenow={value}
+        aria-valuenow={Math.round(displayFloat)}
         aria-valuemin={min}
         aria-valuemax={max}
       >
-        {/* Active Viewing Aperture Bracket */}
+        {/* Active Viewing Center Aperture Bracket */}
         <div className="curved-reel-center-bracket" aria-hidden="true" />
 
-        {/* Cylindrical Number Ring */}
+        {/* Continuous Cylindrical Number Strip */}
         <div className="curved-reel-slots-wrap">
-          {visibleOffsets.map((offset) => {
-            const slotVal = value + offset;
+          {slotsToRender.map((slotVal) => {
             const isWithinBounds = slotVal >= min && slotVal <= max;
-            const absOffset = Math.abs(offset);
+            const diff = slotVal - displayFloat;
+            const absDiff = Math.abs(diff);
 
-            // Cylindrical rotation and distance scaling
-            const rotateX = offset * 24; // degrees
-            const scale = absOffset === 0 ? 1 : absOffset === 1 ? 0.82 : 0.65;
-            const opacity = absOffset === 0 ? 1 : absOffset === 1 ? 0.40 : 0.16;
+            // Cull slots beyond active viewing aperture (only center and 1 neighbor visible)
+            if (absDiff > 1.45) return null;
+
+            // Physical projection math: translation, 3D cylindrical rotation, scale, opacity
+            const yPx = diff * SLOT_HEIGHT;
+            const rotateX = diff * 26; // degrees
+            const scale = Math.max(0.72, 1 - absDiff * 0.22);
+            const opacity = isWithinBounds
+              ? Math.max(0, 1 - Math.pow(absDiff, 1.4) * 0.68)
+              : 0;
+
+            const isCenter = absDiff < 0.35;
 
             return (
               <div
-                key={offset}
-                className={`curved-reel-slot ${offset === 0 ? 'is-center' : 'is-neighbor'}`}
+                key={slotVal}
+                className={`curved-reel-slot ${isCenter ? 'is-center' : 'is-neighbor'}`}
                 style={{
                   transform: shouldReduceMotion
-                    ? undefined
-                    : `rotateX(${rotateX}deg) scale(${scale})`,
-                  opacity: isWithinBounds ? opacity : 0,
-                  pointerEvents: isWithinBounds ? 'auto' : 'none'
+                    ? `translateY(${yPx}px)`
+                    : `translateY(${yPx}px) rotateX(${rotateX}deg) scale(${scale})`,
+                  opacity,
+                  pointerEvents: isWithinBounds && !isDragging ? 'auto' : 'none'
                 }}
                 onClick={() => {
-                  if (isWithinBounds && offset !== 0) {
+                  if (isWithinBounds && !isDragging && absDiff >= 0.5) {
                     onChange(slotVal);
                   }
                 }}
@@ -262,7 +430,7 @@ function CurvedReel({
         </div>
       </div>
 
-      {/* Quick Minus Control */}
+      {/* Quick Minus Control (Secondary, visually quiet) */}
       <button
         type="button"
         className="curved-reel-quick-btn"
@@ -271,10 +439,10 @@ function CurvedReel({
         title={`Decrease ${label}`}
         aria-label={`Decrease ${label}`}
       >
-        <Minus size={12} strokeWidth={2.4} aria-hidden="true" />
+        <Minus size={10} strokeWidth={2.2} aria-hidden="true" />
       </button>
 
-      {/* Restrained Sub-Label */}
+      {/* Restrained Sub-Label closer to the reel */}
       <span className="curved-reel-unit-label">{unit}</span>
     </div>
   );
