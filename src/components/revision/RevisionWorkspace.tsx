@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { KnowledgeGraph } from '../../types/knowledgeGraph';
 import type { GraphConceptData, ConceptRelationship } from '../../types/graph';
-import type { RevisionPathStep } from '../../types/practice';
+import type { RevisionPathStep, RevisionSessionState } from '../../types/practice';
+import {
+  createRevisionSession,
+  validateRevisionSession,
+  loadRevisionSession,
+  saveRevisionSession,
+  jumpToIndex,
+  jumpToConceptId
+} from '../../services/revisionSession';
 
 export interface RevisionConceptItem {
   id: string;
@@ -23,11 +31,14 @@ export interface RevisionWorkspaceProps {
   allEdges?: Array<any>;
   conceptDetails?: Record<string, GraphConceptData>;
   initialConceptId?: string | null;
+  session?: RevisionSessionState | null;
+  onSessionChange?: (session: RevisionSessionState) => void;
   onPrevConcept?: () => void;
   onNextConcept?: () => void;
   onSelectConceptIndex?: (index: number) => void;
   onBackToGraph: () => void;
   onViewGraph?: (conceptId?: string) => void;
+  onSelectGraph?: () => void;
   isLoading?: boolean;
 }
 
@@ -46,11 +57,14 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   allEdges = [],
   conceptDetails = {},
   initialConceptId = null,
+  session: controlledSession,
+  onSessionChange,
   onPrevConcept,
   onNextConcept,
   onSelectConceptIndex,
   onBackToGraph,
   onViewGraph,
+  onSelectGraph,
   isLoading = false
 }) => {
   // 1. Resolve deterministic concept sequence from revisionPath or graph data
@@ -118,52 +132,148 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     });
   }, [revisionPath, conceptDetails, allNodes, graph?.nodes, graph?.relationships]);
 
-  // 2. Navigation index state (controlled if revisionIndex provided, else internal)
-  const [internalIndex, setInternalIndex] = useState<number>(() => {
-    if (initialConceptId && concepts.length > 0) {
-      const foundIdx = concepts.findIndex((c) => c.id === initialConceptId);
-      if (foundIdx >= 0) return foundIdx;
+  // 2. Manage revision session state (restores previous session when available)
+  const [internalSession, setInternalSession] = useState<RevisionSessionState>(() => {
+    if (controlledSession && graph) {
+      const valid = validateRevisionSession(controlledSession, graph);
+      if (valid) return valid;
     }
-    return 0;
+    if (graph?.id) {
+      const stored = loadRevisionSession(graph.id);
+      const validated = validateRevisionSession(stored, graph);
+      if (validated) {
+        if (initialConceptId && validated.conceptIds.includes(initialConceptId)) {
+          return jumpToConceptId(validated, initialConceptId);
+        }
+        if (controlledIndex !== undefined) {
+          return jumpToIndex(validated, controlledIndex);
+        }
+        return validated;
+      }
+    }
+
+    const ids = (revisionPath && revisionPath.length > 0)
+      ? revisionPath.map(p => p.conceptId)
+      : ((graph?.nodes && graph.nodes.length > 0) ? graph.nodes.map(n => n.id) : (allNodes.map((n: any) => n.id) || []));
+
+    const initIdx = initialConceptId && ids.includes(initialConceptId)
+      ? ids.indexOf(initialConceptId)
+      : (controlledIndex !== undefined ? controlledIndex : 0);
+
+    const fresh = createRevisionSession({
+      graphId: graph?.id || 'default_graph',
+      conceptIds: ids,
+      currentIndex: initIdx,
+      currentConceptId: ids[initIdx] || null,
+      path: revisionPath
+    });
+
+    if (graph?.id && ids.length > 0) {
+      saveRevisionSession(fresh, graph.id);
+    }
+    return fresh;
   });
 
-  const currentIndex = controlledIndex !== undefined ? controlledIndex : internalIndex;
+  const activeSession = controlledSession || internalSession;
   const totalConcepts = concepts.length;
-  const isFirst = currentIndex <= 0;
-  const isLast = currentIndex >= totalConcepts - 1;
 
-  // Sync internalIndex when controlledIndex is absent but initialConceptId changes
+  // Resolve active index: controlledIndex takes precedence if provided, otherwise activeSession.currentIndex
+  const rawIndex = controlledIndex !== undefined ? controlledIndex : activeSession.currentIndex;
+  const currentIndex = totalConcepts > 0
+    ? Math.min(Math.max(0, rawIndex), totalConcepts - 1)
+    : 0;
+
+  const isFirst = totalConcepts <= 1 || currentIndex <= 0;
+  const isLast = totalConcepts <= 1 || currentIndex >= totalConcepts - 1;
+
+  // Sync session when graph selection changes or graph nodes update
+  useEffect(() => {
+    if (!graph?.id) return;
+
+    if (internalSession.graphId !== graph.id) {
+      // Switched graph: strictly load this graph's session or create fresh
+      const stored = loadRevisionSession(graph.id);
+      const validated = validateRevisionSession(stored, graph);
+      if (validated) {
+        setInternalSession(validated);
+        onSessionChange?.(validated);
+      } else {
+        const ids = (revisionPath && revisionPath.length > 0)
+          ? revisionPath.map(p => p.conceptId)
+          : (graph.nodes?.map(n => n.id) || allNodes.map((n: any) => n.id) || []);
+        const fresh = createRevisionSession({
+          graphId: graph.id,
+          conceptIds: ids,
+          currentIndex: controlledIndex ?? 0,
+          path: revisionPath
+        });
+        setInternalSession(fresh);
+        if (ids.length > 0) saveRevisionSession(fresh, graph.id);
+        onSessionChange?.(fresh);
+      }
+    } else {
+      // Same graph: sanitize against deleted concepts or node changes
+      const validated = validateRevisionSession(internalSession, graph);
+      if (validated && (
+        validated.conceptIds.length !== internalSession.conceptIds.length ||
+        validated.currentIndex !== internalSession.currentIndex
+      )) {
+        setInternalSession(validated);
+        saveRevisionSession(validated, graph.id);
+        onSessionChange?.(validated);
+      }
+    }
+  }, [graph?.id, graph?.nodes, controlledIndex, revisionPath, onSessionChange]);
+
+  // Sync when controlledSession changes
+  useEffect(() => {
+    if (controlledSession && graph) {
+      const validated = validateRevisionSession(controlledSession, graph);
+      if (validated) {
+        setInternalSession(validated);
+      }
+    }
+  }, [controlledSession, graph]);
+
+  // Sync when initialConceptId changes (when not controlled by revisionIndex)
   useEffect(() => {
     if (controlledIndex === undefined && initialConceptId && concepts.length > 0) {
       const foundIdx = concepts.findIndex((c) => c.id === initialConceptId);
-      if (foundIdx >= 0) {
-        setInternalIndex(foundIdx);
+      if (foundIdx >= 0 && foundIdx !== activeSession.currentIndex) {
+        const nextSession = jumpToIndex(activeSession, foundIdx);
+        setInternalSession(nextSession);
+        if (graph?.id) saveRevisionSession(nextSession, graph.id);
+        onSessionChange?.(nextSession);
       }
     }
-  }, [controlledIndex, initialConceptId, concepts]);
+  }, [controlledIndex, initialConceptId, concepts, graph?.id, onSessionChange]);
 
-  // Concept step handlers
+  // Concept navigation step handlers
   const handlePrev = useCallback(() => {
     if (isFirst) return;
-    if (onPrevConcept) {
-      onPrevConcept();
-    } else {
-      const prevIdx = currentIndex - 1;
-      setInternalIndex(prevIdx);
-      onSelectConceptIndex?.(prevIdx);
-    }
-  }, [isFirst, onPrevConcept, currentIndex, onSelectConceptIndex]);
+    const prevIdx = Math.max(0, currentIndex - 1);
+    const nextSession = jumpToIndex(activeSession, prevIdx);
+    setInternalSession(nextSession);
+    if (graph?.id) saveRevisionSession(nextSession, graph.id);
+    onSessionChange?.(nextSession);
+    onSelectConceptIndex?.(prevIdx);
+    onPrevConcept?.();
+  }, [isFirst, currentIndex, activeSession, graph?.id, onSessionChange, onSelectConceptIndex, onPrevConcept]);
 
   const handleNext = useCallback(() => {
     if (isLast) return;
-    if (onNextConcept) {
-      onNextConcept();
-    } else {
-      const nextIdx = currentIndex + 1;
-      setInternalIndex(nextIdx);
-      onSelectConceptIndex?.(nextIdx);
+    const nextIdx = Math.min(totalConcepts - 1, currentIndex + 1);
+    const nextSession = jumpToIndex(activeSession, nextIdx);
+    const currentConceptId = concepts[currentIndex]?.id;
+    if (currentConceptId && !nextSession.reviewedConceptIds.includes(currentConceptId)) {
+      nextSession.reviewedConceptIds.push(currentConceptId);
     }
-  }, [isLast, onNextConcept, currentIndex, onSelectConceptIndex]);
+    setInternalSession(nextSession);
+    if (graph?.id) saveRevisionSession(nextSession, graph.id);
+    onSessionChange?.(nextSession);
+    onSelectConceptIndex?.(nextIdx);
+    onNextConcept?.();
+  }, [isLast, currentIndex, totalConcepts, activeSession, concepts, graph?.id, onSessionChange, onSelectConceptIndex, onNextConcept]);
 
   // Keyboard navigation hotkeys (Left / Right arrow, Escape)
   useEffect(() => {
@@ -294,20 +404,33 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
           {/* State 2: No graph or empty concepts */}
           {!isLoading && (!graph || totalConcepts === 0) && (
             <div className="revision-empty-state" role="status">
-              <span className="revision-empty-kicker">REVISION SESSION</span>
-              <h2 className="revision-empty-title">No concepts available for revision</h2>
+              <span className="revision-empty-kicker">REVISION WORKSPACE</span>
+              <h2 className="revision-empty-title">
+                {!graph ? 'No graph selected' : 'No concepts available for revision'}
+              </h2>
               <p className="revision-empty-desc">
                 {!graph
                   ? 'Please select a knowledge graph to begin a deep revision session.'
                   : 'This knowledge graph contains no extracted concepts yet. Add materials or create concepts to begin studying.'}
               </p>
-              <button
-                type="button"
-                className="revision-empty-action"
-                onClick={onBackToGraph}
-              >
-                Return to knowledge graph
-              </button>
+              <div className="revision-empty-actions">
+                {onSelectGraph && (
+                  <button
+                    type="button"
+                    className="revision-empty-action"
+                    onClick={onSelectGraph}
+                  >
+                    Select knowledge graph
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={onSelectGraph ? 'revision-empty-action-secondary' : 'revision-empty-action'}
+                  onClick={onBackToGraph}
+                >
+                  Return to knowledge graph
+                </button>
+              </div>
             </div>
           )}
 
@@ -486,7 +609,13 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
               <button
                 type="button"
                 className="revision-empty-action"
-                onClick={() => setInternalIndex(0)}
+                onClick={() => {
+                  const resetSession = jumpToIndex(activeSession, 0);
+                  setInternalSession(resetSession);
+                  if (graph?.id) saveRevisionSession(resetSession, graph.id);
+                  onSessionChange?.(resetSession);
+                  onSelectConceptIndex?.(0);
+                }}
               >
                 Return to first concept
               </button>
