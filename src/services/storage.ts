@@ -1,5 +1,5 @@
 import type { KnowledgeSource, KnowledgeGraph, KnowledgeGraphMeta } from '../types/knowledgeGraph';
-import type { ConceptPracticeState, PracticeStatus } from '../types/practice';
+import type { ConceptPracticeState, PracticeStatus, RevisionSessionState } from '../types/practice';
 import type {
   KnowledgeTest,
   TestResultsSummary,
@@ -25,6 +25,7 @@ const STORAGE_KEYS = {
   PRACTICE_STATE_PREFIX: 'graphmind_practice_state_v1_',
   GRAPH_SOURCE_TYPE_PREFIX: 'graphmind_graph_source_type_v1_',
   TEST_HISTORY_PREFIX: 'graphmind_test_history_v1_',
+  REVISION_SESSION_PREFIX: 'graphmind_revision_session_v1_',
   ASSESSMENT_ATTEMPTS: ASSESSMENT_HISTORY_STORAGE_KEY,
   ASSESSMENT_SETUP_CONFIG: 'graphmind_assessment_setup_config_v1',
   // Canonical user sources collection (contains sources for all graphs, keyed by graphId)
@@ -339,6 +340,7 @@ export function deleteGraph(graphId: string): { remainingGraphs: KnowledgeGraphM
     localStorage.removeItem(STORAGE_KEYS.GRAPH_DATA_PREFIX + graphId);
     localStorage.removeItem(STORAGE_KEYS.COMPLETED_CONCEPTS_PREFIX + graphId);
     localStorage.removeItem(STORAGE_KEYS.GRAPH_SOURCE_TYPE_PREFIX + graphId);
+    localStorage.removeItem(STORAGE_KEYS.REVISION_SESSION_PREFIX + graphId);
   } catch (err) {
     console.warn('[Storage] Error removing graph records for deleted graph:', err);
   }
@@ -632,6 +634,125 @@ export function saveConceptPracticeStates(
     localStorage.setItem(STORAGE_KEYS.PRACTICE_STATE_PREFIX + targetId, JSON.stringify(states));
   } catch (err) {
     console.warn('[Storage] Failed to persist concept practice states:', err);
+  }
+}
+
+/**
+ * Load persisted revision session for a specific graph.
+ * Returns null if no session exists or if persisted data is malformed.
+ */
+export function loadRevisionSession(graphId?: string | null): RevisionSessionState | null {
+  if (typeof localStorage === 'undefined') return null;
+
+  try {
+    const targetId = graphId || loadActiveGraphId();
+    if (!targetId) return null;
+
+    const raw = localStorage.getItem(STORAGE_KEYS.REVISION_SESSION_PREFIX + targetId);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') {
+      localStorage.removeItem(STORAGE_KEYS.REVISION_SESSION_PREFIX + targetId);
+      return null;
+    }
+
+    // Validate essential properties: must belong to the exact graph and conceptIds must be strings
+    if (parsed.graphId !== targetId) {
+      return null;
+    }
+
+    if (!Array.isArray(parsed.conceptIds) || !parsed.conceptIds.every((id: unknown) => typeof id === 'string')) {
+      localStorage.removeItem(STORAGE_KEYS.REVISION_SESSION_PREFIX + targetId);
+      return null;
+    }
+
+    const currentIndex = typeof parsed.currentIndex === 'number' && !isNaN(parsed.currentIndex)
+      ? Math.floor(parsed.currentIndex)
+      : 0;
+
+    const totalConcepts = typeof parsed.totalConcepts === 'number' && !isNaN(parsed.totalConcepts)
+      ? parsed.totalConcepts
+      : parsed.conceptIds.length;
+
+    const currentConceptId = typeof parsed.currentConceptId === 'string'
+      ? parsed.currentConceptId
+      : (parsed.conceptIds[currentIndex] || undefined);
+
+    const reviewedConceptIds = Array.isArray(parsed.reviewedConceptIds)
+      ? parsed.reviewedConceptIds.filter((id: unknown) => typeof id === 'string')
+      : [];
+
+    const markedForReviewIds = Array.isArray(parsed.markedForReviewIds)
+      ? parsed.markedForReviewIds.filter((id: unknown) => typeof id === 'string')
+      : [];
+
+    return {
+      isActive: typeof parsed.isActive === 'boolean' ? parsed.isActive : true,
+      graphId: targetId,
+      conceptIds: parsed.conceptIds,
+      currentIndex: Math.max(0, currentIndex),
+      currentConceptId,
+      totalConcepts,
+      createdAt: typeof parsed.createdAt === 'string' ? parsed.createdAt : new Date().toISOString(),
+      updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : new Date().toISOString(),
+      reviewedConceptIds,
+      markedForReviewIds,
+      path: Array.isArray(parsed.path) ? parsed.path : undefined
+    };
+  } catch (err) {
+    console.warn('[Storage] Failed to read revision session:', err);
+    return null;
+  }
+}
+
+/**
+ * Persist revision session for a specific graph.
+ * Only stores the minimum necessary session information (stable IDs, indexes, timestamps).
+ * Never duplicates heavy graph or node objects.
+ */
+export function saveRevisionSession(
+  session: RevisionSessionState,
+  graphId?: string
+): void {
+  if (typeof localStorage === 'undefined' || !session) return;
+
+  try {
+    const targetId = graphId || session.graphId || loadActiveGraphId();
+    if (!targetId) return;
+
+    const minimalSession: RevisionSessionState = {
+      isActive: session.isActive,
+      graphId: targetId,
+      conceptIds: session.conceptIds || [],
+      currentIndex: Math.max(0, session.currentIndex || 0),
+      currentConceptId: session.currentConceptId || (session.conceptIds ? session.conceptIds[session.currentIndex] : undefined),
+      totalConcepts: session.totalConcepts ?? (session.conceptIds?.length || 0),
+      createdAt: session.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      reviewedConceptIds: session.reviewedConceptIds || [],
+      markedForReviewIds: session.markedForReviewIds || []
+    };
+
+    localStorage.setItem(
+      STORAGE_KEYS.REVISION_SESSION_PREFIX + targetId,
+      JSON.stringify(minimalSession)
+    );
+  } catch (err) {
+    console.warn('[Storage] Failed to persist revision session:', err);
+  }
+}
+
+/**
+ * Remove persisted revision session for a specific graph.
+ */
+export function clearRevisionSession(graphId: string): void {
+  if (typeof localStorage === 'undefined' || !graphId) return;
+
+  try {
+    localStorage.removeItem(STORAGE_KEYS.REVISION_SESSION_PREFIX + graphId);
+  } catch (err) {
+    console.warn('[Storage] Failed to clear revision session:', err);
   }
 }
 
@@ -954,6 +1075,7 @@ export function clearAllUserData(): void {
       localStorage.removeItem(STORAGE_KEYS.PRACTICE_STATE_PREFIX + g.id);
       localStorage.removeItem(STORAGE_KEYS.GRAPH_SOURCE_TYPE_PREFIX + g.id);
       localStorage.removeItem(STORAGE_KEYS.TEST_HISTORY_PREFIX + g.id);
+      localStorage.removeItem(STORAGE_KEYS.REVISION_SESSION_PREFIX + g.id);
     }
     localStorage.removeItem(STORAGE_KEYS.GRAPHS);
     localStorage.removeItem(STORAGE_KEYS.ACTIVE_GRAPH_ID);

@@ -37,7 +37,7 @@ import type {
   ZoomDisclosureLevel 
 } from '../../types/graph';
 import type { PracticeStatus, ConceptPracticeState, StudyFilterMode, RevisionPathStep, ActiveRecallQuestion } from '../../types/practice';
-import { loadConceptPracticeStates, updateConceptPracticeState, recordConceptStudy } from '../../services/storage';
+import { loadConceptPracticeStates, updateConceptPracticeState, recordConceptStudy, loadRevisionSession, saveRevisionSession } from '../../services/storage';
 import type { PipelineStage, PipelineProgressEvent } from '../../services/pipelineOrchestrator';
 import { exportKnowledgeGraphJson, exportKnowledgeGraphPng } from '../../services/graphExport';
 import { calculateVisibleGraph } from '../../services/graphViewport';
@@ -1399,22 +1399,37 @@ function FlowCanvas({
         });
       }
 
+      // Check if an existing stored session exists for this graph
+      const targetGraphId = graph?.id;
+      const storedSession = targetGraphId ? loadRevisionSession(targetGraphId) : null;
+      let resumeIndex = 0;
+      if (startNodeId) {
+        const found = path.findIndex(p => p.conceptId === startNodeId);
+        if (found >= 0) resumeIndex = found;
+      } else if (storedSession && targetGraphId && storedSession.graphId === targetGraphId) {
+        const found = path.findIndex(p => p.conceptId === storedSession.currentConceptId);
+        if (found >= 0) {
+          resumeIndex = found;
+        } else if (typeof storedSession.currentIndex === 'number' && storedSession.currentIndex < path.length) {
+          resumeIndex = storedSession.currentIndex;
+        }
+      }
+
       setRevisionPath(path);
-      setRevisionIndex(0);
-      setRevisionVisitedIds(new Set());
+      setRevisionIndex(resumeIndex);
+      setRevisionVisitedIds(new Set(storedSession?.reviewedConceptIds || []));
       setIsRevisionMode(true);
       setIsTestMode(false);
       setIsInspectorOpen(false);
 
       if (path.length > 0) {
-        focusNodeOnCanvas(path[0].conceptId, true, 300);
+        focusNodeOnCanvas(path[resumeIndex]?.conceptId || path[0].conceptId, true, 300);
       }
     } else {
       setIsRevisionMode(false);
-      setRevisionPath([]);
-      setRevisionIndex(0);
+      // Preserve revisionPath and revisionIndex so returning to revision restores position
     }
-  }, [isRevisionMode, recallSession, practiceStates, selectedNodeId, effectiveNodes, effectiveEdges, focusNodeOnCanvas]);
+  }, [isRevisionMode, recallSession, practiceStates, selectedNodeId, effectiveNodes, effectiveEdges, focusNodeOnCanvas, graph?.id]);
 
   const handleStartCoreRevision = useCallback(() => {
     const path = generateRevisionPath({
@@ -1447,14 +1462,29 @@ function FlowCanvas({
     if (prevStep) {
       focusNodeOnCanvas(prevStep.conceptId, true, 300);
     }
-  }, [isRevisionMode, revisionIndex, revisionPath, focusNodeOnCanvas]);
+    if (graph?.id && revisionPath.length > 0) {
+      saveRevisionSession({
+        isActive: true,
+        graphId: graph.id,
+        conceptIds: revisionPath.map(p => p.conceptId),
+        currentIndex: prevIdx,
+        currentConceptId: revisionPath[prevIdx]?.conceptId,
+        totalConcepts: revisionPath.length,
+        createdAt: new Date().toISOString(),
+        reviewedConceptIds: Array.from(revisionVisitedIds),
+        markedForReviewIds: []
+      }, graph.id);
+    }
+  }, [isRevisionMode, revisionIndex, revisionPath, focusNodeOnCanvas, graph?.id, revisionVisitedIds]);
 
   const handleNextRevisionConcept = useCallback(() => {
     if (!isRevisionMode) return;
     if (revisionIndex < revisionPath.length - 1) {
       const currentStep = revisionPath[revisionIndex];
+      const nextVisited = new Set(revisionVisitedIds);
       if (currentStep) {
-        setRevisionVisitedIds(prev => new Set(prev).add(currentStep.conceptId));
+        nextVisited.add(currentStep.conceptId);
+        setRevisionVisitedIds(nextVisited);
       }
       const nextIdx = revisionIndex + 1;
       setRevisionIndex(nextIdx);
@@ -1462,8 +1492,21 @@ function FlowCanvas({
       if (nextStep) {
         focusNodeOnCanvas(nextStep.conceptId, true, 300);
       }
+      if (graph?.id && revisionPath.length > 0) {
+        saveRevisionSession({
+          isActive: true,
+          graphId: graph.id,
+          conceptIds: revisionPath.map(p => p.conceptId),
+          currentIndex: nextIdx,
+          currentConceptId: revisionPath[nextIdx]?.conceptId,
+          totalConcepts: revisionPath.length,
+          createdAt: new Date().toISOString(),
+          reviewedConceptIds: Array.from(nextVisited),
+          markedForReviewIds: []
+        }, graph.id);
+      }
     }
-  }, [isRevisionMode, revisionIndex, revisionPath, focusNodeOnCanvas]);
+  }, [isRevisionMode, revisionIndex, revisionPath, focusNodeOnCanvas, graph?.id, revisionVisitedIds]);
 
   const handleRevisionKnowIt = useCallback((conceptId: string) => {
     setRecallSession(prev => {
@@ -1881,6 +1924,19 @@ function FlowCanvas({
               const step = revisionPath[idx];
               if (step) {
                 focusNodeOnCanvas(step.conceptId, true, 300);
+              }
+              if (graph?.id && revisionPath.length > 0) {
+                saveRevisionSession({
+                  isActive: true,
+                  graphId: graph.id,
+                  conceptIds: revisionPath.map(p => p.conceptId),
+                  currentIndex: idx,
+                  currentConceptId: revisionPath[idx]?.conceptId,
+                  totalConcepts: revisionPath.length,
+                  createdAt: new Date().toISOString(),
+                  reviewedConceptIds: Array.from(revisionVisitedIds),
+                  markedForReviewIds: []
+                }, graph.id);
               }
             }}
             onBackToGraph={() => {

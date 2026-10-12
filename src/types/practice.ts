@@ -208,10 +208,16 @@ export interface RevisionPathStep {
 
 export interface RevisionSessionState {
   isActive: boolean;
-  path: RevisionPathStep[];
+  graphId: string;
+  conceptIds: string[];
   currentIndex: number;
+  currentConceptId?: string;
+  totalConcepts: number;
+  createdAt: string;
+  updatedAt?: string;
   reviewedConceptIds: string[];
   markedForReviewIds: string[];
+  path?: RevisionPathStep[];
 }
 
 

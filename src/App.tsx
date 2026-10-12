@@ -470,6 +470,7 @@ export function AppContent() {
               }
               navigateToSection('graph');
             }}
+            onSelectGraph={() => navigateToSection('overview')}
           />
         )}
       </AppShell>
