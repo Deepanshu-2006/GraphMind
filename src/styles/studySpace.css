@@ -2941,44 +2941,109 @@
    13. Concepts Worth Revisiting Section (Editorial Index Layout)
    -------------------------------------------------------------------------- */
 .study-revisit-section {
-  margin-top: 48px;
-  margin-bottom: 60px;
+  margin-top: 56px;
+  margin-bottom: 64px;
+  display: flex;
+  flex-direction: column;
 }
 
 .study-revisit-header-block {
-  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: clamp(20px, 2.8vw, 24px);
+  gap: 8px;
+}
+
+.study-revisit-eyebrow-clip {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.study-revisit-eyebrow {
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent, #A3FF12);
+  display: inline-block;
+  line-height: 1;
+  will-change: transform, opacity, clip-path;
+}
+
+.study-revisit-title-clip {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.16em;
+  margin-bottom: -0.16em;
+}
+
+.study-revisit-title-line {
+  display: block;
+  transform-origin: 0% 100%;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.study-revisit-header-block .study-section-title {
+  font-family: var(--font-display, var(--font-body, sans-serif));
+  font-size: clamp(32px, 3.2vw, 38px);
+  font-weight: 550;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  color: var(--text-primary, #F5F5F5);
+  margin: 0;
+}
+
+.study-revisit-header-block .study-section-desc {
+  font-family: var(--font-body, sans-serif);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #777777;
+  max-width: 540px;
+  margin: 0;
+  will-change: transform, opacity;
 }
 
 .study-revisit-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
 }
 
 .study-revisit-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 16px 22px;
-  background-color: var(--bg-surface, #101010);
-  border: 1px solid var(--border-default, #242424);
-  border-radius: var(--radius-panel, 8px);
-  transition: border-color var(--transition-normal, 200ms ease),
-              background-color var(--transition-normal, 200ms ease);
+  gap: 24px;
+  padding: 18px 12px;
+  margin: 0 -12px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  transition: background-color 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
+}
+
+.study-revisit-card:last-child {
+  border-bottom: none;
 }
 
 .study-revisit-card:hover {
-  border-color: rgba(255, 255, 255, 0.16);
-  background-color: #131313;
+  background-color: rgba(255, 255, 255, 0.02);
 }
 
 .study-revisit-num {
   font-family: var(--font-mono, monospace);
-  font-size: 11.5px;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 450;
   color: #555555;
-  width: 24px;
+  letter-spacing: 0.08em;
+  width: 28px;
   flex-shrink: 0;
   user-select: none;
 }
@@ -2993,64 +3058,130 @@
 
 .study-revisit-top {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  align-items: baseline;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .study-revisit-name {
   font-family: var(--font-display, var(--font-body, sans-serif));
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 550;
   color: var(--text-primary, #F5F5F5);
   margin: 0;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+.study-revisit-graph-wrap {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.study-revisit-meta-sep {
+  font-size: 11px;
+  color: #444444;
+  user-select: none;
 }
 
 .study-revisit-graph-tag {
   font-family: var(--font-mono, monospace);
-  font-size: 10.5px;
-  color: #707070;
-  background-color: rgba(255, 255, 255, 0.04);
-  padding: 2px 8px;
-  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 400;
+  color: #666666;
   letter-spacing: 0.04em;
+  background: none;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  display: inline-block;
 }
 
 .study-revisit-status {
   font-family: var(--font-body, sans-serif);
   font-size: 13.5px;
-  color: var(--text-secondary, #A1A1A1);
+  font-weight: 400;
+  color: #777777;
   margin: 0;
   line-height: 1.45;
 }
 
 .study-revisit-action-wrap {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.study-revisit-action-btn {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.10em;
+  color: #777777;
+  transition: color 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.study-revisit-action-btn .study-revisit-arrow {
+  color: var(--accent, #A3FF12);
+  display: inline-block;
+  margin-left: 6px;
+  transform: translateX(0);
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.study-revisit-card:hover .study-revisit-action-btn,
+.study-revisit-action-btn:hover {
+  color: #EEEEEE;
+}
+
+.study-revisit-card:hover .study-revisit-arrow,
+.study-revisit-action-btn:hover .study-revisit-arrow {
+  transform: translateX(4px);
 }
 
 .study-revisit-unavailable-badge {
   font-family: var(--font-mono, monospace);
-  font-size: 11px;
-  color: #666666;
+  font-size: 10.5px;
+  color: #555555;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .study-concepts-toggle-wrap {
-  margin-top: 16px;
+  margin-top: 18px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
 }
 
 .study-concepts-expand-btn {
-  color: #8A8A8A;
-  font-size: 12.5px;
+  font-family: var(--font-body, sans-serif);
+  font-size: 13px;
+  color: #777777;
+  display: inline-flex;
+  align-items: center;
+  transition: color 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .study-concepts-expand-btn:hover {
-  color: #F5F5F5;
+  color: #E0E0E0;
+}
+
+.study-concepts-expand-arrow {
+  color: var(--accent, #A3FF12);
+  display: inline-block;
+  margin-left: 6px;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.study-concepts-expand-btn:hover .study-concepts-expand-arrow {
+  transform: translateY(2px);
+}
+
+.study-concepts-expand-btn:hover .study-concepts-expand-arrow.expanded {
+  transform: translateY(-2px);
 }
 
 /* --------------------------------------------------------------------------
@@ -3145,7 +3276,8 @@
   }
 
   .study-trajectory-section-title,
-  .study-history-header-block .study-section-title {
+  .study-history-header-block .study-section-title,
+  .study-revisit-header-block .study-section-title {
     font-size: clamp(30px, 3.8vw, 34px);
   }
 }
@@ -3225,19 +3357,9 @@
   }
 
   .study-revisit-card {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 14px;
-  }
-
-  .study-revisit-num {
-    display: none;
-  }
-
-  .study-revisit-action-wrap {
-    width: 100%;
-    padding-top: 10px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    gap: 18px;
+    padding: 16px 8px;
+    margin: 0 -8px;
   }
 }
 
@@ -3419,10 +3541,52 @@
     font-size: 22px;
   }
 
-  /* Responsive Learning Trajectory (Mobile <= 640px) */
+  /* Responsive Learning Trajectory & Sections (Mobile <= 640px) */
   .study-trajectory-section-title,
-  .study-history-header-block .study-section-title {
+  .study-history-header-block .study-section-title,
+  .study-revisit-header-block .study-section-title {
     font-size: clamp(27px, 6vw, 30px);
+  }
+
+  .study-revisit-section {
+    margin-top: 44px;
+    margin-bottom: 52px;
+  }
+
+  .study-revisit-card {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    align-items: start;
+    row-gap: 12px;
+    column-gap: 14px;
+    padding: 16px 0;
+    margin: 0;
+  }
+
+  .study-revisit-num {
+    display: block;
+    grid-column: 1;
+    grid-row: 1;
+    padding-top: 2px;
+    width: 22px;
+  }
+
+  .study-revisit-info {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .study-revisit-action-wrap {
+    grid-column: 2;
+    grid-row: 2;
+    width: 100%;
+    padding-top: 2px;
+    border-top: none;
+  }
+
+  .study-revisit-action-btn {
+    padding: 4px 0;
   }
 
   .study-trajectory-header {
@@ -3561,6 +3725,11 @@
   .study-trajectory-node,
   .study-trajectory-chip,
   .study-revisit-card,
+  .study-revisit-row,
+  .study-revisit-eyebrow,
+  .study-revisit-title-line,
+  .study-revisit-arrow,
+  .study-concepts-expand-arrow,
   .study-historical-results-wrap,
   .study-disclosure-arrow,
   .study-svg-point-node circle,
