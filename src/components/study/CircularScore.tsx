@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { SlotDigit } from '../common/SlotDigit';
 
 export interface CircularScoreProps {
   score: number;
@@ -102,7 +103,24 @@ export function CircularScore({
         )}
       </svg>
       <div className="study-continue-circle-content" aria-hidden="true">
-        <span className="study-continue-score-pct">{currentNum}%</span>
+        <span className="study-continue-score-pct" aria-label={`${clampedScore}%`}>
+          <span className="study-continue-score-digits">
+            {String(currentNum).split('').map(Number).map((digit, idx) => (
+              <SlotDigit
+                key={`slot-digit-${currentNum}-${idx}`}
+                targetDigit={digit}
+                delay={shouldReduceMotion ? 0 : 0.32 + idx * 0.06}
+                duration={shouldReduceMotion ? 0 : 1.15 + idx * 0.05}
+                ease={[0.22, 1, 0.36, 1]}
+                shouldReduceMotion={shouldReduceMotion}
+                hasEnteredView={hasEnteredView}
+                spinIfZero={currentNum > 0 && digit === 0}
+              />
+            ))}
+          </span>
+          <span className="study-continue-pct-symbol">%</span>
+          <span className="sr-only">{currentNum}%</span>
+        </span>
         <span className="study-continue-circle-lbl">{label}</span>
       </div>
     </div>

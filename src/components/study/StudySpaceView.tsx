@@ -19,6 +19,7 @@ import { TestResultsView } from '../test/TestResultsView';
 import { TestReviewView } from '../test/TestReviewView';
 import { MissedConceptsReview } from '../test/MissedConceptsReview';
 import { getArcEndpoint } from './CircularScore';
+import { SlotDigit } from '../common/SlotDigit';
 
 export interface StudySpaceViewProps {
   onNavigateToGraph: () => void;
@@ -2372,6 +2373,11 @@ export function StudySpaceView({
     return Math.max(0, Math.min(100, Math.round(raw)));
   }, [latestAttempt?.scorePercentage]);
 
+  const scoreDigits = useMemo(() => {
+    if (!latestAttempt) return [];
+    return String(clampedScore).split('').map(Number);
+  }, [latestAttempt, clampedScore]);
+
   const continueSectionRef = useRef<HTMLElement | null>(null);
   const inViewRaw = useInView(continueSectionRef, { once: true, amount: 0.2 });
   const [hasContinueEnteredView, setHasContinueEnteredView] = useState(false);
@@ -2706,8 +2712,6 @@ export function StudySpaceView({
         duration: 1.2,
         ease: REVEAL_EASE,
         onUpdate: (latest) => {
-          const rounded = Math.round(latest);
-          setDisplayedScore(prev => (prev !== rounded ? rounded : prev));
           if (endpointRef.current && clampedScore > 0) {
             const pt = getArcEndpoint(latest, CIRCLE_RADIUS, 100, 100);
             endpointRef.current.setAttribute('cx', String(pt.x));
@@ -3439,7 +3443,24 @@ export function StudySpaceView({
                         <div className="study-continue-circle-content" aria-hidden="true">
                           {latestAttempt ? (
                             <>
-                              <span className="study-continue-score-pct">{displayedScore}%</span>
+                              <span className="study-continue-score-pct" aria-label={`${clampedScore}%`}>
+                                <span className="study-continue-score-digits">
+                                  {scoreDigits.map((digit, idx) => (
+                                    <SlotDigit
+                                      key={`slot-digit-${effectiveSelectedGraphId || 'none'}-${latestAttempt.id}-${clampedScore}-${idx}`}
+                                      targetDigit={digit}
+                                      delay={shouldReduceMotion ? 0 : 0.45 + idx * 0.08}
+                                      duration={shouldReduceMotion ? 0 : 1.20 + idx * 0.08}
+                                      ease={EDITORIAL_EASE}
+                                      shouldReduceMotion={shouldReduceMotion}
+                                      hasEnteredView={hasContinueEnteredView}
+                                      spinIfZero={clampedScore > 0 && digit === 0}
+                                    />
+                                  ))}
+                                </span>
+                                <span className="study-continue-pct-symbol">%</span>
+                                <span className="sr-only">{displayedScore}%</span>
+                              </span>
                               <span className="study-continue-circle-lbl">SCORE</span>
                             </>
                           ) : (
