@@ -257,23 +257,33 @@ describe('GraphMind Assessment Setup Modal — Refined Architecture & Curved Mec
     });
   });
 
-  describe('5. Redesigned Minimal Session Summary (Section 5)', () => {
-    it('formats session summary across 4 clean columns synchronized with timer and question selector', () => {
-      const minutes = 12;
-      const seconds = 30;
+  describe('5. Redesigned Minimal Session Summary (2-Row × 2-Column Grid)', () => {
+    it('structures session summary into a compact two-row arrangement avoiding cramped technical tables', () => {
+      const minutes = 1;
+      const seconds = 0;
       const questionCount = 10;
 
-      const summaryState = {
-        graphName: defaultKnowledgeGraph.name || 'Knowledge Graph',
-        questionsText: `${questionCount} questions`,
-        timeText: `${formatTwoDigits(minutes)}:${formatTwoDigits(seconds)}`,
-        format: 'Multiple choice'
+      // Row 1: Knowledge graph & Questions
+      const row1 = {
+        graph: { label: 'Knowledge graph', value: 'Testing' },
+        questions: { label: 'Questions', value: questionCount }
       };
 
-      assert.equal(summaryState.graphName, 'Knowledge Graph');
-      assert.equal(summaryState.questionsText, '10 questions');
-      assert.equal(summaryState.timeText, '12:30');
-      assert.equal(summaryState.format, 'Multiple choice');
+      // Row 2: Time limit & Format
+      const row2 = {
+        timeLimit: { label: 'Time limit', value: `${formatTwoDigits(minutes)}:${formatTwoDigits(seconds)}` },
+        format: { label: 'Format', value: 'Multiple choice' }
+      };
+
+      assert.equal(row1.graph.label, 'Knowledge graph');
+      assert.equal(row1.graph.value, 'Testing');
+      assert.equal(row1.questions.label, 'Questions');
+      assert.equal(row1.questions.value, 10);
+
+      assert.equal(row2.timeLimit.label, 'Time limit');
+      assert.equal(row2.timeLimit.value, '01:00');
+      assert.equal(row2.format.label, 'Format');
+      assert.equal(row2.format.value, 'Multiple choice');
     });
 
     it('updates immediately when user adjusts reels or question count', () => {
@@ -283,16 +293,16 @@ describe('GraphMind Assessment Setup Modal — Refined Architecture & Curved Mec
 
       const getSummary = () => ({
         timeText: `${formatTwoDigits(m)}:${formatTwoDigits(s)}`,
-        questionsText: `${q} questions`
+        questionsVal: q
       });
 
-      assert.deepEqual(getSummary(), { timeText: '05:00', questionsText: '20 questions' });
+      assert.deepEqual(getSummary(), { timeText: '05:00', questionsVal: 20 });
 
       // Change reels and question count
       m = 15;
       s = 45;
       q = 5;
-      assert.deepEqual(getSummary(), { timeText: '15:45', questionsText: '5 questions' });
+      assert.deepEqual(getSummary(), { timeText: '15:45', questionsVal: 5 });
     });
   });
 

@@ -477,6 +477,8 @@ export function TestWorkspace({
               <TestIntroScreen
                 key="intro"
                 test={test}
+                graph={graph}
+                maxAvailableQuestions={maxAvailableQuestions}
                 conceptsCovered={conceptsCovered}
                 isInsufficientMaterial={isInsufficientMaterial}
                 onStartTest={handleStartTestClick}

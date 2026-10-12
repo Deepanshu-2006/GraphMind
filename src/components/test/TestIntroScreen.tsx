@@ -2,9 +2,12 @@ import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, ArrowLeft } from 'lucide-react';
 import type { KnowledgeTest } from '../../types/test';
+import type { KnowledgeGraph } from '../../types/knowledgeGraph';
 
 interface TestIntroScreenProps {
   test: KnowledgeTest | null;
+  graph?: KnowledgeGraph | null;
+  maxAvailableQuestions?: number;
   conceptsCovered: string[];
   isInsufficientMaterial: boolean;
   onStartTest: () => void;
@@ -15,6 +18,8 @@ const MAX_DISPLAYED_CONCEPTS = 6;
 
 export function TestIntroScreen({
   test,
+  graph,
+  maxAvailableQuestions,
   conceptsCovered,
   isInsufficientMaterial,
   onStartTest,
@@ -22,6 +27,7 @@ export function TestIntroScreen({
 }: TestIntroScreenProps) {
   // State for coordinated assessment transition (Section 14)
   const [isTransitioningOut] = useState(false);
+  const [isConceptsExpanded, setIsConceptsExpanded] = useState(false);
 
   // Intentional line wrapping for dominant hero title (Section 1 & 2)
   // Keeps desktop composition strictly as:
@@ -57,10 +63,13 @@ export function TestIntroScreen({
     ];
   }, [test?.title]);
 
-  // Concept coverage subset
+  // Concept coverage subset: initially shows up to 6, expands on request
   const visibleConcepts = useMemo(() => {
+    if (isConceptsExpanded) {
+      return conceptsCovered;
+    }
     return conceptsCovered.slice(0, MAX_DISPLAYED_CONCEPTS);
-  }, [conceptsCovered]);
+  }, [conceptsCovered, isConceptsExpanded]);
 
   const remainingConceptsCount = Math.max(
     0,
@@ -120,31 +129,35 @@ export function TestIntroScreen({
     );
   }
 
-  const questionCount = test.questions.length;
-  const minutes = Math.round(test.timeLimitSeconds / 60);
-  const timeLimitDisplay = test.timeLimitSeconds < 60
-    ? `${test.timeLimitSeconds} SEC`
-    : `${minutes} MIN`;
+  // Actual number of concepts available in the selected knowledge graph
+  const totalConcepts = (graph?.nodes && graph.nodes.length > 0)
+    ? graph.nodes.length
+    : conceptsCovered.length;
 
-  // Three equal-width editorial columns (Section 4 & 6)
+  // Actual number of available assessment-ready questions
+  const totalAvailableQuestions = (typeof maxAvailableQuestions === 'number' && maxAvailableQuestions > 0)
+    ? maxAvailableQuestions
+    : (test?.questions.length ?? 0);
+
+  // Three equal-width editorial columns
+  // Column 01: Concepts Available
+  // Column 02: Question Format (MCQ)
+  // Column 03: Questions Available
   const assessmentMetrics = [
     {
       index: '01',
-      value: questionCount.toString().padStart(2, '0'),
-      label: 'QUESTIONS',
-      isAccent: true
+      value: totalConcepts.toString().padStart(2, '0'),
+      label: 'CONCEPTS AVAILABLE'
     },
     {
       index: '02',
-      value: timeLimitDisplay,
-      label: 'TIME LIMIT',
-      isAccent: false
+      value: 'MCQ',
+      label: 'QUESTION FORMAT'
     },
     {
       index: '03',
-      value: 'MCQ',
-      label: 'FORMAT',
-      isAccent: false
+      value: totalAvailableQuestions.toString().padStart(2, '0'),
+      label: 'QUESTIONS AVAILABLE'
     }
   ];
 
@@ -323,14 +336,14 @@ export function TestIntroScreen({
                   )}
 
                   <div className="test-stats-col-content">
-                    {/* Index number: 01 in green accent, 02 and 03 in muted gray (Section 4 & 6) */}
+                    {/* Index number: 01, 02, and 03 in lime-green accent */}
                     <div className="test-stats-index-num">
-                      <span className={item.isAccent ? 'test-index-accent-green' : 'test-index-muted'}>
+                      <span className="test-index-accent-green">
                         {item.index}
                       </span>
                     </div>
 
-                    {/* Metric Value: Unclipped 42-54px typography (Section 4 & 16) */}
+                    {/* Metric Value: Unclipped typography */}
                     <div className="test-stats-value-wrap">
                       <motion.span
                         className="test-stats-value"
@@ -350,7 +363,7 @@ export function TestIntroScreen({
                       </motion.span>
                     </div>
 
-                    {/* Metric Label: 9-10px uppercase #777777 */}
+                    {/* Metric Label: 9-10px uppercase muted gray */}
                     <span className="test-stats-label">{item.label}</span>
                   </div>
                 </div>
@@ -414,16 +427,22 @@ export function TestIntroScreen({
               })}
             </div>
 
-            {/* Remainder indicator: + 6 MORE CONCEPTS (Section 8 & 9) */}
+            {/* Expandable concepts remainder control */}
             {remainingConceptsCount > 0 && (
-              <motion.div
-                className="test-concepts-more-indicator"
+              <motion.button
+                type="button"
+                className="test-concepts-more-indicator test-concepts-more-btn"
+                onClick={() => setIsConceptsExpanded(prev => !prev)}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.35, delay: 0.5 }}
+                transition={{ duration: 0.35, delay: 0.4 }}
+                aria-expanded={isConceptsExpanded}
+                aria-label={isConceptsExpanded ? 'Show fewer concepts' : `Show ${remainingConceptsCount} more concepts`}
               >
-                + {remainingConceptsCount} MORE CONCEPTS
-              </motion.div>
+                {isConceptsExpanded
+                  ? '− SHOW FEWER CONCEPTS'
+                  : `+ ${remainingConceptsCount} MORE CONCEPTS`}
+              </motion.button>
             )}
           </div>
         </div>

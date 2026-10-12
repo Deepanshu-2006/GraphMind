@@ -890,31 +890,35 @@ export function AssessmentSetupModal({
               </div>
             </div>
 
-            {/* 6. Section: REDESIGNED MINIMAL SESSION SUMMARY */}
+            {/* 6. Section: REDESIGNED REFINED ASSESSMENT SUMMARY (2-Row × 2-Column Grid) */}
             <div className="setup-session-summary" role="region" aria-label="Assessment session summary">
+              {/* Row 1, Col 1: Knowledge graph */}
               <div className="summary-col">
-                <span className="summary-meta-label">KNOWLEDGE GRAPH</span>
+                <span className="summary-meta-label">Knowledge graph</span>
                 <span className="summary-meta-val graph-name" title={graph?.name || 'Knowledge Graph'}>
                   {graph?.name || 'Knowledge Graph'}
                 </span>
               </div>
 
+              {/* Row 1, Col 2: Questions */}
               <div className="summary-col">
-                <span className="summary-meta-label">QUESTIONS</span>
-                <span className="summary-meta-val">
-                  {effectiveQuestionCount} {effectiveQuestionCount === 1 ? 'question' : 'questions'}
+                <span className="summary-meta-label">Questions</span>
+                <span className="summary-meta-val" title={`${effectiveQuestionCount} questions`}>
+                  {effectiveQuestionCount}
                 </span>
               </div>
 
+              {/* Row 2, Col 1: Time limit */}
               <div className="summary-col">
-                <span className="summary-meta-label">TIME LIMIT</span>
+                <span className="summary-meta-label">Time limit</span>
                 <span className="summary-meta-val">
                   {formattedTimeDisplay}
                 </span>
               </div>
 
+              {/* Row 2, Col 2: Format */}
               <div className="summary-col">
-                <span className="summary-meta-label">FORMAT</span>
+                <span className="summary-meta-label">Format</span>
                 <span className="summary-meta-val">Multiple choice</span>
               </div>
             </div>

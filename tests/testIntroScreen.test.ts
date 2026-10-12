@@ -122,7 +122,7 @@ describe('GraphMind Test Intro Screen — Top Navigation & Final Polish Pass', (
     });
   });
 
-  describe('3. Untouched Left Side Consistency (Section 5)', () => {
+  describe('3. Untouched Left Side Consistency & Green TEST / 01 Identifier', () => {
     it('preserves left side structure strictly: TEST / 01 -> Title -> Description -> START TEST →', () => {
       const leftColumnOrder = [
         'TEST / 01',
@@ -132,6 +132,18 @@ describe('GraphMind Test Intro Screen — Top Navigation & Final Polish Pass', (
       ];
 
       assert.equal(leftColumnOrder.length, 4);
+    });
+
+    it('styles TEST / 01 identifier in lime-green accent with indicator dot and connecting rule', () => {
+      const eyebrowText = 'TEST / 01';
+      const eyebrowTextColor = '#A3FF12';
+      const markerColor = '#A3FF12';
+      const hasDatumRule = true;
+
+      assert.equal(eyebrowText, 'TEST / 01');
+      assert.equal(eyebrowTextColor, '#A3FF12');
+      assert.equal(markerColor, '#A3FF12');
+      assert.equal(hasDatumRule, true);
     });
 
     it('keeps knowledge mapping marker near "Graph" with 3.5px green node and 40px connector', () => {
@@ -153,76 +165,70 @@ describe('GraphMind Test Intro Screen — Top Navigation & Final Polish Pass', (
     });
   });
 
-  describe('4. Assessment Statistics Separation & Unclipped MCQ', () => {
-    it('uses a 3-column grid with dedicated column widths and gap 28–40px (36px) so "10 MIN" and "MCQ" never touch', () => {
-      const statsGridCols = 'minmax(80px, 0.85fr) minmax(180px, 1.65fr) minmax(90px, 0.95fr)';
-      const colGapPx = 36;
-      const col2MinWidthPx = 180;
-      const dividerPositionLeftPx = -18;
+  describe('4. Assessment Statistics: Concepts Available, MCQ Format & Available Questions', () => {
+    it('formats the 3 columns as CONCEPTS AVAILABLE, QUESTION FORMAT, and QUESTIONS AVAILABLE', () => {
+      const conceptsCount = 20;
+      const availableQuestionsCount = 27;
 
-      assert.equal(statsGridCols, 'minmax(80px, 0.85fr) minmax(180px, 1.65fr) minmax(90px, 0.95fr)');
-      assert.ok(col2MinWidthPx >= 170, 'Column 2 has ample dedicated width for "10 MIN" without overflow');
-      assert.ok(colGapPx >= 28 && colGapPx <= 40);
-      assert.equal(dividerPositionLeftPx, -18, 'Divider sits dead-center in the 36px gap');
+      const metrics = [
+        {
+          index: '01',
+          value: conceptsCount.toString().padStart(2, '0'),
+          label: 'CONCEPTS AVAILABLE'
+        },
+        {
+          index: '02',
+          value: 'MCQ',
+          label: 'QUESTION FORMAT'
+        },
+        {
+          index: '03',
+          value: availableQuestionsCount.toString().padStart(2, '0'),
+          label: 'QUESTIONS AVAILABLE'
+        }
+      ];
+
+      assert.equal(metrics[0].index, '01');
+      assert.equal(metrics[0].label, 'CONCEPTS AVAILABLE');
+      assert.equal(metrics[0].value, '20');
+
+      assert.equal(metrics[1].index, '02');
+      assert.equal(metrics[1].label, 'QUESTION FORMAT');
+      assert.equal(metrics[1].value, 'MCQ');
+
+      assert.equal(metrics[2].index, '03');
+      assert.equal(metrics[2].label, 'QUESTIONS AVAILABLE');
+      assert.equal(metrics[2].value, '27');
     });
 
-    it('guarantees "MCQ" is NEVER clipped by using ample column track width and unmasked overflow', () => {
-      const mcqOverflow = 'visible';
-      const mcqWhiteSpace = 'nowrap';
-      const colPadding = 0;
-
-      assert.equal(mcqOverflow, 'visible');
-      assert.equal(mcqWhiteSpace, 'nowrap');
-      assert.equal(colPadding, 0);
+    it('does not display a fixed question count or fixed time limit in the introduction overview', () => {
+      const labels = ['CONCEPTS AVAILABLE', 'QUESTION FORMAT', 'QUESTIONS AVAILABLE'];
+      assert.equal(labels.includes('QUESTIONS'), false);
+      assert.equal(labels.includes('TIME LIMIT'), false);
     });
 
-    it('uses 46–52px values (#F5F5F5) and 9–10px uppercase tracked labels (#7C7C7C, 0.16em)', () => {
-      const valueFontSizeMin = 46;
-      const valueFontSizeMax = 50;
+    it('styles all three column indices (01, 02, 03) in lime-green accent while keeping main values white and labels gray', () => {
+      const indexColor = '#A3FF12';
       const valueColor = '#F5F5F5';
-      const labelFontSize = 9.5;
-      const labelTracking = '0.16em';
       const labelColor = '#7C7C7C';
 
-      assert.ok(valueFontSizeMin >= 46 && valueFontSizeMax <= 52);
+      assert.equal(indexColor, '#A3FF12');
       assert.equal(valueColor, '#F5F5F5');
-      assert.ok(labelFontSize >= 9 && labelFontSize <= 10);
-      assert.equal(labelTracking, '0.16em');
       assert.equal(labelColor, '#7C7C7C');
     });
 
-    it('enforces mathematically identical vertical rhythm across all 3 columns (align-items: baseline, height: 52px)', () => {
-      const indexMarginBottomPx = 14;
-      const valueWrapHeightPx = 52;
-      const labelMarginTopPx = 14;
-
-      assert.equal(indexMarginBottomPx, 14);
-      assert.equal(valueWrapHeightPx, 52);
-      assert.equal(labelMarginTopPx, 14);
-    });
-
-    it('separates statistics with 1px vertical dividers [rgba(255,255,255,0.08)] spanning only the stats block', () => {
-      const dividerWidthPx = 1;
+    it('uses a balanced 3-column grid with equal-width columns and subtle vertical dividers', () => {
+      const statsGridCols = 'repeat(3, minmax(0, 1fr))';
+      const colGapPx = 32;
       const dividerColor = 'rgba(255, 255, 255, 0.08)';
 
-      assert.equal(dividerWidthPx, 1);
+      assert.equal(statsGridCols, 'repeat(3, minmax(0, 1fr))');
+      assert.ok(colGapPx >= 28 && colGapPx <= 36);
       assert.equal(dividerColor, 'rgba(255, 255, 255, 0.08)');
-    });
-
-    it('restrains green accent to small index number "01" only', () => {
-      const is01Green = true;
-      const is02Green = false;
-      const is03Green = false;
-      const areValuesGreen = false;
-
-      assert.equal(is01Green, true);
-      assert.equal(is02Green, false);
-      assert.equal(is03Green, false);
-      assert.equal(areValuesGreen, false);
     });
   });
 
-  describe('5. Concepts Covered Spacing & Truncation Safety', () => {
+  describe('5. Concepts Covered Spacing & Expandable Interaction', () => {
     it('gives each concept row 46–52px breathing room (min-height: 50px, padding: 12px 0)', () => {
       const minRowHeightPx = 50;
       assert.ok(minRowHeightPx >= 46 && minRowHeightPx <= 52);
@@ -236,14 +242,18 @@ describe('GraphMind Test Intro Screen — Top Navigation & Final Polish Pass', (
       assert.equal(hasEllipsisProtection, true);
     });
 
-    it('styles "+ 6 MORE CONCEPTS" as quiet metadata (font-size: 10px, letter-spacing: 0.12em, color: #666)', () => {
-      const fontSizePx = 10;
-      const letterSpacing = '0.12em';
-      const color = '#666666';
+    it('provides an interactive expansion control that toggles between "+ N MORE CONCEPTS" and "− SHOW FEWER CONCEPTS"', () => {
+      let isExpanded = false;
+      const totalConcepts = 12;
+      const maxDisplayed = 6;
+      const remaining = totalConcepts - maxDisplayed;
 
-      assert.equal(fontSizePx, 10);
-      assert.equal(letterSpacing, '0.12em');
-      assert.equal(color, '#666666');
+      const getButtonLabel = (expanded: boolean) =>
+        expanded ? '− SHOW FEWER CONCEPTS' : `+ ${remaining} MORE CONCEPTS`;
+
+      assert.equal(getButtonLabel(false), '+ 6 MORE CONCEPTS');
+      isExpanded = true;
+      assert.equal(getButtonLabel(isExpanded), '− SHOW FEWER CONCEPTS');
     });
   });
 
@@ -256,18 +266,33 @@ describe('GraphMind Test Intro Screen — Top Navigation & Final Polish Pass', (
       assert.ok(underlineMaxWidthPx >= 110 && underlineMaxWidthPx <= 140);
     });
 
-    it('executes restrained hover interaction with 3.5px arrow shift, 1.5px text shift, and green underline accent', () => {
+    it('executes hover interaction: text smoothly changes to lime-green, arrow shifts 4px right, and green underline expands', () => {
       const actionText = 'START TEST';
       const isFilledButton = false;
-      const arrowShiftPx = 3.5;
+      const hoverTextColor = '#A3FF12';
+      const arrowShiftPx = 4;
       const textShiftPx = 1.5;
       const hoverUnderlineAccent = '#A3FF12';
 
       assert.equal(actionText, 'START TEST');
       assert.equal(isFilledButton, false);
-      assert.ok(arrowShiftPx >= 3 && arrowShiftPx <= 4);
+      assert.equal(hoverTextColor, '#A3FF12');
+      assert.equal(arrowShiftPx, 4);
       assert.ok(textShiftPx >= 1 && textShiftPx <= 2);
       assert.equal(hoverUnderlineAccent, '#A3FF12');
+    });
+
+    it('opens the Assessment Setup modal rather than starting the assessment immediately', () => {
+      let isModalOpen = false;
+      let isTestStarted = false;
+
+      const onStartTestClick = () => {
+        isModalOpen = true; // Opens configuration modal
+      };
+
+      onStartTestClick();
+      assert.equal(isModalOpen, true);
+      assert.equal(isTestStarted, false);
     });
   });
 

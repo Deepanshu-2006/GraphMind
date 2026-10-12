@@ -309,7 +309,7 @@
   font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: #8A8A8A;
+  color: var(--accent, #A3FF12);
 }
 
 /* Dominant Hero Title: Unclipped descenders with flexible width (Section 2, 3) */
@@ -457,11 +457,11 @@
 
 .test-start-editorial-btn:hover .test-start-label-row {
   transform: translateX(1.5px);
-  color: #FFFFFF;
+  color: var(--accent, #A3FF12);
 }
 
 .test-start-editorial-btn:hover .test-start-arrow {
-  transform: translateX(3.5px);
+  transform: translateX(4px);
   color: var(--accent, #A3FF12);
 }
 
@@ -503,9 +503,9 @@
 }
 
 .test-editorial-stats-row {
-  --stats-col-gap: 36px;
+  --stats-col-gap: 32px;
   display: grid;
-  grid-template-columns: minmax(80px, 0.85fr) minmax(180px, 1.65fr) minmax(90px, 0.95fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   column-gap: var(--stats-col-gap);
   position: relative;
   width: 100%;
@@ -714,17 +714,35 @@
   transform: scaleX(1);
 }
 
-/* Remainder indicator: + 6 MORE CONCEPTS (Polish 8) */
+/* Remainder indicator & expansion toggle: + N MORE CONCEPTS */
 .test-concepts-more-indicator {
   font-family: var(--font-body, 'Inter', sans-serif);
   font-size: 10px;
   font-weight: 500;
-  color: #666666;
+  color: #71717A;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   margin-top: 20px;
   margin-bottom: 0;
-  padding-left: 2px;
+  padding: 4px 2px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 180ms ease;
+  display: inline-flex;
+  align-items: center;
+  outline: none;
+  width: fit-content;
+}
+
+.test-concepts-more-indicator:hover {
+  color: #FFFFFF;
+}
+
+.test-concepts-more-indicator:focus-visible {
+  outline: 1.5px solid var(--accent, #A3FF12);
+  outline-offset: 3px;
+  border-radius: 2px;
 }
 
 /* Contextual Top Back to Graph Navigation (Section 1 & 2) */
@@ -4520,7 +4538,7 @@
   background: #0E0E0E;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
-  padding: 24px 30px 20px;
+  padding: 24px 28px 20px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
   display: flex;
   flex-direction: column;
@@ -4533,12 +4551,12 @@
   align-items: center;
   gap: 7px;
   font-family: var(--font-mono, monospace);
-  font-size: 10.5px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 550;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--accent, #A3FF12);
-  margin-bottom: 6px;
+  margin-bottom: 7px;
 }
 
 .setup-eyebrow-marker {
@@ -4550,16 +4568,17 @@
 }
 
 .setup-modal-heading {
-  font-family: var(--font-display, sans-serif);
-  font-size: 26px;
+  font-family: var(--font-display, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  font-size: 28px;
   font-weight: 600;
   line-height: 1.15;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.03em;
   color: #FFFFFF;
   margin: 0 0 6px;
 }
 
 .setup-modal-description {
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
   font-size: 13.5px;
   line-height: 1.45;
   color: #8E8E93;
@@ -4602,7 +4621,7 @@
 }
 
 .setup-section-block {
-  margin-bottom: 16px;
+  margin-bottom: 15px;
 }
 
 .setup-section-header {
@@ -4613,18 +4632,21 @@
 }
 
 .setup-section-title {
-  font-family: var(--font-sans, sans-serif);
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
   font-size: 14px;
-  font-weight: 500;
-  color: #E4E4E7;
+  font-weight: 550;
+  color: #EDEDED;
   letter-spacing: -0.01em;
+  line-height: 1.2;
   margin: 0;
 }
 
 .setup-section-hint {
-  font-size: 11px;
-  color: #71717A;
   font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 400;
+  color: #71717A;
+  letter-spacing: 0.02em;
 }
 
 .setup-direct-toggle-btn {
@@ -4632,11 +4654,12 @@
   border: none;
   color: #71717A;
   font-size: 11.5px;
+  font-weight: 400;
   display: inline-flex;
   align-items: center;
   gap: 4px;
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 0;
   transition: color 0.18s ease;
   outline: none;
 }
@@ -4955,14 +4978,15 @@
   margin-top: 8px;
 }
 
-/* 4. Minimal Session Summary */
+/* 4. Refined Assessment Summary (2-Row × 2-Column Grid) */
 .setup-session-summary {
   display: grid;
-  grid-template-columns: minmax(130px, 1.4fr) minmax(85px, 1fr) minmax(85px, 1fr) minmax(105px, 1.1fr);
-  gap: 12px;
-  padding: 12px 0 0;
+  grid-template-columns: repeat(2, 1fr);
+  row-gap: 12px;
+  column-gap: 28px;
+  padding: 13px 0 0;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
-  margin-top: 14px;
+  margin-top: 13px;
   margin-bottom: 18px;
 }
 
@@ -4975,27 +4999,30 @@
 
 .summary-meta-label {
   font-family: var(--font-mono, monospace);
-  font-size: 9px;
-  font-weight: 600;
+  font-size: 9.5px;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   color: #71717A;
   white-space: nowrap;
 }
 
 .summary-meta-val {
-  font-size: 13.5px;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
+  font-size: 14px;
   font-weight: 500;
   color: #F4F4F5;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: -0.01em;
+  line-height: 1.25;
 }
 
 .summary-meta-val.graph-name {
   color: #FFFFFF;
   font-weight: 600;
+  font-size: 14.5px;
 }
 
 /* 5. Minimal Text-Only Modal Footer Actions */
@@ -5025,6 +5052,12 @@
 .setup-cancel-text-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.setup-cancel-text-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.4);
+  outline-offset: 4px;
+  border-radius: 2px;
 }
 
 .setup-begin-text-btn {
