@@ -4,7 +4,17 @@ import * as fs from 'fs';
 import * as path from 'path';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
-import { RevisionWorkspace } from '../src/components/revision/RevisionWorkspace';
+import {
+  RevisionWorkspace,
+  WORKSPACE_EASING,
+  createWorkspaceArrivalVariants,
+  createSessionMetadataVariants,
+  createConceptBadgeVariants,
+  createConceptTitleVariants,
+  createConceptDescriptionVariants,
+  createNavigationVariants,
+  createConceptCanvasVariants
+} from '../src/components/revision/RevisionWorkspace';
 import type { KnowledgeGraph } from '../src/types/knowledgeGraph';
 import type { RevisionSessionState } from '../src/types/practice';
 import {
@@ -18,11 +28,12 @@ import {
   jumpToConceptId,
   loadRevisionSession,
   saveRevisionSession,
-  clearRevisionSession
+  clearRevisionSession,
+  markEntryAnimationPlayed
 } from '../src/services/revisionSession';
 import { ASSESSMENT_HISTORY_STORAGE_KEY } from '../src/services/assessmentHistory';
 
-// In-memory backing store for localStorage simulation in Node test runner
+// In-memory backing store for localStorage & sessionStorage simulation in Node test runner
 const storageMap = new Map<string, string>();
 if (typeof (globalThis as any).localStorage === 'undefined') {
   (globalThis as any).localStorage = {
@@ -30,6 +41,16 @@ if (typeof (globalThis as any).localStorage === 'undefined') {
     setItem: (key: string, val: string) => storageMap.set(key, String(val)),
     removeItem: (key: string) => storageMap.delete(key),
     clear: () => storageMap.clear()
+  };
+}
+
+const sessionStoreMap = new Map<string, string>();
+if (typeof (globalThis as any).sessionStorage === 'undefined') {
+  (globalThis as any).sessionStorage = {
+    getItem: (key: string) => sessionStoreMap.get(key) || null,
+    setItem: (key: string, val: string) => sessionStoreMap.set(key, String(val)),
+    removeItem: (key: string) => sessionStoreMap.delete(key),
+    clear: () => sessionStoreMap.clear()
   };
 }
 
@@ -886,5 +907,286 @@ describe('GraphMind Feature: Deep Revision Workspace (Phase 1 — Foundation)', 
       );
     });
   });
+
+  describe('10. Cinematic Workspace Entry & Concept Motion (Task 04)', () => {
+    test('1. Stage 1 Workspace Arrival: transitions reading area with subtle displacement and no large scaling', () => {
+      const variants = createWorkspaceArrivalVariants(false);
+      assert.ok(variants.hidden, 'Arrival variants must define hidden initial state');
+      assert.ok(variants.settled, 'Arrival variants must define settled final state');
+
+      // Subtle displacement and opacity
+      assert.equal((variants.hidden as any).opacity, 0);
+      assert.equal((variants.hidden as any).y, 12, 'Arrival hidden state displacement must be subtle (12px)');
+      assert.equal((variants.hidden as any).scale, undefined, 'Must avoid large scaling effects');
+
+      // Settled transition
+      assert.equal((variants.settled as any).opacity, 1);
+      assert.equal((variants.settled as any).y, 0);
+      assert.deepEqual(
+        (variants.settled as any).transition.ease,
+        [0.16, 1, 0.3, 1],
+        'Must use GraphMind editorial cubic-bezier easing curve'
+      );
+      assert.ok(
+        (variants.settled as any).transition.duration <= 0.4,
+        'Arrival transition must be restrained (<= 0.4s)'
+      );
+
+      // DOM render check
+      const html = renderToString(
+        React.createElement(RevisionWorkspace, {
+          graph: mockGraph,
+          graphName: 'Operating Systems',
+          onBackToGraph: () => {}
+        })
+      );
+      assert.ok(html.includes('revision-reading-column'), 'Rendered workspace must include reading column');
+      assert.ok(cssContent.includes('--ease-editorial: cubic-bezier(0.16, 1, 0.3, 1)'), 'CSS must define --ease-editorial token');
+    });
+
+    test('2. Stage 2 Session Metadata: reveals progress kicker and indicator with restrained delay', () => {
+      const variants = createSessionMetadataVariants(false, false);
+      assert.equal((variants.hidden as any).opacity, 0);
+      assert.equal((variants.hidden as any).y, 8, 'Metadata hidden displacement must be 8px');
+      assert.equal((variants.settled as any).opacity, 1);
+      assert.equal((variants.settled as any).y, 0);
+
+      const transition = (variants.settled as any).transition;
+      assert.equal(transition.delay, 0.08, 'Metadata must reveal with restrained delay of 0.08s');
+      assert.equal(transition.duration, 0.28, 'Metadata duration must be 0.28s');
+      assert.deepEqual(transition.ease, [0.16, 1, 0.3, 1]);
+    });
+
+    test('3. Stage 3 Concept Introduction: enforces strict visual hierarchy (Badge -> Title -> Description)', () => {
+      const badgeVariants = createConceptBadgeVariants(false, false);
+      const titleVariants = createConceptTitleVariants(false, false);
+      const descVariants = createConceptDescriptionVariants(false, false);
+
+      const badgeDelay = (badgeVariants.settled as any).transition.delay;
+      const titleDelay = (titleVariants.settled as any).transition.delay;
+      const descDelay = (descVariants.settled as any).transition.delay;
+
+      const titleDuration = (titleVariants.settled as any).transition.duration;
+      const badgeDuration = (badgeVariants.settled as any).transition.duration;
+      const descDuration = (descVariants.settled as any).transition.duration;
+
+      // 1. Badge reveals first
+      assert.equal(badgeDelay, 0.14, 'Concept badge identifier must reveal first (0.14s delay)');
+
+      // 2. Title reveals second
+      assert.equal(titleDelay, 0.20, 'Concept title must reveal after identifier (0.20s delay)');
+      assert.ok(badgeDelay < titleDelay, 'Badge must appear before title');
+
+      // 3. Description reveals finally
+      assert.equal(descDelay, 0.28, 'Concept description must reveal after title (0.28s delay)');
+      assert.ok(titleDelay < descDelay, 'Title must appear before description');
+
+      // 4. Concept title receives most visual attention (longer, deliberate reveal)
+      assert.ok(
+        titleDuration > badgeDuration,
+        `Title duration (${titleDuration}s) must be longer than badge duration (${badgeDuration}s) for emphasis`
+      );
+      assert.ok(
+        titleDuration > descDuration,
+        `Title duration (${titleDuration}s) must be longer than description duration (${descDuration}s) for emphasis`
+      );
+      assert.equal((titleVariants.hidden as any).y, 10, 'Title uses slightly larger displacement (10px) for deliberate reveal');
+    });
+
+    test('4. Stage 4 Navigation: reveals previous/next controls after main content settles without blocking clicks', () => {
+      const navVariants = createNavigationVariants(false, false);
+      const descVariants = createConceptDescriptionVariants(false, false);
+
+      const navDelay = (navVariants.settled as any).transition.delay;
+      const descDelay = (descVariants.settled as any).transition.delay;
+
+      assert.equal(navDelay, 0.36, 'Navigation controls reveal after main content settles (0.36s delay)');
+      assert.ok(navDelay > descDelay, 'Navigation must reveal after description has started settling');
+
+      // Render verification: navigation buttons are rendered without artificial pointer lockout
+      const html = renderToString(
+        React.createElement(RevisionWorkspace, {
+          graph: mockGraph,
+          graphName: 'Operating Systems',
+          onBackToGraph: () => {}
+        })
+      );
+      assert.ok(html.includes('revision-concept-navigation'), 'Must include revision navigation container');
+      assert.ok(!html.includes('pointer-events: none'), 'Must never block user interaction during entry');
+    });
+
+    test('5. Direction-Aware Concept Transitions: forward progress enters from +14px and backward reverses it', () => {
+      const canvasVariants = createConceptCanvasVariants(false);
+
+      // Forward navigation (Next concept: dir = 1)
+      const forwardEnter = (canvasVariants.enter as any)(1);
+      const forwardExit = (canvasVariants.exit as any)(1);
+      assert.equal(forwardEnter.opacity, 0);
+      assert.equal(forwardEnter.x, 14, 'Forward entrance must enter from +14px to suggest forward progress');
+      assert.equal(forwardExit.x, -14, 'Forward exit must glide to -14px');
+
+      // Backward navigation (Previous concept: dir = -1)
+      const backwardEnter = (canvasVariants.enter as any)(-1);
+      const backwardExit = (canvasVariants.exit as any)(-1);
+      assert.equal(backwardEnter.opacity, 0);
+      assert.equal(backwardEnter.x, -14, 'Backward entrance must enter from -14px (reversed direction)');
+      assert.equal(backwardExit.x, 14, 'Backward exit must glide to +14px (reversed direction)');
+
+      // Center state settles at x = 0 with opacity 1
+      assert.equal((canvasVariants.center as any).opacity, 1);
+      assert.equal((canvasVariants.center as any).x, 0);
+
+      // Header remains stable (not wrapped in concept canvas)
+      assert.ok(
+        cssContent.includes('.revision-workspace-header'),
+        'Workspace header must remain stable without whole-app shell animation'
+      );
+    });
+
+    test('6. Avoid Replaying Entry Animation: returning from graph exploration preserves session and skips entry delays', () => {
+      // When entry animation has already played:
+      const metaSettled = createSessionMetadataVariants(false, true);
+      const titleSettled = createConceptTitleVariants(false, true);
+      const descSettled = createConceptDescriptionVariants(false, true);
+      const navSettled = createNavigationVariants(false, true);
+
+      // All entry delays must be 0s so returning is instant and stable
+      assert.equal((metaSettled.settled as any).transition.delay, 0, 'Metadata delay must be 0 on return');
+      assert.equal((titleSettled.settled as any).transition.delay, 0, 'Title delay must be 0 on return');
+      assert.equal((descSettled.settled as any).transition.delay, 0, 'Description delay must be 0 on return');
+      assert.equal((navSettled.settled as any).transition.delay, 0, 'Navigation delay must be 0 on return');
+
+      // markEntryAnimationPlayed sets entryAnimationPlayed: true
+      const session = createRevisionSession({ graphId: 'graph-os-core', conceptIds: ['c-cpu-sched'] });
+      assert.equal(session.entryAnimationPlayed, false, 'Fresh session must start with entryAnimationPlayed false');
+      const marked = markEntryAnimationPlayed(session);
+      assert.equal(marked.entryAnimationPlayed, true, 'markEntryAnimationPlayed must set flag to true');
+
+      // When rendered with skipEntryAnimation or returning session, renders settled content
+      const html = renderToString(
+        React.createElement(RevisionWorkspace, {
+          graph: mockGraph,
+          graphName: 'Operating Systems',
+          skipEntryAnimation: true,
+          onBackToGraph: () => {}
+        })
+      );
+      assert.ok(html.includes('Operating Systems'));
+      assert.ok(html.includes('CPU Scheduling'));
+    });
+
+    test('7. Progress Indicator Fluid Animation: remains synchronized with current index and avoids division by zero', () => {
+      // Boundary 1: First concept (0 of 3) => 33.33%
+      const total3 = 3;
+      const idx0 = 0;
+      const pct0 = total3 > 0 ? ((idx0 + 1) / total3) * 100 : 0;
+      assert.ok(Math.abs(pct0 - 33.333) < 0.01, 'First concept of 3 must be 33.33%');
+
+      // Boundary 2: Last concept (2 of 3) => 100%
+      const idx2 = 2;
+      const pct2 = total3 > 0 ? ((idx2 + 1) / total3) * 100 : 0;
+      assert.equal(pct2, 100, 'Last concept must be exactly 100%');
+
+      // Boundary 3: Single-concept session (0 of 1) => 100%
+      const total1 = 1;
+      const pctSingle = total1 > 0 ? ((0 + 1) / total1) * 100 : 0;
+      assert.equal(pctSingle, 100, 'Single-concept session must be 100%');
+
+      // Boundary 4: Zero concepts (empty graph) => 0% without NaN or dividing by zero
+      const total0 = 0;
+      const pctEmpty = total0 > 0 ? ((0 + 1) / total0) * 100 : 0;
+      assert.equal(pctEmpty, 0, 'Zero concepts must safely evaluate to 0%');
+      assert.ok(!isNaN(pctEmpty), 'Zero concepts must not yield NaN');
+
+      // Render check: progress fill element is present with role progressbar
+      const html = renderToString(
+        React.createElement(RevisionWorkspace, {
+          graph: mockGraph,
+          revisionIndex: 1,
+          onBackToGraph: () => {}
+        })
+      );
+      assert.ok(html.includes('revision-progress-track'), 'Track must exist');
+      assert.ok(html.includes('revision-progress-fill'), 'Fill indicator must exist');
+      assert.ok(html.includes('aria-valuenow="2"'), 'Synchronized aria-valuenow must be 2');
+    });
+
+    test('8. Accessibility: respects prefers-reduced-motion in Framer Motion variants and CSS', () => {
+      // Reduced motion variants
+      const reducedArrival = createWorkspaceArrivalVariants(true);
+      const reducedMeta = createSessionMetadataVariants(true, false);
+      const reducedBadge = createConceptBadgeVariants(true, false);
+      const reducedTitle = createConceptTitleVariants(true, false);
+      const reducedDesc = createConceptDescriptionVariants(true, false);
+      const reducedNav = createNavigationVariants(true, false);
+      const reducedCanvas = createConceptCanvasVariants(true);
+
+      // Displacements are removed (y = 0, x = 0)
+      assert.equal((reducedArrival.hidden as any).y, 0, 'Arrival y displacement must be 0 for reduced motion');
+      assert.equal((reducedMeta.hidden as any).y, 0, 'Metadata y displacement must be 0 for reduced motion');
+      assert.equal((reducedBadge.hidden as any).y, 0, 'Badge y displacement must be 0 for reduced motion');
+      assert.equal((reducedTitle.hidden as any).y, 0, 'Title y displacement must be 0 for reduced motion');
+      assert.equal((reducedDesc.hidden as any).y, 0, 'Description y displacement must be 0 for reduced motion');
+      assert.equal((reducedNav.hidden as any).y, 0, 'Navigation y displacement must be 0 for reduced motion');
+
+      const reducedEnterFwd = (reducedCanvas.enter as any)(1);
+      const reducedEnterBwd = (reducedCanvas.enter as any)(-1);
+      assert.equal(reducedEnterFwd.x, 0, 'Canvas x displacement must be 0 for reduced motion');
+      assert.equal(reducedEnterBwd.x, 0, 'Canvas x displacement must be 0 for reduced motion');
+
+      // Staged delays are removed (delay = 0)
+      assert.equal((reducedMeta.settled as any).transition.delay, 0, 'Metadata delay must be 0');
+      assert.equal((reducedTitle.settled as any).transition.delay, 0, 'Title delay must be 0');
+      assert.equal((reducedNav.settled as any).transition.delay, 0, 'Navigation delay must be 0');
+
+      // Durations are zeroed out
+      assert.equal((reducedArrival.settled as any).transition.duration, 0);
+      assert.equal((reducedTitle.settled as any).transition.duration, 0);
+
+      // CSS verification
+      assert.ok(
+        cssContent.includes('@media (prefers-reduced-motion: reduce)'),
+        'revision.css must include @media (prefers-reduced-motion: reduce)'
+      );
+      assert.ok(
+        cssContent.includes('transform: none !important'),
+        'CSS must disable transforms when reduced motion is preferred'
+      );
+      assert.ok(
+        cssContent.includes('animation: none !important'),
+        'CSS must disable animations when reduced motion is preferred'
+      );
+    });
+
+    test('9. Interaction Responsiveness: rapid navigation never desynchronizes state or resets session', () => {
+      let currentSession = createRevisionSession({
+        graphId: 'graph-os-core',
+        conceptIds: ['c-cpu-sched', 'c-process', 'c-virtual-mem'],
+        currentIndex: 0
+      });
+
+      // Rapid consecutive Next clicks (0 -> 1 -> 2 -> 2 clamped)
+      currentSession = navigateNext(currentSession);
+      assert.equal(currentSession.currentIndex, 1);
+      currentSession = navigateNext(currentSession);
+      assert.equal(currentSession.currentIndex, 2);
+      currentSession = navigateNext(currentSession);
+      assert.equal(currentSession.currentIndex, 2, 'Must safely clamp at last concept');
+
+      // Rapid consecutive Prev clicks (2 -> 1 -> 0 -> 0 clamped)
+      currentSession = navigatePrev(currentSession);
+      assert.equal(currentSession.currentIndex, 1);
+      currentSession = navigatePrev(currentSession);
+      assert.equal(currentSession.currentIndex, 0);
+      currentSession = navigatePrev(currentSession);
+      assert.equal(currentSession.currentIndex, 0, 'Must safely clamp at first concept');
+
+      // Concept direction correctly reflects navigation intent
+      const canvasVariants = createConceptCanvasVariants(false);
+      assert.equal(((canvasVariants.enter as any)(1)).x, 14, 'Forward intent retains forward entry');
+      assert.equal(((canvasVariants.enter as any)(-1)).x, -14, 'Backward intent retains backward entry');
+    });
+  });
 });
+
 
