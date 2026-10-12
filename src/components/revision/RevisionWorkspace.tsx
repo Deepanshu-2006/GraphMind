@@ -225,6 +225,139 @@ export const createConceptCanvasVariants = (shouldReduceMotion = false): Variant
   })
 });
 
+/**
+ * Safely parses inline markdown tokens (bold, italic, code, math) into React nodes.
+ * Zero use of dangerouslySetInnerHTML to guarantee safety against injection.
+ */
+export function parseInlineMarkup(text: string): React.ReactNode {
+  if (!text) return null;
+
+  // Match: bold (**...**), italic (*...*), inline code (`...`), math ($...$)
+  const tokenRegex = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\$[^$]+\$)/g;
+  const parts = text.split(tokenRegex);
+
+  if (parts.length === 1) return text;
+
+  return parts.map((part, index) => {
+    if (!part) return null;
+    if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+      return <strong key={index} className="revision-inline-bold">{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('*') && part.endsWith('*') && part.length >= 2) {
+      return <em key={index} className="revision-inline-italic">{part.slice(1, -1)}</em>;
+    }
+    if (part.startsWith('`') && part.endsWith('`') && part.length >= 2) {
+      return <code key={index} className="revision-inline-code">{part.slice(1, -1)}</code>;
+    }
+    if (part.startsWith('$') && part.endsWith('$') && part.length >= 2) {
+      return <span key={index} className="revision-math-token">{part.slice(1, -1)}</span>;
+    }
+    return part;
+  });
+}
+
+/**
+ * Editorial formatted content renderer (Section 4).
+ * Supports paragraphs, ordered lists, unordered lists, tables, and code blocks safely.
+ */
+export function EditorialFormattedContent({ content }: { content: string }) {
+  if (!content) return null;
+
+  const trimmed = content.trim();
+
+  // 1. Markdown Table syntax check: lines containing pipes and a separator |---|
+  const lines = trimmed.split(/\r?\n/);
+  const tableSepIdx = lines.findIndex(l => /^\s*\|?\s*:?-+:?\s*\|/.test(l));
+  if (tableSepIdx > 0 && lines.length >= 3) {
+    const rawHeader = lines[tableSepIdx - 1];
+    const headers = rawHeader.split('|').map(s => s.trim()).filter((_, i, arr) => i > 0 && i < arr.length - (rawHeader.trim().endsWith('|') ? 1 : 0));
+    const dataLines = lines.slice(tableSepIdx + 1).filter(l => l.includes('|'));
+    const rows = dataLines.map(l => l.split('|').map(s => s.trim()).filter((_, i, arr) => i > 0 && i < arr.length - (l.trim().endsWith('|') ? 1 : 0)));
+
+    if (headers.length > 0 && rows.length > 0) {
+      return (
+        <div className="revision-table-wrapper" tabIndex={0} role="region" aria-label="Comparison Table">
+          <table className="revision-editorial-table">
+            <thead>
+              <tr>
+                {headers.map((h, i) => (
+                  <th key={i}>{parseInlineMarkup(h)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, rIdx) => (
+                <tr key={rIdx}>
+                  {row.map((cell, cIdx) => (
+                    <td key={cIdx}>{parseInlineMarkup(cell)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+  }
+
+  // 2. Fenced code block check: ```lang ... ```
+  if (trimmed.startsWith('```') && trimmed.endsWith('```')) {
+    const firstLineEnd = trimmed.indexOf('\n');
+    const lang = firstLineEnd > 3 ? trimmed.slice(3, firstLineEnd).trim() : '';
+    const code = firstLineEnd > 3 ? trimmed.slice(firstLineEnd + 1, -3).trim() : trimmed.slice(3, -3).trim();
+    return (
+      <div className="revision-code-block-wrapper">
+        {lang && <span className="revision-code-caption">{lang}</span>}
+        <pre className="revision-code-block">
+          <code>{code}</code>
+        </pre>
+      </div>
+    );
+  }
+
+  // 3. Ordered list: all lines start with 1. 2. etc.
+  if (lines.length > 1 && lines.every(l => /^\s*\d+\.\s+/.test(l))) {
+    return (
+      <ol className="revision-ordered-list">
+        {lines.map((l, idx) => (
+          <li key={idx}>
+            {parseInlineMarkup(l.replace(/^\s*\d+\.\s+/, ''))}
+          </li>
+        ))}
+      </ol>
+    );
+  }
+
+  // 4. Unordered list: all lines start with - or * or •
+  if (lines.length > 1 && lines.every(l => /^\s*[-*•]\s+/.test(l))) {
+    return (
+      <ul className="revision-unordered-list">
+        {lines.map((l, idx) => (
+          <li key={idx}>
+            {parseInlineMarkup(l.replace(/^\s*[-*•]\s+/, ''))}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  // 5. Multi-line text with breaks
+  if (lines.length > 1) {
+    return (
+      <>
+        {lines.map((l, idx) => (
+          <React.Fragment key={idx}>
+            {idx > 0 && <br />}
+            {parseInlineMarkup(l)}
+          </React.Fragment>
+        ))}
+      </>
+    );
+  }
+
+  return <>{parseInlineMarkup(trimmed)}</>;
+}
+
 export interface RevisionConceptItem {
   id: string;
   name: string;
@@ -769,8 +902,71 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   const hasUnderstandingData = hasExtraKeyIdeas || hasEvidence;
   const hasRelatedConcepts = relatedConcepts.length > 0;
 
+  const workspaceRootRef = useRef<HTMLDivElement | null>(null);
+
+  // Preserve scroll position across explanation loading; reset only on concept change
+  useEffect(() => {
+    if (workspaceRootRef.current) {
+      workspaceRootRef.current.scrollTop = 0;
+    }
+  }, [currentConcept?.id]);
+
+  // Active sections computation for Section Navigation (Task 06)
+  const activeSections = useMemo(() => {
+    if (explanationState.status !== 'ready' || !explanationState.explanation) {
+      return [];
+    }
+    const exp = explanationState.explanation;
+    const list: Array<{ id: string; num: string; label: string }> = [];
+    let counter = 1;
+
+    // 01. Understand
+    if (exp.overview || hasUnderstandingData) {
+      list.push({ id: 'section-understanding', num: String(counter++).padStart(2, '0'), label: 'Understand' });
+    }
+    // 02. How it works
+    if (exp.howItWorks && exp.howItWorks.length > 0) {
+      list.push({ id: 'section-how-it-works', num: String(counter++).padStart(2, '0'), label: 'How it works' });
+    }
+    // 03. Key components / terminology
+    if ((exp.keyComponents && exp.keyComponents.length > 0) || (exp.keyTerminology && exp.keyTerminology.length > 0) || exp.comparisonTable) {
+      const isTerminology = Boolean(exp.keyTerminology && exp.keyTerminology.length > 0);
+      list.push({
+        id: 'section-key-components',
+        num: String(counter++).padStart(2, '0'),
+        label: isTerminology ? 'Terminology' : 'Components'
+      });
+    }
+    // 04. Important details / points
+    if ((exp.importantDetails && exp.importantDetails.length > 0) || (exp.importantPoints && exp.importantPoints.length > 0)) {
+      const isPoints = Boolean(exp.importantPoints && exp.importantPoints.length > 0 && (!exp.importantDetails || exp.importantDetails.length === 0));
+      list.push({
+        id: 'section-important-details',
+        num: String(counter++).padStart(2, '0'),
+        label: isPoints ? 'Points' : 'Details'
+      });
+    }
+    // 05. Examples
+    if (exp.examples && exp.examples.length > 0) {
+      list.push({ id: 'section-examples', num: String(counter++).padStart(2, '0'), label: 'Example' });
+    }
+    // 06. Related concepts
+    if ((exp.relatedConceptReferences && exp.relatedConceptReferences.length > 0) || hasRelatedConcepts) {
+      list.push({ id: 'section-related-concepts', num: String(counter++).padStart(2, '0'), label: 'Related' });
+    }
+    // 07. Source references
+    if (exp.sourceReferences && exp.sourceReferences.length > 0) {
+      list.push({ id: 'section-sources', num: String(counter++).padStart(2, '0'), label: 'Sources' });
+    }
+
+    return list;
+  }, [explanationState, hasUnderstandingData, hasRelatedConcepts]);
+
+  const getSecNum = (id: string) => activeSections.find(s => s.id === id)?.num || '01';
+
   return (
     <motion.div
+      ref={workspaceRootRef}
       className="revision-workspace-root"
       role="region"
       aria-label="GraphMind Dedicated Revision Workspace"
@@ -1028,85 +1224,222 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                     {/* State B: Explanation ready */}
                     {explanationState.status === 'ready' && explanationState.explanation && (
                       <>
-                        {/* 1. Understanding the concept (Overview + Detailed Explanation) */}
-                        <div className="revision-section revision-section-understanding">
-                          <h2 className="revision-section-heading">Understanding the concept</h2>
+                        {/* Compact Unobtrusive Section Jump Navigation (Task 06 Section 5) */}
+                        {activeSections.length >= 2 && (
+                          <nav className="revision-section-nav" aria-label="Section navigation">
+                            <div className="revision-section-nav-inner">
+                              <span className="revision-section-nav-kicker">SECTIONS</span>
+                              <div className="revision-section-nav-items">
+                                {activeSections.map((sec) => (
+                                  <a
+                                    key={sec.id}
+                                    href={`#${sec.id}`}
+                                    className="revision-section-nav-item"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      const el = document.getElementById(sec.id);
+                                      if (el) {
+                                        el.scrollIntoView({ behavior: shouldReduceMotion ? 'auto' : 'smooth', block: 'start' });
+                                      }
+                                    }}
+                                  >
+                                    <span className="revision-nav-num">{sec.num}</span>
+                                    <span className="revision-nav-label">{sec.label}</span>
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          </nav>
+                        )}
+
+                        {/* 01. Understanding the concept (Overview + Elaboration) */}
+                        <div className="revision-section revision-section-understanding" id="section-understanding">
+                          <h2 className="revision-section-heading">
+                            <span className="revision-section-num">{getSecNum('section-understanding')}</span>
+                            <span>Understanding the concept</span>
+                          </h2>
                           <div className="revision-section-body">
                             {explanationState.explanation.overview && (
                               <p className="revision-explanation-lead">
-                                {explanationState.explanation.overview}
+                                <EditorialFormattedContent content={explanationState.explanation.overview} />
                               </p>
                             )}
-                            {explanationState.explanation.detailedExplanation && explanationState.explanation.detailedExplanation.length > 0 && (
+                            {(!explanationState.explanation.howItWorks || explanationState.explanation.howItWorks.length === 0) &&
+                              explanationState.explanation.detailedExplanation && explanationState.explanation.detailedExplanation.length > 0 && (
                               <div className="revision-explanation-paragraphs">
                                 {explanationState.explanation.detailedExplanation.map((paragraph, idx) => (
                                   <p key={idx} className="revision-explanation-paragraph">
-                                    {paragraph}
+                                    <EditorialFormattedContent content={paragraph} />
                                   </p>
                                 ))}
                               </div>
                             )}
                             {hasExtraKeyIdeas && (
-                              <ul className="revision-key-ideas-list" style={{ margin: (explanationState.explanation.overview || explanationState.explanation.detailedExplanation?.length) ? '16px 0 0 0' : 0, paddingLeft: '20px' }}>
+                              <ul className="revision-key-ideas-list" style={{ margin: (explanationState.explanation.overview ? '16px 0 0 0' : 0), paddingLeft: '20px' }}>
                                 {currentConcept.keyIdeas!.map((idea, idx) => (
-                                  <li key={idx} style={{ marginBottom: '6px' }}>{idea}</li>
+                                  <li key={idx} style={{ marginBottom: '6px' }}>
+                                    <EditorialFormattedContent content={idea} />
+                                  </li>
                                 ))}
                               </ul>
                             )}
                             {hasEvidence && (
-                              <p style={{ margin: (hasExtraKeyIdeas || explanationState.explanation.overview || explanationState.explanation.detailedExplanation?.length) ? '12px 0 0 0' : 0 }}>
-                                {currentConcept.evidence}
+                              <p style={{ margin: (hasExtraKeyIdeas || explanationState.explanation.overview) ? '12px 0 0 0' : 0 }}>
+                                <EditorialFormattedContent content={currentConcept.evidence!} />
                               </p>
                             )}
                           </div>
                         </div>
 
-                        {/* 2. Key Terminology (if present) */}
-                        {explanationState.explanation.keyTerminology && explanationState.explanation.keyTerminology.length > 0 && (
-                          <div className="revision-section revision-section-terminology">
-                            <h2 className="revision-section-heading">Key Terminology</h2>
-                            <div className="revision-terms-list">
-                              {explanationState.explanation.keyTerminology.map((item, idx) => (
-                                <div key={idx} className="revision-term-item">
-                                  <span className="revision-term-name">{item.term}</span>
-                                  <p className="revision-term-def">{item.definition}</p>
+                        {/* 02. How it works (when operational mechanism or steps exist) */}
+                        {explanationState.explanation.howItWorks && explanationState.explanation.howItWorks.length > 0 && (
+                          <div className="revision-section revision-section-how-it-works" id="section-how-it-works">
+                            <h2 className="revision-section-heading">
+                              <span className="revision-section-num">{getSecNum('section-how-it-works')}</span>
+                              <span>How it works</span>
+                            </h2>
+                            <div className="revision-section-body">
+                              <div className="revision-how-it-works-list">
+                                {explanationState.explanation.howItWorks.map((step, idx) => (
+                                  <div key={idx} className="revision-how-it-works-step">
+                                    <span className="revision-step-marker">{String(idx + 1).padStart(2, '0')}</span>
+                                    <div className="revision-step-content">
+                                      <EditorialFormattedContent content={step} />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              {explanationState.explanation.codeSnippet && (
+                                <div className="revision-code-snippet-box">
+                                  {explanationState.explanation.codeSnippet.caption && (
+                                    <span className="revision-code-caption">{explanationState.explanation.codeSnippet.caption}</span>
+                                  )}
+                                  <pre className="revision-code-block">
+                                    <code>{explanationState.explanation.codeSnippet.code}</code>
+                                  </pre>
                                 </div>
-                              ))}
+                              )}
                             </div>
                           </div>
                         )}
 
-                        {/* 3. Important Points (if present) */}
-                        {explanationState.explanation.importantPoints && explanationState.explanation.importantPoints.length > 0 && (
-                          <div className="revision-section revision-section-points">
-                            <h2 className="revision-section-heading">Important Points</h2>
+                        {/* 03. Key Components / Key Terminology */}
+                        {((explanationState.explanation.keyComponents && explanationState.explanation.keyComponents.length > 0) ||
+                          (explanationState.explanation.keyTerminology && explanationState.explanation.keyTerminology.length > 0) ||
+                          explanationState.explanation.comparisonTable) && (
+                          <div className="revision-section revision-section-terminology" id="section-key-components">
+                            <h2 className="revision-section-heading">
+                              <span className="revision-section-num">{getSecNum('section-key-components')}</span>
+                              <span>
+                                {explanationState.explanation.keyTerminology && explanationState.explanation.keyTerminology.length > 0
+                                  ? 'Key Terminology'
+                                  : 'Key components'}
+                              </span>
+                            </h2>
+                            <div className="revision-section-body">
+                              {explanationState.explanation.keyComponents && explanationState.explanation.keyComponents.length > 0 && (
+                                <div className="revision-components-grid">
+                                  {explanationState.explanation.keyComponents.map((comp, idx) => (
+                                    <div key={idx} className="revision-component-card">
+                                      <div className="revision-component-header">
+                                        <span className="revision-component-name">{comp.name}</span>
+                                        {comp.role && <span className="revision-component-role">{comp.role}</span>}
+                                      </div>
+                                      <p className="revision-component-desc">
+                                        <EditorialFormattedContent content={comp.description} />
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {explanationState.explanation.keyTerminology && explanationState.explanation.keyTerminology.length > 0 && (
+                                <div className="revision-terms-list">
+                                  {explanationState.explanation.keyTerminology.map((item, idx) => (
+                                    <div key={idx} className="revision-term-item">
+                                      <span className="revision-term-name">{item.term}</span>
+                                      <p className="revision-term-def">
+                                        <EditorialFormattedContent content={item.definition} />
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {explanationState.explanation.comparisonTable && (
+                                <div className="revision-table-wrapper" tabIndex={0} role="region" aria-label="Comparison Table">
+                                  {explanationState.explanation.comparisonTable.caption && (
+                                    <span className="revision-table-caption">{explanationState.explanation.comparisonTable.caption}</span>
+                                  )}
+                                  <table className="revision-editorial-table">
+                                    <thead>
+                                      <tr>
+                                        {explanationState.explanation.comparisonTable.headers.map((h, i) => (
+                                          <th key={i}>{parseInlineMarkup(h)}</th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {explanationState.explanation.comparisonTable.rows.map((row, rIdx) => (
+                                        <tr key={rIdx}>
+                                          {row.map((cell, cIdx) => (
+                                            <td key={cIdx}>{parseInlineMarkup(cell)}</td>
+                                          ))}
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 04. Important Details / Important Points */}
+                        {((explanationState.explanation.importantDetails && explanationState.explanation.importantDetails.length > 0) ||
+                          (explanationState.explanation.importantPoints && explanationState.explanation.importantPoints.length > 0)) && (
+                          <div className="revision-section revision-section-points" id="section-important-details">
+                            <h2 className="revision-section-heading">
+                              <span className="revision-section-num">{getSecNum('section-important-details')}</span>
+                              <span>
+                                {explanationState.explanation.importantDetails && explanationState.explanation.importantDetails.length > 0
+                                  ? 'Important details'
+                                  : 'Important Points'}
+                              </span>
+                            </h2>
                             <ul className="revision-points-list">
-                              {explanationState.explanation.importantPoints.map((point, idx) => (
+                              {(explanationState.explanation.importantDetails || explanationState.explanation.importantPoints!).map((point, idx) => (
                                 <li key={idx} className="revision-point-item">
                                   <span className="revision-point-bullet" aria-hidden="true" />
-                                  <span>{point}</span>
+                                  <span><EditorialFormattedContent content={point} /></span>
                                 </li>
                               ))}
                             </ul>
                           </div>
                         )}
 
-                        {/* 4. Examples (if present and supported) */}
+                        {/* 05. Examples (if present and supported) */}
                         {explanationState.explanation.examples && explanationState.explanation.examples.length > 0 && (
-                          <div className="revision-section revision-section-examples">
-                            <h2 className="revision-section-heading">Examples</h2>
+                          <div className="revision-section revision-section-examples" id="section-examples">
+                            <h2 className="revision-section-heading">
+                              <span className="revision-section-num">{getSecNum('section-examples')}</span>
+                              <span>Examples</span>
+                            </h2>
                             <div className="revision-example-box">
                               {explanationState.explanation.examples.map((ex, idx) => (
-                                <p key={idx} style={{ margin: idx === 0 ? 0 : '8px 0 0 0' }}>{ex}</p>
+                                <div key={idx} style={{ marginTop: idx === 0 ? 0 : '8px' }}>
+                                  <EditorialFormattedContent content={ex} />
+                                </div>
                               ))}
                             </div>
                           </div>
                         )}
 
-                        {/* 5. Related Concepts */}
+                        {/* 06. Related Concepts */}
                         {((explanationState.explanation.relatedConceptReferences && explanationState.explanation.relatedConceptReferences.length > 0) || hasRelatedConcepts) && (
-                          <div className="revision-section revision-section-related">
-                            <h2 className="revision-section-heading">Related concepts</h2>
+                          <div className="revision-section revision-section-related" id="section-related-concepts">
+                            <h2 className="revision-section-heading">
+                              <span className="revision-section-num">{getSecNum('section-related-concepts')}</span>
+                              <span>Related concepts</span>
+                            </h2>
                             <div className="revision-related-list">
                               {explanationState.explanation.relatedConceptReferences && explanationState.explanation.relatedConceptReferences.length > 0
                                 ? explanationState.explanation.relatedConceptReferences.map((rel, idx) => (
@@ -1133,10 +1466,13 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                           </div>
                         )}
 
-                        {/* 6. Source References */}
+                        {/* 07. Source References */}
                         {explanationState.explanation.sourceReferences && explanationState.explanation.sourceReferences.length > 0 && (
-                          <div className="revision-section revision-section-sources">
-                            <h2 className="revision-section-heading">Source References</h2>
+                          <div className="revision-section revision-section-sources" id="section-sources">
+                            <h2 className="revision-section-heading">
+                              <span className="revision-section-num">{getSecNum('section-sources')}</span>
+                              <span>Source References</span>
+                            </h2>
                             <div className="revision-sources-container">
                               {explanationState.explanation.sourceReferences.map((ref, idx) => (
                                 <div key={idx} className="revision-source-card">
