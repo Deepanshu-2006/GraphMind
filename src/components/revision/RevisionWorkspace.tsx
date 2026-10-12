@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useReducedMotion, type Variants } from 'framer
 import type { KnowledgeGraph } from '../../types/knowledgeGraph';
 import type { GraphConceptData, ConceptRelationship } from '../../types/graph';
 import type { RevisionPathStep, RevisionSessionState } from '../../types/practice';
+import type { ExplanationState } from '../../types/explanation';
 import {
   createRevisionSession,
   validateRevisionSession,
@@ -11,6 +12,12 @@ import {
   jumpToIndex,
   jumpToConceptId
 } from '../../services/revisionSession';
+import {
+  getOrGenerateConceptExplanation,
+  loadStoredExplanation,
+  extractConceptSourceContext,
+  synthesizeGroundedExplanation
+} from '../../services/conceptExplanation';
 
 export const WORKSPACE_EASING = [0.16, 1, 0.3, 1] as const;
 
@@ -275,7 +282,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   onViewGraph,
   onSelectGraph,
   isLoading = false,
-  isNewSession = false,
+  isNewSession: _isNewSession = false,
   skipEntryAnimation = false
 }) => {
   // 1. Resolve deterministic concept sequence from revisionPath or graph data
@@ -306,7 +313,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
 
     // Deterministically build relationships from graph.relationships or allEdges if needed
     const relMap = new Map<string, ConceptRelationship[]>();
-    const effectiveRels = graph?.relationships || [];
+    const effectiveRels = (graph?.relationships && graph.relationships.length > 0) ? graph.relationships : allEdges;
     effectiveRels.forEach((rel) => {
       const source = rel.source;
       const target = rel.target;
@@ -594,6 +601,143 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   // Resolve current concept
   const currentConcept: RevisionConceptItem | null = concepts[currentIndex] || null;
 
+  // Concept explanation lifecycle state (Phase 2 Task 05)
+  const [explanationState, setExplanationState] = useState<ExplanationState>(() => {
+    if (!graph || !currentConcept) return { status: 'empty' };
+    const currentGraphId = graph.id || 'default_graph';
+    const targetConceptId = currentConcept.id;
+    const cached = loadStoredExplanation(currentGraphId, targetConceptId);
+    if (cached) {
+      return {
+        status: 'ready',
+        explanation: cached,
+        conceptId: targetConceptId,
+        graphId: currentGraphId
+      };
+    }
+    const ctx = extractConceptSourceContext(graph, targetConceptId);
+    if (ctx.status === 'insufficient') {
+      return {
+        status: 'insufficient',
+        conceptId: targetConceptId,
+        graphId: currentGraphId,
+        insufficientReason: ctx.reason
+      };
+    }
+    if (ctx.status === 'empty') {
+      return { status: 'empty', conceptId: targetConceptId, graphId: currentGraphId };
+    }
+    const synthesized = synthesizeGroundedExplanation(ctx.context);
+    return {
+      status: 'ready',
+      explanation: synthesized,
+      conceptId: targetConceptId,
+      graphId: currentGraphId
+    };
+  });
+  const explanationAbortRef = useRef<AbortController | null>(null);
+
+  // Sync explanation when current concept or graph changes
+  useEffect(() => {
+    if (!graph || !currentConcept) {
+      setExplanationState({ status: 'empty' });
+      return;
+    }
+
+    const currentGraphId = graph.id || 'default_graph';
+    const targetConceptId = currentConcept.id;
+
+    // Check persistent cache first for instant retrieval
+    const cached = loadStoredExplanation(currentGraphId, targetConceptId);
+    if (cached) {
+      setExplanationState({
+        status: 'ready',
+        explanation: cached,
+        conceptId: targetConceptId,
+        graphId: currentGraphId
+      });
+      return;
+    }
+
+    // Cancel any previous in-flight request so navigation is never blocked
+    if (explanationAbortRef.current) {
+      explanationAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    explanationAbortRef.current = controller;
+
+    setExplanationState({
+      status: 'loading',
+      conceptId: targetConceptId,
+      graphId: currentGraphId
+    });
+
+    getOrGenerateConceptExplanation({
+      graph,
+      conceptId: targetConceptId,
+      signal: controller.signal
+    })
+      .then((res) => {
+        if (!controller.signal.aborted) {
+          setExplanationState(res);
+        }
+      })
+      .catch((err) => {
+        if (!controller.signal.aborted) {
+          setExplanationState({
+            status: 'error',
+            errorMessage: err?.message || 'Failed to load concept explanation.',
+            conceptId: targetConceptId,
+            graphId: currentGraphId
+          });
+        }
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [graph, currentConcept?.id]);
+
+  const handleRetryExplanation = useCallback(() => {
+    if (!graph || !currentConcept) return;
+    const currentGraphId = graph.id || 'default_graph';
+    const targetConceptId = currentConcept.id;
+
+    if (explanationAbortRef.current) {
+      explanationAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    explanationAbortRef.current = controller;
+
+    setExplanationState({
+      status: 'loading',
+      conceptId: targetConceptId,
+      graphId: currentGraphId
+    });
+
+    getOrGenerateConceptExplanation({
+      graph,
+      conceptId: targetConceptId,
+      forceRegenerate: true,
+      signal: controller.signal
+    })
+      .then((res) => {
+        if (!controller.signal.aborted) {
+          setExplanationState(res);
+        }
+      })
+      .catch((err) => {
+        if (!controller.signal.aborted) {
+          setExplanationState({
+            status: 'error',
+            errorMessage: err?.message || 'Failed to generate concept explanation.',
+            conceptId: targetConceptId,
+            graphId: currentGraphId
+          });
+        }
+      });
+  }, [graph, currentConcept]);
+
   // View graph action
   const handleViewGraph = useCallback(() => {
     if (onViewGraph) {
@@ -624,12 +768,6 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   const hasEvidence = Boolean(currentConcept?.evidence && currentConcept.evidence.trim().length > 0);
   const hasUnderstandingData = hasExtraKeyIdeas || hasEvidence;
   const hasRelatedConcepts = relatedConcepts.length > 0;
-
-  // Phase 2 placeholders remain hidden when no data is present
-  const hasHowItWorksData = false;
-  const hasImportantDetailsData = false;
-  const hasExamplesData = false;
-  const hasKnowledgeChecksData = false;
 
   return (
     <motion.div
@@ -843,72 +981,225 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                     initial={hasPlayedEntry ? "settled" : "hidden"}
                     animate="settled"
                   >
-                    {/* 1. Understanding the concept (Renders real key ideas/evidence if present) */}
-                    {hasUnderstandingData && (
-                      <div className="revision-section revision-section-understanding">
+                    {/* State A: In-flight loading state */}
+                    {explanationState.status === 'loading' && (
+                      <div className="revision-section revision-section-loading" role="status" aria-live="polite">
                         <h2 className="revision-section-heading">Understanding the concept</h2>
-                        <div className="revision-section-body">
-                          {hasExtraKeyIdeas && (
-                            <ul className="revision-key-ideas-list" style={{ margin: 0, paddingLeft: '20px' }}>
-                              {currentConcept.keyIdeas!.map((idea, idx) => (
-                                <li key={idx} style={{ marginBottom: '6px' }}>{idea}</li>
+                        <div className="revision-explanation-loading">
+                          <div className="revision-skeleton-line" />
+                          <div className="revision-skeleton-line medium" />
+                          <div className="revision-skeleton-line short" />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* State C: Insufficient source material */}
+                    {explanationState.status === 'insufficient' && (
+                      <div className="revision-section revision-section-insufficient">
+                        <div className="revision-insufficient-card" role="region" aria-label="Source Grounding Notice">
+                          <span className="revision-insufficient-kicker">SOURCE GROUNDING / INSUFFICIENT MATERIAL</span>
+                          <h3 className="revision-insufficient-title">Detailed explanation unavailable</h3>
+                          <p className="revision-insufficient-desc">
+                            {explanationState.insufficientReason ||
+                              `The learning materials associated with this knowledge graph do not contain enough documented passages or evidence for "${conceptTitle}". GraphMind avoids generating speculative explanations to ensure academic integrity.`}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* State D: Generation failure with retry */}
+                    {explanationState.status === 'error' && (
+                      <div className="revision-section revision-section-error">
+                        <div className="revision-error-card" role="alert">
+                          <p className="revision-error-text">
+                            {explanationState.errorMessage || 'Unable to load or generate explanation for this concept.'}
+                          </p>
+                          <button
+                            type="button"
+                            className="revision-retry-action"
+                            onClick={handleRetryExplanation}
+                          >
+                            Retry generation
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* State B: Explanation ready */}
+                    {explanationState.status === 'ready' && explanationState.explanation && (
+                      <>
+                        {/* 1. Understanding the concept (Overview + Detailed Explanation) */}
+                        <div className="revision-section revision-section-understanding">
+                          <h2 className="revision-section-heading">Understanding the concept</h2>
+                          <div className="revision-section-body">
+                            {explanationState.explanation.overview && (
+                              <p className="revision-explanation-lead">
+                                {explanationState.explanation.overview}
+                              </p>
+                            )}
+                            {explanationState.explanation.detailedExplanation && explanationState.explanation.detailedExplanation.length > 0 && (
+                              <div className="revision-explanation-paragraphs">
+                                {explanationState.explanation.detailedExplanation.map((paragraph, idx) => (
+                                  <p key={idx} className="revision-explanation-paragraph">
+                                    {paragraph}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                            {hasExtraKeyIdeas && (
+                              <ul className="revision-key-ideas-list" style={{ margin: (explanationState.explanation.overview || explanationState.explanation.detailedExplanation?.length) ? '16px 0 0 0' : 0, paddingLeft: '20px' }}>
+                                {currentConcept.keyIdeas!.map((idea, idx) => (
+                                  <li key={idx} style={{ marginBottom: '6px' }}>{idea}</li>
+                                ))}
+                              </ul>
+                            )}
+                            {hasEvidence && (
+                              <p style={{ margin: (hasExtraKeyIdeas || explanationState.explanation.overview || explanationState.explanation.detailedExplanation?.length) ? '12px 0 0 0' : 0 }}>
+                                {currentConcept.evidence}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 2. Key Terminology (if present) */}
+                        {explanationState.explanation.keyTerminology && explanationState.explanation.keyTerminology.length > 0 && (
+                          <div className="revision-section revision-section-terminology">
+                            <h2 className="revision-section-heading">Key Terminology</h2>
+                            <div className="revision-terms-list">
+                              {explanationState.explanation.keyTerminology.map((item, idx) => (
+                                <div key={idx} className="revision-term-item">
+                                  <span className="revision-term-name">{item.term}</span>
+                                  <p className="revision-term-def">{item.definition}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 3. Important Points (if present) */}
+                        {explanationState.explanation.importantPoints && explanationState.explanation.importantPoints.length > 0 && (
+                          <div className="revision-section revision-section-points">
+                            <h2 className="revision-section-heading">Important Points</h2>
+                            <ul className="revision-points-list">
+                              {explanationState.explanation.importantPoints.map((point, idx) => (
+                                <li key={idx} className="revision-point-item">
+                                  <span className="revision-point-bullet" aria-hidden="true" />
+                                  <span>{point}</span>
+                                </li>
                               ))}
                             </ul>
-                          )}
-                          {hasEvidence && (
-                            <p style={{ margin: hasExtraKeyIdeas ? '12px 0 0 0' : 0 }}>
-                              {currentConcept.evidence}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                          </div>
+                        )}
 
-                    {/* 2. How it works (Phase 2 Slot — hidden when unavailable) */}
-                    {hasHowItWorksData && (
-                      <div className="revision-section revision-section-how-it-works">
-                        <h2 className="revision-section-heading">How it works</h2>
-                      </div>
-                    )}
-
-                    {/* 3. Important details (Phase 2 Slot — hidden when unavailable) */}
-                    {hasImportantDetailsData && (
-                      <div className="revision-section revision-section-details">
-                        <h2 className="revision-section-heading">Important details</h2>
-                      </div>
-                    )}
-
-                    {/* 4. Examples (Phase 2 Slot — hidden when unavailable) */}
-                    {hasExamplesData && (
-                      <div className="revision-section revision-section-examples">
-                        <h2 className="revision-section-heading">Examples</h2>
-                      </div>
-                    )}
-
-                    {/* 5. Related concepts (Renders real relationships from graph) */}
-                    {hasRelatedConcepts && (
-                      <div className="revision-section revision-section-related">
-                        <h2 className="revision-section-heading">Related concepts</h2>
-                        <div className="revision-related-list">
-                          {relatedConcepts.map((rel, idx) => (
-                            <div key={rel.id || `${rel.targetId}-${idx}`} className="revision-related-item">
-                              <span className="revision-related-relation">
-                                {rel.type ? rel.type.replace(/-/g, ' ') : 'Related to'}
-                              </span>
-                              <span className="revision-related-name">
-                                {rel.targetName}
-                              </span>
+                        {/* 4. Examples (if present and supported) */}
+                        {explanationState.explanation.examples && explanationState.explanation.examples.length > 0 && (
+                          <div className="revision-section revision-section-examples">
+                            <h2 className="revision-section-heading">Examples</h2>
+                            <div className="revision-example-box">
+                              {explanationState.explanation.examples.map((ex, idx) => (
+                                <p key={idx} style={{ margin: idx === 0 ? 0 : '8px 0 0 0' }}>{ex}</p>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      </div>
+                          </div>
+                        )}
+
+                        {/* 5. Related Concepts */}
+                        {((explanationState.explanation.relatedConceptReferences && explanationState.explanation.relatedConceptReferences.length > 0) || hasRelatedConcepts) && (
+                          <div className="revision-section revision-section-related">
+                            <h2 className="revision-section-heading">Related concepts</h2>
+                            <div className="revision-related-list">
+                              {explanationState.explanation.relatedConceptReferences && explanationState.explanation.relatedConceptReferences.length > 0
+                                ? explanationState.explanation.relatedConceptReferences.map((rel, idx) => (
+                                    <div key={rel.conceptId || idx} className="revision-related-item">
+                                      <span className="revision-related-relation">
+                                        {rel.relationshipType ? rel.relationshipType.replace(/-/g, ' ') : 'Related to'}
+                                      </span>
+                                      <span className="revision-related-name">
+                                        {rel.conceptName}
+                                      </span>
+                                    </div>
+                                  ))
+                                : relatedConcepts.map((rel, idx) => (
+                                    <div key={rel.id || `${rel.targetId}-${idx}`} className="revision-related-item">
+                                      <span className="revision-related-relation">
+                                        {rel.type ? rel.type.replace(/-/g, ' ') : 'Related to'}
+                                      </span>
+                                      <span className="revision-related-name">
+                                        {rel.targetName}
+                                      </span>
+                                    </div>
+                                  ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 6. Source References */}
+                        {explanationState.explanation.sourceReferences && explanationState.explanation.sourceReferences.length > 0 && (
+                          <div className="revision-section revision-section-sources">
+                            <h2 className="revision-section-heading">Source References</h2>
+                            <div className="revision-sources-container">
+                              {explanationState.explanation.sourceReferences.map((ref, idx) => (
+                                <div key={idx} className="revision-source-card">
+                                  <div className="revision-source-card-header">
+                                    <span className="revision-source-title">{ref.sourceTitle}</span>
+                                    <span className="revision-source-badge">
+                                      {ref.page ? `PAGE ${ref.page} • SOURCE GROUNDED` : 'SOURCE GROUNDED'}
+                                    </span>
+                                  </div>
+                                  {ref.excerpt && (
+                                    <blockquote className="revision-source-quote">
+                                      "{ref.excerpt}"
+                                    </blockquote>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
 
-                    {/* 6. Knowledge checks (Phase 2 Slot — hidden when unavailable) */}
-                    {hasKnowledgeChecksData && (
-                      <div className="revision-section revision-section-checks">
-                        <h2 className="revision-section-heading">Knowledge checks</h2>
-                      </div>
+                    {/* Fallback when explanation state is idle or empty */}
+                    {(explanationState.status === 'idle' || explanationState.status === 'empty') && (
+                      <>
+                        {hasUnderstandingData && (
+                          <div className="revision-section revision-section-understanding">
+                            <h2 className="revision-section-heading">Understanding the concept</h2>
+                            <div className="revision-section-body">
+                              {hasExtraKeyIdeas && (
+                                <ul className="revision-key-ideas-list" style={{ margin: 0, paddingLeft: '20px' }}>
+                                  {currentConcept.keyIdeas!.map((idea, idx) => (
+                                    <li key={idx} style={{ marginBottom: '6px' }}>{idea}</li>
+                                  ))}
+                                </ul>
+                              )}
+                              {hasEvidence && (
+                                <p style={{ margin: hasExtraKeyIdeas ? '12px 0 0 0' : 0 }}>
+                                  {currentConcept.evidence}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {hasRelatedConcepts && (
+                          <div className="revision-section revision-section-related">
+                            <h2 className="revision-section-heading">Related concepts</h2>
+                            <div className="revision-related-list">
+                              {relatedConcepts.map((rel, idx) => (
+                                <div key={rel.id || `${rel.targetId}-${idx}`} className="revision-related-item">
+                                  <span className="revision-related-relation">
+                                    {rel.type ? rel.type.replace(/-/g, ' ') : 'Related to'}
+                                  </span>
+                                  <span className="revision-related-name">
+                                    {rel.targetName}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </motion.section>
                 </motion.div>
