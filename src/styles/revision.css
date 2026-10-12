@@ -895,10 +895,320 @@
   line-height: 1.7;
 }
 
-.revision-unordered-list li {
+/* --------------------------------------------------------------------------
+   5E. WORKED EXAMPLES AND STEP-BY-STEP LEARNING (Task 07)
+   -------------------------------------------------------------------------- */
+.revision-worked-example {
+  margin-top: 14px;
+  padding: 22px 24px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.revision-worked-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.revision-worked-title {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--text-primary, #F5F5F5);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.revision-provenance-badge {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.revision-provenance-source {
+  color: var(--accent, #A3FF12);
+  background: rgba(163, 255, 18, 0.08);
+  border: 1px solid rgba(163, 255, 18, 0.22);
+}
+
+.revision-provenance-illustrative {
+  color: var(--text-secondary, #A1A1A1);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.revision-problem-kicker,
+.revision-given-kicker,
+.revision-required-kicker,
+.revision-steps-kicker,
+.revision-final-kicker,
+.revision-observation-kicker {
+  display: block;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8A8A8A);
   margin-bottom: 6px;
 }
 
+.revision-problem-statement {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 14.5px;
+  line-height: 1.68;
+  color: #D6D6D6;
+  margin: 0;
+}
+
+.revision-given-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.revision-given-item {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 4px;
+  padding: 5px 11px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  color: #C5C5C5;
+  line-height: 1.45;
+}
+
+.revision-required-box {
+  padding: 9px 13px;
+  border-left: 2px solid var(--accent, #A3FF12);
+  background: rgba(163, 255, 18, 0.03);
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #EDEDED;
+}
+
+.revision-steps-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-top: 6px;
+}
+
+.revision-steps-counter {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary, #A1A1A1);
+  letter-spacing: 0.06em;
+}
+
+.revision-step-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.revision-step-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  background: rgba(163, 255, 18, 0.1);
+  border: 1px solid rgba(163, 255, 18, 0.28);
+  border-radius: 4px;
+  color: var(--accent, #A3FF12);
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.revision-step-action-btn:hover {
+  background: rgba(163, 255, 18, 0.18);
+  border-color: var(--accent, #A3FF12);
+  color: #FFFFFF;
+}
+
+.revision-step-action-btn:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: 2px;
+}
+
+.revision-step-action-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  color: var(--text-secondary, #A1A1A1);
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.revision-step-action-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #F5F5F5;
+}
+
+.revision-step-action-btn-secondary:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: 2px;
+}
+
+.revision-worked-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.revision-worked-step {
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.018);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 180ms ease;
+}
+
+.revision-worked-step-active {
+  border-color: rgba(163, 255, 18, 0.35);
+  background: rgba(163, 255, 18, 0.025);
+}
+
+.revision-step-top {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.revision-step-num-badge {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent, #A3FF12);
+  background: rgba(163, 255, 18, 0.08);
+  border: 1px solid rgba(163, 255, 18, 0.22);
+  padding: 2px 7px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.revision-step-title {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 14px;
+  font-weight: 600;
+  color: #F5F5F5;
+}
+
+.revision-step-action {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 14px;
+  line-height: 1.66;
+  color: #D0D0D0;
+  margin: 0;
+}
+
+.revision-step-reasoning {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-muted, #8A8A8A);
+  padding-left: 12px;
+  border-left: 2px solid rgba(255, 255, 255, 0.08);
+  margin-top: 2px;
+}
+
+.revision-step-calc-box {
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12.5px;
+  color: #E2E2E2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  overflow-x: auto;
+}
+
+.revision-step-calc-box::-webkit-scrollbar {
+  height: 4px;
+}
+
+.revision-step-calc-box::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+.revision-intermediate-result {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  color: var(--accent, #A3FF12);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.revision-final-answer-box {
+  margin-top: 10px;
+  padding: 14px 18px;
+  background: rgba(163, 255, 18, 0.04);
+  border: 1px solid rgba(163, 255, 18, 0.28);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.revision-final-answer-value {
+  font-family: var(--font-mono, monospace);
+  font-size: 14px;
+  color: #FFFFFF;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.revision-observation-box {
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13.5px;
+  line-height: 1.62;
+  color: #B0B0B0;
+}
 
 /* --------------------------------------------------------------------------
    6. CONCEPT NAVIGATION (Section 5)
