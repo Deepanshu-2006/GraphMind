@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { ArrowRight, AlertCircle } from 'lucide-react';
+import { Plus, Minus, AlertCircle, Edit3, Check } from 'lucide-react';
 import type { KnowledgeGraph } from '../../types/knowledgeGraph';
 import {
   loadAssessmentSetupConfig,
@@ -25,20 +25,13 @@ export interface QuestionCountOption {
   actualCount: number;
 }
 
-export type TimePresetValue = 5 | 10 | 20 | 'custom';
-
-export interface TimePresetOption {
-  id: TimePresetValue;
-  label: string;
-  minutes: number | null;
+/**
+ * Format any integer to 2 digits (e.g. 5 -> '05')
+ */
+export function formatTwoDigits(val: number): string {
+  const safe = Math.max(0, Math.floor(val));
+  return safe.toString().padStart(2, '0');
 }
-
-export const TIME_PRESET_OPTIONS: TimePresetOption[] = [
-  { id: 5, label: '5 min', minutes: 5 },
-  { id: 10, label: '10 min', minutes: 10 },
-  { id: 20, label: '20 min', minutes: 20 },
-  { id: 'custom', label: 'Custom', minutes: null }
-];
 
 /**
  * Computes available question count presets based on the maximum candidate questions
@@ -107,6 +100,186 @@ export function computeQuestionCountOptions(maxAvailable: number): QuestionCount
   return options;
 }
 
+/**
+ * Curved Mechanical Reel Component for Minutes and Seconds
+ * Uses cylindrical 3D rotation, scaling, and smooth mechanical translation.
+ */
+interface CurvedReelProps {
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  onChange: (val: number) => void;
+  onIncrement: () => void;
+  onDecrement: () => void;
+  label: string;
+  unit: string;
+  disabled?: boolean;
+}
+
+function CurvedReel({
+  value,
+  min,
+  max,
+  onChange,
+  onIncrement,
+  onDecrement,
+  label,
+  unit,
+  disabled
+}: CurvedReelProps) {
+  const shouldReduceMotion = useReducedMotion();
+  const lastWheelTimeRef = useRef<number>(0);
+  const touchStartYRef = useRef<number | null>(null);
+
+  // Visible slots around the center: -2, -1, 0, 1, 2
+  const visibleOffsets = [-2, -1, 0, 1, 2];
+
+  // Wheel / Trackpad scroll interaction
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (disabled) return;
+    e.preventDefault();
+    const now = Date.now();
+    if (now - lastWheelTimeRef.current < 50) return; // Prevent runaway scrolling
+    lastWheelTimeRef.current = now;
+
+    if (e.deltaY < 0) {
+      onIncrement();
+    } else if (e.deltaY > 0) {
+      onDecrement();
+    }
+  };
+
+  // Keyboard navigation on reel container
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (disabled) return;
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      onIncrement();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      onDecrement();
+    } else if (e.key === 'PageUp') {
+      e.preventDefault();
+      onChange(Math.min(max, value + 5));
+    } else if (e.key === 'PageDown') {
+      e.preventDefault();
+      onChange(Math.max(min, value - 5));
+    }
+  };
+
+  // Touch swipe interactions
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (disabled || e.touches.length === 0) return;
+    touchStartYRef.current = e.touches[0].clientY;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (disabled || touchStartYRef.current === null || e.touches.length === 0) return;
+    const currentY = e.touches[0].clientY;
+    const deltaY = currentY - touchStartYRef.current;
+    if (Math.abs(deltaY) > 20) {
+      if (deltaY < 0) {
+        onDecrement();
+      } else {
+        onIncrement();
+      }
+      touchStartYRef.current = currentY;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    touchStartYRef.current = null;
+  };
+
+  return (
+    <div className="curved-reel-column">
+      {/* Quick Plus Control */}
+      <button
+        type="button"
+        className="curved-reel-quick-btn"
+        onClick={onIncrement}
+        disabled={disabled || value >= max}
+        title={`Increase ${label}`}
+        aria-label={`Increase ${label}`}
+      >
+        <Plus size={12} strokeWidth={2.4} aria-hidden="true" />
+      </button>
+
+      {/* 3D Curved Cylindrical Viewport */}
+      <div
+        className="curved-reel-viewport"
+        onWheel={handleWheel}
+        onKeyDown={handleKeyDown}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        tabIndex={disabled ? -1 : 0}
+        role="spinbutton"
+        aria-label={label}
+        aria-valuenow={value}
+        aria-valuemin={min}
+        aria-valuemax={max}
+      >
+        {/* Active Viewing Aperture Bracket */}
+        <div className="curved-reel-center-bracket" aria-hidden="true" />
+
+        {/* Cylindrical Number Ring */}
+        <div className="curved-reel-slots-wrap">
+          {visibleOffsets.map((offset) => {
+            const slotVal = value + offset;
+            const isWithinBounds = slotVal >= min && slotVal <= max;
+            const absOffset = Math.abs(offset);
+
+            // Cylindrical rotation and distance scaling
+            const rotateX = offset * 24; // degrees
+            const scale = absOffset === 0 ? 1 : absOffset === 1 ? 0.82 : 0.65;
+            const opacity = absOffset === 0 ? 1 : absOffset === 1 ? 0.40 : 0.16;
+
+            return (
+              <div
+                key={offset}
+                className={`curved-reel-slot ${offset === 0 ? 'is-center' : 'is-neighbor'}`}
+                style={{
+                  transform: shouldReduceMotion
+                    ? undefined
+                    : `rotateX(${rotateX}deg) scale(${scale})`,
+                  opacity: isWithinBounds ? opacity : 0,
+                  pointerEvents: isWithinBounds ? 'auto' : 'none'
+                }}
+                onClick={() => {
+                  if (isWithinBounds && offset !== 0) {
+                    onChange(slotVal);
+                  }
+                }}
+              >
+                <span className="curved-reel-slot-num">
+                  {isWithinBounds ? formatTwoDigits(slotVal) : '--'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Quick Minus Control */}
+      <button
+        type="button"
+        className="curved-reel-quick-btn"
+        onClick={onDecrement}
+        disabled={disabled || value <= min}
+        title={`Decrease ${label}`}
+        aria-label={`Decrease ${label}`}
+      >
+        <Minus size={12} strokeWidth={2.4} aria-hidden="true" />
+      </button>
+
+      {/* Restrained Sub-Label */}
+      <span className="curved-reel-unit-label">{unit}</span>
+    </div>
+  );
+}
+
 export function AssessmentSetupModal({
   isOpen,
   graph,
@@ -125,16 +298,20 @@ export function AssessmentSetupModal({
   // Selected question count ('all' or number)
   const [selectedQuestionValue, setSelectedQuestionValue] = useState<number | 'all'>('all');
 
-  // Selected time limit preset (5, 10, 20, 'custom')
-  const [selectedTimePreset, setSelectedTimePreset] = useState<TimePresetValue>(10);
+  // Custom Animated Timer State: Minutes and Seconds
+  const [minutes, setMinutes] = useState<number>(10);
+  const [seconds, setSeconds] = useState<number>(0);
 
-  // Custom time limit input in minutes
-  const [customMinutesText, setCustomMinutesText] = useState<string>('15');
+  // Direct Numeric Entry Toggle & Input States
+  const [isDirectEntry, setIsDirectEntry] = useState<boolean>(false);
+  const [directMinText, setDirectMinText] = useState<string>('10');
+  const [directSecText, setDirectSecText] = useState<string>('00');
 
   // Load and revalidate persisted settings on mount or when graph/capacity changes
   useEffect(() => {
     if (!isOpen) {
       setIsSubmitting(false);
+      setIsDirectEntry(false);
       return;
     }
 
@@ -149,35 +326,29 @@ export function AssessmentSetupModal({
         if (matchingOption) {
           setSelectedQuestionValue(matchingOption.value);
         } else if (persisted.questionCount <= maxAvailableQuestions) {
-          // Closest valid option or 'all'
           setSelectedQuestionValue('all');
         } else {
-          // Stale value exceeds new graph capacity: pick valid default (10 if available, else closest)
           const defaultTen = questionOptions.find(o => o.value === 10);
           setSelectedQuestionValue(defaultTen ? defaultTen.value : questionOptions[questionOptions.length - 1].value);
         }
       } else {
-        // Default when no valid persistence: 10 if available, else 'all'
         const defaultTen = questionOptions.find(o => o.value === 10);
         setSelectedQuestionValue(defaultTen ? defaultTen.value : 'all');
       }
     }
 
-    // 2. Revalidate time limit
-    if (persisted) {
-      if (persisted.isCustomTime && persisted.timeLimitMinutes) {
-        setSelectedTimePreset('custom');
-        setCustomMinutesText(String(persisted.timeLimitMinutes));
-      } else if ([5, 10, 20].includes(persisted.timeLimitMinutes)) {
-        setSelectedTimePreset(persisted.timeLimitMinutes as TimePresetValue);
-      } else if (persisted.timeLimitMinutes > 0 && persisted.timeLimitMinutes <= 180) {
-        setSelectedTimePreset('custom');
-        setCustomMinutesText(String(persisted.timeLimitMinutes));
-      } else {
-        setSelectedTimePreset(10);
-      }
+    // 2. Restore duration from persisted setting or default to 10:00
+    if (persisted?.timeLimitMinutes && persisted.timeLimitMinutes > 0) {
+      const initialMinutes = Math.min(180, Math.max(1, persisted.timeLimitMinutes));
+      setMinutes(initialMinutes);
+      setSeconds(0);
+      setDirectMinText(String(initialMinutes));
+      setDirectSecText('00');
     } else {
-      setSelectedTimePreset(10);
+      setMinutes(10);
+      setSeconds(0);
+      setDirectMinText('10');
+      setDirectSecText('00');
     }
   }, [isOpen, graph?.id, maxAvailableQuestions, questionOptions]);
 
@@ -191,25 +362,84 @@ export function AssessmentSetupModal({
     return matched ? matched.actualCount : maxAvailableQuestions;
   }, [selectedQuestionValue, questionOptions, maxAvailableQuestions]);
 
-  // Validate custom duration
-  const parsedCustomMinutes = parseInt(customMinutesText.trim(), 10);
-  const isCustomTimeValid = useMemo(() => {
-    if (selectedTimePreset !== 'custom') return true;
-    if (isNaN(parsedCustomMinutes)) return false;
-    if (parsedCustomMinutes < 1 || parsedCustomMinutes > 180) return false;
-    return Number.isInteger(Number(customMinutesText.trim()));
-  }, [selectedTimePreset, customMinutesText, parsedCustomMinutes]);
+  // Total assessment duration in seconds
+  const totalSeconds = useMemo(() => {
+    return minutes * 60 + seconds;
+  }, [minutes, seconds]);
 
-  // Effective time limit in minutes
-  const effectiveTimeMinutes = useMemo(() => {
-    if (selectedTimePreset === 'custom') {
-      return isCustomTimeValid ? parsedCustomMinutes : 10;
-    }
-    return selectedTimePreset;
-  }, [selectedTimePreset, isCustomTimeValid, parsedCustomMinutes]);
+  // Validation: minimum duration is 1 minute (60s), maximum is 180 minutes (10,800s)
+  const isTimeValid = totalSeconds >= 60 && totalSeconds <= 180 * 60;
+  const canBeginAssessment = maxAvailableQuestions >= 3 && isTimeValid && !isSubmitting;
 
-  // Can assessment begin
-  const canBeginAssessment = maxAvailableQuestions >= 3 && isCustomTimeValid && !isSubmitting;
+  // Increment / Decrement handlers for Minutes
+  const handleIncrementMinutes = useCallback(() => {
+    setMinutes(prev => {
+      const next = Math.min(180, prev + 1);
+      setDirectMinText(String(next));
+      return next;
+    });
+  }, []);
+
+  const handleDecrementMinutes = useCallback(() => {
+    setMinutes(prev => {
+      const next = Math.max(0, prev - 1);
+      setDirectMinText(String(next));
+      return next;
+    });
+  }, []);
+
+  // Increment / Decrement handlers for Seconds (15-second adjustments)
+  const handleIncrementSeconds = useCallback(() => {
+    setSeconds(prev => {
+      let next = prev + 15;
+      if (next >= 60) {
+        next = 0;
+        setMinutes(m => {
+          const nextM = Math.min(180, m + 1);
+          setDirectMinText(String(nextM));
+          return nextM;
+        });
+      }
+      setDirectSecText(formatTwoDigits(next));
+      return next;
+    });
+  }, []);
+
+  const handleDecrementSeconds = useCallback(() => {
+    setSeconds(prev => {
+      let next = prev - 15;
+      if (next < 0) {
+        next = 45;
+        setMinutes(m => {
+          const nextM = Math.max(0, m - 1);
+          setDirectMinText(String(nextM));
+          return nextM;
+        });
+      }
+      setDirectSecText(formatTwoDigits(next));
+      return next;
+    });
+  }, []);
+
+  // Commit direct entry values
+  const handleApplyDirectEntry = () => {
+    const parsedMin = parseInt(directMinText.trim(), 10);
+    const parsedSec = parseInt(directSecText.trim(), 10);
+
+    const safeMin = isNaN(parsedMin) ? 10 : Math.min(180, Math.max(0, parsedMin));
+    const safeSec = isNaN(parsedSec) ? 0 : Math.min(59, Math.max(0, parsedSec));
+
+    setMinutes(safeMin);
+    setSeconds(safeSec);
+    setDirectMinText(String(safeMin));
+    setDirectSecText(formatTwoDigits(safeSec));
+    setIsDirectEntry(false);
+  };
+
+  // Format time limit for session summary
+  const formattedTimeDisplay = useMemo(() => {
+    return `${formatTwoDigits(minutes)}:${formatTwoDigits(seconds)}`;
+  }, [minutes, seconds]);
 
   // Handle Begin assessment click with duplicate submission protection
   const handleBegin = useCallback(() => {
@@ -217,28 +447,27 @@ export function AssessmentSetupModal({
     setIsSubmitting(true);
 
     // Persist validated settings
+    const roundedMinutes = Math.max(1, Math.round(totalSeconds / 60));
     saveAssessmentSetupConfig({
       questionCount: selectedQuestionValue,
-      timeLimitMinutes: effectiveTimeMinutes,
-      isCustomTime: selectedTimePreset === 'custom'
+      timeLimitMinutes: roundedMinutes,
+      isCustomTime: true
     });
 
     onBeginAssessment({
       questionCount: effectiveQuestionCount,
-      timeLimitSeconds: effectiveTimeMinutes * 60
+      timeLimitSeconds: totalSeconds
     });
   }, [
     canBeginAssessment,
     isSubmitting,
     selectedQuestionValue,
-    effectiveTimeMinutes,
-    selectedTimePreset,
+    totalSeconds,
     effectiveQuestionCount,
     onBeginAssessment
   ]);
 
   // Keyboard navigation: Escape closes modal, Enter starts if valid & not in input
-  const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (!isOpen) return;
 
@@ -247,7 +476,7 @@ export function AssessmentSetupModal({
         e.preventDefault();
         onCancel();
       } else if (e.key === 'Enter') {
-        const isInputFocused = document.activeElement === inputRef.current;
+        const isInputFocused = document.activeElement?.tagName === 'INPUT';
         if (!isInputFocused && canBeginAssessment) {
           e.preventDefault();
           handleBegin();
@@ -289,14 +518,14 @@ export function AssessmentSetupModal({
               <span>CONFIGURE ASSESSMENT</span>
             </div>
 
-            {/* 2. Heading */}
+            {/* 2. Main Heading */}
             <h2 id="setup-modal-heading" className="setup-modal-heading">
               Make it your own.
             </h2>
 
             {/* 3. Description */}
             <p id="setup-modal-description" className="setup-modal-description">
-              Choose how many questions to attempt and how much time you want.
+              Choose your questions and set a time that works for you.
             </p>
 
             {/* Empty Edge Case Alert: No valid questions */}
@@ -315,10 +544,10 @@ export function AssessmentSetupModal({
             {/* 4. Section: NUMBER OF QUESTIONS */}
             <div className="setup-section-block">
               <div className="setup-section-header">
-                <span className="setup-section-title">NUMBER OF QUESTIONS</span>
+                <h3 className="setup-section-title">Number of questions</h3>
                 {maxAvailableQuestions >= 3 && (
                   <span className="setup-section-hint">
-                    {maxAvailableQuestions} available
+                    {maxAvailableQuestions} available in graph
                   </span>
                 )}
               </div>
@@ -362,114 +591,171 @@ export function AssessmentSetupModal({
               )}
             </div>
 
-            {/* 5. Section: TIME LIMIT */}
+            {/* 5. Section: TIME LIMIT (Curved Mechanical Rotating Reels) */}
             <div className="setup-section-block">
               <div className="setup-section-header">
-                <span className="setup-section-title">TIME LIMIT</span>
-                <span className="setup-section-hint">Total exam duration</span>
-              </div>
-
-              <div
-                className="setup-pill-track"
-                role="radiogroup"
-                aria-label="Time limit presets"
-              >
-                {TIME_PRESET_OPTIONS.map((opt) => {
-                  const isSelected = selectedTimePreset === opt.id;
-                  return (
-                    <button
-                      key={String(opt.id)}
-                      type="button"
-                      role="radio"
-                      aria-checked={isSelected}
-                      className={`setup-pill-btn ${isSelected ? 'is-active' : ''}`}
-                      onClick={() => setSelectedTimePreset(opt.id)}
-                    >
-                      {isSelected && (
-                        <motion.div
-                          layoutId={shouldReduceMotion ? undefined : 'setupTimeActivePill'}
-                          className="setup-pill-active-bg"
-                          transition={{
-                            duration: 0.28,
-                            ease: [0.22, 1, 0.36, 1]
-                          }}
-                        />
-                      )}
-                      <span className="setup-pill-label">{opt.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Custom Time Numeric Input */}
-              {selectedTimePreset === 'custom' && (
-                <div className="setup-custom-time-zone">
-                  <div className="setup-custom-input-row">
-                    <label htmlFor="custom-duration-input" className="setup-custom-label">
-                      Duration in minutes
-                    </label>
-                    <div className="setup-custom-input-wrap">
-                      <input
-                        ref={inputRef}
-                        id="custom-duration-input"
-                        type="number"
-                        min="1"
-                        max="180"
-                        step="1"
-                        value={customMinutesText}
-                        onChange={(e) => setCustomMinutesText(e.target.value)}
-                        placeholder="10"
-                        className={`setup-custom-input ${!isCustomTimeValid ? 'has-error' : ''}`}
-                        aria-invalid={!isCustomTimeValid}
-                        aria-describedby={!isCustomTimeValid ? 'custom-duration-error' : undefined}
-                      />
-                      <span className="setup-custom-unit">min</span>
-                    </div>
-                  </div>
-
-                  {!isCustomTimeValid && (
-                    <span id="custom-duration-error" className="setup-custom-error-text" role="alert">
-                      Please enter a duration between 1 and 180 minutes.
-                    </span>
+                <h3 className="setup-section-title">Time limit</h3>
+                <button
+                  type="button"
+                  className="setup-direct-toggle-btn"
+                  onClick={() => setIsDirectEntry(prev => !prev)}
+                  title={isDirectEntry ? 'Switch to wheel picker' : 'Type duration directly'}
+                  aria-label={isDirectEntry ? 'Switch to wheel picker' : 'Type duration directly'}
+                >
+                  {isDirectEntry ? (
+                    <>
+                      <Check size={11} aria-hidden="true" />
+                      <span>Wheel mode</span>
+                    </>
+                  ) : (
+                    <>
+                      <Edit3 size={11} aria-hidden="true" />
+                      <span>Direct entry</span>
+                    </>
                   )}
+                </button>
+              </div>
+
+              {/* Curved Mechanical Number Selector Instrument */}
+              <div className="curved-timer-instrument" role="group" aria-label="Assessment time selector">
+                <div className="curved-timer-top-label">
+                  <span>TOTAL ASSESSMENT TIME</span>
                 </div>
-              )}
+
+                {!isDirectEntry ? (
+                  <div className="curved-timer-reels-row">
+                    {/* Minutes Reel */}
+                    <CurvedReel
+                      value={minutes}
+                      min={0}
+                      max={180}
+                      onChange={(m) => {
+                        setMinutes(m);
+                        setDirectMinText(String(m));
+                      }}
+                      onIncrement={handleIncrementMinutes}
+                      onDecrement={handleDecrementMinutes}
+                      label="Minutes"
+                      unit="MINUTES"
+                    />
+
+                    {/* Central Separator Colon */}
+                    <div className="curved-timer-separator-wrap" aria-hidden="true">
+                      <span className="curved-timer-separator-colon">:</span>
+                    </div>
+
+                    {/* Seconds Reel */}
+                    <CurvedReel
+                      value={seconds}
+                      min={0}
+                      max={59}
+                      onChange={(s) => {
+                        setSeconds(s);
+                        setDirectSecText(formatTwoDigits(s));
+                      }}
+                      onIncrement={handleIncrementSeconds}
+                      onDecrement={handleDecrementSeconds}
+                      label="Seconds"
+                      unit="SECONDS"
+                    />
+                  </div>
+                ) : (
+                  /* Accessible Direct Numeric Entry Mode */
+                  <div className="curved-timer-direct-entry-box">
+                    <div className="direct-entry-fields-row">
+                      <div className="direct-entry-field">
+                        <label htmlFor="direct-entry-min" className="direct-entry-label">
+                          Minutes
+                        </label>
+                        <input
+                          id="direct-entry-min"
+                          type="number"
+                          min="0"
+                          max="180"
+                          value={directMinText}
+                          onChange={(e) => setDirectMinText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleApplyDirectEntry();
+                          }}
+                          className="direct-entry-input"
+                          autoFocus
+                        />
+                      </div>
+
+                      <span className="direct-entry-colon" aria-hidden="true">:</span>
+
+                      <div className="direct-entry-field">
+                        <label htmlFor="direct-entry-sec" className="direct-entry-label">
+                          Seconds
+                        </label>
+                        <input
+                          id="direct-entry-sec"
+                          type="number"
+                          min="0"
+                          max="59"
+                          value={directSecText}
+                          onChange={(e) => setDirectSecText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleApplyDirectEntry();
+                          }}
+                          className="direct-entry-input"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="direct-entry-confirm-btn"
+                      onClick={handleApplyDirectEntry}
+                    >
+                      Apply duration
+                    </button>
+                  </div>
+                )}
+
+                {/* Validation helper text if duration < 1 minute */}
+                {totalSeconds < 60 && (
+                  <span className="setup-timer-validation-hint" role="alert">
+                    Minimum assessment duration is 1 minute (01:00).
+                  </span>
+                )}
+              </div>
             </div>
 
-            {/* 6. Section: LIVE SESSION SUMMARY */}
-            <div className="setup-summary-card" role="region" aria-label="Assessment session summary">
-              <div className="setup-summary-item">
-                <span className="setup-summary-label">KNOWLEDGE GRAPH</span>
-                <span className="setup-summary-value graph-name" title={graph?.name || 'Knowledge Graph'}>
+            {/* 6. Section: REDESIGNED MINIMAL SESSION SUMMARY */}
+            <div className="setup-session-summary" role="region" aria-label="Assessment session summary">
+              <div className="summary-col">
+                <span className="summary-meta-label">KNOWLEDGE GRAPH</span>
+                <span className="summary-meta-val graph-name" title={graph?.name || 'Knowledge Graph'}>
                   {graph?.name || 'Knowledge Graph'}
                 </span>
               </div>
 
-              <div className="setup-summary-item">
-                <span className="setup-summary-label">QUESTIONS</span>
-                <span className="setup-summary-value">
+              <div className="summary-col">
+                <span className="summary-meta-label">QUESTIONS</span>
+                <span className="summary-meta-val">
                   {effectiveQuestionCount} {effectiveQuestionCount === 1 ? 'question' : 'questions'}
                 </span>
               </div>
 
-              <div className="setup-summary-item">
-                <span className="setup-summary-label">TIME LIMIT</span>
-                <span className="setup-summary-value">
-                  {effectiveTimeMinutes} {effectiveTimeMinutes === 1 ? 'minute' : 'minutes'}
+              <div className="summary-col">
+                <span className="summary-meta-label">TIME LIMIT</span>
+                <span className="summary-meta-val">
+                  {formattedTimeDisplay}
                 </span>
               </div>
 
-              <div className="setup-summary-item">
-                <span className="setup-summary-label">FORMAT</span>
-                <span className="setup-summary-value">Multiple choice</span>
+              <div className="summary-col">
+                <span className="summary-meta-label">FORMAT</span>
+                <span className="summary-meta-val">Multiple choice</span>
               </div>
             </div>
 
-            {/* 7. Modal Footer Actions */}
+            {/* 7. Modal Footer: Minimal Text-Only Actions */}
             <div className="setup-modal-actions">
               <button
                 type="button"
-                className="setup-cancel-btn"
+                className="setup-cancel-text-btn"
                 onClick={onCancel}
                 disabled={isSubmitting}
               >
@@ -478,13 +764,20 @@ export function AssessmentSetupModal({
 
               <button
                 type="button"
-                className={`setup-begin-btn ${isSubmitting ? 'is-submitting' : ''}`}
+                className={`setup-begin-text-btn ${isSubmitting ? 'is-submitting' : ''}`}
                 onClick={handleBegin}
                 disabled={!canBeginAssessment}
                 aria-label="Begin assessment"
               >
-                <span>{isSubmitting ? 'Initializing...' : 'Begin assessment'}</span>
-                <ArrowRight size={14} className="setup-begin-arrow" aria-hidden="true" />
+                <span className="setup-begin-text-content">
+                  <span className="setup-begin-label">
+                    {isSubmitting ? 'Initializing...' : 'Begin assessment'}
+                  </span>
+                  <span className="setup-begin-arrow" aria-hidden="true">
+                    →
+                  </span>
+                </span>
+                <span className="setup-begin-underline" aria-hidden="true" />
               </button>
             </div>
           </motion.div>
