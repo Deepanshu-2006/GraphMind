@@ -4567,19 +4567,24 @@
   display: inline-block;
 }
 
+.setup-modal-header-group {
+  margin: 0;
+  padding: 0;
+}
+
 .setup-modal-heading {
-  font-family: var(--font-display, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
-  font-size: 28px;
+  font-family: var(--font-display, 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif);
+  font-size: 31px;
   font-weight: 600;
-  line-height: 1.15;
+  line-height: 1.12;
   letter-spacing: -0.03em;
   color: #FFFFFF;
   margin: 0 0 6px;
 }
 
 .setup-modal-description {
-  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
-  font-size: 13.5px;
+  font-family: var(--font-body, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
+  font-size: 14px;
   line-height: 1.45;
   color: #8E8E93;
   margin: 0 0 16px;
@@ -4632,18 +4637,17 @@
 }
 
 .setup-section-title {
-  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
+  font-family: var(--font-body, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
   font-size: 14px;
-  font-weight: 550;
-  color: #EDEDED;
+  font-weight: 500;
+  color: #E4E4E7;
   letter-spacing: -0.01em;
-  line-height: 1.2;
   margin: 0;
 }
 
 .setup-section-hint {
   font-family: var(--font-mono, monospace);
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 400;
   color: #71717A;
   letter-spacing: 0.02em;
@@ -4745,17 +4749,11 @@
   flex-direction: column;
   align-items: center;
   position: relative;
+  transition: border-color 0.24s ease;
 }
 
-.curved-timer-top-label {
-  font-family: var(--font-mono, monospace);
-  font-size: 9px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: #666666;
-  margin-bottom: 6px;
-  user-select: none;
+.curved-timer-instrument:hover {
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .curved-timer-reels-row {
@@ -4784,12 +4782,18 @@
   justify-content: center;
   color: #71717A;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: border-color 0.18s ease, color 0.18s ease, transform 0.12s ease;
   outline: none;
 }
 
 .curved-reel-quick-btn:hover:not(:disabled) {
   border-color: rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+}
+
+.curved-reel-quick-btn:active:not(:disabled) {
+  transform: scale(0.92);
+  border-color: rgba(255, 255, 255, 0.28);
   color: #FFFFFF;
 }
 
@@ -4867,17 +4871,19 @@
 }
 
 .curved-reel-slot-num {
-  font-family: var(--font-display, sans-serif);
-  font-size: 32px;
+  font-family: var(--font-display, 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif);
+  font-size: 34px;
   font-weight: 500;
   letter-spacing: -0.02em;
   color: #8E8E93;
+  transition: color 0.22s ease, font-weight 0.22s ease;
+  will-change: transform, opacity;
+  display: block;
 }
 
 .curved-reel-slot.is-center .curved-reel-slot-num {
   color: #FFFFFF;
   font-weight: 600;
-  font-size: 36px;
 }
 
 .curved-timer-separator-wrap {
@@ -4978,51 +4984,47 @@
   margin-top: 8px;
 }
 
-/* 4. Refined Assessment Summary (2-Row × 2-Column Grid) */
-.setup-session-summary {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  row-gap: 12px;
-  column-gap: 28px;
-  padding: 13px 0 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  margin-top: 13px;
-  margin-bottom: 18px;
-}
-
-.summary-col {
+/* 4. Quiet Horizontal Contextual Summary Line */
+.setup-summary-line {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.summary-meta-label {
-  font-family: var(--font-mono, monospace);
-  font-size: 9.5px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: #71717A;
-  white-space: nowrap;
-}
-
-.summary-meta-val {
-  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
+  align-items: baseline;
+  justify-content: center;
+  gap: 7px;
+  padding: 12px 0 0;
+  margin-top: 10px;
+  margin-bottom: 18px;
+  font-family: var(--font-body, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
   font-size: 14px;
-  font-weight: 500;
+  line-height: 1.4;
+  text-align: center;
+  flex-wrap: wrap;
+}
+
+.setup-summary-graph {
   color: #F4F4F5;
-  white-space: nowrap;
+  font-weight: 500;
+  max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
-  letter-spacing: -0.01em;
-  line-height: 1.25;
+  white-space: nowrap;
 }
 
-.summary-meta-val.graph-name {
-  color: #FFFFFF;
-  font-weight: 600;
-  font-size: 14.5px;
+.setup-summary-sep {
+  color: #52525B;
+  font-size: 14px;
+  user-select: none;
+  padding: 0 2px;
+}
+
+.setup-summary-questions {
+  color: #8E8E93;
+  font-weight: 400;
+}
+
+.setup-summary-time {
+  color: #F4F4F5;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 /* 5. Minimal Text-Only Modal Footer Actions */
@@ -5037,8 +5039,9 @@
   background: transparent;
   border: none;
   color: #8E8E93;
-  font-size: 13.5px;
-  font-weight: 400;
+  font-family: var(--font-body, 'Inter', -apple-system, sans-serif);
+  font-size: 14px;
+  font-weight: 500;
   padding: 6px 0;
   cursor: pointer;
   transition: color 0.18s ease;

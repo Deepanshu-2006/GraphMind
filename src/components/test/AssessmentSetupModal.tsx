@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
 import { Plus, Minus, AlertCircle, Edit3, Check } from 'lucide-react';
 import type { KnowledgeGraph } from '../../types/knowledgeGraph';
 import {
@@ -137,6 +137,8 @@ function CurvedReel({
   const displayFloatRef = useRef<number>(value);
   const rafIdRef = useRef<number | null>(null);
   const lastWheelTimeRef = useRef<number>(0);
+  const targetValueRef = useRef<number>(value);
+  const lastEmittedValueRef = useRef<number>(value);
 
   // Synchronize displayFloatRef
   useEffect(() => {
@@ -151,12 +153,13 @@ function CurvedReel({
   } | null>(null);
   const velocityHistoryRef = useRef<Array<{ y: number; time: number }>>([]);
 
-  // Smooth mechanical animation to target value using easeOutCubic
-  const animateToValue = useCallback((target: number, durationMs = 240) => {
+  // Smooth mechanical animation to target value using weighted quartic ease-out
+  const animateToValue = useCallback((target: number, durationMs = 260) => {
     if (rafIdRef.current) {
       cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
     }
+    targetValueRef.current = target;
     if (shouldReduceMotion) {
       setDisplayFloat(target);
       displayFloatRef.current = target;
@@ -173,8 +176,8 @@ function CurvedReel({
     const tick = (now: number) => {
       const elapsed = now - startTime;
       const progress = Math.min(1, elapsed / durationMs);
-      // easeOutCubic: 1 - (1 - t)^3
-      const eased = 1 - Math.pow(1 - progress, 3);
+      // Refined quartic ease-out: 1 - (1 - t)^4 with tactile mechanical deceleration
+      const eased = 1 - Math.pow(1 - progress, 4);
       const current = start + delta * eased;
       setDisplayFloat(current);
       displayFloatRef.current = current;
@@ -192,7 +195,7 @@ function CurvedReel({
   // Synchronize when value changes externally (e.g. initial load, direct entry, plus/minus)
   useEffect(() => {
     if (dragStartRef.current) return;
-    if (Math.abs(displayFloatRef.current - value) > 0.001) {
+    if (Math.abs(displayFloatRef.current - value) > 0.001 && targetValueRef.current !== value) {
       animateToValue(value, 260);
     }
   }, [value, animateToValue]);
@@ -218,6 +221,7 @@ function CurvedReel({
     } catch {
       // safe fallback if pointer capture is not supported
     }
+    e.preventDefault();
     setIsDragging(true);
     dragStartRef.current = {
       startY: e.clientY,
@@ -234,10 +238,10 @@ function CurvedReel({
     const now = performance.now();
     const deltaY = e.clientY - dragStartRef.current.startY;
 
-    // Track rolling velocity within the last 120ms
+    // Track rolling velocity within the last 100ms
     velocityHistoryRef.current.push({ y: e.clientY, time: now });
     velocityHistoryRef.current = velocityHistoryRef.current.filter(
-      s => now - s.time <= 120
+      s => now - s.time <= 100
     );
 
     // Continuous translation math:
@@ -246,20 +250,27 @@ function CurvedReel({
     const deltaSlots = deltaY / SLOT_HEIGHT;
     let nextFloat = dragStartRef.current.startFloat - deltaSlots;
 
-    // Boundary resistance: soft dampening when pulled beyond min/max
+    // Boundary resistance: soft elastic dampening when pulled beyond min/max
     if (nextFloat < min) {
       const over = min - nextFloat;
-      nextFloat = min - Math.sqrt(over) * 0.35;
+      nextFloat = min - Math.sqrt(over) * 0.28;
     } else if (nextFloat > max) {
       const over = nextFloat - max;
-      nextFloat = max + Math.sqrt(over) * 0.35;
+      nextFloat = max + Math.sqrt(over) * 0.28;
     }
 
     setDisplayFloat(nextFloat);
     displayFloatRef.current = nextFloat;
+
+    // Synchronize value smoothly as user drags across slots
+    const liveInt = Math.max(min, Math.min(max, Math.round(nextFloat)));
+    if (liveInt !== lastEmittedValueRef.current) {
+      lastEmittedValueRef.current = liveInt;
+      onChange(liveInt);
+    }
   };
 
-  // Pointer Up / Cancel: Momentum calculation & snap to nearest valid value
+  // Pointer Up / Cancel: Controlled momentum calculation & snap to nearest valid value
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragStartRef.current || dragStartRef.current.pointerId !== e.pointerId) return;
 
@@ -273,8 +284,8 @@ function CurvedReel({
 
     setIsDragging(false);
 
-    // Estimate release velocity
-    let vy = 0; // px / ms
+    // Estimate release velocity (px/ms)
+    let vy = 0;
     const samples = velocityHistoryRef.current;
     if (samples.length >= 2) {
       const first = samples[0];
@@ -288,23 +299,23 @@ function CurvedReel({
     dragStartRef.current = null;
     velocityHistoryRef.current = [];
 
-    // Controlled momentum calculation (clamped to +/- 3 slots)
+    // Controlled flick: max 1 slot momentum (never excessive free-spinning)
     let momentumSlots = 0;
-    if (Math.abs(vy) > 0.18) {
-      momentumSlots = (vy * 85) / SLOT_HEIGHT;
-      momentumSlots = Math.max(-3, Math.min(3, momentumSlots));
+    if (Math.abs(vy) > 0.35) {
+      momentumSlots = vy > 0 ? -1 : 1;
     }
 
     const currentPos = displayFloatRef.current;
     const targetWithMomentum = currentPos - momentumSlots;
     const snapped = Math.max(min, Math.min(max, Math.round(targetWithMomentum)));
 
-    // Immediately trigger change to update session summary
+    lastEmittedValueRef.current = snapped;
     onChange(snapped);
+    targetValueRef.current = snapped;
 
-    // Animate to snapped integer position
+    // Animate to snapped integer position with tactile settling duration (200-300ms)
     const distance = Math.abs(snapped - currentPos);
-    const duration = Math.min(360, Math.max(160, Math.round(distance * 110)));
+    const duration = Math.min(300, Math.max(200, Math.round(200 + distance * 80)));
     animateToValue(snapped, duration);
   };
 
@@ -341,14 +352,16 @@ function CurvedReel({
     }
   };
 
-  // Candidate integers to render around current continuous float
+  // Candidate integers to render around current continuous float (including entry/exit buffers)
   const centerInt = Math.round(displayFloat);
   const slotsToRender = [
+    centerInt - 3,
     centerInt - 2,
     centerInt - 1,
     centerInt,
     centerInt + 1,
-    centerInt + 2
+    centerInt + 2,
+    centerInt + 3
   ];
 
   return (
@@ -391,15 +404,16 @@ function CurvedReel({
             const diff = slotVal - displayFloat;
             const absDiff = Math.abs(diff);
 
-            // Cull slots beyond active viewing aperture (only center and 1 neighbor visible)
-            if (absDiff > 1.45) return null;
+            // Cull slots beyond active viewing aperture (safely outside visible range)
+            if (absDiff > 1.8) return null;
 
-            // Physical projection math: translation, 3D cylindrical rotation, scale, opacity
+            // Physical projection math: translation, 3D cylindrical rotation, continuous scale, continuous opacity
             const yPx = diff * SLOT_HEIGHT;
-            const rotateX = diff * 26; // degrees
-            const scale = Math.max(0.72, 1 - absDiff * 0.22);
+            const rotateX = diff * 24; // degrees
+            const centerProximity = Math.max(0, 1 - Math.min(1, absDiff));
+            const scale = shouldReduceMotion ? 1 : 0.86 + centerProximity * 0.14;
             const opacity = isWithinBounds
-              ? Math.max(0, 1 - Math.pow(absDiff, 1.4) * 0.68)
+              ? Math.max(0, Math.min(1, 1 - Math.pow(absDiff / 1.55, 1.55)))
               : 0;
 
             const isCenter = absDiff < 0.35;
@@ -466,13 +480,13 @@ export function AssessmentSetupModal({
   // Selected question count ('all' or number)
   const [selectedQuestionValue, setSelectedQuestionValue] = useState<number | 'all'>('all');
 
-  // Custom Animated Timer State: Minutes and Seconds
-  const [minutes, setMinutes] = useState<number>(10);
+  // Custom Animated Timer State: Minutes and Seconds (Default: 01:00)
+  const [minutes, setMinutes] = useState<number>(1);
   const [seconds, setSeconds] = useState<number>(0);
 
   // Direct Numeric Entry Toggle & Input States
   const [isDirectEntry, setIsDirectEntry] = useState<boolean>(false);
-  const [directMinText, setDirectMinText] = useState<string>('10');
+  const [directMinText, setDirectMinText] = useState<string>('1');
   const [directSecText, setDirectSecText] = useState<string>('00');
 
   // Load and revalidate persisted settings on mount or when graph/capacity changes
@@ -505,7 +519,7 @@ export function AssessmentSetupModal({
       }
     }
 
-    // 2. Restore duration from persisted setting or default to 10:00
+    // 2. Restore duration from persisted setting or default to 01:00 (1 minute)
     if (persisted?.timeLimitMinutes && persisted.timeLimitMinutes > 0) {
       const initialMinutes = Math.min(180, Math.max(1, persisted.timeLimitMinutes));
       setMinutes(initialMinutes);
@@ -513,9 +527,9 @@ export function AssessmentSetupModal({
       setDirectMinText(String(initialMinutes));
       setDirectSecText('00');
     } else {
-      setMinutes(10);
+      setMinutes(1);
       setSeconds(0);
-      setDirectMinText('10');
+      setDirectMinText('1');
       setDirectSecText('00');
     }
   }, [isOpen, graph?.id, maxAvailableQuestions, questionOptions]);
@@ -550,11 +564,12 @@ export function AssessmentSetupModal({
 
   const handleDecrementMinutes = useCallback(() => {
     setMinutes(prev => {
-      const next = Math.max(0, prev - 1);
+      const minVal = seconds === 0 ? 1 : 0;
+      const next = Math.max(minVal, prev - 1);
       setDirectMinText(String(next));
       return next;
     });
-  }, []);
+  }, [seconds]);
 
   // Increment / Decrement handlers for Seconds (15-second adjustments)
   const handleIncrementSeconds = useCallback(() => {
@@ -577,24 +592,28 @@ export function AssessmentSetupModal({
     setSeconds(prev => {
       let next = prev - 15;
       if (next < 0) {
-        next = 45;
-        setMinutes(m => {
-          const nextM = Math.max(0, m - 1);
-          setDirectMinText(String(nextM));
-          return nextM;
-        });
+        if (minutes <= 1) {
+          next = 0;
+        } else {
+          next = 45;
+          setMinutes(m => {
+            const nextM = Math.max(1, m - 1);
+            setDirectMinText(String(nextM));
+            return nextM;
+          });
+        }
       }
       setDirectSecText(formatTwoDigits(next));
       return next;
     });
-  }, []);
+  }, [minutes]);
 
   // Commit direct entry values
   const handleApplyDirectEntry = () => {
     const parsedMin = parseInt(directMinText.trim(), 10);
     const parsedSec = parseInt(directSecText.trim(), 10);
 
-    const safeMin = isNaN(parsedMin) ? 10 : Math.min(180, Math.max(0, parsedMin));
+    const safeMin = isNaN(parsedMin) ? 1 : Math.min(180, Math.max(0, parsedMin));
     const safeSec = isNaN(parsedSec) ? 0 : Math.min(59, Math.max(0, parsedSec));
 
     setMinutes(safeMin);
@@ -635,6 +654,16 @@ export function AssessmentSetupModal({
     onBeginAssessment
   ]);
 
+  // Prevent background scrolling while modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
   // Keyboard navigation: Escape closes modal, Enter starts if valid & not in input
   useEffect(() => {
     if (!isOpen) return;
@@ -656,16 +685,99 @@ export function AssessmentSetupModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onCancel, canBeginAssessment, handleBegin]);
 
+  // Backdrop animation variants (smooth blur and dark overlay)
+  const backdropVariants: Variants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        duration: shouldReduceMotion ? 0.15 : 0.38,
+        ease: [0.16, 1, 0.3, 1] as const
+      }
+    },
+    exit: {
+      opacity: 0,
+      transition: {
+        duration: 0.2, // 180-240ms range (noticeably faster than opening)
+        ease: [0.22, 1, 0.36, 1] as const
+      }
+    }
+  };
+
+  // Modal dialog arrival into focus (refined ease-out, no bounce or overshoot)
+  const cardVariants: Variants = {
+    hidden: {
+      opacity: 0,
+      y: shouldReduceMotion ? 0 : 14,
+      scale: shouldReduceMotion ? 1 : 0.975
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        duration: shouldReduceMotion ? 0.18 : 0.5, // 500ms (in 450-600ms range)
+        ease: [0.16, 1, 0.3, 1] as const, // pure refined deceleration
+        when: 'beforeChildren',
+        staggerChildren: shouldReduceMotion ? 0 : 0.045, // 45ms between groups (in 35-55ms range)
+        delayChildren: shouldReduceMotion ? 0 : 0.05
+      }
+    },
+    exit: {
+      opacity: 0,
+      y: shouldReduceMotion ? 0 : 8,
+      scale: shouldReduceMotion ? 1 : 0.985,
+      transition: {
+        duration: 0.2,
+        ease: [0.22, 1, 0.36, 1] as const
+      }
+    }
+  };
+
+  // Subtle content reveal variants
+  const revealGroupVariants: Variants = {
+    hidden: {
+      opacity: 0,
+      y: shouldReduceMotion ? 0 : 8
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: shouldReduceMotion ? 0.15 : 0.38,
+        ease: [0.16, 1, 0.3, 1] as const
+      }
+    }
+  };
+
+  // Timer section reveal variants (slightly more noticeable reveal, but restrained)
+  const revealTimerVariants: Variants = {
+    hidden: {
+      opacity: 0,
+      y: shouldReduceMotion ? 0 : 10,
+      scale: shouldReduceMotion ? 1 : 0.99
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        duration: shouldReduceMotion ? 0.15 : 0.44,
+        ease: [0.16, 1, 0.3, 1] as const
+      }
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
         <motion.div
           className="assessment-setup-backdrop"
           onClick={onCancel}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+          variants={backdropVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
           role="presentation"
         >
           <motion.div
@@ -675,42 +787,43 @@ export function AssessmentSetupModal({
             aria-modal="true"
             aria-labelledby="setup-modal-heading"
             aria-describedby="setup-modal-description"
-            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 16 }}
-            animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -12 }}
-            transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
           >
-            {/* 1. Eyebrow */}
-            <div className="setup-modal-eyebrow">
+            {/* 1. Sequence Group 1: Eyebrow */}
+            <motion.div variants={revealGroupVariants} className="setup-modal-eyebrow">
               <span className="setup-eyebrow-marker" aria-hidden="true" />
               <span>CONFIGURE ASSESSMENT</span>
-            </div>
+            </motion.div>
 
-            {/* 2. Main Heading */}
-            <h2 id="setup-modal-heading" className="setup-modal-heading">
-              Make it your own.
-            </h2>
+            {/* 2. Sequence Group 2: Main Heading & Description */}
+            <motion.div variants={revealGroupVariants} className="setup-modal-header-group">
+              <h2 id="setup-modal-heading" className="setup-modal-heading">
+                Make it your own.
+              </h2>
 
-            {/* 3. Description */}
-            <p id="setup-modal-description" className="setup-modal-description">
-              Choose your questions and set a time that works for you.
-            </p>
+              <p id="setup-modal-description" className="setup-modal-description">
+                Choose your questions and set a time that works for you.
+              </p>
 
-            {/* Empty Edge Case Alert: No valid questions */}
-            {maxAvailableQuestions < 3 && (
-              <div className="setup-alert-insufficient" role="alert">
-                <AlertCircle size={15} className="setup-alert-icon" aria-hidden="true" />
-                <div className="setup-alert-content">
-                  <span className="setup-alert-title">Insufficient Questions</span>
-                  <span className="setup-alert-text">
-                    This knowledge graph needs at least 3 candidate questions from extracted concepts to construct an assessment.
-                  </span>
+              {/* Empty Edge Case Alert: No valid questions */}
+              {maxAvailableQuestions < 3 && (
+                <div className="setup-alert-insufficient" role="alert">
+                  <AlertCircle size={15} className="setup-alert-icon" aria-hidden="true" />
+                  <div className="setup-alert-content">
+                    <span className="setup-alert-title">Insufficient Questions</span>
+                    <span className="setup-alert-text">
+                      This knowledge graph needs at least 3 candidate questions from extracted concepts to construct an assessment.
+                    </span>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </motion.div>
 
-            {/* 4. Section: NUMBER OF QUESTIONS */}
-            <div className="setup-section-block">
+            {/* 3. Sequence Group 3: Number of Questions */}
+            <motion.div variants={revealGroupVariants} className="setup-section-block">
               <div className="setup-section-header">
                 <h3 className="setup-section-title">Number of questions</h3>
                 {maxAvailableQuestions >= 3 && (
@@ -757,10 +870,10 @@ export function AssessmentSetupModal({
                   <span>No questions available for this graph</span>
                 </div>
               )}
-            </div>
+            </motion.div>
 
-            {/* 5. Section: TIME LIMIT (Curved Mechanical Rotating Reels) */}
-            <div className="setup-section-block">
+            {/* 4. Sequence Group 4: Time Limit & Curved Reel Instrument */}
+            <motion.div variants={revealTimerVariants} className="setup-section-block">
               <div className="setup-section-header">
                 <h3 className="setup-section-title">Time limit</h3>
                 <button
@@ -784,18 +897,14 @@ export function AssessmentSetupModal({
                 </button>
               </div>
 
-              {/* Curved Mechanical Number Selector Instrument */}
+              {/* Curved Mechanical Number Selector Instrument (Centerpiece) */}
               <div className="curved-timer-instrument" role="group" aria-label="Assessment time selector">
-                <div className="curved-timer-top-label">
-                  <span>TOTAL ASSESSMENT TIME</span>
-                </div>
-
                 {!isDirectEntry ? (
                   <div className="curved-timer-reels-row">
                     {/* Minutes Reel */}
                     <CurvedReel
                       value={minutes}
-                      min={0}
+                      min={seconds === 0 ? 1 : 0}
                       max={180}
                       onChange={(m) => {
                         setMinutes(m);
@@ -888,43 +997,30 @@ export function AssessmentSetupModal({
                   </span>
                 )}
               </div>
-            </div>
+            </motion.div>
 
-            {/* 6. Section: REDESIGNED REFINED ASSESSMENT SUMMARY (2-Row × 2-Column Grid) */}
-            <div className="setup-session-summary" role="region" aria-label="Assessment session summary">
-              {/* Row 1, Col 1: Knowledge graph */}
-              <div className="summary-col">
-                <span className="summary-meta-label">Knowledge graph</span>
-                <span className="summary-meta-val graph-name" title={graph?.name || 'Knowledge Graph'}>
-                  {graph?.name || 'Knowledge Graph'}
-                </span>
-              </div>
+            {/* 5. Sequence Group 5: Quiet Horizontal Contextual Summary Line */}
+            <motion.div
+              variants={revealGroupVariants}
+              className="setup-summary-line"
+              role="region"
+              aria-label="Assessment configuration summary"
+            >
+              <span className="setup-summary-graph" title={graph?.name || 'Knowledge Graph'}>
+                {graph?.name || 'Knowledge Graph'}
+              </span>
+              <span className="setup-summary-sep" aria-hidden="true">·</span>
+              <span className="setup-summary-questions">
+                {effectiveQuestionCount} {effectiveQuestionCount === 1 ? 'question' : 'questions'}
+              </span>
+              <span className="setup-summary-sep" aria-hidden="true">·</span>
+              <span className="setup-summary-time">
+                {formattedTimeDisplay}
+              </span>
+            </motion.div>
 
-              {/* Row 1, Col 2: Questions */}
-              <div className="summary-col">
-                <span className="summary-meta-label">Questions</span>
-                <span className="summary-meta-val" title={`${effectiveQuestionCount} questions`}>
-                  {effectiveQuestionCount}
-                </span>
-              </div>
-
-              {/* Row 2, Col 1: Time limit */}
-              <div className="summary-col">
-                <span className="summary-meta-label">Time limit</span>
-                <span className="summary-meta-val">
-                  {formattedTimeDisplay}
-                </span>
-              </div>
-
-              {/* Row 2, Col 2: Format */}
-              <div className="summary-col">
-                <span className="summary-meta-label">Format</span>
-                <span className="summary-meta-val">Multiple choice</span>
-              </div>
-            </div>
-
-            {/* 7. Modal Footer: Minimal Text-Only Actions */}
-            <div className="setup-modal-actions">
+            {/* 6. Sequence Group 6: Modal Footer Actions */}
+            <motion.div variants={revealGroupVariants} className="setup-modal-actions">
               <button
                 type="button"
                 className="setup-cancel-text-btn"
@@ -951,7 +1047,7 @@ export function AssessmentSetupModal({
                 </span>
                 <span className="setup-begin-underline" aria-hidden="true" />
               </button>
-            </div>
+            </motion.div>
           </motion.div>
         </motion.div>
       )}
