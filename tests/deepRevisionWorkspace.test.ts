@@ -1,4 +1,4 @@
-import test, { describe } from 'node:test';
+import test, { describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -6,6 +6,32 @@ import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { RevisionWorkspace } from '../src/components/revision/RevisionWorkspace';
 import type { KnowledgeGraph } from '../src/types/knowledgeGraph';
+import type { RevisionSessionState } from '../src/types/practice';
+import {
+  createRevisionSession,
+  validateRevisionSession,
+  canNavigatePrev,
+  canNavigateNext,
+  navigatePrev,
+  navigateNext,
+  jumpToIndex,
+  jumpToConceptId,
+  loadRevisionSession,
+  saveRevisionSession,
+  clearRevisionSession
+} from '../src/services/revisionSession';
+import { ASSESSMENT_HISTORY_STORAGE_KEY } from '../src/services/assessmentHistory';
+
+// In-memory backing store for localStorage simulation in Node test runner
+const storageMap = new Map<string, string>();
+if (typeof (globalThis as any).localStorage === 'undefined') {
+  (globalThis as any).localStorage = {
+    getItem: (key: string) => storageMap.get(key) || null,
+    setItem: (key: string, val: string) => storageMap.set(key, String(val)),
+    removeItem: (key: string) => storageMap.delete(key),
+    clear: () => storageMap.clear()
+  };
+}
 
 describe('GraphMind Feature: Deep Revision Workspace (Phase 1 — Foundation)', () => {
   const componentPath = path.resolve(process.cwd(), 'src/components/revision/RevisionWorkspace.tsx');
@@ -479,4 +505,386 @@ describe('GraphMind Feature: Deep Revision Workspace (Phase 1 — Foundation)', 
       assert.ok(cssContent.includes('clamp(26px, 7vw, 34px)'), 'Mobile title font size must scale cleanly with clamp');
     });
   });
+
+  describe('9. Task 03: Revision Session State', () => {
+    beforeEach(() => {
+      storageMap.clear();
+    });
+
+    // Realistic second graph for testing multi-graph isolation
+    const neuralGraph: KnowledgeGraph = {
+      id: 'graph-neural-core',
+      name: 'Neural Architectures',
+      description: 'Foundations of artificial neural networks',
+      nodes: [
+        {
+          id: 'c-perceptron',
+          name: 'Single Layer Perceptron',
+          type: 'foundation',
+          description: 'Linear binary classifier model.',
+          sourceIds: ['src-n1']
+        },
+        {
+          id: 'c-backprop',
+          name: 'Backpropagation',
+          type: 'algorithm',
+          description: 'Gradient calculation through chain rule.',
+          sourceIds: ['src-n2']
+        }
+      ],
+      relationships: [
+        {
+          id: 'rel-perc-backprop',
+          source: 'c-perceptron',
+          target: 'c-backprop',
+          type: 'leads-to',
+          sourceChunkIds: []
+        }
+      ],
+      sources: []
+    };
+
+    test('1. Session Model: identifies graph ID, ordered concept IDs, current index, total, timestamps, and progress', () => {
+      const session = createRevisionSession({
+        graphId: 'graph-os-core',
+        conceptIds: ['c-cpu-sched', 'c-process', 'c-virtual-mem'],
+        currentIndex: 0,
+        currentConceptId: 'c-cpu-sched'
+      });
+
+      assert.equal(session.graphId, 'graph-os-core', 'Session must identify graphId');
+      assert.deepEqual(session.conceptIds, ['c-cpu-sched', 'c-process', 'c-virtual-mem'], 'Must store ordered concept IDs');
+      assert.equal(session.totalConcepts, 3, 'Must identify total concepts');
+      assert.equal(session.currentIndex, 0, 'Must identify current index');
+      assert.equal(session.currentConceptId, 'c-cpu-sched', 'Must identify current concept ID');
+      assert.ok(session.createdAt, 'Must identify createdAt timestamp');
+      assert.ok(session.updatedAt, 'Must identify updatedAt timestamp');
+      assert.ok(Array.isArray(session.reviewedConceptIds), 'Must track reviewedConceptIds');
+      assert.ok(Array.isArray(session.markedForReviewIds), 'Must track markedForReviewIds');
+
+      // Verify stable concept IDs as references, not duplicating graph node objects
+      assert.equal(typeof session.conceptIds[0], 'string', 'Concept list must contain stable string IDs');
+      assert.equal(typeof session.conceptIds[1], 'string', 'Concept list must contain stable string IDs');
+    });
+
+    test('2. Navigation: sequentially advances with Next and retreats with Previous', () => {
+      const session = createRevisionSession({
+        graphId: 'graph-os-core',
+        conceptIds: ['c-cpu-sched', 'c-process', 'c-virtual-mem']
+      });
+
+      // At start: Previous is disabled, Next is enabled
+      assert.equal(canNavigatePrev(session), false, 'Previous must be disabled at start');
+      assert.equal(canNavigateNext(session), true, 'Next must be enabled at start');
+
+      // Attempting to retreat does not change index or become negative
+      const retreated = navigatePrev(session);
+      assert.equal(retreated.currentIndex, 0, 'Index must not become negative');
+
+      // Advance to concept 2
+      const step1 = navigateNext(session);
+      assert.equal(step1.currentIndex, 1, 'Next must advance to index 1');
+      assert.equal(step1.currentConceptId, 'c-process', 'Next must point to concept c-process');
+      assert.ok(step1.reviewedConceptIds.includes('c-cpu-sched'), 'Must track preceding concept in reviewed list');
+
+      // Advance to concept 3
+      const step2 = navigateNext(step1);
+      assert.equal(step2.currentIndex, 2, 'Next must advance to index 2');
+      assert.equal(step2.currentConceptId, 'c-virtual-mem', 'Next must point to concept c-virtual-mem');
+
+      // At end: Next is disabled, Previous is enabled
+      assert.equal(canNavigateNext(step2), false, 'Next must be disabled at final concept');
+      assert.equal(canNavigatePrev(step2), true, 'Previous must be enabled at final concept');
+
+      // Attempting to advance past end keeps index clamped
+      const overAdvanced = navigateNext(step2);
+      assert.equal(overAdvanced.currentIndex, 2, 'Index must not exceed session length');
+
+      // Retreat to concept 2
+      const backStep = navigatePrev(step2);
+      assert.equal(backStep.currentIndex, 1, 'Previous must return to index 1');
+      assert.equal(backStep.currentConceptId, 'c-process', 'Previous must point to concept c-process');
+    });
+
+    test('3. Single-Concept Sessions: disables both Previous and Next navigation and preserves index 0', () => {
+      const singleNodeGraph: KnowledgeGraph = {
+        id: 'graph-single-node',
+        name: 'Single Concept Curriculum',
+        nodes: [
+          {
+            id: 'c-isolated',
+            name: 'Isolated Concept',
+            type: 'foundation',
+            description: 'Sole concept in this graph.',
+            sourceIds: []
+          }
+        ],
+        relationships: [],
+        sources: []
+      };
+
+      const session = createRevisionSession({
+        graphId: 'graph-single-node',
+        conceptIds: ['c-isolated']
+      });
+
+      assert.equal(session.totalConcepts, 1, 'Total concepts must be 1');
+      assert.equal(canNavigatePrev(session), false, 'Previous must be disabled for single-concept session');
+      assert.equal(canNavigateNext(session), false, 'Next must be disabled for single-concept session');
+
+      const nextAttempt = navigateNext(session);
+      assert.equal(nextAttempt.currentIndex, 0, 'Index must remain 0 on Next');
+
+      const prevAttempt = navigatePrev(session);
+      assert.equal(prevAttempt.currentIndex, 0, 'Index must remain 0 on Previous');
+
+      // Render check: DOM must disable both links
+      const html = renderToString(
+        React.createElement(RevisionWorkspace, {
+          graph: singleNodeGraph,
+          graphName: 'Single Concept Curriculum',
+          onBackToGraph: () => {}
+        })
+      );
+
+      assert.ok(html.includes('01 / 01'), 'Must render "01 / 01" progress');
+      assert.ok(html.includes('revision-nav-prev disabled'), 'Previous link must have disabled class');
+      assert.ok(html.includes('revision-nav-next disabled'), 'Next link must have disabled class');
+    });
+
+    test('4. Session Preservation: persists minimal session to storage without duplicated graph objects', () => {
+      const session = createRevisionSession({
+        graphId: 'graph-os-core',
+        conceptIds: ['c-cpu-sched', 'c-process', 'c-virtual-mem'],
+        currentIndex: 1,
+        currentConceptId: 'c-process',
+        reviewedConceptIds: ['c-cpu-sched']
+      });
+
+      saveRevisionSession(session, 'graph-os-core');
+
+      // Verify raw storage payload is minimal (only IDs, index, timestamps)
+      const rawStored = storageMap.get('graphmind_revision_session_v1_graph-os-core');
+      assert.ok(rawStored, 'Session must be stored in localStorage');
+      const parsed = JSON.parse(rawStored!);
+
+      assert.equal(parsed.graphId, 'graph-os-core');
+      assert.equal(parsed.currentIndex, 1);
+      assert.equal(parsed.currentConceptId, 'c-process');
+      assert.deepEqual(parsed.conceptIds, ['c-cpu-sched', 'c-process', 'c-virtual-mem']);
+      assert.deepEqual(parsed.reviewedConceptIds, ['c-cpu-sched']);
+      assert.equal(parsed.nodes, undefined, 'Must not duplicate full graph nodes in session storage');
+      assert.equal(parsed.relationships, undefined, 'Must not duplicate graph relationships in session storage');
+
+      // Load back and verify fidelity
+      const loaded = loadRevisionSession('graph-os-core');
+      assert.ok(loaded, 'Must load session from storage');
+      assert.equal(loaded?.currentIndex, 1);
+      assert.equal(loaded?.currentConceptId, 'c-process');
+      assert.equal(loaded?.totalConcepts, 3);
+    });
+
+    test('5. Graph Exploration & Return: restores exact concept position without resetting to concept 01', () => {
+      // Simulate user having progressed to Concept 02 (c-process) in OS graph
+      const session = createRevisionSession({
+        graphId: 'graph-os-core',
+        conceptIds: ['c-cpu-sched', 'c-process', 'c-virtual-mem'],
+        currentIndex: 1,
+        currentConceptId: 'c-process'
+      });
+      saveRevisionSession(session, 'graph-os-core');
+
+      // User explores graph, then returns to RevisionWorkspace (uncontrolled index)
+      const html = renderToString(
+        React.createElement(RevisionWorkspace, {
+          graph: mockGraph,
+          graphName: 'Operating Systems',
+          onBackToGraph: () => {}
+        })
+      );
+
+      // Must restore Concept 02 ("Process Management") and counter "02 / 03"
+      assert.ok(html.includes('02 / 03'), 'Must restore concept position "02 / 03"');
+      assert.ok(html.includes('CONCEPT 02'), 'Must restore badge "CONCEPT 02"');
+      assert.ok(html.includes('Process Management'), 'Must restore concept title for position 02');
+      assert.ok(
+        !html.includes('CONCEPT 01'),
+        'Must NOT reset to CONCEPT 01 when returning from graph exploration'
+      );
+    });
+
+    test('6. Graph Selection Changes: strictly isolates sessions and never combines concepts from different graphs', () => {
+      // Save OS session
+      const osSession = createRevisionSession({
+        graphId: 'graph-os-core',
+        conceptIds: ['c-cpu-sched', 'c-process', 'c-virtual-mem'],
+        currentIndex: 2,
+        currentConceptId: 'c-virtual-mem'
+      });
+      saveRevisionSession(osSession, 'graph-os-core');
+
+      // Validate OS session against Neural Graph: must be rejected (null)
+      const crossGraphValidation = validateRevisionSession(osSession, neuralGraph);
+      assert.equal(crossGraphValidation, null, 'Must reject session originating from a different graph');
+
+      // Load session for Neural Graph: must not contain OS concepts
+      const neuralLoaded = loadRevisionSession('graph-neural-core');
+      assert.equal(neuralLoaded, null, 'Neural graph must not load OS graph session');
+
+      // Render Neural Graph in RevisionWorkspace: starts fresh for Neural Graph
+      const html = renderToString(
+        React.createElement(RevisionWorkspace, {
+          graph: neuralGraph,
+          graphName: 'Neural Architectures',
+          onBackToGraph: () => {}
+        })
+      );
+
+      assert.ok(html.includes('Single Layer Perceptron'), 'Must render Neural Graph concept');
+      assert.ok(html.includes('01 / 02'), 'Must show Neural Graph progress "01 / 02"');
+      assert.ok(!html.includes('CPU Scheduling'), 'Must never leak concepts from OS graph');
+      assert.ok(!html.includes('Virtual Memory'), 'Must never leak concepts from OS graph');
+    });
+
+    test('7. Deleted or Missing Concepts: recovers position gracefully without throwing', () => {
+      // Graph where c-process was deleted by user
+      const prunedGraph: KnowledgeGraph = {
+        id: 'graph-os-core',
+        name: 'Operating Systems',
+        nodes: [
+          {
+            id: 'c-cpu-sched',
+            name: 'CPU Scheduling',
+            type: 'algorithm',
+            sourceIds: []
+          },
+          {
+            id: 'c-virtual-mem',
+            name: 'Virtual Memory',
+            type: 'system',
+            sourceIds: []
+          }
+        ],
+        relationships: [],
+        sources: []
+      };
+
+      // Stored session still referenced the deleted concept c-process at index 1
+      const staleSession: RevisionSessionState = {
+        isActive: true,
+        graphId: 'graph-os-core',
+        conceptIds: ['c-cpu-sched', 'c-process', 'c-virtual-mem'],
+        currentIndex: 1,
+        currentConceptId: 'c-process',
+        totalConcepts: 3,
+        createdAt: new Date().toISOString(),
+        reviewedConceptIds: [],
+        markedForReviewIds: []
+      };
+
+      const validated = validateRevisionSession(staleSession, prunedGraph);
+      assert.ok(validated, 'Must successfully sanitize stale session');
+      assert.deepEqual(validated?.conceptIds, ['c-cpu-sched', 'c-virtual-mem'], 'Must filter out deleted concept');
+      assert.equal(validated?.totalConcepts, 2, 'Total must update to 2');
+      assert.ok(validated!.currentIndex < 2, 'Index must be safely clamped within valid concepts');
+
+      // When rendered with pruned graph: handles without throwing and renders a valid concept
+      const html = renderToString(
+        React.createElement(RevisionWorkspace, {
+          graph: prunedGraph,
+          session: validated,
+          onBackToGraph: () => {}
+        })
+      );
+
+      assert.ok(html.includes('01 / 02') || html.includes('02 / 02'), 'Renders valid bounded progress');
+      assert.ok(!html.includes('c-process'), 'Deleted concept is not rendered');
+    });
+
+    test('8. Empty and Missing Graphs: renders calm guidance and graph selection action', () => {
+      // A. Empty graph (0 concepts)
+      const emptyGraph: KnowledgeGraph = {
+        id: 'graph-empty',
+        name: 'Empty Graph',
+        nodes: [],
+        relationships: [],
+        sources: []
+      };
+
+      const htmlEmpty = renderToString(
+        React.createElement(RevisionWorkspace, {
+          graph: emptyGraph,
+          onBackToGraph: () => {}
+        })
+      );
+      assert.ok(htmlEmpty.includes('No concepts available for revision'));
+      assert.ok(htmlEmpty.includes('Add materials or create concepts to begin studying.'));
+
+      // B. Missing/null graph with onSelectGraph action
+      let selectGraphCalled = false;
+      const htmlNull = renderToString(
+        React.createElement(RevisionWorkspace, {
+          graph: null,
+          onBackToGraph: () => {},
+          onSelectGraph: () => { selectGraphCalled = true; }
+        })
+      );
+
+      assert.ok(htmlNull.includes('No graph selected'));
+      assert.ok(htmlNull.includes('Select knowledge graph'));
+      assert.ok(htmlNull.includes('Return to knowledge graph'));
+    });
+
+    test('9. Malformed / Invalid Persisted State: validates data safely and prevents workspace crash', () => {
+      // A. Malformed non-JSON stored in localStorage
+      storageMap.set('graphmind_revision_session_v1_graph-os-core', '{ broken: json :::');
+      const corruptedLoad = loadRevisionSession('graph-os-core');
+      assert.equal(corruptedLoad, null, 'Must return null for broken JSON');
+
+      // B. Stored data with invalid types
+      storageMap.set(
+        'graphmind_revision_session_v1_graph-os-core',
+        JSON.stringify({
+          graphId: 'graph-os-core',
+          conceptIds: 'not an array',
+          currentIndex: -50
+        })
+      );
+      const invalidTypesLoad = loadRevisionSession('graph-os-core');
+      assert.equal(invalidTypesLoad, null, 'Must reject invalid types and return null');
+
+      // C. RevisionWorkspace renders without throwing despite corrupted storage
+      assert.doesNotThrow(() => {
+        renderToString(
+          React.createElement(RevisionWorkspace, {
+            graph: mockGraph,
+            onBackToGraph: () => {}
+          })
+        );
+      }, 'RevisionWorkspace must never crash due to corrupted storage');
+    });
+
+    test('10. Assessment State & History: remains completely unaffected by revision sessions', () => {
+      assert.equal(
+        ASSESSMENT_HISTORY_STORAGE_KEY,
+        'graphmind_assessment_attempts_v1',
+        'Assessment storage key must remain unchanged'
+      );
+
+      // Verify clearing revision session does not touch assessment storage
+      storageMap.set(ASSESSMENT_HISTORY_STORAGE_KEY, JSON.stringify([{ id: 'attempt-1' }]));
+      saveRevisionSession(
+        createRevisionSession({ graphId: 'graph-os-core', conceptIds: ['c-1'] }),
+        'graph-os-core'
+      );
+
+      clearRevisionSession('graph-os-core');
+      assert.equal(loadRevisionSession('graph-os-core'), null, 'Revision session must be cleared');
+      assert.ok(
+        storageMap.has(ASSESSMENT_HISTORY_STORAGE_KEY),
+        'Assessment history storage must be completely untouched'
+      );
+    });
+  });
 });
+
