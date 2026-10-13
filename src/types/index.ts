@@ -114,3 +114,4 @@ export interface LearningPath {
 }
 
 export * from './test';
+export * from './knowledgeCheck';

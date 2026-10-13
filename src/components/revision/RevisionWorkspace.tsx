@@ -20,6 +20,7 @@ import {
   synthesizeGroundedExplanation,
   computeConceptSourceFingerprint
 } from '../../services/conceptExplanation';
+import { KnowledgeCheckSection } from './KnowledgeCheckSection';
 
 export const WORKSPACE_EASING = [0.16, 1, 0.3, 1] as const;
 
@@ -1136,7 +1137,12 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     if (hasRelatedConcepts) {
       list.push({ id: 'section-related-concepts', num: String(counter++).padStart(2, '0'), label: 'Related' });
     }
-    // 07. Source references
+    // 07. Knowledge check (Interactive)
+    const hasMultipleReadingSections = list.length > 1;
+    if (hasMultipleReadingSections) {
+      list.push({ id: 'section-knowledge-check', num: String(counter++).padStart(2, '0'), label: 'Check' });
+    }
+    // 08. Source references
     if (exp.sourceReferences && exp.sourceReferences.length > 0) {
       list.push({ id: 'section-sources', num: String(counter++).padStart(2, '0'), label: 'Sources' });
     }
@@ -1144,7 +1150,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     return list;
   }, [explanationState, hasUnderstandingData, hasRelatedConcepts]);
 
-  const getSecNum = (id: string) => activeSections.find(s => s.id === id)?.num || '01';
+  const getSecNum = (id: string) => activeSections.find(s => s.id === id)?.num || String(activeSections.length + 1).padStart(2, '0');
 
   // Section 06 Editorial Related Concepts renderer
   const renderRelatedConceptsSection = (secNum?: string) => {
@@ -1538,6 +1544,14 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                           </div>
                         </div>
                         {renderRelatedConceptsSection()}
+
+                        {/* Knowledge Check (Interactive Formative Check) */}
+                        <KnowledgeCheckSection
+                          graph={graph}
+                          conceptId={currentConcept.id}
+                          conceptName={currentConcept.name}
+                          explanation={explanationState.explanation}
+                        />
                       </>
                     )}
 
@@ -1961,7 +1975,16 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                         {/* 06. Related Concepts */}
                         {renderRelatedConceptsSection(getSecNum('section-related-concepts'))}
 
-                        {/* 07. Source References */}
+                        {/* 07. Knowledge Check (Interactive Formative Check) */}
+                        <KnowledgeCheckSection
+                          graph={graph}
+                          conceptId={currentConcept.id}
+                          conceptName={currentConcept.name}
+                          explanation={explanationState.explanation}
+                          sectionNum={getSecNum('section-knowledge-check')}
+                        />
+
+                        {/* 08. Source References */}
                         {explanationState.explanation.sourceReferences && explanationState.explanation.sourceReferences.length > 0 && (
                           <div className="revision-section revision-section-sources" id="section-sources">
                             <h2 className="revision-section-heading">
@@ -2043,6 +2066,14 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                         )}
 
                         {renderRelatedConceptsSection()}
+
+                        {/* Knowledge Check (Interactive Formative Check) */}
+                        <KnowledgeCheckSection
+                          graph={graph}
+                          conceptId={currentConcept.id}
+                          conceptName={currentConcept.name}
+                          explanation={explanationState.explanation}
+                        />
                       </>
                     )}
                   </motion.section>
