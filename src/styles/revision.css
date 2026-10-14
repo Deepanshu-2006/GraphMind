@@ -3422,5 +3422,375 @@
   border-color: var(--accent, #A3FF12);
 }
 
+/* ==========================================================================
+   SECTION 15: PREREQUISITE-AWARE LEARNING (Phase 4 — Prompt 17)
+   Foundations section, category pills, evidence tags, and excursion banner
+   ========================================================================== */
+
+/* Foundational Review Excursion Return Banner */
+.revision-excursion-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: rgba(192, 132, 252, 0.06);
+  border: 1px solid rgba(192, 132, 252, 0.22);
+  border-left: 3px solid #C084FC;
+  border-radius: 4px;
+  padding: 12px 18px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.revision-excursion-info,
+.revision-excursion-banner-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.revision-excursion-kicker,
+.revision-excursion-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 10px;
+  font-weight: 550;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #D8B4FE;
+  line-height: 1;
+}
+
+.revision-excursion-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: #C084FC;
+}
+
+.revision-excursion-msg,
+.revision-excursion-origin-text {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  color: #DDDDDD;
+  line-height: 1.45;
+}
+
+.revision-excursion-msg strong,
+.revision-excursion-origin-text strong {
+  color: #FFFFFF;
+  font-weight: 550;
+}
+
+.revision-excursion-return-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(192, 132, 252, 0.12);
+  border: 1px solid rgba(192, 132, 252, 0.32);
+  border-radius: 4px;
+  padding: 7px 14px;
+  color: #E9D5FF;
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 160ms ease;
+  white-space: nowrap;
+}
+
+.revision-excursion-return-btn:hover {
+  background: rgba(192, 132, 252, 0.22);
+  border-color: #C084FC;
+  color: #FFFFFF;
+}
+
+/* Foundations Section */
+.revision-section-foundations {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 24px;
+  padding-top: 28px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.revision-foundations-kicker {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary, #888888);
+}
+
+.revision-foundations-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.revision-foundation-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 5px;
+  padding: 16px 18px;
+  transition: all 180ms ease;
+  position: relative;
+}
+
+.revision-foundation-card:hover {
+  background: rgba(255, 255, 255, 0.025);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.revision-foundation-card.is-confirmed {
+  border-color: rgba(245, 158, 11, 0.22);
+  background: rgba(245, 158, 11, 0.015);
+}
+
+.revision-foundation-card.has-review-need {
+  border-left: 2px solid #F59E0B;
+}
+
+.revision-foundation-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.revision-foundation-title-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.revision-foundation-name {
+  font-family: var(--font-display, var(--font-body, 'Inter', sans-serif));
+  font-size: 15px;
+  font-weight: 550;
+  color: #F0F0F0;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.revision-foundation-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.revision-foundation-cat-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2.5px 7.5px;
+  border-radius: 3px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.revision-foundation-cat-badge.cat-confirmed {
+  background: rgba(245, 158, 11, 0.10);
+  border: 1px solid rgba(245, 158, 11, 0.26);
+  color: #FBBF24;
+}
+
+.revision-foundation-cat-badge.cat-foundation {
+  background: rgba(192, 132, 252, 0.10);
+  border: 1px solid rgba(192, 132, 252, 0.26);
+  color: #D8B4FE;
+}
+
+.revision-foundation-cat-badge.cat-related {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #999999;
+}
+
+.revision-foundation-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+
+.revision-foundation-status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.revision-foundation-status-badge.status-needs-review {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.22);
+  color: #FBBF24;
+}
+.revision-foundation-status-badge.status-needs-review .revision-foundation-status-dot {
+  background: #F59E0B;
+}
+
+.revision-foundation-status-badge.status-observed-difficulty {
+  background: rgba(56, 189, 248, 0.08);
+  border-color: rgba(56, 189, 248, 0.20);
+  color: #7DD3FC;
+}
+.revision-foundation-status-badge.status-observed-difficulty .revision-foundation-status-dot {
+  background: #38BDF8;
+}
+
+.revision-foundation-status-badge.status-not-assessed {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.07);
+  color: #888888;
+}
+.revision-foundation-status-badge.status-not-assessed .revision-foundation-status-dot {
+  background: #666666;
+}
+
+.revision-foundation-status-badge.status-demonstrated {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.20);
+  color: #34D399;
+}
+.revision-foundation-status-badge.status-demonstrated .revision-foundation-status-dot {
+  background: #10B981;
+}
+
+.revision-foundation-reason-box {
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 2px solid rgba(255, 255, 255, 0.12);
+  padding: 8px 12px;
+  border-radius: 0 4px 4px 0;
+}
+
+.revision-foundation-reason-kicker {
+  font-family: var(--font-mono, monospace);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #777777;
+  display: block;
+  margin-bottom: 3px;
+}
+
+.revision-foundation-reason-text {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  color: #CCCCCC;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.revision-foundation-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+.revision-foundation-open-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(163, 255, 18, 0.08);
+  border: 1px solid rgba(163, 255, 18, 0.26);
+  border-radius: 3px;
+  padding: 6px 12px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent, #A3FF12);
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.revision-foundation-open-btn:hover {
+  background: rgba(163, 255, 18, 0.16);
+  border-color: var(--accent, #A3FF12);
+  color: #FFFFFF;
+}
+
+.revision-foundation-graph-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  padding: 6px 12px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: #AAAAAA;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.revision-foundation-graph-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #EEEEEE;
+}
+
+.revision-foundation-status-dot.needs-review {
+  background-color: #E879F9;
+}
+.revision-foundation-status-dot.observed-difficulty {
+  background-color: #38BDF8;
+}
+.revision-foundation-status-dot.not-assessed {
+  background-color: #71717A;
+}
+.revision-foundation-status-dot.demonstrated {
+  background-color: #22C55E;
+}
+
+@media (max-width: 768px) {
+  .revision-foundation-card-header {
+    flex-direction: column;
+  }
+  .revision-foundation-title-group {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .revision-excursion-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .revision-foundation-card-header {
+    flex-direction: column;
+  }
+  .revision-foundation-title-group {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .revision-excursion-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
 
 
