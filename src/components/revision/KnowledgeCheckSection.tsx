@@ -34,6 +34,7 @@ interface KnowledgeCheckSectionProps {
   session?: RevisionSessionState | null;
   onNavigateToConcept?: (conceptId: string) => void;
   onContinueNext?: () => void;
+  onAttemptSubmitted?: (attempt: KnowledgeCheckAttempt, nextState: ConceptKnowledgeCheckState) => void;
 }
 
 export const KnowledgeCheckSection: React.FC<KnowledgeCheckSectionProps> = ({
@@ -45,7 +46,8 @@ export const KnowledgeCheckSection: React.FC<KnowledgeCheckSectionProps> = ({
   onNavigateToSection,
   session,
   onNavigateToConcept,
-  onContinueNext
+  onContinueNext,
+  onAttemptSubmitted
 }) => {
   const radioGroupId = useId();
 
@@ -193,11 +195,12 @@ export const KnowledgeCheckSection: React.FC<KnowledgeCheckSectionProps> = ({
 
       setCheckState(nextState);
       saveStoredKnowledgeCheck(nextState);
+      onAttemptSubmitted?.(attempt, nextState);
       setRetryMode(false);
     } finally {
       setIsSubmitting(false);
     }
-  }, [activeQuestion, isSubmitting, hasAttempted, textAnswer, selectedOptionId, checkState]);
+  }, [activeQuestion, isSubmitting, hasAttempted, textAnswer, selectedOptionId, checkState, onAttemptSubmitted]);
 
   const handleRetry = () => {
     setSelectedOptionId('');

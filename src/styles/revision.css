@@ -2396,7 +2396,16 @@
   .revision-arrow,
   .revision-nav-arrow,
   .revision-adaptive-btn-primary,
-  .revision-adaptive-btn-secondary {
+  .revision-adaptive-btn-secondary,
+  .revision-overview-drawer,
+  .revision-overview-toggle-btn,
+  .revision-overview-row,
+  .revision-insights-container,
+  .revision-insights-resume-btn,
+  .revision-insights-action-card,
+  .revision-kc-container,
+  .revision-kc-submit-btn,
+  .revision-kc-option {
     transition: none !important;
     animation: none !important;
     transform: none !important;

@@ -21,9 +21,14 @@ import {
   computeConceptSourceFingerprint
 } from '../../services/conceptExplanation';
 import { KnowledgeCheckSection } from './KnowledgeCheckSection';
+import type {
+  KnowledgeCheckAttempt,
+  ConceptKnowledgeCheckState
+} from '../../types/knowledgeCheck';
 import {
   calculateConceptMastery,
-  loadGraphMasteryOverview
+  loadGraphMasteryOverview,
+  saveStoredMastery
 } from '../../services/conceptMastery';
 import { loadConceptPracticeStates, clearRevisionSession } from '../../services/storage';
 import { loadStoredKnowledgeCheck } from '../../services/knowledgeCheck';
@@ -637,10 +642,12 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   }, [currentIndex]);
 
   // Session entry animation tracking (Section 4: Avoid replaying everything)
-  const [hasPlayedEntry, setHasPlayedEntry] = useState<boolean>(() => Boolean(skipEntryAnimation));
+  const [hasPlayedEntry, setHasPlayedEntry] = useState<boolean>(
+    () => Boolean(skipEntryAnimation || activeSession?.entryAnimationPlayed)
+  );
 
   useEffect(() => {
-    if (skipEntryAnimation) {
+    if (skipEntryAnimation || activeSession?.entryAnimationPlayed) {
       setHasPlayedEntry(true);
       return;
     }
@@ -728,11 +735,27 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     onNextConcept?.();
   }, [isLast, currentIndex, totalConcepts, activeSession, concepts, graph?.id, onSessionChange, onSelectConceptIndex, onNextConcept]);
 
-  // Keyboard navigation hotkeys (Left / Right arrow, Escape)
+  // Resolve current concept
+  const currentConcept: RevisionConceptItem | null = concepts[currentIndex] || null;
+
   // End-of-session summary / insights state (Prompt 13)
   const [isShowingSummary, setIsShowingSummary] = useState(false);
 
-  // Keyboard navigation (ArrowLeft: previous, ArrowRight: next, Escape: close summary or back to graph)
+  // Concept overview drawer state (Prompt 12)
+  const [isOverviewOpen, setIsOverviewOpen] = useState(false);
+
+  // Real-time mastery reactivity version bump
+  const [masteryVersion, setMasteryVersion] = useState<number>(0);
+
+  // Back to graph handler with session preservation
+  const handleBackToGraph = useCallback(() => {
+    if (graph?.id && activeSession) {
+      saveRevisionSession(activeSession, graph.id);
+    }
+    onBackToGraph();
+  }, [graph?.id, activeSession, onBackToGraph]);
+
+  // Keyboard navigation (ArrowLeft: previous, ArrowRight: next, Escape: close drawer/summary or back to graph)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if focus is in an input or textarea
@@ -748,23 +771,40 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
         handleNext();
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        if (isShowingSummary) {
+        if (isOverviewOpen) {
+          setIsOverviewOpen(false);
+        } else if (isShowingSummary) {
           setIsShowingSummary(false);
         } else {
-          onBackToGraph();
+          handleBackToGraph();
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isFirst, isLast, handlePrev, handleNext, onBackToGraph, isShowingSummary]);
+  }, [isFirst, isLast, handlePrev, handleNext, handleBackToGraph, isShowingSummary, isOverviewOpen]);
 
-  // Resolve current concept
-  const currentConcept: RevisionConceptItem | null = concepts[currentIndex] || null;
-
-  // Concept overview drawer state (Prompt 12)
-  const [isOverviewOpen, setIsOverviewOpen] = useState(false);
+  // Real-time mastery sync when student completes a knowledge-check question
+  const handleAttemptSubmitted = useCallback((_attempt: KnowledgeCheckAttempt, nextKcState: ConceptKnowledgeCheckState) => {
+    if (currentConcept) {
+      const graphId = graph?.id || 'default_graph';
+      const practiceStates = loadConceptPracticeStates(graphId);
+      const isVisited = true;
+      const isMarked = Boolean(activeSession.markedForReviewIds?.includes(currentConcept.id));
+      const calculated = calculateConceptMastery({
+        graphId,
+        conceptId: currentConcept.id,
+        conceptName: currentConcept.name,
+        isVisitedInSession: isVisited,
+        knowledgeCheckState: nextKcState,
+        practiceState: practiceStates[currentConcept.id],
+        isMarkedForReview: isMarked
+      });
+      saveStoredMastery(graphId, calculated);
+    }
+    setMasteryVersion(v => v + 1);
+  }, [graph?.id, currentConcept, activeSession.markedForReviewIds]);
 
   // Active concept mastery calculation based on recorded learning evidence
   const currentMastery = useMemo(() => {
@@ -787,14 +827,14 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
       practiceState: practiceStates[currentConcept.id],
       isMarkedForReview: isMarked
     });
-  }, [graph?.id, currentConcept, activeSession]);
+  }, [graph?.id, currentConcept, activeSession, masteryVersion]);
 
   // Complete session/graph mastery overview
   const masteryOverview = useMemo(() => {
     const conceptList = concepts.map(c => ({ id: c.id, name: c.name }));
     const graphId = graph?.id || 'default_graph';
     return loadGraphMasteryOverview(graphId, conceptList, activeSession);
-  }, [graph?.id, concepts, activeSession]);
+  }, [graph?.id, concepts, activeSession, masteryVersion]);
 
   // Concept explanation lifecycle state (Phase 2 Task 05 & Task 09)
   const [explanationState, setExplanationState] = useState<ExplanationState>(() => {
@@ -948,12 +988,15 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
 
   // View graph action
   const handleViewGraph = useCallback(() => {
+    if (graph?.id && activeSession) {
+      saveRevisionSession(activeSession, graph.id);
+    }
     if (onViewGraph) {
       onViewGraph(currentConcept?.id);
     } else {
-      onBackToGraph();
+      handleBackToGraph();
     }
-  }, [onViewGraph, currentConcept?.id, onBackToGraph]);
+  }, [graph?.id, activeSession, onViewGraph, currentConcept?.id, handleBackToGraph]);
 
   // Resolved graph name for header
   const resolvedGraphName = graphName || graph?.name || 'Knowledge Graph';
@@ -967,7 +1010,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
       session: activeSession,
       concepts: conceptList
     });
-  }, [graph, resolvedGraphName, activeSession, concepts]);
+  }, [graph, resolvedGraphName, activeSession, concepts, masteryVersion]);
 
   // Formatting helpers
   const formattedIndex = String(currentIndex + 1).padStart(2, '0');
@@ -1398,7 +1441,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
           <button
             type="button"
             className="revision-header-action revision-back-action"
-            onClick={onBackToGraph}
+            onClick={handleBackToGraph}
             title="Return to knowledge graph view (Escape)"
             aria-label="Back to graph"
           >
@@ -1444,7 +1487,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
           MAIN CONTENT AREA (Section 2)
           Centered reading column (760–820px max-width, generous margins)
           -------------------------------------------------------------------- */}
-      <main className="revision-reading-area" id="revision-content" tabIndex={-1}>
+      <main className="revision-reading-area" role="main" id="revision-content" tabIndex={-1}>
         <motion.div
           className="revision-reading-column"
           variants={workspaceArrivalVariants}
@@ -1691,6 +1734,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                           onNavigateToSection={handleNavigateToSection}
                           onNavigateToConcept={handleOpenRelatedInRevision}
                           onContinueNext={handleNext}
+                          onAttemptSubmitted={handleAttemptSubmitted}
                         />
                       </>
                     )}
@@ -2126,6 +2170,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                           onNavigateToSection={handleNavigateToSection}
                           onNavigateToConcept={handleOpenRelatedInRevision}
                           onContinueNext={handleNext}
+                          onAttemptSubmitted={handleAttemptSubmitted}
                         />
 
                         {/* 08. Source References */}
@@ -2186,8 +2231,8 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                       </>
                     )}
 
-                    {/* Fallback when explanation state is idle or empty */}
-                    {(explanationState.status === 'idle' || explanationState.status === 'empty') && (
+                    {/* Fallback when explanation state is idle, empty, or error */}
+                    {(explanationState.status === 'idle' || explanationState.status === 'empty' || explanationState.status === 'error') && (
                       <>
                         {hasUnderstandingData && (
                           <div className="revision-section revision-section-understanding">
@@ -2221,6 +2266,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                           onNavigateToSection={handleNavigateToSection}
                           onNavigateToConcept={handleOpenRelatedInRevision}
                           onContinueNext={handleNext}
+                          onAttemptSubmitted={handleAttemptSubmitted}
                         />
                       </>
                     )}
