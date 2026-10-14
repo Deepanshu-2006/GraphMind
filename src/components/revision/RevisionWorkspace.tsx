@@ -957,6 +957,14 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     }
   }, [graph?.id, activeSession, onViewGraph, onBackToGraph]);
 
+  const handleNavigateToSection = useCallback((secId: string) => {
+    if (!secId) return;
+    const el = document.getElementById(secId);
+    if (el) {
+      el.scrollIntoView({ behavior: shouldReduceMotion ? 'auto' : 'smooth', block: 'start' });
+    }
+  }, [shouldReduceMotion]);
+
   // Resolve related concepts strictly from real graph edges and nodes (Task 08)
   const resolvedRelatedConcepts = useMemo(() => {
     if (!currentConcept) return [];
@@ -1551,6 +1559,10 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                           conceptId={currentConcept.id}
                           conceptName={currentConcept.name}
                           explanation={explanationState.explanation}
+                          session={activeSession}
+                          onNavigateToSection={handleNavigateToSection}
+                          onNavigateToConcept={handleOpenRelatedInRevision}
+                          onContinueNext={handleNext}
                         />
                       </>
                     )}
@@ -1982,6 +1994,10 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                           conceptName={currentConcept.name}
                           explanation={explanationState.explanation}
                           sectionNum={getSecNum('section-knowledge-check')}
+                          session={activeSession}
+                          onNavigateToSection={handleNavigateToSection}
+                          onNavigateToConcept={handleOpenRelatedInRevision}
+                          onContinueNext={handleNext}
                         />
 
                         {/* 08. Source References */}
@@ -2073,6 +2089,10 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                           conceptId={currentConcept.id}
                           conceptName={currentConcept.name}
                           explanation={explanationState.explanation}
+                          session={activeSession}
+                          onNavigateToSection={handleNavigateToSection}
+                          onNavigateToConcept={handleOpenRelatedInRevision}
+                          onContinueNext={handleNext}
                         />
                       </>
                     )}

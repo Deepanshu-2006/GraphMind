@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useId } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useId } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { KnowledgeGraph } from '../../types/knowledgeGraph';
 import type { ConceptExplanation } from '../../types/explanation';
+import type { RevisionSessionState } from '../../types/practice';
 import type {
   ConceptKnowledgeCheckState,
   KnowledgeCheckQuestion,
@@ -13,6 +14,12 @@ import {
   loadStoredKnowledgeCheck,
   saveStoredKnowledgeCheck
 } from '../../services/knowledgeCheck';
+import {
+  deriveConceptPerformanceState,
+  generateAdaptiveRecommendation,
+  saveAdaptiveRecommendation
+} from '../../services/adaptiveRevision';
+import { AdaptiveNextStep } from './AdaptiveNextStep';
 
 // Preserve React in scope for tsx runner environments
 void React;
@@ -24,6 +31,9 @@ interface KnowledgeCheckSectionProps {
   explanation?: ConceptExplanation | null;
   sectionNum?: string;
   onNavigateToSection?: (sectionId: string) => void;
+  session?: RevisionSessionState | null;
+  onNavigateToConcept?: (conceptId: string) => void;
+  onContinueNext?: () => void;
 }
 
 export const KnowledgeCheckSection: React.FC<KnowledgeCheckSectionProps> = ({
@@ -32,7 +42,10 @@ export const KnowledgeCheckSection: React.FC<KnowledgeCheckSectionProps> = ({
   conceptName,
   explanation,
   sectionNum,
-  onNavigateToSection
+  onNavigateToSection,
+  session,
+  onNavigateToConcept,
+  onContinueNext
 }) => {
   const radioGroupId = useId();
 
@@ -234,6 +247,32 @@ export const KnowledgeCheckSection: React.FC<KnowledgeCheckSectionProps> = ({
     }
   };
 
+  // Derive adaptive recommendation strictly based on recorded student evidence
+  const adaptiveRec = useMemo(() => {
+    const graphId = graph?.id || 'default_graph';
+    const performance = deriveConceptPerformanceState({
+      graphId,
+      conceptId,
+      conceptName,
+      isReviewedInSession: true,
+      knowledgeCheckState: checkState
+    });
+
+    const rec = generateAdaptiveRecommendation({
+      graphId,
+      currentConceptId: conceptId,
+      currentConceptName: conceptName,
+      performance,
+      explanation,
+      graph,
+      session,
+      allGraphConcepts: graph?.nodes
+    });
+
+    saveAdaptiveRecommendation(rec);
+    return rec;
+  }, [graph, conceptId, conceptName, checkState, explanation, session]);
+
   // 1. Insufficient Material State
   if (checkState.status === 'insufficient') {
     return (
@@ -250,6 +289,16 @@ export const KnowledgeCheckSection: React.FC<KnowledgeCheckSectionProps> = ({
               `The uploaded source material does not contain sufficient verified definitions or mechanisms for "${conceptName}" to formulate an authentic knowledge check.`}
           </p>
         </div>
+
+        {adaptiveRec && (
+          <AdaptiveNextStep
+            recommendation={adaptiveRec}
+            onNavigateToSection={handleJumpToSection}
+            onNavigateToConcept={onNavigateToConcept}
+            onContinuePlanned={() => onContinueNext?.()}
+            onRetryKnowledgeCheck={handleRetry}
+          />
+        )}
       </div>
     );
   }
@@ -503,6 +552,17 @@ export const KnowledgeCheckSection: React.FC<KnowledgeCheckSectionProps> = ({
               </div>
             </motion.div>
           </AnimatePresence>
+        )}
+
+        {/* Adaptive Next-Step Guidance based on recorded student performance */}
+        {hasAttempted && adaptiveRec && (
+          <AdaptiveNextStep
+            recommendation={adaptiveRec}
+            onNavigateToSection={handleJumpToSection}
+            onNavigateToConcept={onNavigateToConcept}
+            onContinuePlanned={() => onContinueNext?.()}
+            onRetryKnowledgeCheck={handleRetry}
+          />
         )}
       </div>
     </div>
