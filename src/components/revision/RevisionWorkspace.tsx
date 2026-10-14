@@ -21,6 +21,13 @@ import {
   computeConceptSourceFingerprint
 } from '../../services/conceptExplanation';
 import { KnowledgeCheckSection } from './KnowledgeCheckSection';
+import {
+  calculateConceptMastery,
+  loadGraphMasteryOverview
+} from '../../services/conceptMastery';
+import { loadConceptPracticeStates } from '../../services/storage';
+import { loadStoredKnowledgeCheck } from '../../services/knowledgeCheck';
+import { RevisionConceptOverview } from './RevisionConceptOverview';
 
 export const WORKSPACE_EASING = [0.16, 1, 0.3, 1] as const;
 
@@ -746,6 +753,39 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   // Resolve current concept
   const currentConcept: RevisionConceptItem | null = concepts[currentIndex] || null;
 
+  // Concept overview drawer state (Prompt 12)
+  const [isOverviewOpen, setIsOverviewOpen] = useState(false);
+
+  // Active concept mastery calculation based on recorded learning evidence
+  const currentMastery = useMemo(() => {
+    if (!currentConcept) return null;
+    const graphId = graph?.id || 'default_graph';
+    const kcState = loadStoredKnowledgeCheck(graphId, currentConcept.id);
+    const practiceStates = loadConceptPracticeStates(graphId);
+    const isVisited = Boolean(
+      activeSession.reviewedConceptIds?.includes(currentConcept.id) ||
+      activeSession.currentConceptId === currentConcept.id ||
+      (activeSession.conceptIds && activeSession.conceptIds[activeSession.currentIndex] === currentConcept.id)
+    );
+    const isMarked = Boolean(activeSession.markedForReviewIds?.includes(currentConcept.id));
+    return calculateConceptMastery({
+      graphId,
+      conceptId: currentConcept.id,
+      conceptName: currentConcept.name,
+      isVisitedInSession: isVisited,
+      knowledgeCheckState: kcState,
+      practiceState: practiceStates[currentConcept.id],
+      isMarkedForReview: isMarked
+    });
+  }, [graph?.id, currentConcept, activeSession]);
+
+  // Complete session/graph mastery overview
+  const masteryOverview = useMemo(() => {
+    const conceptList = concepts.map(c => ({ id: c.id, name: c.name }));
+    const graphId = graph?.id || 'default_graph';
+    return loadGraphMasteryOverview(graphId, conceptList, activeSession);
+  }, [graph?.id, concepts, activeSession]);
+
   // Concept explanation lifecycle state (Phase 2 Task 05 & Task 09)
   const [explanationState, setExplanationState] = useState<ExplanationState>(() => {
     if (!graph || !currentConcept) return { status: 'empty' };
@@ -964,6 +1004,19 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
       el.scrollIntoView({ behavior: shouldReduceMotion ? 'auto' : 'smooth', block: 'start' });
     }
   }, [shouldReduceMotion]);
+
+  const handleSelectFromOverview = useCallback((targetId: string, idx: number) => {
+    if (idx >= 0 && idx < totalConcepts) {
+      setDirection(idx > currentIndex ? 1 : -1);
+      const nextSession = jumpToIndex(activeSession, idx);
+      setInternalSession(nextSession);
+      if (graph?.id) saveRevisionSession(nextSession, graph.id);
+      onSessionChange?.(nextSession);
+      onSelectConceptIndex?.(idx);
+    } else {
+      handleOpenRelatedInRevision(targetId);
+    }
+  }, [totalConcepts, currentIndex, activeSession, graph?.id, onSessionChange, onSelectConceptIndex, handleOpenRelatedInRevision]);
 
   // Resolve related concepts strictly from real graph edges and nodes (Task 08)
   const resolvedRelatedConcepts = useMemo(() => {
@@ -1451,6 +1504,16 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                 </div>
               </motion.div>
 
+              {/* Concepts Overview Drawer (Prompt 12 Section 5) */}
+              <RevisionConceptOverview
+                overview={masteryOverview}
+                conceptList={concepts.map(c => ({ id: c.id, name: c.name }))}
+                currentConceptId={currentConcept.id}
+                isOpen={isOverviewOpen}
+                onToggle={() => setIsOverviewOpen(prev => !prev)}
+                onSelectConcept={handleSelectFromOverview}
+              />
+
               {/* --------------------------------------------------------------
                   DIRECTION-AWARE CONCEPT CANVAS (Stage 3 & Concept Transitions)
                   Forward: enters from +14px, exits to -14px
@@ -1476,6 +1539,16 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                     >
                       <span className="revision-concept-badge-dot" aria-hidden="true" />
                       <span className="revision-concept-badge-text">{`CONCEPT ${formattedIndex}`}</span>
+                      {currentMastery && (
+                        <span
+                          className={`revision-concept-mastery-tag ${currentMastery.status}`}
+                          role="status"
+                          aria-label={`Concept mastery: ${currentMastery.statusLabel}`}
+                        >
+                          <span className="revision-mastery-dot" aria-hidden="true" />
+                          <span>{currentMastery.statusLabel}</span>
+                        </span>
+                      )}
                       {explanationState.explanation?.sourceReferences && explanationState.explanation.sourceReferences.length > 0 && (
                         <a
                           href="#section-sources"
