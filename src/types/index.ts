@@ -117,3 +117,4 @@ export * from './test';
 export * from './knowledgeCheck';
 export * from './adaptiveRevision';
 export * from './mastery';
+export * from './sessionInsights';

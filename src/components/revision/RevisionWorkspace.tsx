@@ -25,9 +25,11 @@ import {
   calculateConceptMastery,
   loadGraphMasteryOverview
 } from '../../services/conceptMastery';
-import { loadConceptPracticeStates } from '../../services/storage';
+import { loadConceptPracticeStates, clearRevisionSession } from '../../services/storage';
 import { loadStoredKnowledgeCheck } from '../../services/knowledgeCheck';
 import { RevisionConceptOverview } from './RevisionConceptOverview';
+import { RevisionSessionInsights } from './RevisionSessionInsights';
+import { deriveRevisionSessionInsights } from '../../services/sessionInsights';
 
 export const WORKSPACE_EASING = [0.16, 1, 0.3, 1] as const;
 
@@ -727,6 +729,10 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   }, [isLast, currentIndex, totalConcepts, activeSession, concepts, graph?.id, onSessionChange, onSelectConceptIndex, onNextConcept]);
 
   // Keyboard navigation hotkeys (Left / Right arrow, Escape)
+  // End-of-session summary / insights state (Prompt 13)
+  const [isShowingSummary, setIsShowingSummary] = useState(false);
+
+  // Keyboard navigation (ArrowLeft: previous, ArrowRight: next, Escape: close summary or back to graph)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if focus is in an input or textarea
@@ -734,21 +740,25 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
         return;
       }
 
-      if (e.key === 'ArrowLeft' && !isFirst) {
+      if (e.key === 'ArrowLeft' && !isFirst && !isShowingSummary) {
         e.preventDefault();
         handlePrev();
-      } else if (e.key === 'ArrowRight' && !isLast) {
+      } else if (e.key === 'ArrowRight' && !isLast && !isShowingSummary) {
         e.preventDefault();
         handleNext();
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        onBackToGraph();
+        if (isShowingSummary) {
+          setIsShowingSummary(false);
+        } else {
+          onBackToGraph();
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isFirst, isLast, handlePrev, handleNext, onBackToGraph]);
+  }, [isFirst, isLast, handlePrev, handleNext, onBackToGraph, isShowingSummary]);
 
   // Resolve current concept
   const currentConcept: RevisionConceptItem | null = concepts[currentIndex] || null;
@@ -947,6 +957,17 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
 
   // Resolved graph name for header
   const resolvedGraphName = graphName || graph?.name || 'Knowledge Graph';
+
+  // Complete session insights derivation (Prompt 13)
+  const sessionInsights = useMemo(() => {
+    const conceptList = concepts.map(c => ({ id: c.id, name: c.name }));
+    return deriveRevisionSessionInsights({
+      graph,
+      graphName: resolvedGraphName,
+      session: activeSession,
+      concepts: conceptList
+    });
+  }, [graph, resolvedGraphName, activeSession, concepts]);
 
   // Formatting helpers
   const formattedIndex = String(currentIndex + 1).padStart(2, '0');
@@ -1395,6 +1416,16 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
         <div className="revision-header-right">
           <button
             type="button"
+            className={`revision-header-insights-btn ${isShowingSummary ? 'active' : ''}`}
+            onClick={() => setIsShowingSummary(prev => !prev)}
+            title="View revision session insights and summary"
+            aria-label={isShowingSummary ? "Return to concept explanation" : "Session insights"}
+            aria-expanded={isShowingSummary}
+          >
+            <span>{isShowingSummary ? "← Concept view" : "Session insights"}</span>
+          </button>
+          <button
+            type="button"
             className="revision-header-action revision-view-graph-action"
             onClick={handleViewGraph}
             title="View this concept in the interactive knowledge graph"
@@ -1462,8 +1493,32 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
             </div>
           )}
 
-          {/* State 3: Active revision concept presentation */}
-          {!isLoading && totalConcepts > 0 && currentConcept && (
+          {/* State 3A: Session Insights Summary View (Prompt 13) */}
+          {!isLoading && totalConcepts > 0 && isShowingSummary && (
+            <RevisionSessionInsights
+              insights={sessionInsights}
+              onSelectConcept={(conceptId, idx) => {
+                setIsShowingSummary(false);
+                handleSelectFromOverview(conceptId, idx);
+              }}
+              onResumeRevision={() => setIsShowingSummary(false)}
+              onReturnToGraph={() => {
+                if (graph?.id) {
+                  saveRevisionSession(activeSession, graph.id);
+                }
+                onBackToGraph();
+              }}
+              onFinishSession={() => {
+                if (graph?.id) {
+                  clearRevisionSession(graph.id);
+                }
+                onBackToGraph();
+              }}
+            />
+          )}
+
+          {/* State 3B: Active revision concept presentation */}
+          {!isLoading && totalConcepts > 0 && !isShowingSummary && currentConcept && (
             <>
               {/* --------------------------------------------------------------
                   REVISION PROGRESS HEADER (Stage 2: Session Metadata)
@@ -2197,6 +2252,19 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                   <span>Previous concept</span>
                 </button>
 
+                {isLast && (
+                  <button
+                    type="button"
+                    className="revision-nav-link revision-complete-session-action"
+                    onClick={() => setIsShowingSummary(true)}
+                    title="View revision session summary and insights"
+                    aria-label="Complete session"
+                  >
+                    <span>Complete session</span>
+                    <span className="revision-nav-arrow" aria-hidden="true">→</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   className={`revision-nav-link revision-nav-next ${isLast ? 'disabled' : ''}`}
@@ -2213,7 +2281,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
           )}
 
           {/* Missing Concept Fallback */}
-          {!isLoading && totalConcepts > 0 && !currentConcept && (
+          {!isLoading && totalConcepts > 0 && !currentConcept && !isShowingSummary && (
             <div className="revision-empty-state" role="status">
               <span className="revision-empty-kicker">REVISION SESSION</span>
               <h2 className="revision-empty-title">Concept not found</h2>
