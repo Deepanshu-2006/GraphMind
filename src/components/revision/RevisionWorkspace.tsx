@@ -702,9 +702,16 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     [shouldReduceMotion]
   );
 
-  // Concept navigation step handlers
+  // Concept navigation step handlers with rapid-click debounce protection
+  const isNavigatingRef = useRef(false);
+
   const handlePrev = useCallback(() => {
-    if (isFirst) return;
+    if (isFirst || isNavigatingRef.current) return;
+    isNavigatingRef.current = true;
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 250);
+
     setDirection(-1);
     const prevIdx = Math.max(0, currentIndex - 1);
     const nextSession = jumpToIndex(activeSession, prevIdx);
@@ -716,7 +723,12 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   }, [isFirst, currentIndex, activeSession, graph?.id, onSessionChange, onSelectConceptIndex, onPrevConcept]);
 
   const handleNext = useCallback(() => {
-    if (isLast) return;
+    if (isLast || isNavigatingRef.current) return;
+    isNavigatingRef.current = true;
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 250);
+
     setDirection(1);
     const nextIdx = Math.min(totalConcepts - 1, currentIndex + 1);
     const nextSession = jumpToIndex(activeSession, nextIdx);
@@ -1239,6 +1251,42 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
 
   const getSecNum = (id: string) => activeSections.find(s => s.id === id)?.num || String(activeSections.length + 1).padStart(2, '0');
 
+  // Active section tracking for section jump nav highlighting
+  const [activeSectionId, setActiveSectionId] = useState<string>('section-understanding');
+
+  useEffect(() => {
+    if (activeSections.length > 0) {
+      setActiveSectionId(activeSections[0].id);
+    }
+  }, [activeDisplayConcept?.id]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return;
+    const sectionIds = activeSections.map(s => s.id);
+    const elements = sectionIds.map(id => document.getElementById(id)).filter(Boolean) as HTMLElement[];
+    if (elements.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const intersecting = entries.filter(e => e.isIntersecting);
+        if (intersecting.length > 0) {
+          intersecting.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+          const topEl = intersecting[0];
+          if (topEl.target.id) {
+            setActiveSectionId(topEl.target.id);
+          }
+        }
+      },
+      {
+        rootMargin: '-10% 0px -65% 0px',
+        threshold: [0, 0.2]
+      }
+    );
+
+    elements.forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, [activeSections, activeDisplayConcept?.id]);
+
   // Section 06 Editorial Related Concepts renderer
   const renderRelatedConceptsSection = (secNum?: string) => {
     if (resolvedRelatedConcepts.length === 0) return null;
@@ -1261,6 +1309,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                       <span className="revision-related-relation">
                         {formattedType}
                       </span>
+                      <span className="revision-related-separator" aria-hidden="true">·</span>
                       <span className="revision-related-dir-badge" aria-label={`Relationship direction: ${rel.direction}`}>
                         {rel.direction === 'incoming' ? '← Incoming' : '→ Outgoing'}
                       </span>
@@ -1492,6 +1541,74 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
           {!isLoading && totalConcepts > 0 && currentConcept && (
             <>
               {/* --------------------------------------------------------------
+                  REVISION CONCEPT NAVIGATION (Top compact navigation row)
+                  Alighted with reading column directly under workspace header
+                  -------------------------------------------------------------- */}
+              <motion.nav
+                className="revision-concept-navigation"
+                aria-label="Concept navigation"
+                variants={navigationVariants}
+                initial={hasPlayedEntry ? "settled" : "hidden"}
+                animate="settled"
+              >
+                <button
+                  type="button"
+                  className={`revision-nav-link revision-nav-prev ${isFirst ? 'disabled' : ''}`}
+                  onClick={handlePrev}
+                  disabled={isFirst}
+                  aria-disabled={isFirst}
+                  aria-label={prevConcept ? `Previous concept: ${prevConcept.name}` : 'Previous concept'}
+                  title={isFirst ? undefined : (prevConcept ? `Previous: ${prevConcept.name} (←)` : 'Previous concept (←)')}
+                >
+                  <span className="revision-nav-arrow" aria-hidden="true">←</span>
+                  <span className="revision-nav-text-group">
+                    <span className="revision-nav-action-label">Previous concept</span>
+                    {prevConcept && (
+                      <span className="revision-nav-dest-name">{prevConcept.name}</span>
+                    )}
+                  </span>
+                </button>
+
+                <div className="revision-nav-right-cluster">
+                  {isLast && (
+                    <button
+                      type="button"
+                      className="revision-nav-link revision-complete-session-action"
+                      onClick={() => {
+                        if (graph?.id) {
+                          saveRevisionSession(activeSession, graph.id);
+                        }
+                        handleBackToGraph();
+                      }}
+                      title="Complete revision session and return to knowledge graph"
+                      aria-label="Complete session"
+                    >
+                      <span>Complete session</span>
+                      <span className="revision-nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    className={`revision-nav-link revision-nav-next ${isLast ? 'disabled' : ''}`}
+                    onClick={handleNext}
+                    disabled={isLast}
+                    aria-disabled={isLast}
+                    aria-label={nextConcept ? `Next concept: ${nextConcept.name}` : 'Next concept'}
+                    title={isLast ? undefined : (nextConcept ? `Next: ${nextConcept.name} (→)` : 'Next concept (→)')}
+                  >
+                    <span className="revision-nav-text-group revision-nav-text-right">
+                      <span className="revision-nav-action-label">Next concept</span>
+                      {nextConcept && (
+                        <span className="revision-nav-dest-name">{nextConcept.name}</span>
+                      )}
+                    </span>
+                    <span className="revision-nav-arrow" aria-hidden="true">→</span>
+                  </button>
+                </div>
+              </motion.nav>
+
+              {/* --------------------------------------------------------------
                   REVISION PROGRESS HEADER (Stage 2: Session Metadata)
                   "REVISION SESSION" on left | "01 / 18" on right | Thin lime-green progress
                   -------------------------------------------------------------- */}
@@ -1709,23 +1826,28 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                             <div className="revision-section-nav-inner">
                               <span className="revision-section-nav-kicker">SECTIONS</span>
                               <div className="revision-section-nav-items">
-                                {activeSections.map((sec) => (
-                                  <a
-                                    key={sec.id}
-                                    href={`#${sec.id}`}
-                                    className="revision-section-nav-item"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      const el = document.getElementById(sec.id);
-                                      if (el) {
-                                        el.scrollIntoView({ behavior: shouldReduceMotion ? 'auto' : 'smooth', block: 'start' });
-                                      }
-                                    }}
-                                  >
-                                    <span className="revision-nav-num">{sec.num}</span>
-                                    <span className="revision-nav-label">{sec.label}</span>
-                                  </a>
-                                ))}
+                                {activeSections.map((sec) => {
+                                  const isActive = activeSectionId === sec.id;
+                                  return (
+                                    <a
+                                      key={sec.id}
+                                      href={`#${sec.id}`}
+                                      className={`revision-section-nav-item ${isActive ? 'active' : ''}`}
+                                      aria-current={isActive ? 'true' : undefined}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        setActiveSectionId(sec.id);
+                                        const el = document.getElementById(sec.id);
+                                        if (el) {
+                                          el.scrollIntoView({ behavior: shouldReduceMotion ? 'auto' : 'smooth', block: 'start' });
+                                        }
+                                      }}
+                                    >
+                                      <span className="revision-nav-num">{sec.num}</span>
+                                      <span className="revision-nav-label">{sec.label}</span>
+                                    </a>
+                                  );
+                                })}
                               </div>
                             </div>
                           </nav>
@@ -2198,61 +2320,6 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                   </motion.section>
                 </motion.div>
               </AnimatePresence>
-
-              {/* --------------------------------------------------------------
-                  CONCEPT NAVIGATION (Stage 4: Navigation Reveal)
-                  Text-based navigation | On hover subtle green / underline
-                  Disabled on first and last concepts
-                  -------------------------------------------------------------- */}
-              <motion.nav
-                className="revision-concept-navigation"
-                aria-label="Concept navigation"
-                variants={navigationVariants}
-                initial={hasPlayedEntry ? "settled" : "hidden"}
-                animate="settled"
-              >
-                    <button
-                      type="button"
-                      className={`revision-nav-link revision-nav-prev ${isFirst ? 'disabled' : ''}`}
-                      onClick={handlePrev}
-                      disabled={isFirst}
-                      aria-disabled={isFirst}
-                      title={isFirst ? undefined : (prevConcept ? `Previous: ${prevConcept.name} (←)` : 'Previous concept (←)')}
-                    >
-                      <span className="revision-nav-arrow" aria-hidden="true">←</span>
-                      <span>Previous concept</span>
-                    </button>
-
-                    {isLast && (
-                      <button
-                        type="button"
-                        className="revision-nav-link revision-complete-session-action"
-                        onClick={() => {
-                          if (graph?.id) {
-                            saveRevisionSession(activeSession, graph.id);
-                          }
-                          handleBackToGraph();
-                        }}
-                        title="Complete revision session and return to knowledge graph"
-                        aria-label="Complete session"
-                      >
-                        <span>Complete session</span>
-                        <span className="revision-nav-arrow" aria-hidden="true">→</span>
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      className={`revision-nav-link revision-nav-next ${isLast ? 'disabled' : ''}`}
-                      onClick={handleNext}
-                      disabled={isLast}
-                      aria-disabled={isLast}
-                      title={isLast ? undefined : (nextConcept ? `Next: ${nextConcept.name} (→)` : 'Next concept (→)')}
-                    >
-                      <span>Next concept</span>
-                      <span className="revision-nav-arrow" aria-hidden="true">→</span>
-                    </button>
-                  </motion.nav>
             </>
           )}
 

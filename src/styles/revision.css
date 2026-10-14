@@ -140,14 +140,14 @@
    "REVISION SESSION" on left | "04 / 18" on right | Thin lime-green progress
    -------------------------------------------------------------------------- */
 .revision-progress-header {
-  margin-bottom: 52px;
+  margin-bottom: 28px;
 }
 
 .revision-progress-meta {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .revision-progress-kicker {
@@ -188,7 +188,7 @@
    Identifier with lime accent dot | Dominant Title | Comfortable Description
    -------------------------------------------------------------------------- */
 .revision-concept-intro {
-  margin-bottom: 48px;
+  margin-bottom: 28px;
 }
 
 .revision-concept-badge {
@@ -201,7 +201,7 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-muted, #8A8A8A);
-  margin-bottom: 14px;
+  margin-bottom: 8px;
 }
 
 .revision-concept-badge-dot {
@@ -220,12 +220,12 @@
 /* Dominant visual element */
 .revision-concept-title {
   font-family: var(--font-display, var(--font-body, 'Inter Tight', 'Inter', sans-serif));
-  font-size: clamp(34px, 4.2vw, 48px);
-  font-weight: 800;
+  font-size: clamp(28px, 3.6vw, 40px);
+  font-weight: 750;
   letter-spacing: -0.035em;
   line-height: 1.12;
   color: var(--text-primary, #F5F5F5);
-  margin: 0 0 20px 0;
+  margin: 0 0 14px 0;
   padding: 0;
   word-break: break-word;
   overflow-wrap: break-word;
@@ -237,7 +237,7 @@
   font-family: var(--font-body, 'Inter', sans-serif);
   font-size: 16px;
   font-weight: 400;
-  line-height: 1.7;
+  line-height: 1.68;
   letter-spacing: -0.01em;
   color: #B5B5B5;
   margin: 0;
@@ -251,13 +251,13 @@
 .revision-content-structure {
   display: flex;
   flex-direction: column;
-  gap: 48px;
+  gap: 40px;
 }
 
 .revision-section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .revision-section-heading {
@@ -265,11 +265,11 @@
   align-items: baseline;
   gap: 8px;
   font-family: var(--font-body, 'Inter', sans-serif);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-secondary, #A1A1A1);
+  color: #8E8E93;
   margin: 0;
   padding: 0;
 }
@@ -352,11 +352,17 @@
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-muted, #8A8A8A);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 1px 6px;
-  border-radius: 3px;
+  color: #71717A;
+  background: transparent;
+  border: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+.revision-related-separator {
+  color: #52525B;
+  font-size: 10px;
+  user-select: none;
 }
 
 .revision-related-name {
@@ -371,8 +377,9 @@
   font-family: var(--font-body, 'Inter', sans-serif);
   font-size: 13px;
   line-height: 1.55;
-  color: var(--text-muted, #8A8A8A);
-  margin: 0;
+  color: #9E9EA3;
+  margin: 2px 0 0 0;
+  max-width: 58ch;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -391,9 +398,9 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 11px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 4px;
   font-family: var(--font-body, 'Inter', sans-serif);
   font-size: 12px;
@@ -404,8 +411,8 @@
 }
 
 .revision-related-inspect-btn:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.16);
   color: var(--text-primary, #F5F5F5);
 }
 
@@ -418,7 +425,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 11px;
+  padding: 5px 10px;
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 4px;
@@ -687,10 +694,11 @@
 
 /* Examples Box */
 .revision-example-box {
-  padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 6px;
+  padding: 8px 0 8px 16px;
+  background: transparent;
+  border: none;
+  border-left: 2px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0;
   font-family: var(--font-body, 'Inter', sans-serif);
   font-size: 14px;
   line-height: 1.68;
@@ -701,18 +709,23 @@
 .revision-sources-container {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 6px;
+  gap: 0;
+  margin-top: 4px;
 }
 
 .revision-source-card {
-  padding: 14px 18px;
-  background: rgba(255, 255, 255, 0.015);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 6px;
+  padding: 12px 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+}
+
+.revision-source-card:last-child {
+  border-bottom: none;
 }
 
 .revision-source-card-header {
@@ -724,7 +737,7 @@
 
 .revision-source-title {
   font-family: var(--font-body, 'Inter', sans-serif);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   color: #E5E5E5;
 }
@@ -732,14 +745,13 @@
 .revision-source-badge {
   font-family: var(--font-mono, monospace);
   font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--accent, #A3FF12);
-  background: rgba(163, 255, 18, 0.08);
-  padding: 2px 8px;
-  border-radius: 3px;
-  border: 1px solid rgba(163, 255, 18, 0.2);
+  background: transparent;
+  padding: 0;
+  border: none;
 }
 
 .revision-source-badge.outdated {
@@ -1007,7 +1019,7 @@
    -------------------------------------------------------------------------- */
 .revision-section-nav {
   margin-bottom: 32px;
-  padding: 8px 0 14px;
+  padding: 4px 0 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   width: 100%;
 }
@@ -1023,7 +1035,7 @@
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.12em;
-  color: var(--text-muted, #8A8A8A);
+  color: var(--text-muted, #71717A);
   text-transform: uppercase;
   flex-shrink: 0;
 }
@@ -1031,7 +1043,7 @@
 .revision-section-nav-items {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
@@ -1044,40 +1056,57 @@
 .revision-section-nav-item {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 11px;
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 4px;
+  gap: 5px;
+  padding: 4px 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   font-family: var(--font-body, 'Inter', sans-serif);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--text-secondary, #A1A1A1);
   text-decoration: none;
   white-space: nowrap;
-  transition: all 150ms ease;
+  position: relative;
+  cursor: pointer;
+  transition: color var(--transition-fast, 150ms ease);
 }
 
 .revision-section-nav-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.16);
+  background: transparent;
   color: var(--text-primary, #F5F5F5);
+}
+
+.revision-section-nav-item.active {
+  color: var(--text-primary, #F5F5F5);
+  font-weight: 600;
+}
+
+.revision-section-nav-item.active .revision-nav-label {
+  color: var(--accent, #A3FF12);
+}
+
+.revision-section-nav-item.active .revision-nav-num {
+  color: var(--accent, #A3FF12);
+  opacity: 1;
 }
 
 .revision-section-nav-item:focus-visible {
   outline: 1px solid var(--accent, #A3FF12);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
 .revision-section-nav-item .revision-nav-num {
   font-family: var(--font-mono, monospace);
   font-size: 10px;
   font-weight: 600;
-  color: var(--accent, #A3FF12);
+  color: #71717A;
+  transition: color var(--transition-fast, 150ms ease);
 }
 
 .revision-section-nav-item .revision-nav-label {
-  font-size: 12px;
+  font-size: 12.5px;
+  transition: color var(--transition-fast, 150ms ease);
 }
 
 /* --------------------------------------------------------------------------
@@ -1101,10 +1130,10 @@
   font-size: 11px;
   font-weight: 600;
   color: var(--accent, #A3FF12);
-  background: rgba(163, 255, 18, 0.06);
-  border: 1px solid rgba(163, 255, 18, 0.2);
-  border-radius: 4px;
-  padding: 2px 7px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
   flex-shrink: 0;
 }
 
@@ -1125,13 +1154,18 @@
 }
 
 .revision-component-card {
-  padding: 14px 18px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 6px;
+  padding: 12px 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.revision-component-card:last-child {
+  border-bottom: none;
 }
 
 .revision-component-header {
@@ -1154,10 +1188,10 @@
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-muted, #8A8A8A);
-  background: rgba(255, 255, 255, 0.05);
-  padding: 2px 6px;
-  border-radius: 3px;
+  color: #71717A;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
 }
 
 .revision-component-desc {
@@ -1611,17 +1645,19 @@
 }
 
 /* --------------------------------------------------------------------------
-   6. CONCEPT NAVIGATION (Section 5)
-   Balanced bottom navigation | Left: Previous concept | Right: Next concept →
-   Smooth color transition + restrained underline on hover
+   6. CONCEPT NAVIGATION (Top compact navigation row)
    -------------------------------------------------------------------------- */
 .revision-concept-navigation {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 68px;
-  padding-top: 32px;
-  border-top: 1px solid var(--border-default, #242424);
+  gap: 16px;
+  margin-top: 0;
+  margin-bottom: 28px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: none;
+  width: 100%;
 }
 
 .revision-nav-link {
@@ -1630,9 +1666,9 @@
   gap: 8px;
   background: transparent;
   border: none;
-  padding: 8px 0;
+  padding: 4px 0;
   font-family: var(--font-body, 'Inter', sans-serif);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: -0.01em;
   color: var(--text-secondary, #A1A1A1);
@@ -1645,7 +1681,7 @@
 .revision-nav-link::after {
   content: '';
   position: absolute;
-  bottom: 4px;
+  bottom: 0px;
   left: 0;
   right: 0;
   height: 1px;
@@ -1653,6 +1689,14 @@
   transform: scaleX(0);
   transform-origin: left center;
   transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.revision-nav-prev::after {
+  transform-origin: left center;
+}
+
+.revision-nav-next::after {
+  transform-origin: right center;
 }
 
 .revision-nav-link:hover:not(:disabled) {
@@ -1673,7 +1717,52 @@
   opacity: 0.22;
   cursor: not-allowed;
   pointer-events: none;
-  color: var(--text-muted, #8A8A8A);
+}
+
+.revision-nav-text-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  line-height: 1.25;
+}
+
+.revision-nav-text-right {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.revision-nav-action-label {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--text-secondary, #A1A1A1);
+  transition: color var(--transition-fast, 150ms ease);
+}
+
+.revision-nav-dest-name {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: #71717A;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color var(--transition-fast, 150ms ease);
+}
+
+.revision-nav-link:hover:not(:disabled) .revision-nav-action-label {
+  color: var(--accent, #A3FF12);
+}
+
+.revision-nav-link:hover:not(:disabled) .revision-nav-dest-name {
+  color: #D4D4D8;
+}
+
+.revision-nav-right-cluster {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .revision-nav-link.disabled::after,
@@ -1851,8 +1940,14 @@
   }
 
   .revision-concept-navigation {
-    margin-top: 48px;
-    padding-top: 24px;
+    margin-top: 0;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    gap: 12px;
+  }
+
+  .revision-nav-dest-name {
+    display: none;
   }
 
   .revision-nav-link {
@@ -1882,10 +1977,10 @@
 }
 
 .revision-kc-container {
-  background: #111113;
-  border: 1px solid #242426;
-  border-radius: 6px;
-  padding: 24px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1897,20 +1992,19 @@
   justify-content: space-between;
   gap: 12px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #1E1E22;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .revision-kc-type-tag {
   font-family: var(--font-mono, monospace);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--accent, #A3FF12);
-  background: rgba(163, 255, 18, 0.08);
-  border: 1px solid rgba(163, 255, 18, 0.2);
-  padding: 2px 8px;
-  border-radius: 3px;
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 
 .revision-kc-progress {
