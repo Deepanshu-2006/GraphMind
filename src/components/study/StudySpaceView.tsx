@@ -3221,88 +3221,62 @@ export function StudySpaceView({
         </div>
       )}
 
-      {/* SOLE PRIMARY SECTION: CONTINUE REVISION (or restrained empty state) */}
-      {!isLoading && !errorMessage && (
-        unfinishedSessionInfo ? (
-          <motion.section
-            className="study-continue-revision-section"
-            aria-label="Continue revision"
-            initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.40, delay: 0.08, ease: REVEAL_EASE }}
-          >
-            <div className="study-continue-revision-card">
-              <div className="study-continue-eyebrow-row">
-                <span className="study-continue-kicker">CONTINUE REVISION</span>
-                <span className="study-continue-graph-name">{unfinishedSessionInfo.graphName}</span>
-              </div>
-
-              <h2 className="study-continue-concept-title">
+      {/* 2. Compact Revision Resume Strip (rendered only when an active revision session exists) */}
+      {!isLoading && !errorMessage && unfinishedSessionInfo && (
+        <motion.div
+          className="study-revision-strip"
+          role="region"
+          aria-label="Revision in progress"
+          initial={shouldReduceMotion ? false : { opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: REVEAL_EASE }}
+        >
+          <div className="study-revision-strip-content">
+            <div className="study-revision-strip-left">
+              <span className="study-revision-strip-status" aria-hidden="true">
+                <span className="study-revision-strip-dot" />
+              </span>
+              <span className="study-revision-strip-label">REVISION IN PROGRESS</span>
+              <span className="study-revision-strip-divider" aria-hidden="true">·</span>
+              <span className="study-revision-strip-concept" title={unfinishedSessionInfo.conceptTitle}>
                 {unfinishedSessionInfo.conceptTitle}
-              </h2>
-
-              <div className="study-continue-progress-row">
-                <span className="study-continue-progress-text">
-                  Concept {unfinishedSessionInfo.position} of {unfinishedSessionInfo.total} · {unfinishedSessionInfo.remaining} remaining
-                </span>
-                <div
-                  className="study-continue-progress-track"
-                  role="progressbar"
-                  aria-valuenow={unfinishedSessionInfo.progressPercent}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label="Revision progress"
-                >
-                  <div
-                    className="study-continue-progress-fill"
-                    style={{ width: `${unfinishedSessionInfo.progressPercent}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="study-continue-revision-action-row">
-                <button
-                  type="button"
-                  className="study-editorial-btn study-continue-revision-btn"
-                  onClick={() => onNavigateToRevision?.(unfinishedSessionInfo.currentConceptId)}
-                  aria-label={`Continue revision at ${unfinishedSessionInfo.conceptTitle}`}
-                >
-                  <span className="study-btn-content">
-                    <span>Continue revision</span>
-                    <span className="study-btn-arrow" aria-hidden="true">→</span>
-                  </span>
-                  <span className="study-btn-underline" aria-hidden="true" />
-                </button>
-              </div>
+              </span>
+              <span className="study-revision-strip-count">
+                Concept {unfinishedSessionInfo.position} of {unfinishedSessionInfo.total}
+              </span>
             </div>
-          </motion.section>
-        ) : (
-          <motion.section
-            className="study-continue-empty-section"
-            aria-label="Continue revision"
-            initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.40, delay: 0.08, ease: REVEAL_EASE }}
-          >
-            <div className="study-continue-empty-card">
-              <span className="study-continue-kicker">CONTINUE REVISION</span>
-              <h2 className="study-continue-empty-title">Nothing to resume yet.</h2>
-              <p className="study-continue-empty-desc">Open a knowledge graph to start revising.</p>
+
+            <div className="study-revision-strip-right">
+              <div
+                className="study-revision-strip-progress-track"
+                role="progressbar"
+                aria-valuenow={unfinishedSessionInfo.progressPercent}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`Revision progress: ${unfinishedSessionInfo.progressPercent}%`}
+                title={`${unfinishedSessionInfo.progressPercent}% complete`}
+              >
+                <div
+                  className="study-revision-strip-progress-fill"
+                  style={{ width: `${unfinishedSessionInfo.progressPercent}%` }}
+                />
+              </div>
+
               <button
                 type="button"
-                className="study-editorial-btn study-continue-empty-action"
-                onClick={onNavigateToGraph}
-                aria-label="Open knowledge graph"
+                className="study-editorial-btn study-revision-strip-action"
+                onClick={() => onNavigateToRevision?.(unfinishedSessionInfo.currentConceptId)}
+                aria-label={`Resume revision at ${unfinishedSessionInfo.conceptTitle}`}
               >
                 <span className="study-btn-content">
-                  <span>Open knowledge graph</span>
+                  <span>Resume revision</span>
                   <span className="study-btn-arrow" aria-hidden="true">→</span>
                 </span>
                 <span className="study-btn-underline" aria-hidden="true" />
               </button>
             </div>
-          </motion.section>
-        )
+          </div>
+        </motion.div>
       )}
 
       {/* Unified Learning Overview (Phase 4 — Prompt 19: unrendered to keep Study Space focused on tests & revision) */}

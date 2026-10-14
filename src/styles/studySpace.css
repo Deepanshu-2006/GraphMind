@@ -5559,105 +5559,116 @@
 }
 
 /* ==========================================================================
-   GraphMind Study Space — Simplified Revision-Resume Screen
-   Only One Primary Section: CONTINUE REVISION
+   GraphMind Study Space — Compact Revision Resume Strip
+   A lightweight horizontal status element positioned below header
    ========================================================================== */
 
-.study-continue-revision-section,
-.study-continue-empty-section {
+.study-revision-strip {
   width: 100%;
-  margin-top: 8px;
-}
-
-.study-continue-revision-card,
-.study-continue-empty-card {
-  width: 100%;
-  max-width: 680px;
-  background-color: var(--bg-surface, #101010);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 4px;
-  padding: 44px 48px;
+  padding: 10px 18px;
+  margin-top: 14px;
+  margin-bottom: 24px;
   box-sizing: border-box;
 }
 
-.study-continue-eyebrow-row {
+.study-revision-strip-content {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.study-continue-kicker {
+.study-revision-strip-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.study-revision-strip-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.study-revision-strip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--accent, #A3FF12);
+  box-shadow: 0 0 6px rgba(163, 255, 18, 0.45);
+}
+
+.study-revision-strip-label {
   font-family: var(--font-mono, monospace);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--accent, #A3FF12);
-  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.study-continue-graph-name {
-  font-family: var(--font-mono, monospace);
+.study-revision-strip-divider {
+  color: rgba(255, 255, 255, 0.22);
   font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  color: var(--text-secondary, #A1A1A1);
-  text-transform: uppercase;
+  flex-shrink: 0;
 }
 
-.study-continue-graph-name::before {
-  content: "·";
-  margin-right: 12px;
-  color: #555555;
-}
-
-.study-continue-concept-title {
-  font-family: var(--font-display, var(--font-body, sans-serif));
-  font-size: clamp(28px, 3.2vw, 40px);
-  font-weight: 500;
-  line-height: 1.18;
-  letter-spacing: -0.025em;
+.study-revision-strip-concept {
+  font-family: var(--font-body, sans-serif);
+  font-size: 13.5px;
+  font-weight: 550;
   color: var(--text-primary, #F5F5F5);
-  margin: 0 0 20px 0;
-}
-
-.study-continue-progress-row {
-  margin-bottom: 14px;
-}
-
-.study-continue-progress-text {
-  font-family: var(--font-mono, monospace);
-  font-size: 13px;
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  color: var(--text-secondary, #A1A1A1);
-}
-
-.study-continue-progress-track {
-  width: 100%;
-  height: 3px;
-  background-color: rgba(255, 255, 255, 0.08);
-  border-radius: 2px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
   overflow: hidden;
-  margin-bottom: 36px;
+  text-overflow: ellipsis;
+  max-width: 280px;
 }
 
-.study-continue-progress-fill {
+.study-revision-strip-count {
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  color: #888888;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.study-revision-strip-right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-shrink: 0;
+}
+
+.study-revision-strip-progress-track {
+  width: 56px;
+  height: 2px;
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.study-revision-strip-progress-fill {
   height: 100%;
   background-color: var(--accent, #A3FF12);
-  border-radius: 2px;
-  transition: width 0.35s ease;
+  border-radius: 1px;
+  transition: width 0.3s ease;
 }
 
-.study-continue-revision-action-row {
-  display: flex;
-  align-items: center;
-}
-
-.study-continue-revision-btn {
+.study-revision-strip-action {
   font-family: var(--font-mono, monospace);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -5666,30 +5677,45 @@
   border: none;
   padding: 0;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
 }
 
-.study-continue-empty-title {
-  font-family: var(--font-display, var(--font-body, sans-serif));
-  font-size: clamp(24px, 2.8vw, 32px);
-  font-weight: 500;
-  line-height: 1.25;
-  letter-spacing: -0.02em;
-  color: var(--text-primary, #F5F5F5);
-  margin: 0 0 12px 0;
+.study-revision-strip-action:focus-visible {
+  outline: 2px solid var(--accent, #A3FF12);
+  outline-offset: 4px;
 }
 
-.study-continue-empty-desc {
-  font-family: var(--font-body, sans-serif);
-  font-size: 15px;
-  line-height: 1.5;
-  color: var(--text-secondary, #A1A1A1);
-  margin: 0 0 32px 0;
+@media (max-width: 768px) {
+  .study-revision-strip {
+    padding: 10px 14px;
+    margin-bottom: 20px;
+  }
+
+  .study-revision-strip-concept {
+    max-width: 180px;
+  }
 }
 
 @media (max-width: 640px) {
-  .study-continue-revision-card,
-  .study-continue-empty-card {
-    padding: 32px 24px;
+  .study-revision-strip-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .study-revision-strip-left {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .study-revision-strip-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .study-revision-strip-concept {
+    max-width: 160px;
   }
 }
 
