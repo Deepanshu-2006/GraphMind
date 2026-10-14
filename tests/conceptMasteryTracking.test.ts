@@ -565,8 +565,9 @@ describe('GraphMind Feature: Concept Mastery Tracking (Phase 3 — Prompt 12)', 
       assert.ok(html.includes('aria-label="Concept mastery:'), 'Accessible aria-label on tag');
       // Concept is visited in session with explanation -> In progress
       assert.ok(html.includes('In progress'), 'Displays concise text label');
-      // Overview toggle bar
-      assert.ok(html.includes('revision-overview-toggle-bar'), 'Concept overview toggle bar rendered');
+      // Overview toggle bar is removed per Revision Workspace Simplification
+      assert.ok(!html.includes('revision-overview-toggle-bar'), 'Concept overview toggle bar is removed');
+      assert.ok(!html.includes('CONCEPTS OVERVIEW'), 'Concepts overview strip is removed');
     });
 
     test('does not communicate mastery by color alone', () => {
@@ -584,7 +585,7 @@ describe('GraphMind Feature: Concept Mastery Tracking (Phase 3 — Prompt 12)', 
 
       // Every mastery element must have accompanying readable text label
       assert.ok(html.includes('In progress'));
-      assert.ok(html.includes('CONCEPTS OVERVIEW'));
+      assert.ok(!html.includes('CONCEPTS OVERVIEW'), 'Concepts overview strip is removed');
     });
   });
 

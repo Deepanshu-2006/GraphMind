@@ -27,18 +27,10 @@ import type {
 } from '../../types/knowledgeCheck';
 import {
   calculateConceptMastery,
-  loadGraphMasteryOverview,
   saveStoredMastery
 } from '../../services/conceptMastery';
-import { loadConceptPracticeStates, clearRevisionSession } from '../../services/storage';
+import { loadConceptPracticeStates } from '../../services/storage';
 import { loadStoredKnowledgeCheck } from '../../services/knowledgeCheck';
-import { RevisionConceptOverview } from './RevisionConceptOverview';
-import { RevisionSessionInsights } from './RevisionSessionInsights';
-import { deriveRevisionSessionInsights } from '../../services/sessionInsights';
-import { detectKnowledgeGaps, dismissKnowledgeGap } from '../../services/knowledgeGapDetection';
-import { FoundationsSection } from './FoundationsSection';
-import { analyzeConceptFoundations } from '../../services/prerequisiteAnalysis';
-import type { FoundationalExcursionState } from '../../types/prerequisites';
 
 export const WORKSPACE_EASING = [0.16, 1, 0.3, 1] as const;
 
@@ -742,34 +734,9 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   // Resolve current concept
   const currentConcept: RevisionConceptItem | null = concepts[currentIndex] || null;
 
-  // Foundational Excursion State (Phase 4 — Prompt 17: Prerequisite-Aware Learning)
-  // Allows reviewing foundational concepts without mutating or dirtying the revision session sequence.
-  const [foundationalExcursion, setFoundationalExcursion] = useState<FoundationalExcursionState | null>(null);
+  // The active concept being presented in the workspace
+  const activeDisplayConcept: RevisionConceptItem | null = currentConcept;
 
-  const excursionConcept = useMemo<RevisionConceptItem | null>(() => {
-    if (!foundationalExcursion || !graph?.nodes) return null;
-    const node = graph.nodes.find(n => n.id === foundationalExcursion.foundationalConceptId);
-    if (!node) return null;
-    return {
-      id: node.id,
-      name: node.name,
-      category: node.type || (node as any).category,
-      description: node.description || '',
-      relationships: ((node as any).relationships as ConceptRelationship[]) || [],
-      keyIdeas: (node as any).keyIdeas,
-      evidence: node.evidence,
-      isCore: (node as any).isCore
-    };
-  }, [foundationalExcursion, graph?.nodes]);
-
-  // The active concept being presented in the workspace (excursion detour takes precedence for reading, but activeSession is untouched)
-  const activeDisplayConcept: RevisionConceptItem | null = excursionConcept || currentConcept;
-
-  // End-of-session summary / insights state (Prompt 13)
-  const [isShowingSummary, setIsShowingSummary] = useState(false);
-
-  // Concept overview drawer state (Prompt 12)
-  const [isOverviewOpen, setIsOverviewOpen] = useState(false);
 
   // Real-time mastery reactivity version bump
   const [masteryVersion, setMasteryVersion] = useState<number>(0);
@@ -790,29 +757,21 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
         return;
       }
 
-      if (e.key === 'ArrowLeft' && !isFirst && !isShowingSummary) {
+      if (e.key === 'ArrowLeft' && !isFirst) {
         e.preventDefault();
         handlePrev();
-      } else if (e.key === 'ArrowRight' && !isLast && !isShowingSummary) {
+      } else if (e.key === 'ArrowRight' && !isLast) {
         e.preventDefault();
         handleNext();
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        if (foundationalExcursion) {
-          setFoundationalExcursion(null);
-        } else if (isOverviewOpen) {
-          setIsOverviewOpen(false);
-        } else if (isShowingSummary) {
-          setIsShowingSummary(false);
-        } else {
-          handleBackToGraph();
-        }
+        handleBackToGraph();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isFirst, isLast, handlePrev, handleNext, handleBackToGraph, isShowingSummary, isOverviewOpen, foundationalExcursion]);
+  }, [isFirst, isLast, handlePrev, handleNext, handleBackToGraph]);
 
   // Real-time mastery sync when student completes a knowledge-check question
   const handleAttemptSubmitted = useCallback((_attempt: KnowledgeCheckAttempt, nextKcState: ConceptKnowledgeCheckState) => {
@@ -844,8 +803,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     const isVisited = Boolean(
       activeSession.reviewedConceptIds?.includes(activeDisplayConcept.id) ||
       activeSession.currentConceptId === activeDisplayConcept.id ||
-      (activeSession.conceptIds && activeSession.conceptIds[activeSession.currentIndex] === activeDisplayConcept.id) ||
-      Boolean(foundationalExcursion)
+      (activeSession.conceptIds && activeSession.conceptIds[activeSession.currentIndex] === activeDisplayConcept.id)
     );
     const isMarked = Boolean(activeSession.markedForReviewIds?.includes(activeDisplayConcept.id));
     return calculateConceptMastery({
@@ -857,26 +815,8 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
       practiceState: practiceStates[activeDisplayConcept.id],
       isMarkedForReview: isMarked
     });
-  }, [graph?.id, activeDisplayConcept, activeSession, masteryVersion, foundationalExcursion]);
+  }, [graph?.id, activeDisplayConcept, activeSession, masteryVersion]);
 
-  // Complete session/graph mastery overview
-  const masteryOverview = useMemo(() => {
-    const conceptList = concepts.map(c => ({ id: c.id, name: c.name }));
-    const graphId = graph?.id || 'default_graph';
-    return loadGraphMasteryOverview(graphId, conceptList, activeSession);
-  }, [graph?.id, concepts, activeSession, masteryVersion]);
-
-  // Knowledge Gap Report (Phase 4 — Prompt 16)
-  const [gapRefreshCount, setGapRefreshCount] = useState(0);
-  const gapReport = useMemo(() => {
-    void gapRefreshCount;
-    return graph ? detectKnowledgeGaps({ graph, forceRefresh: gapRefreshCount > 0 }) : null;
-  }, [graph, gapRefreshCount, masteryVersion]);
-
-  const currentConceptGap = useMemo(() => {
-    if (!gapReport || !activeDisplayConcept) return null;
-    return gapReport.items.find(g => g.conceptId === activeDisplayConcept.id) || null;
-  }, [gapReport, activeDisplayConcept]);
 
   // Concept explanation lifecycle state (Phase 2 Task 05 & Task 09)
   const [explanationState, setExplanationState] = useState<ExplanationState>(() => {
@@ -1044,16 +984,6 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   // Resolved graph name for header
   const resolvedGraphName = graphName || graph?.name || 'Knowledge Graph';
 
-  // Complete session insights derivation (Prompt 13)
-  const sessionInsights = useMemo(() => {
-    const conceptList = concepts.map(c => ({ id: c.id, name: c.name }));
-    return deriveRevisionSessionInsights({
-      graph,
-      graphName: resolvedGraphName,
-      session: activeSession,
-      concepts: conceptList
-    });
-  }, [graph, resolvedGraphName, activeSession, concepts, masteryVersion]);
 
   // Formatting helpers
   const formattedIndex = String(currentIndex + 1).padStart(2, '0');
@@ -1090,32 +1020,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
       onSelectConceptIndex(nextSession.currentIndex);
     }
     setInspectedRelatedId(null);
-    setFoundationalExcursion(null);
   }, [activeSession, graph?.id, onSessionChange, onSelectConceptIndex]);
-
-  // Open a foundational concept as a non-destructive excursion detour (Prompt 17)
-  const handleOpenFoundationalConcept = useCallback((targetId: string) => {
-    if (!targetId || !graph) return;
-    const targetNode = (graph.nodes || []).find(n => n.id === targetId);
-    if (!targetNode) return;
-
-    if (foundationalExcursion && foundationalExcursion.originConceptId === targetId) {
-      setFoundationalExcursion(null);
-      return;
-    }
-
-    setFoundationalExcursion({
-      originConceptId: foundationalExcursion ? foundationalExcursion.originConceptId : (currentConcept?.id || ''),
-      originConceptName: foundationalExcursion ? foundationalExcursion.originConceptName : (currentConcept?.name || ''),
-      originIndex: foundationalExcursion ? foundationalExcursion.originIndex : currentIndex,
-      foundationalConceptId: targetId,
-      foundationalConceptName: targetNode.name
-    });
-
-    if (workspaceRootRef.current) {
-      workspaceRootRef.current.scrollTo({ top: 0, behavior: shouldReduceMotion ? 'auto' : 'smooth' });
-    }
-  }, [graph, currentConcept, currentIndex, foundationalExcursion, shouldReduceMotion]);
 
   const handleExploreRelatedInGraph = useCallback((targetId: string) => {
     if (!targetId) return;
@@ -1137,19 +1042,6 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     }
   }, [shouldReduceMotion]);
 
-  const handleSelectFromOverview = useCallback((targetId: string, idx: number) => {
-    setFoundationalExcursion(null);
-    if (idx >= 0 && idx < totalConcepts) {
-      setDirection(idx > currentIndex ? 1 : -1);
-      const nextSession = jumpToIndex(activeSession, idx);
-      setInternalSession(nextSession);
-      if (graph?.id) saveRevisionSession(nextSession, graph.id);
-      onSessionChange?.(nextSession);
-      onSelectConceptIndex?.(idx);
-    } else {
-      handleOpenRelatedInRevision(targetId);
-    }
-  }, [totalConcepts, currentIndex, activeSession, graph?.id, onSessionChange, onSelectConceptIndex, handleOpenRelatedInRevision]);
 
   // Resolve related concepts strictly from real graph edges and nodes (Task 08)
   const resolvedRelatedConcepts = useMemo(() => {
@@ -1241,18 +1133,6 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   const hasUnderstandingData = hasExtraKeyIdeas || hasEvidence;
   const hasRelatedConcepts = resolvedRelatedConcepts.length > 0;
 
-  // Prerequisite-Aware Learning Report (Phase 4 — Prompt 17)
-  const foundationsReport = useMemo(() => {
-    if (!graph || !activeDisplayConcept) return null;
-    return analyzeConceptFoundations({
-      graph,
-      conceptId: activeDisplayConcept.id,
-      activeSession,
-      forceRefresh: gapRefreshCount > 0
-    });
-  }, [graph, activeDisplayConcept, activeSession, gapRefreshCount, masteryVersion]);
-
-  const hasFoundations = Boolean(foundationsReport && foundationsReport.hasFoundations && foundationsReport.items.length > 0);
 
   const workspaceRootRef = useRef<HTMLDivElement | null>(null);
 
@@ -1336,30 +1216,26 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
         label: isPoints ? 'Points' : 'Details'
       });
     }
-    // 05. Examples (including structured worked example)
+    // Examples (including structured worked example)
     if ((exp.examples && exp.examples.length > 0) || Boolean(exp.workedExample)) {
       list.push({ id: 'section-examples', num: String(counter++).padStart(2, '0'), label: 'Example' });
     }
-    // 06. Foundations & Prerequisites (Phase 4 — Prompt 17)
-    if (hasFoundations) {
-      list.push({ id: 'section-foundations', num: String(counter++).padStart(2, '0'), label: 'Foundations' });
-    }
-    // 07. Related concepts
+    // Related concepts
     if (hasRelatedConcepts) {
       list.push({ id: 'section-related-concepts', num: String(counter++).padStart(2, '0'), label: 'Related' });
     }
-    // 08. Knowledge check (Interactive)
+    // Knowledge check (Interactive)
     const hasMultipleReadingSections = list.length > 1;
     if (hasMultipleReadingSections) {
       list.push({ id: 'section-knowledge-check', num: String(counter++).padStart(2, '0'), label: 'Check' });
     }
-    // 09. Source references
+    // Source references
     if (exp.sourceReferences && exp.sourceReferences.length > 0) {
       list.push({ id: 'section-sources', num: String(counter++).padStart(2, '0'), label: 'Sources' });
     }
 
     return list;
-  }, [explanationState, hasUnderstandingData, hasFoundations, hasRelatedConcepts]);
+  }, [explanationState, hasUnderstandingData, hasRelatedConcepts]);
 
   const getSecNum = (id: string) => activeSections.find(s => s.id === id)?.num || String(activeSections.length + 1).padStart(2, '0');
 
@@ -1545,16 +1421,6 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
         <div className="revision-header-right">
           <button
             type="button"
-            className={`revision-header-insights-btn ${isShowingSummary ? 'active' : ''}`}
-            onClick={() => setIsShowingSummary(prev => !prev)}
-            title="View revision session insights and summary"
-            aria-label={isShowingSummary ? "Return to concept explanation" : "Session insights"}
-            aria-expanded={isShowingSummary}
-          >
-            <span>{isShowingSummary ? "← Concept view" : "Session insights"}</span>
-          </button>
-          <button
-            type="button"
             className="revision-header-action revision-view-graph-action"
             onClick={handleViewGraph}
             title="View this concept in the interactive knowledge graph"
@@ -1622,32 +1488,8 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
             </div>
           )}
 
-          {/* State 3A: Session Insights Summary View (Prompt 13) */}
-          {!isLoading && totalConcepts > 0 && isShowingSummary && (
-            <RevisionSessionInsights
-              insights={sessionInsights}
-              onSelectConcept={(conceptId, idx) => {
-                setIsShowingSummary(false);
-                handleSelectFromOverview(conceptId, idx);
-              }}
-              onResumeRevision={() => setIsShowingSummary(false)}
-              onReturnToGraph={() => {
-                if (graph?.id) {
-                  saveRevisionSession(activeSession, graph.id);
-                }
-                onBackToGraph();
-              }}
-              onFinishSession={() => {
-                if (graph?.id) {
-                  clearRevisionSession(graph.id);
-                }
-                onBackToGraph();
-              }}
-            />
-          )}
-
-          {/* State 3B: Active revision concept presentation */}
-          {!isLoading && totalConcepts > 0 && !isShowingSummary && currentConcept && (
+          {/* State 3: Active revision concept presentation */}
+          {!isLoading && totalConcepts > 0 && currentConcept && (
             <>
               {/* --------------------------------------------------------------
                   REVISION PROGRESS HEADER (Stage 2: Session Metadata)
@@ -1688,16 +1530,6 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                 </div>
               </motion.div>
 
-              {/* Concepts Overview Drawer (Prompt 12 Section 5) */}
-              <RevisionConceptOverview
-                overview={masteryOverview}
-                conceptList={concepts.map(c => ({ id: c.id, name: c.name }))}
-                currentConceptId={currentConcept.id}
-                isOpen={isOverviewOpen}
-                onToggle={() => setIsOverviewOpen(prev => !prev)}
-                onSelectConcept={handleSelectFromOverview}
-                gapReport={gapReport}
-              />
 
               {/* --------------------------------------------------------------
                   DIRECTION-AWARE CONCEPT CANVAS (Stage 3 & Concept Transitions)
@@ -1714,34 +1546,6 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                   exit="exit"
                   className="revision-concept-canvas"
                 >
-                  {/* Foundational Excursion Banner (Phase 4 — Prompt 17) */}
-                  {foundationalExcursion && (
-                    <aside
-                      className="revision-excursion-banner"
-                      role="region"
-                      aria-label="Foundational concept excursion banner"
-                    >
-                      <div className="revision-excursion-banner-info">
-                        <span className="revision-excursion-badge">
-                          <span className="revision-excursion-dot" aria-hidden="true" />
-                          FOUNDATIONAL DETOUR
-                        </span>
-                        <span className="revision-excursion-origin-text">
-                          Studying foundation for <strong>{foundationalExcursion.originConceptName}</strong>
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        className="revision-excursion-return-btn"
-                        onClick={() => setFoundationalExcursion(null)}
-                        aria-label={`Return to ${foundationalExcursion.originConceptName}`}
-                      >
-                        <span aria-hidden="true">←</span>
-                        <span>Return to {foundationalExcursion.originConceptName}</span>
-                      </button>
-                    </aside>
-                  )}
-
                   {/* Concept Introduction (Stage 3: Identifier -> Title -> Description) */}
                   <section className="revision-concept-intro" aria-labelledby="revision-concept-title">
                     <motion.div
@@ -1752,7 +1556,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                     >
                       <span className="revision-concept-badge-dot" aria-hidden="true" />
                       <span className="revision-concept-badge-text">
-                        {foundationalExcursion ? 'FOUNDATIONAL CONCEPT' : `CONCEPT ${formattedIndex}`}
+                        {`CONCEPT ${formattedIndex}`}
                       </span>
                       {currentMastery && (
                         <span
@@ -1795,65 +1599,6 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                     ) : null}
                   </section>
 
-                  {/* Evidence-Based Knowledge Gap Notice (Phase 4 — Prompt 16) */}
-                  {currentConceptGap && (currentConceptGap.gapState === 'potential-foundational-gap' || currentConceptGap.gapState === 'review-recommended' || currentConceptGap.gapState === 'observed-difficulty') && !currentConceptGap.isDismissed && !currentConceptGap.isDeferred && (
-                    <div
-                      className={`revision-gap-banner ${currentConceptGap.gapState === 'potential-foundational-gap' ? 'foundational' : currentConceptGap.gapState === 'review-recommended' ? 'review' : 'observed'}`}
-                      role="region"
-                      aria-label="Knowledge gap notice"
-                    >
-                      <div className="revision-gap-header">
-                        <div className="revision-gap-kicker-group">
-                          <span className={`revision-gap-badge ${currentConceptGap.gapState === 'potential-foundational-gap' ? 'foundational' : currentConceptGap.gapState === 'review-recommended' ? 'review' : 'observed'}`}>
-                            <span className="revision-gap-badge-dot" aria-hidden="true" />
-                            <span>{currentConceptGap.statusLabel}</span>
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          className="revision-gap-action-btn"
-                          onClick={() => {
-                            if (graph?.id) {
-                              dismissKnowledgeGap(graph.id, currentConceptGap.conceptId);
-                              setGapRefreshCount(p => p + 1);
-                            }
-                          }}
-                          title="Dismiss this recommendation"
-                          aria-label="Dismiss this recommendation"
-                        >
-                          Dismiss
-                        </button>
-                      </div>
-
-                      <p className="revision-gap-reason">{currentConceptGap.reason}</p>
-
-                      <div className="revision-gap-actions">
-                        {currentConceptGap.gapState === 'potential-foundational-gap' && currentConceptGap.relatedConcepts.find(r => r.isPrerequisite && r.hasDifficulty) && (
-                          <button
-                            type="button"
-                            className="revision-gap-action-btn primary"
-                            onClick={() => {
-                              const prereq = currentConceptGap.relatedConcepts.find(r => r.isPrerequisite && r.hasDifficulty);
-                              if (prereq) {
-                                handleOpenFoundationalConcept(prereq.conceptId);
-                              }
-                            }}
-                          >
-                            <span>Review prerequisite ({currentConceptGap.relatedConcepts.find(r => r.isPrerequisite && r.hasDifficulty)?.conceptName})</span>
-                            <span aria-hidden="true">→</span>
-                          </button>
-                        )}
-
-                        <a href="#section-worked-example" className="revision-gap-action-btn">
-                          <span>Review Worked Example</span>
-                        </a>
-
-                        <a href="#section-knowledge-check" className="revision-gap-action-btn">
-                          <span>Retry Knowledge Check</span>
-                        </a>
-                      </div>
-                    </div>
-                  )}
 
                   {/* --------------------------------------------------------------
                       CONTENT PLACEHOLDER / STRUCTURE (Section 5)
@@ -1899,14 +1644,6 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                             </p>
                           </div>
                         </div>
-                        {foundationsReport && hasFoundations && (
-                          <FoundationsSection
-                            report={foundationsReport}
-                            sectionNumber={getSecNum('section-foundations')}
-                            onOpenFoundationalConcept={handleOpenFoundationalConcept}
-                            onViewInGraph={onViewGraph ? (cId) => onViewGraph(cId) : undefined}
-                          />
-                        )}
                         {renderRelatedConceptsSection()}
 
                         {/* Knowledge Check (Interactive Formative Check) */}
@@ -2341,15 +2078,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                           </div>
                         )}
 
-                        {/* 06. Foundations & Prerequisites (Phase 4 — Prompt 17) */}
-                        {foundationsReport && hasFoundations && (
-                          <FoundationsSection
-                            report={foundationsReport}
-                            sectionNumber={getSecNum('section-foundations')}
-                            onOpenFoundationalConcept={handleOpenFoundationalConcept}
-                            onViewInGraph={onViewGraph ? (cId) => onViewGraph(cId) : undefined}
-                          />
-                        )}
+                        {/* Related Concepts */}
 
                         {/* 07. Related Concepts */}
                         {renderRelatedConceptsSection(getSecNum('section-related-concepts'))}
@@ -2449,14 +2178,6 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                           </div>
                         )}
 
-                        {foundationsReport && hasFoundations && (
-                          <FoundationsSection
-                            report={foundationsReport}
-                            sectionNumber={getSecNum('section-foundations')}
-                            onOpenFoundationalConcept={handleOpenFoundationalConcept}
-                            onViewInGraph={onViewGraph ? (cId) => onViewGraph(cId) : undefined}
-                          />
-                        )}
 
                         {renderRelatedConceptsSection()}
 
@@ -2490,18 +2211,6 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                 initial={hasPlayedEntry ? "settled" : "hidden"}
                 animate="settled"
               >
-                {foundationalExcursion ? (
-                  <button
-                    type="button"
-                    className="revision-nav-link revision-nav-return-excursion"
-                    onClick={() => setFoundationalExcursion(null)}
-                    aria-label={`Return to origin concept ${foundationalExcursion.originConceptName}`}
-                  >
-                    <span className="revision-nav-arrow" aria-hidden="true">←</span>
-                    <span>Return to {foundationalExcursion.originConceptName}</span>
-                  </button>
-                ) : (
-                  <>
                     <button
                       type="button"
                       className={`revision-nav-link revision-nav-prev ${isFirst ? 'disabled' : ''}`}
@@ -2518,8 +2227,13 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                       <button
                         type="button"
                         className="revision-nav-link revision-complete-session-action"
-                        onClick={() => setIsShowingSummary(true)}
-                        title="View revision session summary and insights"
+                        onClick={() => {
+                          if (graph?.id) {
+                            saveRevisionSession(activeSession, graph.id);
+                          }
+                          handleBackToGraph();
+                        }}
+                        title="Complete revision session and return to knowledge graph"
                         aria-label="Complete session"
                       >
                         <span>Complete session</span>
@@ -2538,14 +2252,12 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                       <span>Next concept</span>
                       <span className="revision-nav-arrow" aria-hidden="true">→</span>
                     </button>
-                  </>
-                )}
-              </motion.nav>
+                  </motion.nav>
             </>
           )}
 
           {/* Missing Concept Fallback */}
-          {!isLoading && totalConcepts > 0 && !currentConcept && !isShowingSummary && (
+          {!isLoading && totalConcepts > 0 && !currentConcept && (
             <div className="revision-empty-state" role="status">
               <span className="revision-empty-kicker">REVISION SESSION</span>
               <h2 className="revision-empty-title">Concept not found</h2>

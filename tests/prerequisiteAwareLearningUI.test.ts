@@ -70,73 +70,30 @@ describe('GraphMind Prerequisite-Aware Learning UI & System Integration Tests (P
     });
   });
 
-  describe('2. Revision Workspace & Non-Destructive Excursion Integration', () => {
-    it('manages foundational excursion state without mutating active session queue', () => {
+  describe('2. Revision Workspace Simplification (Prompt 11)', () => {
+    it('omits FoundationsSection and section-foundations in simplified RevisionWorkspace', () => {
       assert.ok(
-        revisionWorkspaceSrc.includes('foundationalExcursion'),
-        'RevisionWorkspace must maintain foundationalExcursion state'
+        !revisionWorkspaceSrc.includes('<FoundationsSection'),
+        'RevisionWorkspace must not render FoundationsSection in simplified revision'
       );
       assert.ok(
-        revisionWorkspaceSrc.includes('handleOpenFoundationalConcept'),
-        'RevisionWorkspace must define handleOpenFoundationalConcept handler'
+        !revisionWorkspaceSrc.includes("id: 'section-foundations'"),
+        'Active sections list must omit section-foundations in simplified revision'
       );
-
-      // Verify that handleOpenFoundationalConcept does NOT mutate session.conceptIds
       assert.ok(
-        !revisionWorkspaceSrc.includes('activeSession.conceptIds.push(foundationalConceptId)'),
-        'Foundational excursion must not append concepts to active session queue'
+        !revisionWorkspaceSrc.includes("label: 'Foundations'"),
+        'Section jump navigation must not include Foundations'
       );
     });
 
-    it('renders prominent excursion banner with origin concept name and return action', () => {
+    it('omits foundational excursion detour banner in simplified RevisionWorkspace', () => {
       assert.ok(
-        revisionWorkspaceSrc.includes('revision-excursion-banner'),
-        'RevisionWorkspace must render revision-excursion-banner when excursion is active'
+        !revisionWorkspaceSrc.includes('revision-excursion-banner'),
+        'RevisionWorkspace must omit revision-excursion-banner'
       );
       assert.ok(
-        revisionWorkspaceSrc.includes('FOUNDATIONAL DETOUR'),
-        'Excursion banner must identify itself with FOUNDATIONAL DETOUR kicker'
-      );
-      assert.ok(
-        revisionWorkspaceSrc.includes('setFoundationalExcursion(null)'),
-        'Banner must have return button that clears excursion and restores origin'
-      );
-    });
-
-    it('updates concept badge text to FOUNDATIONAL CONCEPT during detour', () => {
-      assert.ok(
-        revisionWorkspaceSrc.includes("foundationalExcursion ? 'FOUNDATIONAL CONCEPT' : `CONCEPT ${formattedIndex}`"),
-        'Badge must reflect FOUNDATIONAL CONCEPT when inspecting prerequisite'
-      );
-    });
-
-    it('replaces bottom concept navigation with return-to-origin button during excursion', () => {
-      assert.ok(
-        revisionWorkspaceSrc.includes('revision-nav-return-excursion'),
-        'Bottom navigation must render return button during excursion'
-      );
-      assert.ok(
-        revisionWorkspaceSrc.includes('Return to {foundationalExcursion.originConceptName}'),
-        'Return button must specify origin concept name'
-      );
-    });
-
-    it('dynamically inserts section-foundations into section navigation', () => {
-      assert.ok(
-        revisionWorkspaceSrc.includes("id: 'section-foundations'"),
-        'Active sections list must include section-foundations when foundations exist'
-      );
-      assert.ok(
-        revisionWorkspaceSrc.includes("label: 'Foundations'"),
-        'Section jump navigation item must be labeled Foundations'
-      );
-    });
-
-    it('wires gap notice banner review button to handleOpenFoundationalConcept', () => {
-      assert.match(
-        revisionWorkspaceSrc,
-        /handleOpenFoundationalConcept\(prereq\.conceptId\)/,
-        'Gap notice review button must trigger non-destructive handleOpenFoundationalConcept'
+        !revisionWorkspaceSrc.includes('handleOpenFoundationalConcept'),
+        'RevisionWorkspace must omit handleOpenFoundationalConcept'
       );
     });
   });

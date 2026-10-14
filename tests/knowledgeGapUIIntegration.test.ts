@@ -45,25 +45,14 @@ describe('GraphMind Knowledge Gap UI & System Integration Tests (Prompt 16)', ()
   });
 
   describe('2. Revision Workspace & Concept Overview Integration', () => {
-    it('computes knowledge gap report in RevisionWorkspace without mutating active session order', () => {
-      assert.ok(revisionWorkspaceSrc.includes('detectKnowledgeGaps'), 'RevisionWorkspace must detect knowledge gaps');
-      assert.ok(revisionWorkspaceSrc.includes('gapReport'), 'RevisionWorkspace must derive gapReport');
-      
-      // Ensure session reordering is NOT performed silently
+    it('omits knowledge gap warning banners in simplified RevisionWorkspace', () => {
       assert.ok(
-        !revisionWorkspaceSrc.includes('gapReport.detectedGaps.sort('),
-        'Revision session order must not be silently reordered by gap detection'
-      );
-    });
-
-    it('displays contextual gap banner for current concept in RevisionWorkspace', () => {
-      assert.ok(
-        revisionWorkspaceSrc.includes('revision-gap-banner'),
-        'RevisionWorkspace must render revision-gap-banner when active concept has an identified gap'
+        !revisionWorkspaceSrc.includes('revision-gap-banner'),
+        'RevisionWorkspace must not render revision-gap-banner in simplified revision'
       );
       assert.ok(
-        revisionWorkspaceSrc.includes('currentConceptGap'),
-        'RevisionWorkspace must check for currentConceptGap'
+        !revisionWorkspaceSrc.includes('currentConceptGap'),
+        'RevisionWorkspace must not display currentConceptGap warning panel'
       );
     });
 

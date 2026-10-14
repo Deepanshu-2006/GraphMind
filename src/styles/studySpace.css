@@ -5558,3 +5558,139 @@
   }
 }
 
+/* ==========================================================================
+   GraphMind Study Space — Simplified Revision-Resume Screen
+   Only One Primary Section: CONTINUE REVISION
+   ========================================================================== */
+
+.study-continue-revision-section,
+.study-continue-empty-section {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.study-continue-revision-card,
+.study-continue-empty-card {
+  width: 100%;
+  max-width: 680px;
+  background-color: var(--bg-surface, #101010);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 44px 48px;
+  box-sizing: border-box;
+}
+
+.study-continue-eyebrow-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.study-continue-kicker {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--accent, #A3FF12);
+  text-transform: uppercase;
+}
+
+.study-continue-graph-name {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary, #A1A1A1);
+  text-transform: uppercase;
+}
+
+.study-continue-graph-name::before {
+  content: "·";
+  margin-right: 12px;
+  color: #555555;
+}
+
+.study-continue-concept-title {
+  font-family: var(--font-display, var(--font-body, sans-serif));
+  font-size: clamp(28px, 3.2vw, 40px);
+  font-weight: 500;
+  line-height: 1.18;
+  letter-spacing: -0.025em;
+  color: var(--text-primary, #F5F5F5);
+  margin: 0 0 20px 0;
+}
+
+.study-continue-progress-row {
+  margin-bottom: 14px;
+}
+
+.study-continue-progress-text {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary, #A1A1A1);
+}
+
+.study-continue-progress-track {
+  width: 100%;
+  height: 3px;
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 36px;
+}
+
+.study-continue-progress-fill {
+  height: 100%;
+  background-color: var(--accent, #A3FF12);
+  border-radius: 2px;
+  transition: width 0.35s ease;
+}
+
+.study-continue-revision-action-row {
+  display: flex;
+  align-items: center;
+}
+
+.study-continue-revision-btn {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary, #F5F5F5);
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.study-continue-empty-title {
+  font-family: var(--font-display, var(--font-body, sans-serif));
+  font-size: clamp(24px, 2.8vw, 32px);
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--text-primary, #F5F5F5);
+  margin: 0 0 12px 0;
+}
+
+.study-continue-empty-desc {
+  font-family: var(--font-body, sans-serif);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-secondary, #A1A1A1);
+  margin: 0 0 32px 0;
+}
+
+@media (max-width: 640px) {
+  .study-continue-revision-card,
+  .study-continue-empty-card {
+    padding: 32px 24px;
+  }
+}
+
+

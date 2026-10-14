@@ -413,7 +413,7 @@ describe('GraphMind Feature: Revision Session Insights (Phase 3 — Prompt 13)',
    * SUITE 4: RevisionWorkspace Integration & Intentional Completion
    * ==================================================================== */
   describe('4. RevisionWorkspace Integration & Intentional Completion', () => {
-    test('does NOT open session summary automatically when navigating concepts', () => {
+    test('does NOT render session insights in simplified RevisionWorkspace', () => {
       const html = renderToString(
         React.createElement(RevisionWorkspace, {
           graph: mockGraph,
@@ -426,10 +426,11 @@ describe('GraphMind Feature: Revision Session Insights (Phase 3 — Prompt 13)',
         })
       );
 
-      // Session insights container must NOT be visible by default
+      // Session insights container and button must NOT be visible in RevisionWorkspace
       assert.ok(!html.includes('revision-insights-container'));
       assert.ok(html.includes('revision-concept-canvas'));
-      assert.ok(html.includes('Session insights'));
+      assert.ok(!html.includes('Session insights'));
+      assert.ok(!html.includes('revision-header-insights-btn'));
     });
 
     test('renders Complete session button on the last concept', () => {

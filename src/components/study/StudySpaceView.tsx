@@ -20,9 +20,11 @@ import { TestReviewView } from '../test/TestReviewView';
 import { MissedConceptsReview } from '../test/MissedConceptsReview';
 import { getArcEndpoint } from './CircularScore';
 import { SlotDigit } from '../common/SlotDigit';
-import { KnowledgeGapSection } from './KnowledgeGapSection';
-import { RevisionRecommendationsSection } from './RevisionRecommendationsSection';
+import { loadRevisionSession, validateRevisionSession } from '../../services/revisionSession';
 import { UnifiedLearningOverview } from './UnifiedLearningOverview';
+import { RevisionRecommendationsSection } from './RevisionRecommendationsSection';
+import { KnowledgeGapSection } from './KnowledgeGapSection';
+
 
 export interface StudySpaceViewProps {
   onNavigateToGraph: () => void;
@@ -2755,6 +2757,80 @@ export function StudySpaceView({
     }
   }, [effectiveSelectedGraphId, activeGraph, graphContext?.activeGraph]);
 
+  // Re-sync session state when window focuses or storage updates
+  const [sessionRefreshKey, setSessionRefreshKey] = useState(0);
+  useEffect(() => {
+    const handleFocus = () => setSessionRefreshKey(k => k + 1);
+    const handleStorage = (e: StorageEvent) => {
+      if (!e.key || e.key.includes('revision_session')) {
+        setSessionRefreshKey(k => k + 1);
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
+  // Compute real unfinished revision session
+  const unfinishedSessionInfo = useMemo(() => {
+    void sessionRefreshKey;
+    const g = currentKnowledgeGraph || activeGraph;
+    const gid = effectiveSelectedGraphId || g?.id || loadActiveGraphId();
+    if (!gid) return null;
+
+    let targetGraph = g;
+    if (!targetGraph || targetGraph.id !== gid) {
+      try {
+        targetGraph = loadGraphData(gid) || activeGraph || null;
+      } catch {
+        targetGraph = activeGraph || null;
+      }
+    }
+
+    if (!targetGraph || !targetGraph.nodes || targetGraph.nodes.length === 0) {
+      return null;
+    }
+
+    const rawStored = loadRevisionSession(gid);
+    const validatedSession = validateRevisionSession(rawStored, targetGraph);
+    if (!validatedSession || !validatedSession.conceptIds || validatedSession.conceptIds.length === 0) {
+      return null;
+    }
+
+    const isCompleted = (validatedSession as any).isCompleted === true;
+    if (isCompleted) {
+      return null;
+    }
+
+    const total = validatedSession.conceptIds.length;
+    const currIdx = typeof validatedSession.currentIndex === 'number'
+      ? Math.max(0, Math.min(validatedSession.currentIndex, total - 1))
+      : 0;
+
+    const currentConceptId = validatedSession.currentConceptId || validatedSession.conceptIds[currIdx];
+    const currentNode = targetGraph.nodes.find(n => n.id === currentConceptId);
+    const conceptTitle = currentNode?.name || currentConceptId || 'Current Concept';
+
+    const position = currIdx + 1;
+    const remaining = Math.max(0, total - position);
+    const progressPercent = total > 0 ? Math.round((position / total) * 100) : 0;
+
+    return {
+      graphId: gid,
+      graphName: targetGraph.name || selectedGraphMeta?.name || 'Knowledge Graph',
+      currentConceptId,
+      conceptTitle,
+      position,
+      total,
+      remaining,
+      progressPercent
+    };
+  }, [currentKnowledgeGraph, activeGraph, effectiveSelectedGraphId, selectedGraphMeta, sessionRefreshKey]);
+
+
   // Derive concepts worth revisiting across historical attempts for the selected graph
   const conceptsWorthRevisiting = useMemo<ConceptRevisitItem[]>(() => {
     return deriveConceptsWorthRevisiting(selectedGraphAttempts, currentKnowledgeGraph || activeGraph);
@@ -3141,12 +3217,96 @@ export function StudySpaceView({
       {/* Loading state */}
       {isLoading && (
         <div className="study-loading-state" role="status" aria-live="polite">
-          <span>Loading assessment history…</span>
+          <span>Loading revision session…</span>
         </div>
       )}
 
-      {/* Unified Learning Overview (Phase 4 — Prompt 19) */}
-      {!isLoading && !errorMessage && (currentKnowledgeGraph || activeGraph) && (currentKnowledgeGraph?.nodes?.length || activeGraph?.nodes?.length || 0) > 0 && (
+      {/* SOLE PRIMARY SECTION: CONTINUE REVISION (or restrained empty state) */}
+      {!isLoading && !errorMessage && (
+        unfinishedSessionInfo ? (
+          <motion.section
+            className="study-continue-revision-section"
+            aria-label="Continue revision"
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.40, delay: 0.08, ease: REVEAL_EASE }}
+          >
+            <div className="study-continue-revision-card">
+              <div className="study-continue-eyebrow-row">
+                <span className="study-continue-kicker">CONTINUE REVISION</span>
+                <span className="study-continue-graph-name">{unfinishedSessionInfo.graphName}</span>
+              </div>
+
+              <h2 className="study-continue-concept-title">
+                {unfinishedSessionInfo.conceptTitle}
+              </h2>
+
+              <div className="study-continue-progress-row">
+                <span className="study-continue-progress-text">
+                  Concept {unfinishedSessionInfo.position} of {unfinishedSessionInfo.total} · {unfinishedSessionInfo.remaining} remaining
+                </span>
+                <div
+                  className="study-continue-progress-track"
+                  role="progressbar"
+                  aria-valuenow={unfinishedSessionInfo.progressPercent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label="Revision progress"
+                >
+                  <div
+                    className="study-continue-progress-fill"
+                    style={{ width: `${unfinishedSessionInfo.progressPercent}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="study-continue-revision-action-row">
+                <button
+                  type="button"
+                  className="study-editorial-btn study-continue-revision-btn"
+                  onClick={() => onNavigateToRevision?.(unfinishedSessionInfo.currentConceptId)}
+                  aria-label={`Continue revision at ${unfinishedSessionInfo.conceptTitle}`}
+                >
+                  <span className="study-btn-content">
+                    <span>Continue revision</span>
+                    <span className="study-btn-arrow" aria-hidden="true">→</span>
+                  </span>
+                  <span className="study-btn-underline" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          </motion.section>
+        ) : (
+          <motion.section
+            className="study-continue-empty-section"
+            aria-label="Continue revision"
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.40, delay: 0.08, ease: REVEAL_EASE }}
+          >
+            <div className="study-continue-empty-card">
+              <span className="study-continue-kicker">CONTINUE REVISION</span>
+              <h2 className="study-continue-empty-title">Nothing to resume yet.</h2>
+              <p className="study-continue-empty-desc">Open a knowledge graph to start revising.</p>
+              <button
+                type="button"
+                className="study-editorial-btn study-continue-empty-action"
+                onClick={onNavigateToGraph}
+                aria-label="Open knowledge graph"
+              >
+                <span className="study-btn-content">
+                  <span>Open knowledge graph</span>
+                  <span className="study-btn-arrow" aria-hidden="true">→</span>
+                </span>
+                <span className="study-btn-underline" aria-hidden="true" />
+              </button>
+            </div>
+          </motion.section>
+        )
+      )}
+
+      {/* Unified Learning Overview (Phase 4 — Prompt 19: unrendered to keep Study Space focused on tests & revision) */}
+      {(false as boolean) && !isLoading && !errorMessage && (currentKnowledgeGraph || activeGraph) && (currentKnowledgeGraph?.nodes?.length || activeGraph?.nodes?.length || 0) > 0 && (
         <UnifiedLearningOverview
           graph={(currentKnowledgeGraph || activeGraph)!}
           onNavigateToRevision={onNavigateToRevision}
@@ -3185,7 +3345,7 @@ export function StudySpaceView({
       )}
 
       {/* Personalized Revision Recommendations for graphs with zero assessments */}
-      {!isLoading && !errorMessage && attempts.length === 0 && (currentKnowledgeGraph || activeGraph) && (currentKnowledgeGraph?.nodes?.length || activeGraph?.nodes?.length || 0) > 0 && (
+      {(false as boolean) && !isLoading && !errorMessage && attempts.length === 0 && (currentKnowledgeGraph || activeGraph) && (currentKnowledgeGraph?.nodes?.length || activeGraph?.nodes?.length || 0) > 0 && (
         <RevisionRecommendationsSection
           graph={(currentKnowledgeGraph || activeGraph)!}
           onNavigateToRevision={onNavigateToRevision}
@@ -3976,7 +4136,7 @@ export function StudySpaceView({
           </motion.section>
 
           {/* Personalized Revision Recommendations (Phase 4 — Prompt 18) */}
-          {(currentKnowledgeGraph || activeGraph) && (currentKnowledgeGraph?.nodes?.length || activeGraph?.nodes?.length || 0) > 0 && (
+          {(false as boolean) && (currentKnowledgeGraph || activeGraph) && (currentKnowledgeGraph?.nodes?.length || activeGraph?.nodes?.length || 0) > 0 && (
             <RevisionRecommendationsSection
               graph={(currentKnowledgeGraph || activeGraph)!}
               onNavigateToRevision={onNavigateToRevision}
@@ -3986,7 +4146,7 @@ export function StudySpaceView({
           )}
 
           {/* Evidence-Based Knowledge Gap Detection (Phase 4 — Prompt 16) */}
-          {(currentKnowledgeGraph || activeGraph) && (currentKnowledgeGraph?.nodes?.length || activeGraph?.nodes?.length || 0) > 0 && (
+          {(false as boolean) && (currentKnowledgeGraph || activeGraph) && (currentKnowledgeGraph?.nodes?.length || activeGraph?.nodes?.length || 0) > 0 && (
             <KnowledgeGapSection
               graph={(currentKnowledgeGraph || activeGraph)!}
               onNavigateToConcept={onNavigateToConcept}
