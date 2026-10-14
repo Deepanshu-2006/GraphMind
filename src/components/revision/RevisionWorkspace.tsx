@@ -1541,74 +1541,6 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
           {!isLoading && totalConcepts > 0 && currentConcept && (
             <>
               {/* --------------------------------------------------------------
-                  REVISION CONCEPT NAVIGATION (Top compact navigation row)
-                  Alighted with reading column directly under workspace header
-                  -------------------------------------------------------------- */}
-              <motion.nav
-                className="revision-concept-navigation"
-                aria-label="Concept navigation"
-                variants={navigationVariants}
-                initial={hasPlayedEntry ? "settled" : "hidden"}
-                animate="settled"
-              >
-                <button
-                  type="button"
-                  className={`revision-nav-link revision-nav-prev ${isFirst ? 'disabled' : ''}`}
-                  onClick={handlePrev}
-                  disabled={isFirst}
-                  aria-disabled={isFirst}
-                  aria-label={prevConcept ? `Previous concept: ${prevConcept.name}` : 'Previous concept'}
-                  title={isFirst ? undefined : (prevConcept ? `Previous: ${prevConcept.name} (←)` : 'Previous concept (←)')}
-                >
-                  <span className="revision-nav-arrow" aria-hidden="true">←</span>
-                  <span className="revision-nav-text-group">
-                    <span className="revision-nav-action-label">Previous concept</span>
-                    {prevConcept && (
-                      <span className="revision-nav-dest-name">{prevConcept.name}</span>
-                    )}
-                  </span>
-                </button>
-
-                <div className="revision-nav-right-cluster">
-                  {isLast && (
-                    <button
-                      type="button"
-                      className="revision-nav-link revision-complete-session-action"
-                      onClick={() => {
-                        if (graph?.id) {
-                          saveRevisionSession(activeSession, graph.id);
-                        }
-                        handleBackToGraph();
-                      }}
-                      title="Complete revision session and return to knowledge graph"
-                      aria-label="Complete session"
-                    >
-                      <span>Complete session</span>
-                      <span className="revision-nav-arrow" aria-hidden="true">→</span>
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    className={`revision-nav-link revision-nav-next ${isLast ? 'disabled' : ''}`}
-                    onClick={handleNext}
-                    disabled={isLast}
-                    aria-disabled={isLast}
-                    aria-label={nextConcept ? `Next concept: ${nextConcept.name}` : 'Next concept'}
-                    title={isLast ? undefined : (nextConcept ? `Next: ${nextConcept.name} (→)` : 'Next concept (→)')}
-                  >
-                    <span className="revision-nav-text-group revision-nav-text-right">
-                      <span className="revision-nav-action-label">Next concept</span>
-                      {nextConcept && (
-                        <span className="revision-nav-dest-name">{nextConcept.name}</span>
-                      )}
-                    </span>
-                    <span className="revision-nav-arrow" aria-hidden="true">→</span>
-                  </button>
-                </div>
-              </motion.nav>
-
-              {/* --------------------------------------------------------------
                   REVISION PROGRESS HEADER (Stage 2: Session Metadata)
                   "REVISION SESSION" on left | "01 / 18" on right | Thin lime-green progress
                   -------------------------------------------------------------- */}
@@ -1671,10 +1603,12 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                       initial={hasPlayedEntry ? "settled" : "hidden"}
                       animate="settled"
                     >
-                      <span className="revision-concept-badge-dot" aria-hidden="true" />
-                      <span className="revision-concept-badge-text">
-                        {`CONCEPT ${formattedIndex}`}
-                      </span>
+                      <div className="revision-concept-badge-number-group">
+                        <span className="revision-concept-badge-dot" aria-hidden="true" />
+                        <span className="revision-concept-badge-text">
+                          {`CONCEPT ${formattedIndex}`}
+                        </span>
+                      </div>
                       {currentMastery && (
                         <span
                           className={`revision-concept-mastery-tag ${currentMastery.status}`}
@@ -1689,9 +1623,19 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                         <a
                           href="#section-sources"
                           className="revision-source-inspect-link"
-                          aria-label="View sources supporting this explanation"
+                          aria-label={`View sources supporting this explanation (${explanationState.explanation.sourceReferences.length})`}
+                          title="Jump to source references"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            const el = document.getElementById('section-sources');
+                            if (el) {
+                              el.scrollIntoView({ behavior: shouldReduceMotion ? 'auto' : 'smooth', block: 'start' });
+                            }
+                          }}
                         >
-                          {`View sources (${explanationState.explanation.sourceReferences.length})`}
+                          <span className="revision-source-inspect-text">
+                            {`View sources · ${explanationState.explanation.sourceReferences.length}`}
+                          </span>
                         </a>
                       )}
                     </motion.div>
@@ -2346,6 +2290,76 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
           )}
         </motion.div>
       </main>
+
+      {/* --------------------------------------------------------------
+          FIXED / PERSISTENT REVISION BOTTOM NAVIGATION
+          Spans available content area width (after sidebar), aligned with
+          reading column, visible while reading content scrolls normally.
+          -------------------------------------------------------------- */}
+      {!isLoading && totalConcepts > 0 && currentConcept && (
+        <nav
+          className="revision-concept-navigation"
+          aria-label="Concept navigation"
+        >
+          <div className="revision-nav-inner">
+            <button
+              type="button"
+              className={`revision-nav-link revision-nav-prev ${isFirst ? 'disabled' : ''}`}
+              onClick={handlePrev}
+              disabled={isFirst}
+              aria-disabled={isFirst}
+              aria-label={prevConcept ? `Previous concept: ${prevConcept.name}` : 'Previous concept'}
+              title={isFirst ? undefined : (prevConcept ? `Previous: ${prevConcept.name} (←)` : 'Previous concept (←)')}
+            >
+              <span className="revision-nav-arrow" aria-hidden="true">←</span>
+              <span className="revision-nav-text-group">
+                <span className="revision-nav-action-label">Previous concept</span>
+                {prevConcept && (
+                  <span className="revision-nav-dest-name">{prevConcept.name}</span>
+                )}
+              </span>
+            </button>
+
+            <div className="revision-nav-right-cluster">
+              {isLast && (
+                <button
+                  type="button"
+                  className="revision-nav-link revision-complete-session-action"
+                  onClick={() => {
+                    if (graph?.id) {
+                      saveRevisionSession(activeSession, graph.id);
+                    }
+                    handleBackToGraph();
+                  }}
+                  title="Complete revision session and return to knowledge graph"
+                  aria-label="Complete session"
+                >
+                  <span>Complete session</span>
+                  <span className="revision-nav-arrow" aria-hidden="true">→</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                className={`revision-nav-link revision-nav-next ${isLast ? 'disabled' : ''}`}
+                onClick={handleNext}
+                disabled={isLast}
+                aria-disabled={isLast}
+                aria-label={nextConcept ? `Next concept: ${nextConcept.name}` : 'Next concept'}
+                title={isLast ? undefined : (nextConcept ? `Next: ${nextConcept.name} (→)` : 'Next concept (→)')}
+              >
+                <span className="revision-nav-text-group revision-nav-text-right">
+                  <span className="revision-nav-action-label">Next concept</span>
+                  {nextConcept && (
+                    <span className="revision-nav-dest-name">{nextConcept.name}</span>
+                  )}
+                </span>
+                <span className="revision-nav-arrow" aria-hidden="true">→</span>
+              </button>
+            </div>
+          </div>
+        </nav>
+      )}
     </motion.div>
   );
 };

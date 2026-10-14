@@ -162,7 +162,7 @@ describe('GraphMind Revision Workspace UI/UX Refinement', () => {
   });
 
   describe('1. Previous / Next Concept Navigation Integration', () => {
-    test('renders Previous and Next navigation at the top, directly above the revision progress header', () => {
+    test('renders Previous and Next navigation as a persistent bottom navigation bar positioned after the reading content', () => {
       const html = renderToString(
         React.createElement(RevisionWorkspace, {
           graph: mockGraph,
@@ -172,16 +172,34 @@ describe('GraphMind Revision Workspace UI/UX Refinement', () => {
         })
       );
 
-      // Verify top navigation element exists
+      // Verify bottom navigation element exists
       assert.ok(html.includes('revision-concept-navigation'), 'Must render .revision-concept-navigation');
       assert.ok(html.includes('Previous concept'), 'Must include "Previous concept" action label');
       assert.ok(html.includes('Next concept'), 'Must include "Next concept" action label');
 
-      // Verify order: revision-concept-navigation appears BEFORE revision-progress-header in HTML
+      // Verify order: revision-concept-navigation appears AFTER revision-progress-header in HTML
       const navPos = html.indexOf('revision-concept-navigation');
       const progressPos = html.indexOf('revision-progress-header');
       assert.ok(navPos > 0 && progressPos > 0, 'Both navigation and progress header must render');
-      assert.ok(navPos < progressPos, 'Concept navigation must appear above revision progress header');
+      assert.ok(navPos > progressPos, 'Concept navigation must appear after revision progress header as persistent bottom bar');
+
+      // Verify fixed positioning strategy respecting sidebar in CSS
+      assert.ok(cssContent.includes('.revision-concept-navigation {'), 'CSS must define .revision-concept-navigation');
+      const navMatch = cssContent.match(/\.revision-concept-navigation\s*\{([^}]*)\}/);
+      assert.ok(navMatch, 'Must match .revision-concept-navigation rule block');
+      assert.ok(navMatch[1].includes('position: fixed'), 'Must use fixed positioning');
+      assert.ok(navMatch[1].includes('bottom: 0'), 'Must be pinned to bottom: 0');
+      assert.ok(navMatch[1].includes('var(--sidebar-width'), 'Must respect sidebar width');
+    });
+
+    test('provides sufficient content clearance at bottom of scrollable content area', () => {
+      const readingColMatch = cssContent.match(/\.revision-reading-column\s*\{([^}]*)\}/);
+      assert.ok(readingColMatch, 'CSS must define .revision-reading-column');
+      const body = readingColMatch[1];
+      assert.ok(
+        body.includes('padding: 56px 32px 120px') || body.includes('120px'),
+        'Reading column must have 120px bottom clearance to prevent obscuring content'
+      );
     });
 
     test('communicates adjacent destination concept names in the navigation labels', () => {
@@ -207,7 +225,7 @@ describe('GraphMind Revision Workspace UI/UX Refinement', () => {
       assert.ok(html.includes('revision-nav-dest-name'), 'Must use .revision-nav-dest-name for destination subtitle');
     });
 
-    test('does NOT render a duplicate navigation bar at the bottom of the content', () => {
+    test('does NOT render a duplicate navigation bar in the content area', () => {
       const html = renderToString(
         React.createElement(RevisionWorkspace, {
           graph: mockGraph,
@@ -219,7 +237,7 @@ describe('GraphMind Revision Workspace UI/UX Refinement', () => {
 
       // Check occurrences of revision-concept-navigation
       const occurrences = (html.match(/revision-concept-navigation/g) || []).length;
-      assert.strictEqual(occurrences, 1, 'Must render exactly ONE revision-concept-navigation instance (no duplicate bottom bar)');
+      assert.strictEqual(occurrences, 1, 'Must render exactly ONE revision-concept-navigation instance (no duplicate inline controls)');
     });
 
     test('disables Previous on first concept and Next on last concept', () => {
@@ -343,13 +361,51 @@ describe('GraphMind Revision Workspace UI/UX Refinement', () => {
     });
   });
 
-  describe('4. Typography, Hierarchy & Spacing Rhythm', () => {
-    test('concept title has sufficient weight and hierarchy without oversized bloat', () => {
+  describe('4. Typography, Hierarchy & Concept Status Metadata', () => {
+    test('concept title has Level 1 visual prominence (30-36px, confident weight)', () => {
       const titleMatch = cssContent.match(/\.revision-concept-title\s*\{([^}]*)\}/);
       assert.ok(titleMatch, 'CSS must define .revision-concept-title');
       const body = titleMatch[1];
       assert.ok(body.includes('font-weight: 750') || body.includes('font-weight: 800'), 'Title must have strong hierarchy weight');
-      assert.ok(body.includes('clamp('), 'Title must use fluid responsive typography');
+      assert.ok(body.includes('clamp(30px') || body.includes('30px'), 'Title must target 30-36px desktop range');
+    });
+
+    test('concept definition has Level 2 readable styling directly beneath title', () => {
+      const descMatch = cssContent.match(/\.revision-concept-description\s*\{([^}]*)\}/);
+      assert.ok(descMatch, 'CSS must define .revision-concept-description');
+      const body = descMatch[1];
+      assert.ok(body.includes('clamp(17px') || body.includes('17px'), 'Definition must use 17-19px responsive size');
+      assert.ok(body.includes('line-height: 1.65'), 'Definition must use comfortable line-height around 1.65');
+      assert.ok(body.includes('max-width: 65ch'), 'Definition measure must be restricted to 65ch');
+    });
+
+    test('metadata row renders distinct treatments for Concept Number, Status Badge, and View Sources', () => {
+      const html = renderToString(
+        React.createElement(RevisionWorkspace, {
+          graph: mockGraph,
+          graphName: 'Operating Systems & Architecture',
+          revisionIndex: 1,
+          onBackToGraph: () => {}
+        })
+      );
+
+      // Concept number
+      assert.ok(html.includes('CONCEPT 02'), 'Must render concept number');
+      assert.ok(html.includes('revision-concept-badge-dot'), 'Must render subtle lime dot');
+
+      // Status badge
+      assert.ok(html.includes('revision-concept-mastery-tag'), 'Must render status tag');
+      assert.ok(html.includes('In progress') || html.includes('IN PROGRESS'), 'Must render status text');
+      assert.ok(cssContent.includes('.revision-concept-mastery-tag') && cssContent.includes('text-transform: uppercase'), 'Status badge must format in uppercase');
+
+      // View sources action
+      assert.ok(html.includes('revision-source-inspect-link'), 'Must render View sources link');
+      assert.ok(html.includes('View sources · 1'), 'Must render "View sources · 1" format');
+
+      // CSS distinction
+      assert.ok(cssContent.includes('.revision-concept-badge-number-group'), 'Must group number and dot');
+      assert.ok(cssContent.includes('.revision-source-inspect-link:hover'), 'Must provide clear hover transition');
+      assert.ok(cssContent.includes('.revision-source-inspect-link:focus-visible'), 'Must provide accessible focus state');
     });
 
     test('section headings use consistent restrained uppercase style', () => {

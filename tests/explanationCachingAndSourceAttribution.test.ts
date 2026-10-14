@@ -539,7 +539,7 @@ describe('GraphMind Feature: Deep Revision Workspace (Phase 2 — Task 09: Expla
       );
 
       assert.ok(html.includes('revision-source-inspect-link'), 'Must render View sources link');
-      assert.ok(html.includes('View sources (1)'), 'Must indicate source count');
+      assert.ok(html.includes('View sources · 1') || html.includes('View sources (1)'), 'Must indicate source count');
     });
 
     test('renders Open in Library action when onOpenSource prop is provided', () => {
