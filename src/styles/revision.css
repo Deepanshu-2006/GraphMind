@@ -131,7 +131,7 @@
   max-width: 780px;
   width: 100%;
   margin: 0 auto;
-  padding: 56px 32px 104px;
+  padding: 56px 32px 120px;
   box-sizing: border-box;
 }
 
@@ -192,16 +192,17 @@
 }
 
 .revision-concept-badge {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.revision-concept-badge-number-group {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-family: var(--font-body, 'Inter', sans-serif);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-muted, #8A8A8A);
-  margin-bottom: 8px;
+  gap: 7px;
 }
 
 .revision-concept-badge-dot {
@@ -210,37 +211,42 @@
   border-radius: 50%;
   background-color: var(--accent, #A3FF12);
   flex-shrink: 0;
-  box-shadow: 0 0 8px rgba(163, 255, 18, 0.35);
+  box-shadow: 0 0 6px rgba(163, 255, 18, 0.4);
 }
 
 .revision-concept-badge-text {
-  letter-spacing: 0.12em;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #71717A;
 }
 
-/* Dominant visual element */
+/* Dominant visual element: LEVEL 1 — CONCEPT TITLE */
 .revision-concept-title {
   font-family: var(--font-display, var(--font-body, 'Inter Tight', 'Inter', sans-serif));
-  font-size: clamp(28px, 3.6vw, 40px);
+  font-size: clamp(30px, 3.4vw, 36px);
   font-weight: 750;
   letter-spacing: -0.035em;
   line-height: 1.12;
-  color: var(--text-primary, #F5F5F5);
-  margin: 0 0 14px 0;
+  color: #FFFFFF;
+  margin: 0 0 12px 0;
   padding: 0;
   word-break: break-word;
   overflow-wrap: break-word;
   hyphens: auto;
 }
 
-/* Comfortable reading typography (optimal measure 65ch, high contrast) */
+/* LEVEL 2 — CONCEPT DEFINITION */
 .revision-concept-description {
   font-family: var(--font-body, 'Inter', sans-serif);
-  font-size: 16px;
+  font-size: clamp(17px, 1.8vw, 18.5px);
   font-weight: 400;
-  line-height: 1.68;
+  line-height: 1.65;
   letter-spacing: -0.01em;
-  color: #B5B5B5;
-  margin: 0;
+  color: #C5C5CA;
+  margin: 0 0 28px 0;
   max-width: 65ch;
 }
 
@@ -265,11 +271,11 @@
   align-items: baseline;
   gap: 8px;
   font-family: var(--font-body, 'Inter', sans-serif);
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #8E8E93;
+  color: #A1A1A6;
   margin: 0;
   padding: 0;
 }
@@ -286,9 +292,9 @@
 
 .revision-section-body {
   font-family: var(--font-body, 'Inter', sans-serif);
-  font-size: 15px;
-  line-height: 1.68;
-  color: var(--text-secondary, #A1A1A1);
+  font-size: 16px;
+  line-height: 1.72;
+  color: #D1D1D6;
   max-width: 65ch;
 }
 
@@ -339,11 +345,11 @@
 
 .revision-related-relation {
   font-family: var(--font-mono, monospace);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--accent, #A3FF12);
+  color: #8E8E93;
 }
 
 .revision-related-dir-badge {
@@ -367,17 +373,17 @@
 
 .revision-related-name {
   font-family: var(--font-body, 'Inter', sans-serif);
-  font-size: 15px;
+  font-size: 15.5px;
   font-weight: 600;
-  color: var(--text-primary, #F5F5F5);
+  color: #FFFFFF;
   letter-spacing: -0.01em;
 }
 
 .revision-related-desc {
   font-family: var(--font-body, 'Inter', sans-serif);
-  font-size: 13px;
-  line-height: 1.55;
-  color: #9E9EA3;
+  font-size: 13.5px;
+  line-height: 1.58;
+  color: #A1A1A6;
   margin: 2px 0 0 0;
   max-width: 58ch;
   overflow: hidden;
@@ -622,9 +628,9 @@
 
 .revision-explanation-paragraph {
   font-family: var(--font-body, 'Inter', sans-serif);
-  font-size: 15px;
-  line-height: 1.74;
-  color: #BDBDBD;
+  font-size: 16px;
+  line-height: 1.72;
+  color: #D1D1D6;
   margin: 0;
 }
 
@@ -666,7 +672,7 @@
 .revision-points-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   margin: 4px 0 0 0;
   padding: 0;
   list-style: none;
@@ -675,11 +681,11 @@
 .revision-point-item {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 12px;
   font-family: var(--font-body, 'Inter', sans-serif);
-  font-size: 14px;
-  line-height: 1.65;
-  color: #C2C2C2;
+  font-size: 15.5px;
+  line-height: 1.68;
+  color: #D1D1D6;
 }
 
 .revision-point-bullet {
@@ -813,23 +819,29 @@
 .revision-source-inspect-link {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-family: var(--font-mono, monospace);
-  font-size: 11px;
-  font-weight: 500;
-  color: #A1A1AA;
-  background: none;
+  gap: 5px;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 12px;
+  font-weight: 450;
+  color: #8E8E93;
+  background: transparent;
   border: none;
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.2);
-  padding: 0 0 1px 0;
+  padding: 2px 0;
   cursor: pointer;
   text-decoration: none;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  transition: color 150ms ease, text-decoration-color 150ms ease;
 }
 
 .revision-source-inspect-link:hover {
-  color: #F4F4F5;
-  border-color: #F4F4F5;
+  color: var(--accent, #A3FF12);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.revision-source-inspect-link:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: 3px;
+  border-radius: 2px;
 }
 
 .revision-source-quote {
@@ -1645,33 +1657,63 @@
 }
 
 /* --------------------------------------------------------------------------
-   6. CONCEPT NAVIGATION (Top compact navigation row)
+   6. PERSISTENT FIXED BOTTOM REVISION NAVIGATION
+   Fixed to bottom of main content area, spans after sidebar, aligned with reading column.
    -------------------------------------------------------------------------- */
 .revision-concept-navigation {
+  position: fixed;
+  bottom: 0;
+  left: var(--sidebar-width, 212px);
+  right: 0;
+  z-index: 30;
+  background-color: rgba(10, 10, 10, 0.96);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: none;
+  box-sizing: border-box;
+  padding: 12px 0;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  margin: 0;
+  width: auto;
+}
+
+@media (min-width: 901px) and (max-width: 1180px) {
+  .revision-concept-navigation {
+    left: 200px;
+  }
+}
+
+@media (max-width: 900px) {
+  .revision-concept-navigation {
+    left: 0;
+  }
+}
+
+.app-shell.graph-fullscreen-active .revision-concept-navigation,
+body.graph-fullscreen-active .revision-concept-navigation {
+  left: 0;
+}
+
+.revision-concept-navigation-inner,
+.revision-nav-inner {
+  max-width: 780px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 32px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-top: 0;
-  margin-bottom: 28px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  border-top: none;
-  width: 100%;
 }
 
 .revision-nav-link {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   background: transparent;
   border: none;
   padding: 4px 0;
   font-family: var(--font-body, 'Inter', sans-serif);
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  color: var(--text-secondary, #A1A1A1);
   cursor: pointer;
   position: relative;
   text-decoration: none;
@@ -1681,7 +1723,7 @@
 .revision-nav-link::after {
   content: '';
   position: absolute;
-  bottom: 0px;
+  bottom: -2px;
   left: 0;
   right: 0;
   height: 1px;
@@ -1733,18 +1775,19 @@
 }
 
 .revision-nav-action-label {
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 500;
-  letter-spacing: -0.01em;
-  color: var(--text-secondary, #A1A1A1);
+  letter-spacing: 0.02em;
+  color: var(--text-muted, #8E8E93);
   transition: color var(--transition-fast, 150ms ease);
 }
 
 .revision-nav-dest-name {
-  font-size: 11.5px;
-  font-weight: 400;
-  color: #71717A;
-  max-width: 220px;
+  font-size: 13.5px;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  color: #E4E4E7;
+  max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1756,7 +1799,7 @@
 }
 
 .revision-nav-link:hover:not(:disabled) .revision-nav-dest-name {
-  color: #D4D4D8;
+  color: #FFFFFF;
 }
 
 .revision-nav-right-cluster {
@@ -1773,6 +1816,7 @@
 .revision-nav-arrow {
   font-size: 14px;
   line-height: 1;
+  color: var(--text-muted, #8E8E93);
   transition: transform var(--transition-fast, 150ms ease), color var(--transition-fast, 150ms ease);
 }
 
@@ -1913,7 +1957,7 @@
   }
 
   .revision-reading-column {
-    padding: 32px 18px 64px;
+    padding: 32px 18px 110px;
   }
 
   .revision-progress-header {
@@ -1940,10 +1984,15 @@
   }
 
   .revision-concept-navigation {
-    margin-top: 0;
-    margin-bottom: 20px;
-    padding-bottom: 14px;
-    gap: 12px;
+    padding: 10px 0;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    margin: 0;
+  }
+
+  .revision-concept-navigation-inner,
+  .revision-nav-inner {
+    padding: 0 16px;
+    gap: 8px;
   }
 
   .revision-nav-dest-name {
@@ -2693,40 +2742,42 @@
 .revision-concept-mastery-tag {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
-  border-radius: 2px;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 3px;
   font-family: var(--font-mono, 'JetBrains Mono', monospace);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  background-color: #171717;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  background-color: #161618;
   color: #999999;
-  border: 1px solid #2B2B2B;
+  border: 1px solid #27272A;
 }
 
 .revision-concept-mastery-tag.needs-review {
-  color: #E5A93C;
-  border-color: rgba(229, 169, 60, 0.35);
-  background-color: rgba(229, 169, 60, 0.08);
+  color: #FBBF24;
+  border-color: rgba(251, 191, 36, 0.28);
+  background-color: rgba(251, 191, 36, 0.08);
 }
 
 .revision-concept-mastery-tag.understanding-demonstrated {
   color: var(--accent, #A3FF12);
-  border-color: rgba(163, 255, 18, 0.35);
+  border-color: rgba(163, 255, 18, 0.28);
   background-color: rgba(163, 255, 18, 0.06);
 }
 
 .revision-concept-mastery-tag.in-progress {
   color: #60A5FA;
-  border-color: rgba(96, 165, 250, 0.35);
-  background-color: rgba(96, 165, 250, 0.06);
+  border-color: rgba(96, 165, 250, 0.28);
+  background-color: rgba(96, 165, 250, 0.08);
 }
 
 .revision-concept-mastery-tag.not-started {
-  color: #777777;
-  border-color: #262626;
-  background-color: #141414;
+  color: #8E8E93;
+  border-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.04);
 }
 
 .revision-mastery-dot {
