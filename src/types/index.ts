@@ -2,6 +2,7 @@ import type { KnowledgeNode } from './knowledgeGraph';
 export * from './graph';
 export * from './knowledgeGap';
 export * from './prerequisites';
+export * from './recommendations';
 
 export interface Concept {
   id: string;
