@@ -22,6 +22,7 @@ import { getArcEndpoint } from './CircularScore';
 import { SlotDigit } from '../common/SlotDigit';
 import { KnowledgeGapSection } from './KnowledgeGapSection';
 import { RevisionRecommendationsSection } from './RevisionRecommendationsSection';
+import { UnifiedLearningOverview } from './UnifiedLearningOverview';
 
 export interface StudySpaceViewProps {
   onNavigateToGraph: () => void;
@@ -3142,6 +3143,16 @@ export function StudySpaceView({
         <div className="study-loading-state" role="status" aria-live="polite">
           <span>Loading assessment history…</span>
         </div>
+      )}
+
+      {/* Unified Learning Overview (Phase 4 — Prompt 19) */}
+      {!isLoading && !errorMessage && (currentKnowledgeGraph || activeGraph) && (currentKnowledgeGraph?.nodes?.length || activeGraph?.nodes?.length || 0) > 0 && (
+        <UnifiedLearningOverview
+          graph={(currentKnowledgeGraph || activeGraph)!}
+          onNavigateToRevision={onNavigateToRevision}
+          onNavigateToConcept={onNavigateToConcept}
+          onNavigateToGraph={onNavigateToGraph}
+        />
       )}
 
       {/* 2. Empty State (when user has zero assessment history) */}

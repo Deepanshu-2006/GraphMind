@@ -3,6 +3,7 @@ export * from './graph';
 export * from './knowledgeGap';
 export * from './prerequisites';
 export * from './recommendations';
+export * from './learningOverview';
 
 export interface Concept {
   id: string;

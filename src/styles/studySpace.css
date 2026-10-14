@@ -4975,6 +4975,516 @@
 }
 
 /* --------------------------------------------------------------------------
+   17. Unified Learning Overview (Phase 4 — Prompt 19)
+   -------------------------------------------------------------------------- */
+.unified-overview-section {
+  margin-bottom: 52px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.unified-overview-header {
+  margin-bottom: 2px;
+}
+
+.unified-overview-eyebrow-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.unified-overview-eyebrow {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: #888888;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.unified-overview-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #10B981;
+}
+
+.unified-overview-session-pill {
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  color: #10B981;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+.unified-overview-heading {
+  font-family: var(--font-display, var(--font-body, sans-serif));
+  font-size: clamp(24px, 3vw, 32px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: #F5F5F5;
+  margin: 0 0 6px 0;
+}
+
+.unified-overview-subheading {
+  font-family: var(--font-body, sans-serif);
+  font-size: 13.5px;
+  color: #777777;
+  margin: 0;
+  line-height: 1.5;
+  max-width: 680px;
+}
+
+/* Concept Progress Ledger Strip */
+.unified-overview-ledger {
+  display: flex;
+  align-items: center;
+  background: #0E0E0E;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  padding: 14px 20px;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.ledger-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ledger-num {
+  font-family: var(--font-mono, monospace);
+  font-size: 18px;
+  font-weight: 600;
+  color: #EEEEEE;
+}
+
+.ledger-metric.demonstrated .ledger-num {
+  color: #10B981;
+}
+
+.ledger-metric.review .ledger-num {
+  color: #F59E0B;
+}
+
+.ledger-metric.progress .ledger-num {
+  color: #38BDF8;
+}
+
+.ledger-metric.unstudied .ledger-num {
+  color: #777777;
+}
+
+.ledger-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: #666666;
+}
+
+.ledger-divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ledger-summary {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.ledger-summary-ratio {
+  font-family: var(--font-body, sans-serif);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #CCCCCC;
+}
+
+.ledger-summary-sub {
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  color: #666666;
+}
+
+.unified-overview-section-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #666666;
+  margin-bottom: 8px;
+}
+
+/* Primary Recommended Next Step Hero Card */
+.unified-overview-hero-card {
+  background: #0E0E0E;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 22px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+  transition: border-color 180ms ease;
+}
+
+.unified-overview-hero-card:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.unified-overview-hero-card.continue-learning {
+  border-left: 3px solid #10B981;
+}
+
+.unified-overview-hero-card.review-difficulty {
+  border-left: 3px solid #F59E0B;
+}
+
+.unified-overview-hero-card.review-foundation {
+  border-left: 3px solid #6366F1;
+}
+
+.unified-overview-hero-card.practice-concept {
+  border-left: 3px solid #38BDF8;
+}
+
+.unified-overview-hero-card.explore-connection {
+  border-left: 3px solid #EC4899;
+}
+
+.unified-overview-hero-card.start-new {
+  border-left: 3px solid #A855F7;
+}
+
+.overview-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.overview-category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #AAAAAA;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+
+.overview-priority-tag {
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: #10B981;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+.overview-hero-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.overview-concept-title {
+  font-family: var(--font-display, var(--font-body, sans-serif));
+  font-size: clamp(20px, 2.4vw, 26px);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: #FFFFFF;
+  margin: 0;
+}
+
+.overview-target-context {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: #888888;
+  margin-top: 2px;
+}
+
+.overview-explanation {
+  font-family: var(--font-body, sans-serif);
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #CCCCCC;
+  margin: 4px 0 0 0;
+  max-width: 680px;
+}
+
+.overview-evidence-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: #888888;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 3px 8px;
+  border-radius: 3px;
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.evidence-pill-label {
+  color: #666666;
+  font-weight: 600;
+}
+
+.evidence-pill-value {
+  color: #BBBBBB;
+}
+
+.overview-hero-action-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.overview-action-btn.primary {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 8px 16px;
+  border-radius: 3px;
+  background: #10B981;
+  color: #000000;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 180ms ease;
+}
+
+.overview-action-btn.primary:hover {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.overview-action-hint {
+  font-family: var(--font-body, sans-serif);
+  font-size: 12px;
+  color: #666666;
+}
+
+/* Secondary Recommendations */
+.unified-overview-secondary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.overview-secondary-card {
+  background: #0B0B0B;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.overview-sec-title {
+  font-family: var(--font-body, sans-serif);
+  font-size: 14px;
+  font-weight: 600;
+  color: #EEEEEE;
+  margin: 0;
+}
+
+.overview-sec-desc {
+  font-family: var(--font-body, sans-serif);
+  font-size: 12px;
+  color: #888888;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.overview-sec-btn {
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  color: #10B981;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  margin-top: 4px;
+}
+
+/* Concepts Needing Attention List */
+.overview-attention-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.overview-attention-row {
+  background: #0B0B0B;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  transition: border-color 150ms ease;
+}
+
+.overview-attention-row:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.overview-attention-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.attention-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.attention-concept-name {
+  font-family: var(--font-body, sans-serif);
+  font-size: 14px;
+  font-weight: 600;
+  color: #F5F5F5;
+}
+
+.attention-status-pill {
+  font-family: var(--font-mono, monospace);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 1px 6px;
+  border-radius: 2px;
+}
+
+.attention-status-pill.needs-review {
+  background: rgba(245, 158, 11, 0.12);
+  color: #FBBF24;
+}
+
+.attention-status-pill.in-progress {
+  background: rgba(56, 189, 248, 0.12);
+  color: #7DD3FC;
+}
+
+.attention-prereq-pill {
+  font-family: var(--font-mono, monospace);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 1px 6px;
+  border-radius: 2px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #A5B4FC;
+}
+
+.attention-reason {
+  font-family: var(--font-body, sans-serif);
+  font-size: 12.5px;
+  color: #888888;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.attention-evidence {
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  color: #666666;
+}
+
+.attention-action-btn {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: #10B981;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.overview-attention-clean {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  background: rgba(16, 185, 129, 0.04);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  border-radius: 4px;
+}
+
+.overview-clean-icon {
+  color: #10B981;
+  flex-shrink: 0;
+}
+
+.overview-clean-text {
+  font-family: var(--font-body, sans-serif);
+  font-size: 13px;
+  color: #CCCCCC;
+}
+
+@media (max-width: 768px) {
+  .unified-overview-ledger {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .ledger-divider {
+    display: none;
+  }
+  .ledger-summary {
+    margin-left: 0;
+    align-items: flex-start;
+  }
+  .overview-attention-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* --------------------------------------------------------------------------
    15. Accessibility & Reduced Motion
    -------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
@@ -5029,7 +5539,12 @@
   .study-records-expand-wrap[data-entry-state="animate"],
   .study-filter-active-pill,
   .study-filter-tab,
-  .study-filter-tab-label {
+  .study-filter-tab-label,
+  .unified-overview-section,
+  .unified-overview-hero-card,
+  .overview-secondary-card,
+  .overview-attention-row,
+  .overview-attention-clean {
     transition: none !important;
     animation: none !important;
     transform: none !important;

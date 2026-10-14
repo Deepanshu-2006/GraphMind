@@ -252,7 +252,8 @@ export function loadGraphMasteryOverview(
     );
     const isMarked = Boolean(session?.markedForReviewIds?.includes(node.id));
 
-    const summary = calculateConceptMastery({
+    const stored = loadStoredMastery(safeGraphId, node.id);
+    const summary = stored || calculateConceptMastery({
       graphId: safeGraphId,
       conceptId: node.id,
       conceptName: node.name || 'Untitled Concept',
