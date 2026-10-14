@@ -21,6 +21,7 @@ import { MissedConceptsReview } from '../test/MissedConceptsReview';
 import { getArcEndpoint } from './CircularScore';
 import { SlotDigit } from '../common/SlotDigit';
 import { KnowledgeGapSection } from './KnowledgeGapSection';
+import { RevisionRecommendationsSection } from './RevisionRecommendationsSection';
 
 export interface StudySpaceViewProps {
   onNavigateToGraph: () => void;
@@ -3172,6 +3173,16 @@ export function StudySpaceView({
         </motion.section>
       )}
 
+      {/* Personalized Revision Recommendations for graphs with zero assessments */}
+      {!isLoading && !errorMessage && attempts.length === 0 && (currentKnowledgeGraph || activeGraph) && (currentKnowledgeGraph?.nodes?.length || activeGraph?.nodes?.length || 0) > 0 && (
+        <RevisionRecommendationsSection
+          graph={(currentKnowledgeGraph || activeGraph)!}
+          onNavigateToRevision={onNavigateToRevision}
+          onNavigateToConcept={onNavigateToConcept}
+          onNavigateToGraph={onNavigateToGraph}
+        />
+      )}
+
       {/* Populated State with Real Attempts */}
       {!isLoading && !errorMessage && attempts.length > 0 && (
         <>
@@ -3952,6 +3963,16 @@ export function StudySpaceView({
               </motion.div>
             )}
           </motion.section>
+
+          {/* Personalized Revision Recommendations (Phase 4 — Prompt 18) */}
+          {(currentKnowledgeGraph || activeGraph) && (currentKnowledgeGraph?.nodes?.length || activeGraph?.nodes?.length || 0) > 0 && (
+            <RevisionRecommendationsSection
+              graph={(currentKnowledgeGraph || activeGraph)!}
+              onNavigateToRevision={onNavigateToRevision}
+              onNavigateToConcept={onNavigateToConcept}
+              onNavigateToGraph={onNavigateToGraph}
+            />
+          )}
 
           {/* Evidence-Based Knowledge Gap Detection (Phase 4 — Prompt 16) */}
           {(currentKnowledgeGraph || activeGraph) && (currentKnowledgeGraph?.nodes?.length || activeGraph?.nodes?.length || 0) > 0 && (
