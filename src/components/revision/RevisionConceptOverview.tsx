@@ -1,5 +1,6 @@
 import React from 'react';
 import type { GraphMasteryOverview, ConceptMasterySummary } from '../../types/mastery';
+import type { GraphKnowledgeGapsReport } from '../../types/knowledgeGap';
 
 // Preserve React in scope for tsx runner environments
 void React;
@@ -11,6 +12,7 @@ export interface RevisionConceptOverviewProps {
   isOpen: boolean;
   onToggle: () => void;
   onSelectConcept: (conceptId: string, index: number) => void;
+  gapReport?: GraphKnowledgeGapsReport | null;
 }
 
 export const RevisionConceptOverview: React.FC<RevisionConceptOverviewProps> = ({
@@ -19,9 +21,11 @@ export const RevisionConceptOverview: React.FC<RevisionConceptOverviewProps> = (
   currentConceptId,
   isOpen,
   onToggle,
-  onSelectConcept
+  onSelectConcept,
+  gapReport
 }) => {
   const { needsReviewCount, understandingDemonstratedCount, inProgressCount, totalConcepts } = overview;
+  const flaggedGapsCount = gapReport?.flaggedGapsCount || 0;
 
   return (
     <div className="revision-overview-drawer" role="region" aria-label="Concept revision overview">
@@ -40,6 +44,11 @@ export const RevisionConceptOverview: React.FC<RevisionConceptOverviewProps> = (
               {needsReviewCount > 0 && (
                 <span className="revision-overview-badge-review">
                   {` • ${needsReviewCount} need review`}
+                </span>
+              )}
+              {flaggedGapsCount > 0 && (
+                <span className="revision-overview-badge-review" style={{ color: '#C084FC' }}>
+                  {` • ${flaggedGapsCount} gap${flaggedGapsCount === 1 ? '' : 's'} flagged`}
                 </span>
               )}
             </span>
@@ -61,6 +70,12 @@ export const RevisionConceptOverview: React.FC<RevisionConceptOverviewProps> = (
               <span className="revision-overview-stat-label">NEEDS REVIEW</span>
               <span className="revision-overview-stat-val needs-review">{needsReviewCount}</span>
             </div>
+            {flaggedGapsCount > 0 && (
+              <div className="revision-overview-stat-item">
+                <span className="revision-overview-stat-label">KNOWLEDGE GAPS</span>
+                <span className="revision-overview-stat-val" style={{ color: '#C084FC' }}>{flaggedGapsCount}</span>
+              </div>
+            )}
             <div className="revision-overview-stat-item">
               <span className="revision-overview-stat-label">IN PROGRESS</span>
               <span className="revision-overview-stat-val in-progress">{inProgressCount}</span>
@@ -70,11 +85,17 @@ export const RevisionConceptOverview: React.FC<RevisionConceptOverviewProps> = (
           <div className="revision-overview-list" role="list">
             {conceptList.map((item, idx) => {
               const summary: ConceptMasterySummary | undefined = overview.concepts[item.id];
+              const gapItem = gapReport?.items.find(g => g.conceptId === item.id);
               const status = summary?.status || 'not-started';
-              const label = summary?.statusLabel || 'Not started';
+              const label = gapItem && gapItem.gapState !== 'insufficient-evidence' && gapItem.gapState !== 'understanding-demonstrated'
+                ? gapItem.statusLabel
+                : summary?.statusLabel || 'Not started';
               const isCurrent = item.id === currentConceptId;
 
               const getPillClass = () => {
+                if (gapItem?.gapState === 'potential-foundational-gap') {
+                  return 'foundational';
+                }
                 switch (status) {
                   case 'needs-review':
                     return 'needs-review';

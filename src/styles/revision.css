@@ -3297,22 +3297,130 @@
   margin: 0;
 }
 
-@media (max-width: 768px) {
-  .revision-insights-metrics-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .revision-insights-actions-grid {
-    grid-template-columns: 1fr;
-  }
-  .revision-insights-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-  .revision-insights-row-right {
-    width: 100%;
-    justify-content: space-between;
-  }
+/* --------------------------------------------------------------------------
+   14. KNOWLEDGE GAP DETECTION BANNER (Phase 4 — Prompt 16)
+   Subtle, evidence-grounded banner for concepts flagged with observed difficulty
+   or potential foundational gaps during revision.
+   -------------------------------------------------------------------------- */
+.revision-gap-banner {
+  margin: 16px 0 20px 0;
+  padding: 14px 18px;
+  background-color: #121212;
+  border: 1px solid #222222;
+  border-left: 3px solid #E5A93C;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
+
+.revision-gap-banner.foundational {
+  border-left-color: #C084FC;
+  background-color: rgba(192, 132, 252, 0.03);
+}
+
+.revision-gap-banner.observed {
+  border-left-color: #38BDF8;
+}
+
+.revision-gap-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.revision-gap-kicker-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.revision-gap-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 7px;
+  border-radius: 2px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.revision-gap-badge.foundational {
+  background: rgba(192, 132, 252, 0.12);
+  color: #D8B4FE;
+  border: 1px solid rgba(192, 132, 252, 0.25);
+}
+
+.revision-gap-badge.review {
+  background: rgba(245, 158, 11, 0.12);
+  color: #FBBF24;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.revision-gap-badge.observed {
+  background: rgba(56, 189, 248, 0.10);
+  color: #7DD3FC;
+  border: 1px solid rgba(56, 189, 248, 0.20);
+}
+
+.revision-gap-badge-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.revision-gap-reason {
+  font-family: var(--font-body, sans-serif);
+  font-size: 13px;
+  line-height: 1.5;
+  color: #CCCCCC;
+  margin: 0;
+}
+
+.revision-gap-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+.revision-gap-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 3px;
+  padding: 5px 10px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: #E0E0E0;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.revision-gap-action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.20);
+  color: #FFFFFF;
+}
+
+.revision-gap-action-btn.primary {
+  background: rgba(163, 255, 18, 0.08);
+  border-color: rgba(163, 255, 18, 0.25);
+  color: var(--accent, #A3FF12);
+}
+
+.revision-gap-action-btn.primary:hover {
+  background: rgba(163, 255, 18, 0.16);
+  border-color: var(--accent, #A3FF12);
+}
+
 
 

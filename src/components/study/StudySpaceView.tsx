@@ -20,10 +20,12 @@ import { TestReviewView } from '../test/TestReviewView';
 import { MissedConceptsReview } from '../test/MissedConceptsReview';
 import { getArcEndpoint } from './CircularScore';
 import { SlotDigit } from '../common/SlotDigit';
+import { KnowledgeGapSection } from './KnowledgeGapSection';
 
 export interface StudySpaceViewProps {
   onNavigateToGraph: () => void;
   onNavigateToConcept?: (conceptId: string) => void;
+  onNavigateToRevision?: (conceptId: string, actionType?: string, targetSectionId?: string) => void;
   activeGraph?: KnowledgeGraph | null;
   initialAttemptId?: string | null;
 }
@@ -1832,6 +1834,7 @@ export function StudyGraphSelector({
 export function StudySpaceView({
   onNavigateToGraph,
   onNavigateToConcept,
+  onNavigateToRevision,
   activeGraph,
   initialAttemptId
 }: StudySpaceViewProps) {
@@ -3949,6 +3952,16 @@ export function StudySpaceView({
               </motion.div>
             )}
           </motion.section>
+
+          {/* Evidence-Based Knowledge Gap Detection (Phase 4 — Prompt 16) */}
+          {(currentKnowledgeGraph || activeGraph) && (currentKnowledgeGraph?.nodes?.length || activeGraph?.nodes?.length || 0) > 0 && (
+            <KnowledgeGapSection
+              graph={(currentKnowledgeGraph || activeGraph)!}
+              onNavigateToConcept={onNavigateToConcept}
+              onNavigateToRevision={onNavigateToRevision}
+              onNavigateToGraph={onNavigateToGraph}
+            />
+          )}
 
           {/* 6. Concepts Worth Revisiting Section (Redesigned Editorial Layout) */}
           {conceptsWorthRevisiting.length > 0 && (

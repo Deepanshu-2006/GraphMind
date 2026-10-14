@@ -439,6 +439,12 @@ export function AppContent() {
           <StudySpaceView 
             onNavigateToGraph={() => navigateToSection('graph')}
             onNavigateToConcept={(conceptId) => handleExploreConceptInGraph(conceptId)}
+            onNavigateToRevision={(conceptId) => {
+              if (conceptId) {
+                setFocusedConceptId(conceptId);
+              }
+              navigateToSection('revision');
+            }}
             activeGraph={contextActiveGraph}
           />
         )}
@@ -463,6 +469,7 @@ export function AppContent() {
           <RevisionWorkspace
             graph={effectiveGraph}
             graphName={activeGraphMeta?.name || 'Knowledge Graph'}
+            initialConceptId={focusedConceptId}
             onBackToGraph={() => navigateToSection('graph')}
             onViewGraph={(conceptId) => {
               if (conceptId) {

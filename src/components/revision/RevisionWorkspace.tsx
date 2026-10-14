@@ -35,6 +35,7 @@ import { loadStoredKnowledgeCheck } from '../../services/knowledgeCheck';
 import { RevisionConceptOverview } from './RevisionConceptOverview';
 import { RevisionSessionInsights } from './RevisionSessionInsights';
 import { deriveRevisionSessionInsights } from '../../services/sessionInsights';
+import { detectKnowledgeGaps, dismissKnowledgeGap } from '../../services/knowledgeGapDetection';
 
 export const WORKSPACE_EASING = [0.16, 1, 0.3, 1] as const;
 
@@ -836,6 +837,18 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     return loadGraphMasteryOverview(graphId, conceptList, activeSession);
   }, [graph?.id, concepts, activeSession, masteryVersion]);
 
+  // Knowledge Gap Report (Phase 4 — Prompt 16)
+  const [gapRefreshCount, setGapRefreshCount] = useState(0);
+  const gapReport = useMemo(() => {
+    void gapRefreshCount;
+    return graph ? detectKnowledgeGaps({ graph, forceRefresh: gapRefreshCount > 0 }) : null;
+  }, [graph, gapRefreshCount, masteryVersion]);
+
+  const currentConceptGap = useMemo(() => {
+    if (!gapReport || !currentConcept) return null;
+    return gapReport.items.find(g => g.conceptId === currentConcept.id) || null;
+  }, [gapReport, currentConcept]);
+
   // Concept explanation lifecycle state (Phase 2 Task 05 & Task 09)
   const [explanationState, setExplanationState] = useState<ExplanationState>(() => {
     if (!graph || !currentConcept) return { status: 'empty' };
@@ -1610,6 +1623,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                 isOpen={isOverviewOpen}
                 onToggle={() => setIsOverviewOpen(prev => !prev)}
                 onSelectConcept={handleSelectFromOverview}
+                gapReport={gapReport}
               />
 
               {/* --------------------------------------------------------------
@@ -1677,6 +1691,71 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                       </motion.p>
                     ) : null}
                   </section>
+
+                  {/* Evidence-Based Knowledge Gap Notice (Phase 4 — Prompt 16) */}
+                  {currentConceptGap && (currentConceptGap.gapState === 'potential-foundational-gap' || currentConceptGap.gapState === 'review-recommended' || currentConceptGap.gapState === 'observed-difficulty') && !currentConceptGap.isDismissed && !currentConceptGap.isDeferred && (
+                    <div
+                      className={`revision-gap-banner ${currentConceptGap.gapState === 'potential-foundational-gap' ? 'foundational' : currentConceptGap.gapState === 'review-recommended' ? 'review' : 'observed'}`}
+                      role="region"
+                      aria-label="Knowledge gap notice"
+                    >
+                      <div className="revision-gap-header">
+                        <div className="revision-gap-kicker-group">
+                          <span className={`revision-gap-badge ${currentConceptGap.gapState === 'potential-foundational-gap' ? 'foundational' : currentConceptGap.gapState === 'review-recommended' ? 'review' : 'observed'}`}>
+                            <span className="revision-gap-badge-dot" aria-hidden="true" />
+                            <span>{currentConceptGap.statusLabel}</span>
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="revision-gap-action-btn"
+                          onClick={() => {
+                            if (graph?.id) {
+                              dismissKnowledgeGap(graph.id, currentConceptGap.conceptId);
+                              setGapRefreshCount(p => p + 1);
+                            }
+                          }}
+                          title="Dismiss this recommendation"
+                          aria-label="Dismiss this recommendation"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+
+                      <p className="revision-gap-reason">{currentConceptGap.reason}</p>
+
+                      <div className="revision-gap-actions">
+                        {currentConceptGap.gapState === 'potential-foundational-gap' && currentConceptGap.relatedConcepts.find(r => r.isPrerequisite && r.hasDifficulty) && (
+                          <button
+                            type="button"
+                            className="revision-gap-action-btn primary"
+                            onClick={() => {
+                              const prereq = currentConceptGap.relatedConcepts.find(r => r.isPrerequisite && r.hasDifficulty);
+                              if (prereq) {
+                                const targetIdx = concepts.findIndex(c => c.id === prereq.conceptId);
+                                if (targetIdx >= 0) {
+                                  handleSelectFromOverview(prereq.conceptId, targetIdx);
+                                } else if (onViewGraph) {
+                                  onViewGraph(prereq.conceptId);
+                                }
+                              }
+                            }}
+                          >
+                            <span>Review prerequisite ({currentConceptGap.relatedConcepts.find(r => r.isPrerequisite && r.hasDifficulty)?.conceptName})</span>
+                            <span aria-hidden="true">→</span>
+                          </button>
+                        )}
+
+                        <a href="#section-worked-example" className="revision-gap-action-btn">
+                          <span>Review Worked Example</span>
+                        </a>
+
+                        <a href="#section-knowledge-check" className="revision-gap-action-btn">
+                          <span>Retry Knowledge Check</span>
+                        </a>
+                      </div>
+                    </div>
+                  )}
 
                   {/* --------------------------------------------------------------
                       CONTENT PLACEHOLDER / STRUCTURE (Section 5)

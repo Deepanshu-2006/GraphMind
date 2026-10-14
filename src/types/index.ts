@@ -1,5 +1,6 @@
 import type { KnowledgeNode } from './knowledgeGraph';
 export * from './graph';
+export * from './knowledgeGap';
 
 export interface Concept {
   id: string;
