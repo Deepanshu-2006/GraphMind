@@ -2394,9 +2394,190 @@
   .revision-header-action,
   .revision-nav-link,
   .revision-arrow,
-  .revision-nav-arrow {
+  .revision-nav-arrow,
+  .revision-adaptive-btn-primary,
+  .revision-adaptive-btn-secondary {
     transition: none !important;
     animation: none !important;
     transform: none !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   11. ADAPTIVE REVISION GUIDANCE (Phase 3 — Prompt 11)
+   Minimal, calm editorial guidance based on recorded student performance.
+   Strictly zero linear gradients, zero backdrop-filter blur.
+   -------------------------------------------------------------------------- */
+.revision-adaptive-container {
+  margin-top: 24px;
+  padding: 20px 24px;
+  background-color: #121212;
+  border: 1px solid #222222;
+  border-left: 2px solid #333333;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.revision-adaptive-container:has(.revision-adaptive-status-pill.needs-review) {
+  border-left-color: #E5A93C;
+}
+
+.revision-adaptive-container:has(.revision-adaptive-status-pill.understood) {
+  border-left-color: var(--accent, #A3FF12);
+}
+
+.revision-adaptive-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.revision-adaptive-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary, #888888);
+}
+
+.revision-adaptive-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--accent, #A3FF12);
+}
+
+.revision-adaptive-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 2px;
+  background-color: #1A1A1A;
+  color: #888888;
+  border: 1px solid #2A2A2A;
+}
+
+.revision-adaptive-status-pill.needs-review {
+  color: #E5A93C;
+  border-color: rgba(229, 169, 60, 0.35);
+  background-color: rgba(229, 169, 60, 0.08);
+}
+
+.revision-adaptive-status-pill.understood {
+  color: var(--accent, #A3FF12);
+  border-color: rgba(163, 255, 18, 0.35);
+  background-color: rgba(163, 255, 18, 0.06);
+}
+
+.revision-adaptive-status-pill.uncertain {
+  color: #D1D5DB;
+  border-color: #374151;
+  background-color: #1F2937;
+}
+
+.revision-adaptive-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.revision-adaptive-rationale {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #CCCCCC;
+  margin: 0;
+}
+
+.revision-adaptive-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.revision-adaptive-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #1A1A1A;
+  border: 1px solid var(--accent, #A3FF12);
+  color: #FFFFFF;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.revision-adaptive-btn-primary:hover {
+  background-color: var(--accent, #A3FF12);
+  color: #000000;
+}
+
+.revision-adaptive-btn-primary:focus-visible {
+  outline: 2px solid var(--accent, #A3FF12);
+  outline-offset: 2px;
+}
+
+.revision-adaptive-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background-color: transparent;
+  border: 1px solid #333333;
+  color: #A0A0A0;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: border-color 140ms ease, color 140ms ease;
+}
+
+.revision-adaptive-btn-secondary:hover {
+  border-color: #666666;
+  color: #FFFFFF;
+}
+
+.revision-adaptive-btn-secondary:focus-visible {
+  outline: 2px solid #888888;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .revision-adaptive-container {
+    padding: 16px 16px;
+  }
+
+  .revision-adaptive-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .revision-adaptive-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .revision-adaptive-btn-primary,
+  .revision-adaptive-btn-secondary {
+    justify-content: center;
+    width: 100%;
   }
 }
