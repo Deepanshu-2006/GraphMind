@@ -5490,6 +5490,7 @@
 @media (prefers-reduced-motion: reduce) {
   .study-title-line,
   .study-continue-kicker,
+  .study-revision-strip-label,
   .study-continue-title-line,
   .study-trajectory-eyebrow,
   .study-trajectory-title-line,
@@ -5565,12 +5566,13 @@
 
 .study-revision-strip {
   width: 100%;
-  background-color: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 4px;
-  padding: 10px 18px;
-  margin-top: 14px;
-  margin-bottom: 24px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 6px 0;
+  margin-top: 8px;
+  margin-bottom: 28px;
   box-sizing: border-box;
 }
 
@@ -5603,18 +5605,26 @@
   height: 6px;
   border-radius: 50%;
   background-color: var(--accent, #A3FF12);
-  box-shadow: 0 0 6px rgba(163, 255, 18, 0.45);
+}
+
+.study-revision-strip-label-clip {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: middle;
 }
 
 .study-revision-strip-label {
   font-family: var(--font-mono, monospace);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--accent, #A3FF12);
+  display: inline-block;
+  line-height: 1;
   white-space: nowrap;
   flex-shrink: 0;
+  will-change: transform, opacity, clip-path;
 }
 
 .study-revision-strip-divider {
@@ -5688,7 +5698,7 @@
 
 @media (max-width: 768px) {
   .study-revision-strip {
-    padding: 10px 14px;
+    padding: 6px 0;
     margin-bottom: 20px;
   }
 
@@ -5707,6 +5717,7 @@
   .study-revision-strip-left {
     width: 100%;
     gap: 8px;
+    flex-wrap: wrap;
   }
 
   .study-revision-strip-right {

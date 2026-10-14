@@ -3227,27 +3227,61 @@ export function StudySpaceView({
           className="study-revision-strip"
           role="region"
           aria-label="Revision in progress"
-          initial={shouldReduceMotion ? false : { opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: REVEAL_EASE }}
+          initial={shouldReduceMotion ? false : { opacity: 0 }}
+          animate={hasContinueEnteredView ? { opacity: 1 } : { opacity: 0 }}
+          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.35, ease: REVEAL_EASE }}
         >
           <div className="study-revision-strip-content">
             <div className="study-revision-strip-left">
-              <span className="study-revision-strip-status" aria-hidden="true">
+              <motion.span 
+                className="study-revision-strip-status" 
+                aria-hidden="true"
+                initial={shouldReduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
+                animate={hasContinueEnteredView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.36, delay: 0.04, ease: REVEAL_EASE }}
+              >
                 <span className="study-revision-strip-dot" />
+              </motion.span>
+              <span className="study-continue-kicker-clip study-revision-strip-label-clip">
+                <motion.span 
+                  className="study-revision-strip-label"
+                  initial={shouldReduceMotion ? { opacity: 1, clipPath: 'inset(0 0% 0 0)', x: 0 } : { opacity: 0, clipPath: 'inset(0 100% 0 0)', x: -6 }}
+                  animate={hasContinueEnteredView ? { opacity: 1, clipPath: 'inset(0 0% 0 0)', x: 0 } : { opacity: 0, clipPath: 'inset(0 100% 0 0)', x: -6 }}
+                  transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.48, delay: 0.04, ease: REVEAL_EASE }}
+                >
+                  REVISION IN PROGRESS
+                </motion.span>
               </span>
-              <span className="study-revision-strip-label">REVISION IN PROGRESS</span>
-              <span className="study-revision-strip-divider" aria-hidden="true">·</span>
-              <span className="study-revision-strip-concept" title={unfinishedSessionInfo.conceptTitle}>
+              <motion.span 
+                className="study-revision-strip-divider" 
+                aria-hidden="true"
+                initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+                animate={hasContinueEnteredView ? { opacity: 1 } : { opacity: 0 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.30, delay: 0.08, ease: REVEAL_EASE }}
+              >
+                ·
+              </motion.span>
+              <motion.span 
+                className="study-revision-strip-concept" 
+                title={unfinishedSessionInfo.conceptTitle}
+                initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+                animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.42, delay: 0.12, ease: REVEAL_EASE }}
+              >
                 {unfinishedSessionInfo.conceptTitle}
-              </span>
-              <span className="study-revision-strip-count">
+              </motion.span>
+              <motion.span 
+                className="study-revision-strip-count"
+                initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+                animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.40, delay: 0.18, ease: REVEAL_EASE }}
+              >
                 Concept {unfinishedSessionInfo.position} of {unfinishedSessionInfo.total}
-              </span>
+              </motion.span>
             </div>
 
             <div className="study-revision-strip-right">
-              <div
+              <motion.div
                 className="study-revision-strip-progress-track"
                 role="progressbar"
                 aria-valuenow={unfinishedSessionInfo.progressPercent}
@@ -3255,25 +3289,31 @@ export function StudySpaceView({
                 aria-valuemax={100}
                 aria-label={`Revision progress: ${unfinishedSessionInfo.progressPercent}%`}
                 title={`${unfinishedSessionInfo.progressPercent}% complete`}
+                initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+                animate={hasContinueEnteredView ? { opacity: 1 } : { opacity: 0 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.40, delay: 0.22, ease: REVEAL_EASE }}
               >
                 <div
                   className="study-revision-strip-progress-fill"
                   style={{ width: `${unfinishedSessionInfo.progressPercent}%` }}
                 />
-              </div>
+              </motion.div>
 
-              <button
+              <motion.button
                 type="button"
                 className="study-editorial-btn study-revision-strip-action"
                 onClick={() => onNavigateToRevision?.(unfinishedSessionInfo.currentConceptId)}
                 aria-label={`Resume revision at ${unfinishedSessionInfo.conceptTitle}`}
+                initial={shouldReduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -6 }}
+                animate={hasContinueEnteredView ? { opacity: 1, x: 0 } : { opacity: 0, x: -6 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.42, delay: 0.26, ease: REVEAL_EASE }}
               >
                 <span className="study-btn-content">
                   <span>Resume revision</span>
                   <span className="study-btn-arrow" aria-hidden="true">→</span>
                 </span>
                 <span className="study-btn-underline" aria-hidden="true" />
-              </button>
+              </motion.button>
             </div>
           </div>
         </motion.div>
