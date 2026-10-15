@@ -208,7 +208,7 @@ export const createConceptCanvasVariants = (shouldReduceMotion = false): Variant
     y: 0,
     x: 0,
     transition: {
-      duration: shouldReduceMotion ? 0 : 0.32,
+      duration: shouldReduceMotion ? 0 : 0.46,
       ease: WORKSPACE_EASING
     }
   },
@@ -217,7 +217,7 @@ export const createConceptCanvasVariants = (shouldReduceMotion = false): Variant
     x: shouldReduceMotion ? 0 : (dir >= 0 ? 14 : -14),
     y: shouldReduceMotion ? 0 : 6,
     transition: {
-      duration: shouldReduceMotion ? 0 : 0.28,
+      duration: shouldReduceMotion ? 0 : 0.46,
       ease: [0.16, 1, 0.3, 1]
     }
   }),
@@ -227,7 +227,7 @@ export const createConceptCanvasVariants = (shouldReduceMotion = false): Variant
     y: 0,
     staggerChildren: shouldReduceMotion ? 0 : 0.04,
     transition: {
-      duration: shouldReduceMotion ? 0 : 0.28,
+      duration: shouldReduceMotion ? 0 : 0.46,
       ease: [0.16, 1, 0.3, 1],
       when: "beforeChildren",
       staggerChildren: shouldReduceMotion ? 0 : 0.04
@@ -237,7 +237,7 @@ export const createConceptCanvasVariants = (shouldReduceMotion = false): Variant
     opacity: 0,
     x: shouldReduceMotion ? 0 : (dir >= 0 ? -14 : 14),
     transition: {
-      duration: shouldReduceMotion ? 0 : 0.16,
+      duration: shouldReduceMotion ? 0 : 0.32,
       ease: [0.16, 1, 0.3, 1]
     }
   })
@@ -310,6 +310,42 @@ export const createActionTransformVariants = (shouldReduceMotion = false): Varia
       ease: [0.16, 1, 0.3, 1]
     }
   }
+});
+
+/**
+ * Direction-Aware Concept Navigation Neighboring Title Variants:
+ * Vertical slide and fade for Previous/Next concept titles.
+ * Forward/Next (dir >= 0): Outgoing exits upward (-10px), incoming enters from below (+10px).
+ * Backward/Prev (dir < 0): Outgoing exits downward (+10px), incoming enters from above (-10px).
+ * Tuned for a slow, fluid, editorial glide:
+ * Incoming duration: 480ms with velvety deceleration curve [0.16, 1, 0.3, 1].
+ * Outgoing duration: 340ms with smooth fade out.
+ */
+export const createNavTitleVariants = (shouldReduceMotion = false): Variants => ({
+  enter: (dir: number) => ({
+    opacity: shouldReduceMotion ? 1 : 0,
+    y: shouldReduceMotion ? 0 : (dir >= 0 ? 10 : -10),
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.48,
+      ease: [0.16, 1, 0.3, 1]
+    }
+  }),
+  center: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.48,
+      ease: [0.16, 1, 0.3, 1]
+    }
+  },
+  exit: (dir: number) => ({
+    opacity: 0,
+    y: shouldReduceMotion ? 0 : (dir >= 0 ? -10 : 10),
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.34,
+      ease: [0.16, 1, 0.3, 1]
+    }
+  })
 });
 
 /**
@@ -973,6 +1009,11 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     [shouldReduceMotion]
   );
 
+  const navTitleVariants = useMemo(
+    () => createNavTitleVariants(shouldReduceMotion),
+    [shouldReduceMotion]
+  );
+
   const conceptElementVariants = useMemo(
     () => createConceptElementVariants(shouldReduceMotion),
     [shouldReduceMotion]
@@ -986,7 +1027,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     isNavigatingRef.current = true;
     setTimeout(() => {
       isNavigatingRef.current = false;
-    }, 180);
+    }, 280);
 
     setDirection(-1);
     const prevIdx = Math.max(0, currentIndex - 1);
@@ -1003,7 +1044,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     isNavigatingRef.current = true;
     setTimeout(() => {
       isNavigatingRef.current = false;
-    }, 180);
+    }, 280);
 
     setDirection(1);
     const nextIdx = Math.min(totalConcepts - 1, currentIndex + 1);
@@ -3015,9 +3056,23 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
               <span className="revision-nav-arrow" aria-hidden="true">←</span>
               <span className="revision-nav-text-group">
                 <span className="revision-nav-action-label">Previous concept</span>
-                {prevConcept && (
-                  <span className="revision-nav-dest-name">{prevConcept.name}</span>
-                )}
+                <span className="revision-nav-dest-viewport" aria-hidden={!prevConcept}>
+                  <AnimatePresence mode="popLayout" initial={false} custom={direction}>
+                    {prevConcept && (
+                      <motion.span
+                        key={`prev-title-${prevConcept.id}`}
+                        className="revision-nav-dest-name"
+                        custom={direction}
+                        variants={navTitleVariants}
+                        initial="enter"
+                        animate="center"
+                        exit="exit"
+                      >
+                        {prevConcept.name}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </span>
               </span>
             </button>
             <div className="revision-nav-right-cluster revision-nav-right-slot">
@@ -3040,7 +3095,9 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                       <span className="revision-nav-action-label revision-complete-label">
                         {isCompletingSession ? 'Completing…' : 'Complete session'}
                       </span>
-                      <span className="revision-nav-dest-name">Return to graph</span>
+                      <span className="revision-nav-dest-viewport">
+                        <span className="revision-nav-dest-name">Return to graph</span>
+                      </span>
                     </span>
                     <span className="revision-nav-arrow" aria-hidden="true">→</span>
                   </motion.button>
@@ -3059,9 +3116,23 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                   >
                     <span className="revision-nav-text-group revision-nav-text-right">
                       <span className="revision-nav-action-label">Next concept</span>
-                      {nextConcept && (
-                        <span className="revision-nav-dest-name">{nextConcept.name}</span>
-                      )}
+                      <span className="revision-nav-dest-viewport" aria-hidden={!nextConcept}>
+                        <AnimatePresence mode="popLayout" initial={false} custom={direction}>
+                          {nextConcept && (
+                            <motion.span
+                              key={`next-title-${nextConcept.id}`}
+                              className="revision-nav-dest-name"
+                              custom={direction}
+                              variants={navTitleVariants}
+                              initial="enter"
+                              animate="center"
+                              exit="exit"
+                            >
+                              {nextConcept.name}
+                            </motion.span>
+                          )}
+                        </AnimatePresence>
+                      </span>
                     </span>
                     <span className="revision-nav-arrow" aria-hidden="true">→</span>
                   </motion.button>

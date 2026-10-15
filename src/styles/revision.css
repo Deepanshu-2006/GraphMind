@@ -2225,7 +2225,25 @@ body.graph-fullscreen-active .revision-concept-navigation {
   transition: color var(--transition-fast, 150ms ease);
 }
 
+.revision-nav-dest-viewport {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  height: 18px;
+  line-height: 18px;
+  max-width: 240px;
+  width: 100%;
+}
+
+.revision-nav-text-right .revision-nav-dest-viewport {
+  text-align: right;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .revision-nav-dest-name {
+  display: block;
+  width: 100%;
   font-size: 13.5px;
   font-weight: 550;
   letter-spacing: -0.01em;
@@ -2234,6 +2252,7 @@ body.graph-fullscreen-active .revision-concept-navigation {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: inherit;
   transition: color var(--transition-fast, 150ms ease);
 }
 
@@ -2450,6 +2469,10 @@ body.graph-fullscreen-active .revision-concept-navigation {
   .revision-nav-inner {
     padding: 0 16px;
     gap: 8px;
+  }
+
+  .revision-nav-dest-viewport {
+    display: none;
   }
 
   .revision-nav-dest-name {
@@ -3157,7 +3180,9 @@ body.graph-fullscreen-active .revision-concept-navigation {
   .revision-kc-option,
   .revision-kc-feedback,
   .revision-kc-action-primary,
-  .revision-kc-action-secondary {
+  .revision-kc-action-secondary,
+  .revision-nav-dest-viewport,
+  .revision-nav-dest-name {
     transition: none !important;
     animation: none !important;
     transform: none !important;
