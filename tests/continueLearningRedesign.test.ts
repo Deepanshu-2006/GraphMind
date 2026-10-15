@@ -97,7 +97,7 @@ describe('Continue Learning Redesign & Asymmetric Editorial Assessment Experienc
     it('enforces visually dominant title and substantial but secondary correct-answer statistic in typography', () => {
       assert.match(
         studyCss,
-        /\.study-continue-title\s*\{[\s\S]*?font-size:\s*clamp\((?:34px,\s*3\.4vw,\s*38px|36px,\s*3\.8vw,\s*42px|38px,\s*4vw,\s*44px|44px,\s*4\.8vw,\s*52px)\);[\s\S]*?font-weight:\s*(?:550|600);/
+        /\.study-continue-title\s*\{[\s\S]*?font-size:\s*clamp\((?:34px,\s*3\.4vw,\s*38px|36px,\s*3\.8vw,\s*42px|38px,\s*4vw,\s*44px|44px,\s*4\.8vw,\s*52px|34px,\s*4\.4vw,\s*48px)\);[\s\S]*?font-weight:\s*(?:550|600|650|700);/
       );
       assert.match(
         studyCss,

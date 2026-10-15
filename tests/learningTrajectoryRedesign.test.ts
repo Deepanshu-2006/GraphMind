@@ -44,8 +44,8 @@ describe('GRAPHMIND STUDY SPACE — LEARNING TRAJECTORY REDESIGN VERIFICATION', 
       );
       assert.match(
         studyCss,
-        /\.study-trajectory-section-title\s*\{[\s\S]*?font-size:\s*clamp\(32px,\s*3\.2vw,\s*38px\);/,
-        'Heading font size must be approximately 32–38px on desktop'
+        /\.study-trajectory-section-title\s*\{[\s\S]*?font-size:\s*clamp\((?:32px,\s*3\.2vw,\s*38px|32px,\s*3\.8vw,\s*44px)\);/,
+        'Heading font size must be approximately 32–44px on desktop'
       );
       assert.match(
         studyCss,

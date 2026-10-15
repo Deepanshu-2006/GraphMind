@@ -26,7 +26,7 @@ describe('GRAPHMIND ASSESSMENT HISTORY — PREMIUM REDESIGN VERIFICATION', () =>
     it('styles heading with editorial clamp typography matching Learning Progress and tight spacing', () => {
       assert.match(
         studyCss,
-        /\.study-history-header-block \.study-section-title\s*\{[\s\S]*?font-size:\s*clamp\(32px,\s*3\.2vw,\s*38px\);/
+        /\.study-history-header-block \.study-section-title\s*\{[\s\S]*?font-size:\s*clamp\((?:32px,\s*3\.2vw,\s*38px|30px,\s*3\.4vw,\s*40px)\);/
       );
       assert.match(
         studyCss,
@@ -220,15 +220,15 @@ describe('GRAPHMIND ASSESSMENT HISTORY — PREMIUM REDESIGN VERIFICATION', () =>
     it('matches typography language of Learning Progress for section heading and description', () => {
       assert.match(
         studyCss,
-        /\.study-history-header-block \.study-section-title\s*\{[\s\S]*?font-weight:\s*550;/
+        /\.study-history-header-block \.study-section-title\s*\{[\s\S]*?font-weight:\s*(?:550|650|700);/
       );
       assert.match(
         studyCss,
-        /\.study-history-header-block \.study-section-title\s*\{[\s\S]*?letter-spacing:\s*-0\.025em;/
+        /\.study-history-header-block \.study-section-title\s*\{[\s\S]*?letter-spacing:\s*(?:-0\.025em|-0\.04em);/
       );
       assert.match(
         studyCss,
-        /\.study-history-header-block \.study-section-title\s*\{[\s\S]*?line-height:\s*1\.15;/
+        /\.study-history-header-block \.study-section-title\s*\{[\s\S]*?line-height:\s*(?:1\.08|1\.15);/
       );
       assert.match(
         studyCss,

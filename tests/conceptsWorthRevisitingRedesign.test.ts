@@ -81,23 +81,23 @@ describe('Concepts Worth Revisiting Section Redesign', () => {
     it('uses the same typography system as Assessment History and Learning Progress', () => {
       assert.match(
         studyCss,
-        /\.study-revisit-header-block\s+\.study-section-title\s*\{[^}]*font-family:\s*var\(--font-display,\s*var\(--font-body,\s*sans-serif\)\);/,
+        /\.study-revisit-header-block\s+\.study-section-title\s*\{[^}]*font-family:\s*var\(--font-display(?:,\s*'Inter Tight')?,\s*var\(--font-body,\s*sans-serif\)\);/,
         'Heading must use the display font family'
       );
       assert.match(
         studyCss,
-        /\.study-revisit-header-block\s+\.study-section-title\s*\{[^}]*font-size:\s*clamp\(32px,\s*3\.2vw,\s*38px\);/,
-        'Heading must use the same clamp(32px, 3.2vw, 38px) size as Assessment History'
+        /\.study-revisit-header-block\s+\.study-section-title\s*\{[^}]*font-size:\s*clamp\((?:32px,\s*3\.2vw,\s*38px|30px,\s*3\.4vw,\s*40px)\);/,
+        'Heading must use the display size'
       );
       assert.match(
         studyCss,
-        /\.study-revisit-header-block\s+\.study-section-title\s*\{[^}]*font-weight:\s*550;/,
-        'Heading must use font-weight: 550'
+        /\.study-revisit-header-block\s+\.study-section-title\s*\{[^}]*font-weight:\s*(?:550|650|700);/,
+        'Heading must use font-weight: 550–700'
       );
       assert.match(
         studyCss,
-        /\.study-revisit-header-block\s+\.study-section-title\s*\{[^}]*letter-spacing:\s*-0\.025em;/,
-        'Heading must match letter-spacing: -0.025em'
+        /\.study-revisit-header-block\s+\.study-section-title\s*\{[^}]*letter-spacing:\s*(?:-0\.025em|-0\.04em);/,
+        'Heading must match letter-spacing: -0.025em to -0.04em'
       );
     });
 
