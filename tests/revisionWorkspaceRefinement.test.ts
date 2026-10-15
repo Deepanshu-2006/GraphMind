@@ -430,7 +430,7 @@ describe('GraphMind Revision Workspace UI/UX Refinement', () => {
   });
 
   describe('5. Signature Learning Detail — Animated Lesson Navigation System', () => {
-    test('renders two-column composition with left rail and right reading column inside .revision-lesson-layout', () => {
+    test('renders two-column composition with reading column on the left and rail on the right inside .revision-lesson-layout', () => {
       const html = renderToString(
         React.createElement(RevisionWorkspace, {
           graph: mockGraph,
@@ -443,12 +443,12 @@ describe('GraphMind Revision Workspace UI/UX Refinement', () => {
       // Verify two-column layout wrapper exists
       assert.ok(html.includes('revision-lesson-layout'), 'Must render .revision-lesson-layout');
 
-      // Verify left rail is rendered before the reading column in DOM order
+      // Verify right rail is rendered after the reading column in DOM order
       const railIndex = html.indexOf('revision-reading-rail');
       const columnIndex = html.indexOf('revision-reading-column');
       assert.ok(railIndex > 0, 'Must render .revision-reading-rail');
       assert.ok(columnIndex > 0, 'Must render .revision-reading-column');
-      assert.ok(railIndex < columnIndex, 'Rail must sit to the LEFT of the reading column in composition order');
+      assert.ok(railIndex > columnIndex, 'Rail must sit to the RIGHT of the reading column in composition order');
 
       // Verify animated rail elements
       assert.ok(html.includes('revision-reading-rail-track'), 'Must render track');
@@ -467,7 +467,7 @@ describe('GraphMind Revision Workspace UI/UX Refinement', () => {
       );
     });
 
-    test('defines two-column flex layout and sticky left rail styling in CSS', () => {
+    test('defines two-column flex layout and sticky rail styling in CSS', () => {
       assert.ok(cssContent.includes('.revision-lesson-layout {'), 'CSS must define .revision-lesson-layout');
       const layoutMatch = cssContent.match(/\.revision-lesson-layout\s*\{([^}]*)\}/);
       assert.ok(layoutMatch, 'Must match .revision-lesson-layout rule');
