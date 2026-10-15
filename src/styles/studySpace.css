@@ -619,74 +619,121 @@
   color: var(--accent, #A3FF12);
 }
 
-/* Empty State Card when Selected Graph has 0 Assessments */
-.study-progress-empty-card {
-  padding: 44px 36px;
-  background-color: #0E0E0E;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 6px;
+/* Learning Progress Empty State (Section 5) */
+.study-progress-empty-card,
+.study-progress-empty-state {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  margin-top: 24px;
+  align-items: flex-start;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  margin-top: 32px;
+  max-width: 580px;
 }
 
 .study-progress-empty-header {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 24px;
 }
 
-.study-progress-empty-header .study-trajectory-graph-lbl {
-  font-family: var(--font-mono, monospace);
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #666666;
-}
-
-.study-progress-empty-header .study-trajectory-graph-title {
+.study-progress-empty-graph-title {
   font-family: var(--font-display, var(--font-body, sans-serif));
-  font-size: 24px;
+  font-size: 19px;
   font-weight: 600;
-  color: #F5F5F5;
+  color: var(--text-primary, #F5F5F5);
   margin: 0;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
 }
 
-.study-progress-empty-header .study-trajectory-graph-count {
+.study-progress-empty-count {
   font-family: var(--font-mono, monospace);
-  font-size: 12px;
-  color: #777777;
+  font-size: 13px;
+  color: var(--text-secondary, #9CA3AF);
+  font-weight: 400;
+  margin: 0;
+  line-height: 1;
 }
 
 .study-progress-empty-body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  align-items: flex-start;
+  gap: 12px;
+  padding: 0;
+  border: none;
+  background: transparent;
 }
 
-.study-progress-empty-msg {
+.study-progress-empty-heading {
+  font-family: var(--font-display, var(--font-body, sans-serif));
+  font-size: 21px;
+  font-weight: 600;
+  color: var(--text-primary, #F5F5F5);
+  margin: 0;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+.study-progress-empty-desc {
   font-family: var(--font-body, sans-serif);
-  font-size: 14px;
-  font-weight: 500;
-  color: #E0E0E0;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-secondary, #9CA3AF);
+  max-width: 540px;
   margin: 0;
 }
 
-.study-progress-empty-sub {
+.study-progress-empty-action {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary, #F5F5F5);
   font-family: var(--font-body, sans-serif);
-  font-size: 13px;
-  color: #777777;
-  max-width: 480px;
-  margin: 0 0 12px 0;
-  line-height: 1.5;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  outline: none;
+  text-decoration: none;
+  transition: color 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.study-progress-empty-action {
-  align-self: flex-start;
+.study-progress-empty-action:hover,
+.study-progress-empty-action:focus-visible {
+  color: var(--accent, #A3FF12);
+}
+
+.study-progress-empty-action-label {
+  display: inline-block;
+  line-height: 1.4;
+}
+
+.study-progress-empty-action-arrow {
+  display: inline-block;
+  font-size: 14px;
+  line-height: 1;
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.study-progress-empty-action:hover .study-progress-empty-action-arrow,
+.study-progress-empty-action:focus-visible .study-progress-empty-action-arrow {
+  transform: translateX(4px);
+}
+
+.study-progress-empty-action:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: 4px;
+  border-radius: 2px;
 }
 
 /* Assessment History graph filter badge */
@@ -3829,8 +3876,15 @@
     grid-column: span 1;
   }
 
-  .study-progress-empty-card {
-    padding: 32px 20px;
+  .study-progress-empty-card,
+  .study-progress-empty-state {
+    padding: 0;
+    max-width: 100%;
+  }
+
+  .study-progress-empty-header {
+    flex-wrap: wrap;
+    gap: 6px 12px;
   }
 }
 
@@ -5632,7 +5686,8 @@
   .overview-attention-row,
   .overview-attention-clean,
   .study-continue-rotating-ring,
-  .study-continue-empty-action-arrow {
+  .study-continue-empty-action-arrow,
+  .study-progress-empty-action-arrow {
     transition: none !important;
     animation: none !important;
     transform: none !important;

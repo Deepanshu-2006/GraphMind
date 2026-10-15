@@ -178,10 +178,10 @@ describe('GRAPHMIND STUDY SPACE — KNOWLEDGE GRAPH SELECTOR & FILTERED LEARNING
       assert.equal(prog, null, 'Must return null when no assessments exist');
     });
 
-    it('renders refined empty state card when selected graph has 0 assessments', () => {
+    it('renders refined empty state when selected graph has 0 assessments', () => {
       assert.ok(studyViewSrc.includes('study-progress-empty-card'));
       assert.ok(studyViewSrc.includes('study-progress-empty-msg'));
-      assert.ok(studyViewSrc.includes('No assessments yet for this knowledge graph.'));
+      assert.ok(studyViewSrc.includes('Your progress starts here.'));
       assert.ok(studyViewSrc.includes('study-progress-empty-action'));
     });
 

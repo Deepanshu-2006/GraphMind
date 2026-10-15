@@ -3739,36 +3739,30 @@ export function StudySpaceView({
                   />
                 ) : (
                   <div
-                    className="study-progress-empty-card"
+                    className="study-progress-empty-card study-progress-empty-state"
                     role="region"
                     aria-label={`No assessments yet for ${selectedGraphMeta.name}`}
                   >
                     <div className="study-progress-empty-header">
-                      <div className="study-trajectory-identity">
-                        <span className="study-trajectory-dot" aria-hidden="true" />
-                        <span className="study-trajectory-graph-title">{selectedGraphMeta.name}</span>
-                      </div>
-                      <span className="study-trajectory-count">0 assessments</span>
+                      <h3 className="study-progress-empty-graph-title">{selectedGraphMeta.name}</h3>
+                      <span className="study-progress-empty-count">0 assessments</span>
                     </div>
                     <div className="study-progress-empty-body">
-                      <p className="study-progress-empty-msg">
-                        No assessments yet for this knowledge graph.
-                      </p>
-                      <p className="study-progress-empty-sub">
-                        Complete an assessment to start tracking your score trajectory, historical attempts, and learning progress over time.
+                      <h4 className="study-progress-empty-heading study-progress-empty-msg">
+                        Your progress starts here.
+                      </h4>
+                      <p className="study-progress-empty-desc study-progress-empty-sub">
+                        Complete your first assessment to begin tracking your scores, review past attempts, and see how your understanding develops over time.
                       </p>
                       {onNavigateToGraph && (
                         <button
                           type="button"
-                          className="study-editorial-btn study-progress-empty-action"
+                          className="study-progress-empty-action"
                           onClick={onNavigateToGraph}
                           aria-label={`Explore knowledge graph ${selectedGraphMeta.name}`}
                         >
-                          <span className="study-btn-content">
-                            <span>Explore this graph</span>
-                            <span className="study-btn-arrow" aria-hidden="true">→</span>
-                          </span>
-                          <span className="study-btn-underline" aria-hidden="true" />
+                          <span className="study-progress-empty-action-label">Explore this graph</span>
+                          <span className="study-progress-empty-action-arrow" aria-hidden="true">→</span>
                         </button>
                       )}
                     </div>
