@@ -330,11 +330,12 @@ describe('GRAPHMIND STUDY SPACE — KNOWLEDGE GRAPH SELECTOR & FILTERED LEARNING
     it('provides a clean empty state in Continue Learning when selected graph has no assessments', () => {
       assert.ok(studyViewSrc.includes('className="study-continue-empty-body"'));
       assert.ok(studyViewSrc.includes('className="study-continue-empty-msg"'));
-      assert.ok(studyViewSrc.includes('Start your first assessment for this knowledge graph to track your understanding and identify concepts to revisit.'));
-      assert.ok(studyViewSrc.includes('START ASSESSMENT'));
+      assert.ok(studyViewSrc.includes('Take your first assessment to see how well you understand this graph and discover which concepts need another look.'));
+      assert.ok(studyViewSrc.includes('Start an assessment'));
       assert.ok(studyViewSrc.includes('study-continue-circle-track-empty'));
       assert.ok(studyViewSrc.includes('study-continue-empty-dash'));
       assert.ok(studyViewSrc.includes('NO ASSESSMENTS'));
+      assert.ok(studyViewSrc.includes('study-continue-rotating-ring'));
     });
 
     it('restarts score animation and resets hasAnimatedRef when switching between knowledge graphs', () => {
@@ -347,18 +348,23 @@ describe('GRAPHMIND STUDY SPACE — KNOWLEDGE GRAPH SELECTOR & FILTERED LEARNING
     it('includes CSS tokens for Continue Learning empty state and muted orbit track', () => {
       assert.match(
         studyCss,
-        /\.study-continue-empty-body\s*\{[\s\S]*?display:\s*flex;[\s\S]*?justify-content:\s*space-between;/,
-        'Must style Continue Learning empty body'
+        /\.study-continue-empty-body\s*\{[\s\S]*?display:\s*flex;[\s\S]*?background:\s*transparent;/,
+        'Must style Continue Learning empty body borderless on page background'
       );
       assert.match(
         studyCss,
-        /\.study-continue-empty-msg\s*\{[\s\S]*?color:\s*#8E8E8E;/,
-        'Must style Continue Learning empty message'
+        /\.study-continue-empty-msg\s*\{[\s\S]*?color:\s*var\(--text-secondary,\s*#9CA3AF\);/,
+        'Must style Continue Learning empty message with neutral secondary color'
       );
       assert.match(
         studyCss,
-        /\.study-continue-circle-track-empty\s*\{[\s\S]*?stroke-dasharray:\s*4\s*6;/,
+        /\.study-continue-circle-track-empty\s*\{[\s\S]*?stroke-dasharray:\s*4\s*8;/,
         'Must style empty orbit track with dashed stroke'
+      );
+      assert.match(
+        studyCss,
+        /\.study-continue-circle-track-empty-alt\s*\{[\s\S]*?stroke-dasharray:\s*4\s*8;/,
+        'Must style alternate empty orbit track with dashed stroke'
       );
       assert.match(
         studyCss,

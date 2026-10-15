@@ -3399,7 +3399,7 @@ export function StudySpaceView({
                             animate={hasContinueEnteredView ? { opacity: 1, clipPath: 'inset(0 0% 0 0)', x: 0 } : { opacity: 0, clipPath: 'inset(0 100% 0 0)', x: -6 }}
                             transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.48, delay: 0.04, ease: REVEAL_EASE }}
                           >
-                            CONTINUE LEARNING
+                            {latestAttempt ? 'CONTINUE LEARNING' : 'ASSESSMENT HISTORY'}
                           </motion.span>
                         </span>
                       </div>
@@ -3407,7 +3407,7 @@ export function StudySpaceView({
                       <div className="study-continue-identity-row">
                         <motion.h2 
                           className="study-continue-title" 
-                          title="Your learning, in progress."
+                          title={latestAttempt ? "Your learning, in progress." : "Your progress starts here."}
                           initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
                           animate={hasContinueEnteredView ? { opacity: 1 } : { opacity: 0 }}
                           transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.28, delay: 0.10 }}
@@ -3419,13 +3419,13 @@ export function StudySpaceView({
                               animate={hasContinueEnteredView ? { opacity: 1, y: '0%' } : { opacity: 0, y: '105%' }}
                               transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.62, delay: 0.12, ease: REVEAL_EASE }}
                             >
-                              Your learning, in progress.
+                              {latestAttempt ? 'Your learning, in progress.' : 'Your progress starts here.'}
                             </motion.span>
                           </span>
                         </motion.h2>
 
-                        <div className="study-continue-meta-stack">
-                          {latestAttempt ? (
+                        {latestAttempt && (
+                          <div className="study-continue-meta-stack">
                             <motion.span 
                               className="study-continue-graph-name"
                               initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
@@ -3434,33 +3434,22 @@ export function StudySpaceView({
                             >
                               {latestAttempt.graphName}
                             </motion.span>
-                          ) : (
-                            <motion.span 
-                              className="study-continue-graph-name"
-                              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-                              animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-                              transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.46, delay: 0.34, ease: REVEAL_EASE }}
+                            <motion.div 
+                              className="study-continue-context-line"
+                              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+                              animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+                              transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.42, delay: 0.44, ease: REVEAL_EASE }}
                             >
-                              {selectedGraphMeta.name}
-                            </motion.span>
-                          )}
-                          <motion.div 
-                            className="study-continue-context-line"
-                            initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
-                            animate={hasContinueEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
-                            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.42, delay: 0.44, ease: REVEAL_EASE }}
-                          >
-                            {latestAttempt && latestDateInfo ? (
-                              <>
-                                <span>{latestDateInfo.dateStr}</span>
-                                <span className="study-meta-dot" aria-hidden="true">·</span>
-                                <span>{latestAttempt.totalQuestions} questions</span>
-                              </>
-                            ) : (
-                              <span>No assessments yet</span>
-                            )}
-                          </motion.div>
-                        </div>
+                              {latestDateInfo && (
+                                <>
+                                  <span>{latestDateInfo.dateStr}</span>
+                                  <span className="study-meta-dot" aria-hidden="true">·</span>
+                                  <span>{latestAttempt.totalQuestions} questions</span>
+                                </>
+                              )}
+                            </motion.div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -3543,7 +3532,7 @@ export function StudySpaceView({
                           transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.46, delay: 0.50, ease: REVEAL_EASE }}
                         >
                           <p className="study-continue-empty-msg">
-                            Start your first assessment for this knowledge graph to track your understanding and identify concepts to revisit.
+                            Take your first assessment to see how well you understand this graph and discover which concepts need another look.
                           </p>
                           <motion.div 
                             className="study-continue-action-row"
@@ -3553,15 +3542,12 @@ export function StudySpaceView({
                           >
                             <button
                               type="button"
-                              className="study-editorial-btn study-continue-action-btn"
+                              className="study-continue-empty-action-btn"
                               onClick={onNavigateToGraph}
                               aria-label={`Start assessment for ${selectedGraphMeta.name}`}
                             >
-                              <span className="study-btn-content">
-                                <span>START ASSESSMENT</span>
-                                <span className="study-btn-arrow" aria-hidden="true">→</span>
-                              </span>
-                              <span className="study-btn-underline" aria-hidden="true" />
+                              <span className="study-continue-empty-action-label">Start an assessment</span>
+                              <span className="study-continue-empty-action-arrow" aria-hidden="true">→</span>
                             </button>
                           </motion.div>
                         </motion.div>
@@ -3597,12 +3583,23 @@ export function StudySpaceView({
                               className="study-continue-circle-track" 
                             />
                           ) : (
-                            <circle 
-                              cx="100" 
-                              cy="100" 
-                              r={CIRCLE_RADIUS} 
-                              className="study-continue-circle-track study-continue-circle-track-empty" 
-                            />
+                            <g 
+                              className="study-continue-rotating-ring"
+                              style={shouldReduceMotion ? { animation: 'none' } : undefined}
+                            >
+                              <circle 
+                                cx="100" 
+                                cy="100" 
+                                r={CIRCLE_RADIUS} 
+                                className="study-continue-circle-track study-continue-circle-track-empty" 
+                              />
+                              <circle 
+                                cx="100" 
+                                cy="100" 
+                                r={CIRCLE_RADIUS} 
+                                className="study-continue-circle-track study-continue-circle-track-empty-alt" 
+                              />
+                            </g>
                           )}
                           {latestAttempt && (
                             <motion.circle 
@@ -3665,7 +3662,7 @@ export function StudySpaceView({
                           ) : (
                             <>
                               <span className="study-continue-score-pct study-continue-empty-dash">—</span>
-                              <span className="study-continue-circle-lbl">NO ASSESSMENTS</span>
+                              <span className="study-continue-circle-lbl study-continue-circle-lbl-empty">NO ASSESSMENTS</span>
                             </>
                           )}
                         </div>
