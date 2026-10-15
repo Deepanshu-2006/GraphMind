@@ -239,6 +239,39 @@ export const createConceptCanvasVariants = (shouldReduceMotion = false): Variant
 });
 
 /**
+ * Normalizes text for deterministic duplication detection.
+ * Trims, lowercases, removes punctuation, and collapses whitespace.
+ */
+export function normalizeComparisonText(text?: string | null): string {
+  if (!text) return '';
+  return text
+    .toLowerCase()
+    .replace(/[.\-_,;:!?'"“”’`()\[\]{}]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Checks if two pieces of text are identical or substantially identical.
+ */
+export function isSubstantiallyIdentical(textA?: string | null, textB?: string | null): boolean {
+  if (!textA || !textB) return false;
+  const normA = normalizeComparisonText(textA);
+  const normB = normalizeComparisonText(textB);
+  if (!normA || !normB) return false;
+  if (normA === normB) return true;
+  // Substantial equality when one contains the other and lengths are within 15%
+  if (normA.length >= 15 && normB.length >= 15) {
+    if (normA.includes(normB) || normB.includes(normA)) {
+      const minLen = Math.min(normA.length, normB.length);
+      const maxLen = Math.max(normA.length, normB.length);
+      if (minLen / maxLen >= 0.85) return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Safely parses inline markdown tokens (bold, italic, code, math) into React nodes.
  * Zero use of dangerouslySetInnerHTML to guarantee safety against injection.
  */
@@ -1145,6 +1178,97 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   const hasUnderstandingData = hasExtraKeyIdeas || hasEvidence;
   const hasRelatedConcepts = resolvedRelatedConcepts.length > 0;
 
+  // Section 01 Content Deduplication (Avoid repeating definition from header, repeated sentences, or duplicated evidence)
+  const understandingContent = useMemo(() => {
+    const definition = (conceptDescription || '').trim();
+    const exp = (explanationState.status === 'ready' || explanationState.status === 'outdated')
+      ? explanationState.explanation
+      : null;
+
+    let lead: string | null = null;
+    const paragraphs: string[] = [];
+    const keyIdeas: string[] = [];
+    let evidence: string | null = null;
+
+    if (exp) {
+      // 1. Overview: only render as lead paragraph if it adds genuine value beyond the concept definition
+      if (exp.overview && exp.overview.trim().length > 0) {
+        if (!isSubstantiallyIdentical(exp.overview, definition)) {
+          lead = exp.overview.trim();
+        }
+      }
+
+      // 2. Detailed explanation paragraphs
+      if (exp.detailedExplanation && exp.detailedExplanation.length > 0) {
+        exp.detailedExplanation.forEach((p) => {
+          if (!p || !p.trim()) return;
+          let text = p.trim();
+
+          // If the entire paragraph is a duplicate of definition or lead, skip it
+          if (isSubstantiallyIdentical(text, definition)) return;
+          if (lead && isSubstantiallyIdentical(text, lead)) return;
+
+          // If the paragraph opens with a sentence repeating the definition, strip the duplicate opening sentence
+          const sentenceSplit = text.match(/^([^.!?]+[.!?])\s*(.*)$/s);
+          if (sentenceSplit) {
+            const firstSentence = sentenceSplit[1].trim();
+            const remainder = sentenceSplit[2].trim();
+            if (isSubstantiallyIdentical(firstSentence, definition) && remainder.length > 0) {
+              text = remainder;
+            }
+          }
+
+          // Check against already included paragraphs
+          if (!paragraphs.some(existing => isSubstantiallyIdentical(existing, text))) {
+            paragraphs.push(text);
+          }
+        });
+      }
+    }
+
+    // 3. Extra key ideas from node data
+    if (activeDisplayConcept?.keyIdeas && activeDisplayConcept.keyIdeas.length > 0) {
+      activeDisplayConcept.keyIdeas.forEach((idea) => {
+        if (!idea || !idea.trim()) return;
+        const text = idea.trim();
+        if (isSubstantiallyIdentical(text, definition)) return;
+        if (lead && isSubstantiallyIdentical(text, lead)) return;
+        if (paragraphs.some(p => isSubstantiallyIdentical(p, text))) return;
+        if (!keyIdeas.some(existing => isSubstantiallyIdentical(existing, text))) {
+          keyIdeas.push(text);
+        }
+      });
+    }
+
+    // 4. Evidence text from node data
+    if (activeDisplayConcept?.evidence && activeDisplayConcept.evidence.trim().length > 0) {
+      const text = activeDisplayConcept.evidence.trim();
+      const isDuplicate =
+        isSubstantiallyIdentical(text, definition) ||
+        (lead && isSubstantiallyIdentical(text, lead)) ||
+        paragraphs.some(p => isSubstantiallyIdentical(p, text) || p.includes(text));
+
+      if (!isDuplicate) {
+        evidence = text;
+      }
+    }
+
+    // In the edge case where overview was identical to definition AND there are no paragraphs,
+    // key ideas, or evidence, provide the overview as a normal body paragraph (not a prominent lead)
+    // so the section doesn't render completely empty if it's the only text available.
+    if (!lead && paragraphs.length === 0 && keyIdeas.length === 0 && !evidence && exp?.overview) {
+      paragraphs.push(exp.overview.trim());
+    }
+
+    return {
+      lead,
+      paragraphs,
+      keyIdeas,
+      evidence,
+      hasContent: Boolean(lead || paragraphs.length > 0 || keyIdeas.length > 0 || evidence)
+    };
+  }, [conceptDescription, explanationState, activeDisplayConcept?.keyIdeas, activeDisplayConcept?.evidence]);
+
 
   const workspaceRootRef = useRef<HTMLDivElement | null>(null);
 
@@ -1804,33 +1928,33 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                             <span>Understanding the concept</span>
                           </h2>
                           <div className="revision-section-body">
-                            {explanationState.explanation.overview && (
+                            {understandingContent.lead && (
                               <p className="revision-explanation-lead">
-                                <EditorialFormattedContent content={explanationState.explanation.overview} />
+                                <EditorialFormattedContent content={understandingContent.lead} />
                               </p>
                             )}
                             {(!explanationState.explanation.howItWorks || explanationState.explanation.howItWorks.length === 0) &&
-                              explanationState.explanation.detailedExplanation && explanationState.explanation.detailedExplanation.length > 0 && (
+                              understandingContent.paragraphs.length > 0 && (
                               <div className="revision-explanation-paragraphs">
-                                {explanationState.explanation.detailedExplanation.map((paragraph, idx) => (
+                                {understandingContent.paragraphs.map((paragraph, idx) => (
                                   <p key={idx} className="revision-explanation-paragraph">
                                     <EditorialFormattedContent content={paragraph} />
                                   </p>
                                 ))}
                               </div>
                             )}
-                            {hasExtraKeyIdeas && (
-                              <ul className="revision-key-ideas-list" style={{ margin: (explanationState.explanation.overview ? '16px 0 0 0' : 0), paddingLeft: '20px' }}>
-                                {currentConcept.keyIdeas!.map((idea, idx) => (
-                                  <li key={idx} style={{ marginBottom: '6px' }}>
+                            {understandingContent.keyIdeas.length > 0 && (
+                              <ul className="revision-key-ideas-list">
+                                {understandingContent.keyIdeas.map((idea, idx) => (
+                                  <li key={idx} className="revision-key-idea-item">
                                     <EditorialFormattedContent content={idea} />
                                   </li>
                                 ))}
                               </ul>
                             )}
-                            {hasEvidence && (
-                              <p style={{ margin: (hasExtraKeyIdeas || explanationState.explanation.overview) ? '12px 0 0 0' : 0 }}>
-                                <EditorialFormattedContent content={currentConcept.evidence!} />
+                            {understandingContent.evidence && (
+                              <p className="revision-evidence-paragraph">
+                                <EditorialFormattedContent content={understandingContent.evidence} />
                               </p>
                             )}
                           </div>
@@ -1951,12 +2075,24 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                               </span>
                             </h2>
                             <ul className="revision-points-list">
-                              {(explanationState.explanation.importantDetails || explanationState.explanation.importantPoints!).map((point, idx) => (
-                                <li key={idx} className="revision-point-item">
-                                  <span className="revision-point-bullet" aria-hidden="true" />
-                                  <span><EditorialFormattedContent content={point} /></span>
-                                </li>
-                              ))}
+                              {(explanationState.explanation.importantDetails || explanationState.explanation.importantPoints!).map((point, idx) => {
+                                const colonMatch = !point.includes('**') && point.match(/^([A-Za-z0-9\s/_-]{2,35}:)\s+(.+)$/);
+                                return (
+                                  <li key={idx} className="revision-point-item">
+                                    <span className="revision-point-bullet" aria-hidden="true" />
+                                    <span className="revision-point-text">
+                                      {colonMatch ? (
+                                        <>
+                                          <strong className="revision-point-label">{colonMatch[1]}</strong>{' '}
+                                          <EditorialFormattedContent content={colonMatch[2]} />
+                                        </>
+                                      ) : (
+                                        <EditorialFormattedContent content={point} />
+                                      )}
+                                    </span>
+                                  </li>
+                                );
+                              })}
                             </ul>
                           </div>
                         )}
@@ -2224,20 +2360,32 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                     {/* Fallback when explanation state is idle, empty, or error */}
                     {(explanationState.status === 'idle' || explanationState.status === 'empty' || explanationState.status === 'error') && (
                       <>
-                        {hasUnderstandingData && (
+                        {understandingContent.hasContent && (
                           <div className="revision-section revision-section-understanding">
-                            <h2 className="revision-section-heading">Understanding the concept</h2>
+                            <h2 className="revision-section-heading">
+                              <span className="revision-section-num">01</span>
+                              <span>Understanding the concept</span>
+                            </h2>
                             <div className="revision-section-body">
-                              {hasExtraKeyIdeas && (
-                                <ul className="revision-key-ideas-list" style={{ margin: 0, paddingLeft: '20px' }}>
-                                  {activeDisplayConcept.keyIdeas!.map((idea, idx) => (
-                                    <li key={idx} style={{ marginBottom: '6px' }}>{idea}</li>
+                              {understandingContent.paragraphs.length > 0 && (
+                                <div className="revision-explanation-paragraphs">
+                                  {understandingContent.paragraphs.map((paragraph, idx) => (
+                                    <p key={idx} className="revision-explanation-paragraph">
+                                      {paragraph}
+                                    </p>
+                                  ))}
+                                </div>
+                              )}
+                              {understandingContent.keyIdeas.length > 0 && (
+                                <ul className="revision-key-ideas-list">
+                                  {understandingContent.keyIdeas.map((idea, idx) => (
+                                    <li key={idx} className="revision-key-idea-item">{idea}</li>
                                   ))}
                                 </ul>
                               )}
-                              {hasEvidence && (
-                                <p style={{ margin: hasExtraKeyIdeas ? '12px 0 0 0' : 0 }}>
-                                  {activeDisplayConcept.evidence}
+                              {understandingContent.evidence && (
+                                <p className="revision-evidence-paragraph">
+                                  {understandingContent.evidence}
                                 </p>
                               )}
                             </div>

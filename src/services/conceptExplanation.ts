@@ -432,13 +432,14 @@ export function synthesizeGroundedExplanation(
   const { node, graphId, conceptName, category, description, evidenceItems, relatedRelationships, matchingSources } = context;
 
   // 1. Overview (Clear, understandable high-level foundation)
-  let overview = description;
-  if (!overview || overview.length < 25) {
-    if (evidenceItems.length > 0 && evidenceItems[0].text) {
-      overview = evidenceItems[0].text;
-    } else {
-      overview = `${conceptName} is a foundational ${category} within this knowledge domain.`;
-    }
+  // Prioritize authentic evidence text when it provides distinct depth beyond the short definition
+  let overview = '';
+  if (evidenceItems.length > 0 && evidenceItems[0]?.text && evidenceItems[0].text.trim().length >= 20) {
+    overview = evidenceItems[0].text.trim();
+  } else if (description && description.trim().length >= 25) {
+    overview = description.trim();
+  } else {
+    overview = `${conceptName} is a foundational ${category} within this knowledge domain.`;
   }
 
   // 2. Detailed Explanation (Clear, cohesive paragraphs unrolling concepts progressively)
@@ -446,8 +447,10 @@ export function synthesizeGroundedExplanation(
 
   // Paragraph A: Core mechanism & operational context
   const primaryEvidence = evidenceItems[0]?.text;
-  if (primaryEvidence && primaryEvidence !== overview) {
+  if (primaryEvidence && primaryEvidence !== overview && primaryEvidence !== description) {
     paragraphs.push(primaryEvidence);
+  } else if (evidenceItems.length > 1 && evidenceItems[1]?.text && evidenceItems[1].text !== overview) {
+    paragraphs.push(evidenceItems[1].text);
   } else if (description && description !== overview) {
     paragraphs.push(description);
   } else {
