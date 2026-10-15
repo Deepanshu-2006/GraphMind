@@ -428,4 +428,74 @@ describe('GraphMind Revision Workspace UI/UX Refinement', () => {
       );
     });
   });
+
+  describe('5. Signature Learning Detail — Animated Lesson Navigation System', () => {
+    test('renders two-column composition with left rail and right reading column inside .revision-lesson-layout', () => {
+      const html = renderToString(
+        React.createElement(RevisionWorkspace, {
+          graph: mockGraph,
+          graphName: 'Operating Systems & Architecture',
+          revisionIndex: 1,
+          onBackToGraph: () => {}
+        })
+      );
+
+      // Verify two-column layout wrapper exists
+      assert.ok(html.includes('revision-lesson-layout'), 'Must render .revision-lesson-layout');
+
+      // Verify left rail is rendered before the reading column in DOM order
+      const railIndex = html.indexOf('revision-reading-rail');
+      const columnIndex = html.indexOf('revision-reading-column');
+      assert.ok(railIndex > 0, 'Must render .revision-reading-rail');
+      assert.ok(columnIndex > 0, 'Must render .revision-reading-column');
+      assert.ok(railIndex < columnIndex, 'Rail must sit to the LEFT of the reading column in composition order');
+
+      // Verify animated rail elements
+      assert.ok(html.includes('revision-reading-rail-track'), 'Must render track');
+      assert.ok(html.includes('revision-rail-track-line'), 'Must render animated track line');
+      assert.ok(html.includes('revision-rail-progress-line'), 'Must render animated progress line');
+      assert.ok(html.includes('revision-rail-step-wrapper'), 'Must render step wrapper');
+      assert.ok(html.includes('revision-rail-step'), 'Must render .revision-rail-step');
+      assert.ok(html.includes('revision-rail-bullet'), 'Must render bullet');
+      assert.ok(html.includes('revision-rail-tooltip'), 'Must render hover tooltip');
+      assert.ok(html.includes('revision-rail-num'), 'Must render mono section number');
+
+      // Verify active step on rail
+      assert.ok(
+        html.includes('revision-rail-step active') || html.includes('active revision-rail-step'),
+        'Active section must be highlighted on the reading rail'
+      );
+    });
+
+    test('defines two-column flex layout and sticky left rail styling in CSS', () => {
+      assert.ok(cssContent.includes('.revision-lesson-layout {'), 'CSS must define .revision-lesson-layout');
+      const layoutMatch = cssContent.match(/\.revision-lesson-layout\s*\{([^}]*)\}/);
+      assert.ok(layoutMatch, 'Must match .revision-lesson-layout rule');
+      assert.ok(layoutMatch[1].includes('display: flex'), 'Layout must use flex composition');
+      assert.ok(layoutMatch[1].includes('justify-content: center'), 'Layout must center the composition');
+
+      assert.ok(cssContent.includes('.revision-reading-rail {'), 'CSS must define .revision-reading-rail');
+      const railMatch = cssContent.match(/\.revision-reading-rail\s*\{([^}]*)\}/);
+      assert.ok(railMatch, 'Must match .revision-reading-rail rule');
+      assert.ok(railMatch[1].includes('position: sticky'), 'Rail must use sticky positioning to stay aligned as user scrolls');
+      assert.ok(railMatch[1].includes('width: 56px') || railMatch[1].includes('48px'), 'Rail must have narrow width between 48-64px');
+
+      assert.ok(cssContent.includes('.revision-rail-tooltip {'), 'CSS must define .revision-rail-tooltip');
+      assert.ok(cssContent.includes('.revision-rail-step.active .revision-rail-bullet'), 'CSS must highlight active bullet');
+      assert.ok(cssContent.includes('var(--accent, #A3FF12)'), 'Active bullet must use lime-green accent');
+      assert.ok(cssContent.includes('@media (max-width: 900px)'), 'CSS must define responsive collapsing for small screens');
+    });
+
+    test('fixed footer navigation features subtle top border, near-black translucent background, and matching reading column alignment', () => {
+      const navMatch = cssContent.match(/\.revision-concept-navigation\s*\{([^}]*)\}/);
+      assert.ok(navMatch, 'Must match .revision-concept-navigation');
+      const body = navMatch[1];
+      assert.ok(body.includes('background-color: rgba(10, 10, 10, 0.95)') || body.includes('rgba(10, 10, 10'), 'Footer must have near-black translucent background');
+      assert.ok(body.includes('border-top: 1px solid rgba(255, 255, 255, 0.08)'), 'Footer must have subtle top border');
+
+      const innerMatch = cssContent.match(/\.revision-concept-navigation-inner,\s*\.revision-nav-inner\s*\{([^}]*)\}/);
+      assert.ok(innerMatch, 'Must match .revision-nav-inner');
+      assert.ok(innerMatch[1].includes('max-width: 780px'), 'Footer inner width must match 780px reading column');
+    });
+  });
 });

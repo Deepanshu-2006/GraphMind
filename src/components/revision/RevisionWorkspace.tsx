@@ -1414,6 +1414,39 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     }
   }, [activeDisplayConcept?.id]);
 
+  const activeSectionIndex = useMemo(() => {
+    const idx = activeSections.findIndex(s => s.id === activeSectionId);
+    return idx >= 0 ? idx : 0;
+  }, [activeSections, activeSectionId]);
+
+  const progressRatio = useMemo(() => {
+    if (activeSections.length <= 1) return 0;
+    return activeSectionIndex / (activeSections.length - 1);
+  }, [activeSections.length, activeSectionIndex]);
+
+  const handleSectionClick = useCallback((secId: string) => {
+    setActiveSectionId(secId);
+    const el = document.getElementById(secId);
+    if (el) {
+      el.scrollIntoView({ behavior: shouldReduceMotion ? 'auto' : 'smooth', block: 'start' });
+    }
+  }, [shouldReduceMotion]);
+
+  // Robust bottom-scroll observer so short trailing sections (e.g. Sources) activate when scrolled to the end
+  useEffect(() => {
+    const rootEl = workspaceRootRef.current;
+    if (!rootEl || activeSections.length === 0) return;
+
+    const handleScroll = () => {
+      if (rootEl.scrollHeight - rootEl.scrollTop - rootEl.clientHeight <= 40) {
+        setActiveSectionId(activeSections[activeSections.length - 1].id);
+      }
+    };
+
+    rootEl.addEventListener('scroll', handleScroll, { passive: true });
+    return () => rootEl.removeEventListener('scroll', handleScroll);
+  }, [activeSections]);
+
   useEffect(() => {
     if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return;
     const sectionIds = activeSections.map(s => s.id);
@@ -1643,12 +1676,105 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
           Centered reading column (760–820px max-width, generous margins)
           -------------------------------------------------------------------- */}
       <main className="revision-reading-area" role="main" id="revision-content" tabIndex={-1}>
-        <motion.div
-          className="revision-reading-column"
-          variants={workspaceArrivalVariants}
-          initial={hasPlayedEntry ? "settled" : "hidden"}
-          animate="settled"
-        >
+        <div className="revision-lesson-layout">
+          {/* LEFT COLUMN: Animated Vertical Lesson Navigation Rail (Visual Anchor) */}
+          {(explanationState.status === 'ready' || explanationState.status === 'outdated') && activeSections.length >= 2 && (
+            <aside className="revision-reading-rail" aria-label="Lesson navigation">
+              <nav className="revision-reading-rail-nav" aria-label="Lesson section steps">
+                <div className="revision-reading-rail-track" role="list">
+                  <motion.div
+                    className="revision-rail-track-line"
+                    aria-hidden="true"
+                    initial={hasPlayedEntry ? "settled" : "hidden"}
+                    animate="settled"
+                    variants={{
+                      hidden: { scaleY: shouldReduceMotion ? 1 : 0, originY: 0, opacity: shouldReduceMotion ? 1 : 0 },
+                      settled: {
+                        scaleY: 1,
+                        opacity: 1,
+                        transition: { duration: shouldReduceMotion ? 0 : 0.4, ease: WORKSPACE_EASING }
+                      }
+                    }}
+                  />
+                  <motion.div
+                    className="revision-rail-progress-line"
+                    aria-hidden="true"
+                    animate={{ height: `${progressRatio * 100}%` }}
+                    transition={{
+                      duration: shouldReduceMotion ? 0 : 0.26,
+                      ease: WORKSPACE_EASING
+                    }}
+                  />
+                  {activeSections.map((sec, idx) => {
+                    const isActive = activeSectionId === sec.id;
+                    const isCompleted = idx < activeSectionIndex;
+                    return (
+                      <motion.div
+                        key={sec.id}
+                        role="listitem"
+                        className="revision-rail-step-wrapper"
+                        initial={hasPlayedEntry ? "settled" : "hidden"}
+                        animate="settled"
+                        variants={{
+                          hidden: { opacity: 0, x: shouldReduceMotion ? 0 : -8 },
+                          settled: {
+                            opacity: 1,
+                            x: 0,
+                            transition: {
+                              duration: shouldReduceMotion ? 0 : 0.25,
+                              delay: shouldReduceMotion ? 0 : 0.12 + (idx * 0.05),
+                              ease: WORKSPACE_EASING
+                            }
+                          }
+                        }}
+                      >
+                        <a
+                          href={`#${sec.id}`}
+                          className={`revision-rail-step ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+                          title={`${sec.num} · ${sec.label}`}
+                          aria-current={isActive ? 'true' : undefined}
+                          aria-label={`Section ${sec.num}: ${sec.label}${isActive ? ' (Current section)' : isCompleted ? ' (Completed)' : ''}`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleSectionClick(sec.id);
+                          }}
+                        >
+                          <span className="revision-rail-bullet-container">
+                            <span className="revision-rail-bullet" aria-hidden="true" />
+                            {isActive && (
+                              <motion.span
+                                layoutId="active-rail-indicator"
+                                className="revision-rail-active-glow"
+                                transition={{
+                                  type: "spring",
+                                  stiffness: 380,
+                                  damping: 30,
+                                  duration: shouldReduceMotion ? 0 : 0.26
+                                }}
+                              />
+                            )}
+                          </span>
+                          <span className="revision-rail-num">{sec.num}</span>
+                          <span className="revision-rail-tooltip" role="tooltip">
+                            <span className="revision-rail-tooltip-num">{sec.num}</span>
+                            <span className="revision-rail-tooltip-label">{sec.label}</span>
+                          </span>
+                        </a>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </nav>
+            </aside>
+          )}
+
+          {/* RIGHT COLUMN: Centered Reading Column */}
+          <motion.div
+            className="revision-reading-column"
+            variants={workspaceArrivalVariants}
+            initial={hasPlayedEntry ? "settled" : "hidden"}
+            animate="settled"
+          >
           {/* State 1: Loading state */}
           {isLoading && (
             <div className="revision-loading-state" role="status" aria-live="polite">
@@ -1830,11 +1956,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                                 aria-current={isActive ? 'true' : undefined}
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  setActiveSectionId(sec.id);
-                                  const el = document.getElementById(sec.id);
-                                  if (el) {
-                                    el.scrollIntoView({ behavior: shouldReduceMotion ? 'auto' : 'smooth', block: 'start' });
-                                  }
+                                  handleSectionClick(sec.id);
                                 }}
                               >
                                 <span className="revision-nav-num">{sec.num}</span>
@@ -2467,7 +2589,8 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
             </div>
           )}
         </motion.div>
-      </main>
+      </div>
+    </main>
 
       {/* --------------------------------------------------------------
           FIXED / PERSISTENT REVISION BOTTOM NAVIGATION

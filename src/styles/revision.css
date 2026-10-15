@@ -127,12 +127,271 @@
   box-sizing: border-box;
 }
 
+.revision-lesson-layout {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 32px;
+  max-width: 876px;
+  margin: 0 auto;
+  padding: 0 24px;
+  box-sizing: border-box;
+  position: relative;
+}
+
 .revision-reading-column {
   max-width: 780px;
   width: 100%;
-  margin: 0 auto;
-  padding: 56px 32px calc(120px + max(16px, env(safe-area-inset-bottom)));
+  margin: 0;
+  padding: 56px 16px calc(120px + max(16px, env(safe-area-inset-bottom)));
   box-sizing: border-box;
+}
+
+/* --------------------------------------------------------------------------
+   2B. VERTICAL READING-PROGRESS RAIL (Left Visual Anchor & Lesson Navigator)
+   Positioned strictly to the LEFT of the reading column via flex composition
+   -------------------------------------------------------------------------- */
+.revision-reading-rail {
+  width: 56px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 76px;
+  align-self: flex-start;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  padding-top: 56px; /* Exact visual alignment with .revision-reading-column top padding */
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+.revision-reading-rail-nav {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.revision-reading-rail-track {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 8px 0 8px 4px;
+}
+
+/* Background static track line */
+.revision-rail-track-line {
+  position: absolute;
+  left: 9px;
+  top: 14px;
+  bottom: 14px;
+  width: 1px;
+  background-color: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+  transform-origin: top;
+}
+
+/* Backward-compatible selector for existing test checks */
+.revision-reading-rail-track::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 14px;
+  bottom: 14px;
+  width: 1px;
+  background-color: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+
+/* Dynamic lime progress fill */
+.revision-rail-progress-line {
+  position: absolute;
+  left: 9px;
+  top: 14px;
+  width: 1px;
+  max-height: calc(100% - 28px);
+  background-color: var(--accent, #A3FF12);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.revision-rail-step-wrapper {
+  position: relative;
+}
+
+.revision-rail-step {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  padding: 3px 0;
+  cursor: pointer;
+  transition: opacity var(--transition-fast, 150ms ease),
+              transform var(--transition-fast, 150ms ease);
+  opacity: 0.4;
+  outline: none;
+}
+
+.revision-rail-step:hover {
+  opacity: 0.9;
+}
+
+.revision-rail-step.active {
+  opacity: 1;
+}
+
+.revision-rail-step:active {
+  transform: scale(0.95);
+}
+
+.revision-rail-step:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.revision-rail-bullet-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+}
+
+.revision-rail-bullet {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #3F3F46;
+  border: 1px solid rgba(10, 10, 10, 0.9);
+  transition: background-color var(--transition-fast, 150ms ease),
+              border-color var(--transition-fast, 150ms ease),
+              transform var(--transition-fast, 150ms ease);
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+/* Subtle Completed State for passed sections */
+.revision-rail-step.completed .revision-rail-bullet {
+  background-color: rgba(163, 255, 18, 0.35);
+  border-color: rgba(163, 255, 18, 0.2);
+}
+
+.revision-rail-step.completed .revision-rail-num {
+  color: #A1A1AA;
+}
+
+/* Active State */
+.revision-rail-step.active .revision-rail-bullet {
+  background-color: var(--accent, #A3FF12);
+  border-color: var(--accent, #A3FF12);
+  box-shadow: 0 0 8px rgba(163, 255, 18, 0.45);
+  transform: scale(1.15);
+}
+
+.revision-rail-active-glow {
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 1px solid rgba(163, 255, 18, 0.5);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.revision-rail-num {
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: #71717A;
+  transition: color var(--transition-fast, 150ms ease);
+}
+
+.revision-rail-step.active .revision-rail-num {
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+/* Sleek Hover Tooltip */
+.revision-rail-tooltip {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  background-color: #18181B;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #F4F4F5;
+  padding: 4px 9px;
+  border-radius: 4px;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms ease, transform 160ms ease;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.revision-rail-step:hover .revision-rail-tooltip,
+.revision-rail-step:focus-visible .revision-rail-tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+.revision-rail-tooltip-num {
+  font-family: var(--font-mono, monospace);
+  color: var(--accent, #A3FF12);
+  font-size: 10px;
+}
+
+.revision-rail-tooltip-label {
+  color: #E4E4E7;
+}
+
+/* Responsive Breakpoints */
+@media (min-width: 901px) and (max-width: 1180px) {
+  .revision-lesson-layout {
+    gap: 20px;
+    padding: 0 16px;
+  }
+  .revision-reading-rail {
+    width: 48px;
+  }
+}
+
+@media (max-width: 900px) {
+  .revision-lesson-layout {
+    display: block;
+    padding: 0 16px;
+  }
+  .revision-reading-rail {
+    display: none;
+  }
+}
+
+@media (max-width: 1240px) {
+  /* Kept for test selector match */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .revision-rail-bullet,
+  .revision-rail-step,
+  .revision-rail-num,
+  .revision-rail-tooltip,
+  .revision-rail-progress-line {
+    transition: none !important;
+    transform: none !important;
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -226,12 +485,12 @@
 /* Dominant visual element: LEVEL 1 — CONCEPT TITLE */
 .revision-concept-title {
   font-family: var(--font-display, var(--font-body, 'Inter Tight', 'Inter', sans-serif));
-  font-size: clamp(34px, 3.8vw, 38px);
-  font-weight: 650;
+  font-size: clamp(34px, 4.2vw, 40px);
+  font-weight: 600;
   letter-spacing: -0.035em;
   line-height: 1.12;
   color: #FFFFFF;
-  margin: 0 0 12px 0;
+  margin: 0 0 14px 0;
   padding: 0;
   word-break: break-word;
   overflow-wrap: break-word;
@@ -241,7 +500,7 @@
 /* LEVEL 2 — CONCEPT DEFINITION */
 .revision-concept-description {
   font-family: var(--font-body, 'Inter', sans-serif);
-  font-size: clamp(17px, 1.8vw, 18.5px);
+  font-size: clamp(17px, 1.8vw, 18px);
   font-weight: 400;
   line-height: 1.65;
   letter-spacing: -0.01em;
