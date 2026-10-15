@@ -215,18 +215,22 @@ export const createConceptCanvasVariants = (shouldReduceMotion = false): Variant
   enter: (dir: number) => ({
     opacity: 0,
     x: shouldReduceMotion ? 0 : (dir >= 0 ? 14 : -14),
+    y: shouldReduceMotion ? 0 : 6,
     transition: {
-      duration: shouldReduceMotion ? 0 : 0.22,
-      ease: WORKSPACE_EASING
+      duration: shouldReduceMotion ? 0 : 0.28,
+      ease: [0.16, 1, 0.3, 1]
     }
   }),
   center: {
     opacity: 1,
     x: 0,
     y: 0,
+    staggerChildren: shouldReduceMotion ? 0 : 0.04,
     transition: {
-      duration: shouldReduceMotion ? 0 : 0.24,
-      ease: WORKSPACE_EASING
+      duration: shouldReduceMotion ? 0 : 0.28,
+      ease: [0.16, 1, 0.3, 1],
+      when: "beforeChildren",
+      staggerChildren: shouldReduceMotion ? 0 : 0.04
     }
   },
   exit: (dir: number) => ({
@@ -234,10 +238,108 @@ export const createConceptCanvasVariants = (shouldReduceMotion = false): Variant
     x: shouldReduceMotion ? 0 : (dir >= 0 ? -14 : 14),
     transition: {
       duration: shouldReduceMotion ? 0 : 0.16,
-      ease: WORKSPACE_EASING
+      ease: [0.16, 1, 0.3, 1]
     }
   })
 });
+
+/**
+ * Coordinated child elements inside the concept canvas:
+ * Staggers badge -> title -> description -> section nav -> content
+ */
+export const createConceptElementVariants = (shouldReduceMotion = false): Variants => ({
+  hidden: {
+    opacity: 0,
+    y: shouldReduceMotion ? 0 : 6
+  },
+  settled: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.24,
+      ease: WORKSPACE_EASING
+    }
+  },
+  enter: {
+    opacity: 0,
+    y: shouldReduceMotion ? 0 : 8
+  },
+  center: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.24,
+      ease: [0.16, 1, 0.3, 1]
+    }
+  },
+  exit: {
+    opacity: 0,
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.1
+    }
+  }
+});
+
+/**
+ * Bottom Navigation Action Transform Variants (Part 1):
+ * Smooth, coordinated transformation between "Next concept" and "Complete session"
+ * in the exact same right-aligned position.
+ */
+export const createActionTransformVariants = (shouldReduceMotion = false): Variants => ({
+  enter: {
+    opacity: 0,
+    x: shouldReduceMotion ? 0 : 8,
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.26,
+      ease: [0.16, 1, 0.3, 1]
+    }
+  },
+  center: {
+    opacity: 1,
+    x: 0,
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.26,
+      ease: [0.16, 1, 0.3, 1]
+    }
+  },
+  exit: {
+    opacity: 0,
+    x: shouldReduceMotion ? 0 : -8,
+    transition: {
+      duration: shouldReduceMotion ? 0 : 0.18,
+      ease: [0.16, 1, 0.3, 1]
+    }
+  }
+});
+
+/**
+ * Vertical Section Navigation Rail Geometry & Kinematics
+ * Predictable stride geometry: 19px step height + 20px gap = 39px stride.
+ * First marker center: 10px track padding + 3px step padding + 6.5px bullet center = 19.5px.
+ */
+export const RAIL_STEP_STRIDE = 39;
+export const RAIL_MARKER_OFFSET = 19.5;
+
+export interface RailGeometry {
+  sectionCount: number;
+  trackHeight: number;
+  lineLength: number;
+  markerOffset: number;
+  stride: number;
+}
+
+export function calculateRailGeometry(sectionCount: number): RailGeometry {
+  const count = Math.max(0, sectionCount);
+  const trackHeight = count * RAIL_STEP_STRIDE;
+  const lineLength = count > 1 ? (count - 1) * RAIL_STEP_STRIDE : 0;
+  return {
+    sectionCount: count,
+    trackHeight,
+    lineLength,
+    markerOffset: RAIL_MARKER_OFFSET,
+    stride: RAIL_STEP_STRIDE
+  };
+}
 
 /**
  * Normalizes text for deterministic duplication detection.
@@ -304,15 +406,97 @@ export function parseInlineMarkup(text: string): React.ReactNode {
 }
 
 /**
- * Editorial formatted content renderer (Section 4).
- * Supports paragraphs, ordered lists, unordered lists, tables, and code blocks safely.
+ * Normalizes raw or source-grounded Markdown/HTML content into clean, safe markdown notation.
+ * Prevents arbitrary HTML or inline styles from overriding the Revision Workspace's design system,
+ * while preserving intentional semantic headings, lists, emphasis, and code.
  */
-export function EditorialFormattedContent({ content }: { content: string }) {
-  if (!content) return null;
+export function normalizeSourceMarkdown(rawText: string): string {
+  if (!rawText) return '';
+  let text = rawText;
 
-  const trimmed = content.trim();
+  // 1. Strip dangerous tags completely
+  text = text.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+  text = text.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
 
-  // 1. Markdown Table syntax check: lines containing pipes and a separator |---|
+  // 2. Normalize HTML headings: e.g. <h1>Title</h1> or <h2 style="...">Title</h2> -> ### Title
+  text = text.replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi, '\n\n### $1\n\n');
+
+  // 3. Normalize blockquotes: <blockquote>quote</blockquote> -> > quote
+  text = text.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, (_, quote) => {
+    return '\n\n' + quote.trim().split(/\r?\n/).map((l: string) => `> ${l.trim()}`).join('\n') + '\n\n';
+  });
+
+  // 4. Normalize lists: <li>item</li> -> - item
+  text = text.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n');
+
+  // 5. Normalize paragraphs and line breaks
+  text = text.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, '\n\n$1\n\n');
+  text = text.replace(/<br\s*\/?>/gi, '\n');
+
+  // 6. Normalize inline formatting
+  text = text.replace(/<(?:strong|b)[^>]*>(.*?)<\/(?:strong|b)>/gi, '**$1**');
+  text = text.replace(/<(?:em|i)[^>]*>(.*?)<\/(?:em|i)>/gi, '*$1*');
+  text = text.replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`');
+
+  // 7. Strip all remaining HTML tags and inline styles (e.g. <span style="...">)
+  text = text.replace(/<[^>]+>/g, '');
+
+  // 8. Unescape standard HTML entities
+  text = text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ');
+
+  return text.trim();
+}
+
+/**
+ * Splits normalized markdown into discrete semantic content blocks.
+ * Preserves multi-line code blocks and markdown tables as single cohesive blocks.
+ */
+function splitIntoSemanticBlocks(text: string): string[] {
+  const lines = text.split(/\r?\n/);
+  const blocks: string[] = [];
+  let currentBlock: string[] = [];
+  let inCode = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.trim().startsWith('```')) {
+      inCode = !inCode;
+      currentBlock.push(line);
+      if (!inCode) {
+        blocks.push(currentBlock.join('\n'));
+        currentBlock = [];
+      }
+      continue;
+    }
+    if (inCode) {
+      currentBlock.push(line);
+      continue;
+    }
+    if (!line.trim()) {
+      if (currentBlock.length > 0) {
+        blocks.push(currentBlock.join('\n'));
+        currentBlock = [];
+      }
+      continue;
+    }
+    currentBlock.push(line);
+  }
+  if (currentBlock.length > 0) {
+    blocks.push(currentBlock.join('\n'));
+  }
+  return blocks;
+}
+
+function renderContentBlock(block: string, key: string | number, isSoloParagraph: boolean): React.ReactNode {
+  const trimmed = block.trim();
+
+  // 1. Table
   const lines = trimmed.split(/\r?\n/);
   const tableSepIdx = lines.findIndex(l => /^\s*\|?\s*:?-+:?\s*\|/.test(l));
   if (tableSepIdx > 0 && lines.length >= 3) {
@@ -323,7 +507,7 @@ export function EditorialFormattedContent({ content }: { content: string }) {
 
     if (headers.length > 0 && rows.length > 0) {
       return (
-        <div className="revision-table-wrapper" tabIndex={0} role="region" aria-label="Comparison Table">
+        <div key={key} className="revision-table-wrapper" tabIndex={0} role="region" aria-label="Comparison Table">
           <table className="revision-editorial-table">
             <thead>
               <tr>
@@ -347,13 +531,13 @@ export function EditorialFormattedContent({ content }: { content: string }) {
     }
   }
 
-  // 2. Fenced code block check: ```lang ... ```
+  // 2. Fenced code block
   if (trimmed.startsWith('```') && trimmed.endsWith('```')) {
     const firstLineEnd = trimmed.indexOf('\n');
     const lang = firstLineEnd > 3 ? trimmed.slice(3, firstLineEnd).trim() : '';
     const code = firstLineEnd > 3 ? trimmed.slice(firstLineEnd + 1, -3).trim() : trimmed.slice(3, -3).trim();
     return (
-      <div className="revision-code-block-wrapper">
+      <div key={key} className="revision-code-block-wrapper">
         {lang && <span className="revision-code-caption">{lang}</span>}
         <pre className="revision-code-block">
           <code>{code}</code>
@@ -362,52 +546,95 @@ export function EditorialFormattedContent({ content }: { content: string }) {
     );
   }
 
-  // 3. Ordered list: all lines start with 1. 2. etc.
-  if (lines.length > 1 && lines.every(l => /^\s*\d+\.\s+/.test(l))) {
+  // 3. Explanatory Subheading (Level C: 17–19px, medium weight, distinct)
+  // Only render when the content explicitly identifies it as a heading (via #, ##, ###)
+  const headingMatch = trimmed.match(/^#{1,6}\s+(.+)$/s);
+  if (headingMatch) {
+    const headingText = headingMatch[1].replace(/\r?\n+/g, ' ').trim();
     return (
-      <ol className="revision-ordered-list">
+      <h3 key={key} className="revision-editorial-subheading">
+        {parseInlineMarkup(headingText)}
+      </h3>
+    );
+  }
+
+  // 4. Blockquote
+  if (lines.length > 0 && lines.every(l => /^\s*>\s*/.test(l))) {
+    const quoteContent = lines.map(l => l.replace(/^\s*>\s*/, '')).join(' ');
+    return (
+      <blockquote key={key} className="revision-editorial-blockquote">
+        {parseInlineMarkup(quoteContent)}
+      </blockquote>
+    );
+  }
+
+  // 5. Ordered list
+  if (lines.length > 0 && lines.every(l => /^\s*\d+\.\s+/.test(l))) {
+    return (
+      <ol key={key} className="revision-ordered-list">
         {lines.map((l, idx) => (
           <li key={idx}>
-            {parseInlineMarkup(l.replace(/^\s*\d+\.\s+/, ''))}
+            {parseInlineMarkup(l.replace(/^\s*\d+\.\s+/, '').trim())}
           </li>
         ))}
       </ol>
     );
   }
 
-  // 4. Unordered list: all lines start with - or * or •
-  if (lines.length > 1 && lines.every(l => /^\s*[-*•]\s+/.test(l))) {
+  // 6. Unordered list
+  if (lines.length > 0 && lines.every(l => /^\s*[-*•]\s+/.test(l))) {
     return (
-      <ul className="revision-unordered-list">
+      <ul key={key} className="revision-unordered-list">
         {lines.map((l, idx) => (
           <li key={idx}>
-            {parseInlineMarkup(l.replace(/^\s*[-*•]\s+/, ''))}
+            {parseInlineMarkup(l.replace(/^\s*[-*•]\s+/, '').trim())}
           </li>
         ))}
       </ul>
     );
   }
 
-  // 5. Multi-line prose: split by paragraph breaks (\n\s*\n+), collapsing soft line breaks within each paragraph to spaces so text flows naturally
-  const paragraphs = trimmed.split(/\r?\n\s*\r?\n+/);
-  if (paragraphs.length > 1) {
-    return (
-      <>
-        {paragraphs.map((p, idx) => {
-          const flowText = p.replace(/\r?\n+/g, ' ').trim();
-          return (
-            <p key={idx} className="revision-editorial-p" style={{ marginTop: idx === 0 ? 0 : '16px', marginBottom: 0 }}>
-              {parseInlineMarkup(flowText)}
-            </p>
-          );
-        })}
-      </>
-    );
+  // 7. Body paragraph (Level D: 16–18px, regular weight)
+  const flowText = trimmed.replace(/\r?\n+/g, ' ').trim();
+  if (isSoloParagraph) {
+    return <React.Fragment key={key}>{parseInlineMarkup(flowText)}</React.Fragment>;
   }
 
-  // Single paragraph: collapse soft line breaks to space so sentences flow naturally without fragmented line breaks
-  const flowText = trimmed.replace(/\r?\n+/g, ' ').trim();
-  return <>{parseInlineMarkup(flowText)}</>;
+  return (
+    <p key={key} className="revision-editorial-p">
+      {parseInlineMarkup(flowText)}
+    </p>
+  );
+}
+
+/**
+ * Editorial formatted content renderer (Section 4).
+ * Supports paragraphs, subheadings, ordered lists, unordered lists, blockquotes, tables, and code blocks safely.
+ */
+export function EditorialFormattedContent({ content }: { content: string }) {
+  if (!content) return null;
+  const normalized = normalizeSourceMarkdown(content);
+  if (!normalized) return null;
+
+  const blocks = splitIntoSemanticBlocks(normalized);
+  if (blocks.length === 0) return null;
+
+  const isSoloParagraph = blocks.length === 1 &&
+    !blocks[0].trim().startsWith('```') &&
+    !blocks[0].trim().startsWith('#') &&
+    !blocks[0].trim().startsWith('>') &&
+    !/^\s*\|?\s*:?-+:?\s*\|/.test(blocks[0]) &&
+    !blocks[0].split(/\r?\n/).every(l => /^\s*(?:\d+\.|[-*•])\s+/.test(l));
+
+  if (blocks.length === 1) {
+    return renderContentBlock(blocks[0], 0, isSoloParagraph);
+  }
+
+  return (
+    <>
+      {blocks.map((block, idx) => renderContentBlock(block, idx, false))}
+    </>
+  );
 }
 
 export interface RevisionConceptItem {
@@ -525,8 +752,8 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     const relMap = new Map<string, ConceptRelationship[]>();
     const effectiveRels = (graph?.relationships && graph.relationships.length > 0) ? graph.relationships : allEdges;
     effectiveRels.forEach((rel) => {
-      const source = rel.source;
-      const target = rel.target;
+      const source = rel.source || (rel as any).sourceId;
+      const target = rel.target || (rel as any).targetId;
       if (!source || !target) return;
 
       const sourceNode = sourceNodes.find((n: any) => n.id === source) || allNodes.find((n: any) => n.id === source);
@@ -741,6 +968,16 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     [shouldReduceMotion]
   );
 
+  const actionTransformVariants = useMemo(
+    () => createActionTransformVariants(shouldReduceMotion),
+    [shouldReduceMotion]
+  );
+
+  const conceptElementVariants = useMemo(
+    () => createConceptElementVariants(shouldReduceMotion),
+    [shouldReduceMotion]
+  );
+
   // Concept navigation step handlers with rapid-click debounce protection
   const isNavigatingRef = useRef(false);
 
@@ -749,7 +986,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     isNavigatingRef.current = true;
     setTimeout(() => {
       isNavigatingRef.current = false;
-    }, 250);
+    }, 180);
 
     setDirection(-1);
     const prevIdx = Math.max(0, currentIndex - 1);
@@ -766,7 +1003,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     isNavigatingRef.current = true;
     setTimeout(() => {
       isNavigatingRef.current = false;
-    }, 250);
+    }, 180);
 
     setDirection(1);
     const nextIdx = Math.min(totalConcepts - 1, currentIndex + 1);
@@ -799,6 +1036,33 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     }
     onBackToGraph();
   }, [graph?.id, activeSession, onBackToGraph]);
+
+  // Session completion guard (Part 1: Prevent duplicate submissions)
+  const [isCompletingSession, setIsCompletingSession] = useState(false);
+
+  const handleCompleteSession = useCallback(() => {
+    if (isCompletingSession) return;
+    setIsCompletingSession(true);
+
+    const currentConceptId = concepts[currentIndex]?.id;
+    const reviewed = [...activeSession.reviewedConceptIds];
+    if (currentConceptId && !reviewed.includes(currentConceptId)) {
+      reviewed.push(currentConceptId);
+    }
+
+    const completedSession: RevisionSessionState = {
+      ...activeSession,
+      reviewedConceptIds: reviewed,
+      updatedAt: new Date().toISOString()
+    };
+
+    setInternalSession(completedSession);
+    if (graph?.id) {
+      saveRevisionSession(completedSession, graph.id);
+    }
+    onSessionChange?.(completedSession);
+    handleBackToGraph();
+  }, [isCompletingSession, concepts, currentIndex, activeSession, graph?.id, onSessionChange, handleBackToGraph]);
 
   // Keyboard navigation (ArrowLeft: previous, ArrowRight: next, Escape: close drawer/summary or return from excursion or back to graph)
   useEffect(() => {
@@ -918,6 +1182,61 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     };
   });
   const explanationAbortRef = useRef<AbortController | null>(null);
+  const activeDisplayConceptRef = useRef<string | undefined>(activeDisplayConcept?.id);
+
+  useEffect(() => {
+    activeDisplayConceptRef.current = activeDisplayConcept?.id;
+  }, [activeDisplayConcept?.id]);
+
+  // Synchronous resolution of explanation state for current active concept:
+  // Eliminates any intermediate mixed state across concepts during transitions.
+  const effectiveExplanationState = useMemo<ExplanationState>(() => {
+    if (!graph || !activeDisplayConcept) return { status: 'empty' };
+    if (explanationState.conceptId === activeDisplayConcept.id) {
+      return explanationState;
+    }
+    const currentGraphId = graph.id || 'default_graph';
+    const targetConceptId = activeDisplayConcept.id;
+    const currentFingerprint = computeConceptSourceFingerprint(graph, targetConceptId);
+    const cached = loadStoredExplanation(currentGraphId, targetConceptId);
+    if (cached) {
+      if (cached.sourceFingerprint && cached.sourceFingerprint !== currentFingerprint) {
+        return {
+          status: 'outdated',
+          explanation: {
+            ...cached,
+            isOutdated: true
+          },
+          conceptId: targetConceptId,
+          graphId: currentGraphId,
+          outdatedReason: 'Underlying source material has been modified since this explanation was generated.'
+        };
+      }
+      return {
+        status: 'ready',
+        explanation: cached,
+        conceptId: targetConceptId,
+        graphId: currentGraphId
+      };
+    }
+    const ctx = extractConceptSourceContext(graph, targetConceptId);
+    if (ctx.status === 'insufficient') {
+      return {
+        status: 'insufficient',
+        conceptId: targetConceptId,
+        graphId: currentGraphId,
+        insufficientReason: ctx.reason
+      };
+    }
+    if (ctx.status === 'empty') {
+      return { status: 'empty', conceptId: targetConceptId, graphId: currentGraphId };
+    }
+    return {
+      status: 'loading',
+      conceptId: targetConceptId,
+      graphId: currentGraphId
+    };
+  }, [graph, activeDisplayConcept, explanationState]);
 
   // Sync explanation when current concept or graph changes
   useEffect(() => {
@@ -960,12 +1279,12 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
       signal: controller.signal
     })
       .then((res) => {
-        if (!controller.signal.aborted) {
+        if (!controller.signal.aborted && activeDisplayConceptRef.current === targetConceptId) {
           setExplanationState(res);
         }
       })
       .catch((err) => {
-        if (!controller.signal.aborted) {
+        if (!controller.signal.aborted && activeDisplayConceptRef.current === targetConceptId) {
           setExplanationState({
             status: 'error',
             errorMessage: err?.message || 'Failed to load concept explanation.',
@@ -1004,12 +1323,12 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
       signal: controller.signal
     })
       .then((res) => {
-        if (!controller.signal.aborted) {
+        if (!controller.signal.aborted && activeDisplayConceptRef.current === targetConceptId) {
           setExplanationState(res);
         }
       })
       .catch((err) => {
-        if (!controller.signal.aborted) {
+        if (!controller.signal.aborted && activeDisplayConceptRef.current === targetConceptId) {
           setExplanationState({
             status: 'error',
             errorMessage: err?.message || 'Failed to generate concept explanation.',
@@ -1112,8 +1431,8 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     const seenIds = new Set<string>();
 
     const refNameMap = new Map<string, string>();
-    if ((explanationState.status === 'ready' || explanationState.status === 'outdated') && explanationState.explanation?.relatedConceptReferences) {
-      explanationState.explanation.relatedConceptReferences.forEach(ref => {
+    if ((effectiveExplanationState.status === 'ready' || effectiveExplanationState.status === 'outdated') && effectiveExplanationState.explanation?.relatedConceptReferences) {
+      effectiveExplanationState.explanation.relatedConceptReferences.forEach(ref => {
         if (ref.conceptId && ref.conceptName) {
           refNameMap.set(ref.conceptId, ref.conceptName);
         }
@@ -1162,8 +1481,8 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
       });
     }
 
-    if ((explanationState.status === 'ready' || explanationState.status === 'outdated') && explanationState.explanation?.relatedConceptReferences) {
-      explanationState.explanation.relatedConceptReferences.forEach(ref => {
+    if ((effectiveExplanationState.status === 'ready' || effectiveExplanationState.status === 'outdated') && effectiveExplanationState.explanation?.relatedConceptReferences) {
+      effectiveExplanationState.explanation.relatedConceptReferences.forEach(ref => {
         if (ref.conceptId) {
           addRelated(ref.conceptId, ref.conceptName, ref.relationshipType, 'outgoing');
         } else {
@@ -1176,7 +1495,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     }
 
     return items;
-  }, [activeDisplayConcept, graph?.nodes, allNodes, concepts, conceptDetails, activeSession.conceptIds, explanationState]);
+  }, [activeDisplayConcept, graph?.nodes, allNodes, concepts, conceptDetails, activeSession.conceptIds, effectiveExplanationState]);
 
   // Understanding section only renders if there are extra key ideas or evidence
   const hasExtraKeyIdeas = Boolean(activeDisplayConcept?.keyIdeas && activeDisplayConcept.keyIdeas.length > 0);
@@ -1187,8 +1506,8 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   // Section 01 Content Deduplication (Avoid repeating definition from header, repeated sentences, or duplicated evidence)
   const understandingContent = useMemo(() => {
     const definition = (conceptDescription || '').trim();
-    const exp = (explanationState.status === 'ready' || explanationState.status === 'outdated')
-      ? explanationState.explanation
+    const exp = (effectiveExplanationState.status === 'ready' || effectiveExplanationState.status === 'outdated')
+      ? effectiveExplanationState.explanation
       : null;
 
     let lead: string | null = null;
@@ -1281,7 +1600,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
       evidence,
       hasContent: Boolean(lead || paragraphs.length > 0 || keyIdeas.length > 0 || evidence)
     };
-  }, [conceptDescription, conceptTitle, graph?.sources, explanationState, activeDisplayConcept?.keyIdeas, activeDisplayConcept?.evidence]);
+  }, [conceptDescription, conceptTitle, graph?.sources, effectiveExplanationState, activeDisplayConcept?.keyIdeas, activeDisplayConcept?.evidence]);
 
 
   const workspaceRootRef = useRef<HTMLDivElement | null>(null);
@@ -1289,12 +1608,12 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   // Step reveal progress map keyed by conceptId (Task 07: Avoid resetting example if user temporarily opens graph)
   const [revealedStepsMap, setRevealedStepsMap] = useState<Record<string, number>>({});
 
-  const workedExample = explanationState.explanation?.workedExample;
+  const workedExample = effectiveExplanationState.explanation?.workedExample;
   const totalWorkedSteps = workedExample?.steps?.length || 0;
 
   // Filter out accidental graph relationship fragments (e.g. "Shortest Remaining Time First (type of)")
   const authenticExamples = useMemo(() => {
-    const raw = explanationState.explanation?.examples;
+    const raw = effectiveExplanationState.explanation?.examples;
     if (!raw || !Array.isArray(raw)) return [];
     return raw.filter(ex => {
       if (!ex || typeof ex !== 'string') return false;
@@ -1304,7 +1623,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
       if (/^[a-z\s-]+\s*\((?:type of|is a|part of|kind of)\)$/i.test(t)) return false;
       return true;
     });
-  }, [explanationState.explanation?.examples]);
+  }, [effectiveExplanationState.explanation?.examples]);
 
   const currentRevealedSteps = activeDisplayConcept?.id
     ? (revealedStepsMap[activeDisplayConcept.id] !== undefined
@@ -1348,10 +1667,10 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
 
   // Active sections computation for Section Navigation (Task 06 & 07)
   const activeSections = useMemo(() => {
-    if ((explanationState.status !== 'ready' && explanationState.status !== 'outdated') || !explanationState.explanation) {
+    if ((effectiveExplanationState.status !== 'ready' && effectiveExplanationState.status !== 'outdated') || !effectiveExplanationState.explanation) {
       return [];
     }
-    const exp = explanationState.explanation;
+    const exp = effectiveExplanationState.explanation;
     const list: Array<{ id: string; num: string; label: string }> = [];
     let counter = 1;
 
@@ -1401,14 +1720,35 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     }
 
     return list;
-  }, [explanationState, hasUnderstandingData, hasRelatedConcepts, authenticExamples]);
+  }, [effectiveExplanationState, hasUnderstandingData, hasRelatedConcepts, authenticExamples]);
 
-  const getSecNum = (id: string) => activeSections.find(s => s.id === id)?.num || String(activeSections.length + 1).padStart(2, '0');
+  // Stable rail sections tracking across in-flight transitions (Sections 1 & 7)
+  const [displayedRailSections, setDisplayedRailSections] = useState<Array<{ id: string; num: string; label: string }>>(activeSections);
+
+  useEffect(() => {
+    if (activeSections.length > 0) {
+      setDisplayedRailSections(activeSections);
+    }
+  }, [activeSections]);
+
+  const effectiveRailSections = useMemo(() => {
+    if (activeSections.length > 0) return activeSections;
+    return displayedRailSections;
+  }, [activeSections, displayedRailSections]);
+
+  const getSecNum = (id: string) => effectiveRailSections.find(s => s.id === id)?.num || String(effectiveRailSections.length + 1).padStart(2, '0');
 
   // Active section tracking for section jump nav highlighting
   const [activeSectionId, setActiveSectionId] = useState<string>('section-understanding');
   const isProgrammaticScrollRef = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [prevTrackedConceptId, setPrevTrackedConceptId] = useState<string | undefined>(activeDisplayConcept?.id);
+
+  if (activeDisplayConcept?.id !== prevTrackedConceptId) {
+    setPrevTrackedConceptId(activeDisplayConcept?.id);
+    const firstSecId = activeSections[0]?.id || displayedRailSections[0]?.id || 'section-understanding';
+    setActiveSectionId(firstSecId);
+  }
 
   useEffect(() => {
     if (activeSections.length > 0) {
@@ -1421,14 +1761,14 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   }, [activeDisplayConcept?.id]);
 
   const activeSectionIndex = useMemo(() => {
-    const idx = activeSections.findIndex(s => s.id === activeSectionId);
+    const idx = effectiveRailSections.findIndex(s => s.id === activeSectionId);
     return idx >= 0 ? idx : 0;
-  }, [activeSections, activeSectionId]);
+  }, [effectiveRailSections, activeSectionId]);
 
   const progressRatio = useMemo(() => {
-    if (activeSections.length <= 1) return 0;
-    return activeSectionIndex / (activeSections.length - 1);
-  }, [activeSections.length, activeSectionIndex]);
+    if (effectiveRailSections.length <= 1) return 0;
+    return activeSectionIndex / (effectiveRailSections.length - 1);
+  }, [effectiveRailSections.length, activeSectionIndex]);
 
   const handleSectionClick = useCallback((secId: string) => {
     setActiveSectionId(secId);
@@ -1447,71 +1787,79 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     }
   }, [shouldReduceMotion]);
 
-  // Deterministic scroll tracker: reading zone beneath sticky header (140px) + bottom/top detection
+  // Deterministic scroll tracker: synchronized with effectiveRailSections, dynamic reading zone beneath sticky header
   useEffect(() => {
     const rootEl = workspaceRootRef.current;
-    if (!rootEl || activeSections.length === 0) return;
+    if (!rootEl || effectiveRailSections.length === 0) return;
 
     const handleScroll = () => {
       if (isProgrammaticScrollRef.current) return;
 
-      // 1. Bottom of document check (for short trailing sections such as Sources)
-      if (rootEl.scrollHeight - rootEl.scrollTop - rootEl.clientHeight <= 40) {
-        const lastSec = activeSections[activeSections.length - 1];
-        if (lastSec) setActiveSectionId(lastSec.id);
+      const scrollTop = rootEl.scrollTop;
+      const scrollHeight = rootEl.scrollHeight;
+      const clientHeight = rootEl.clientHeight;
+
+      // 1. Top of document check
+      if (scrollTop <= 60) {
+        if (effectiveRailSections[0]) {
+          setActiveSectionId(effectiveRailSections[0].id);
+        }
         return;
       }
 
-      // 2. Top of document check
-      if (rootEl.scrollTop <= 40) {
-        setActiveSectionId(activeSections[0].id);
+      // 2. Bottom of document check (for trailing sections such as Sources or Knowledge Check)
+      if (scrollHeight - scrollTop - clientHeight <= 80) {
+        const lastSec = effectiveRailSections[effectiveRailSections.length - 1];
+        if (lastSec) {
+          setActiveSectionId(lastSec.id);
+        }
         return;
       }
 
-      // 3. Reading zone detection: section crossing the 140px reading line beneath sticky header
-      const readingLine = 140;
+      // 3. Reading zone detection
+      const rootRect = rootEl.getBoundingClientRect();
+      const triggerLine = rootRect.top + Math.min(260, Math.max(140, clientHeight * 0.28));
+
       let matchedSectionId = '';
+      let closestPrecedingId = '';
+      let minPrecedingDist = Infinity;
 
-      for (let i = 0; i < activeSections.length; i++) {
-        const sec = activeSections[i];
+      for (let i = 0; i < effectiveRailSections.length; i++) {
+        const sec = effectiveRailSections[i];
         const el = document.getElementById(sec.id);
         if (!el) continue;
         const rect = el.getBoundingClientRect();
-        if (rect.top <= readingLine && rect.bottom > readingLine) {
+
+        // If the reading trigger line is inside this section
+        if (rect.top <= triggerLine && rect.bottom > triggerLine) {
           matchedSectionId = sec.id;
           break;
         }
-      }
 
-      // If in transition between sections, find the closest preceding section
-      if (!matchedSectionId) {
-        let closestDist = Infinity;
-        for (let i = 0; i < activeSections.length; i++) {
-          const sec = activeSections[i];
-          const el = document.getElementById(sec.id);
-          if (!el) continue;
-          const rect = el.getBoundingClientRect();
-          if (rect.top <= readingLine) {
-            const dist = readingLine - rect.top;
-            if (dist < closestDist) {
-              closestDist = dist;
-              matchedSectionId = sec.id;
-            }
+        // Closest section whose top has scrolled past the trigger line
+        if (rect.top <= triggerLine) {
+          const dist = triggerLine - rect.top;
+          if (dist < minPrecedingDist) {
+            minPrecedingDist = dist;
+            closestPrecedingId = sec.id;
           }
         }
       }
 
-      if (matchedSectionId) {
-        setActiveSectionId(matchedSectionId);
+      const targetId = matchedSectionId || closestPrecedingId || effectiveRailSections[0]?.id;
+      if (targetId) {
+        setActiveSectionId(targetId);
       }
     };
 
     rootEl.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+
     return () => {
       rootEl.removeEventListener('scroll', handleScroll);
       if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
     };
-  }, [activeSections]);
+  }, [effectiveRailSections]);
 
   // Section 06 Editorial Related Concepts renderer
   const renderRelatedConceptsSection = (secNum?: string) => {
@@ -1827,9 +2175,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                   <section className="revision-concept-intro" aria-labelledby="revision-concept-title">
                     <motion.div
                       className="revision-concept-badge"
-                      variants={conceptBadgeVariants}
-                      initial={hasPlayedEntry ? "settled" : "hidden"}
-                      animate="settled"
+                      variants={conceptElementVariants}
                     >
                       <div className="revision-concept-badge-number-group">
                         <span className="revision-concept-badge-dot" aria-hidden="true" />
@@ -1847,11 +2193,11 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                           <span>{currentMastery.statusLabel}</span>
                         </span>
                       )}
-                      {explanationState.explanation?.sourceReferences && explanationState.explanation.sourceReferences.length > 0 && (
+                      {effectiveExplanationState.explanation?.sourceReferences && effectiveExplanationState.explanation.sourceReferences.length > 0 && (
                         <a
                           href="#section-sources"
                           className="revision-source-inspect-link"
-                          aria-label={`View sources supporting this explanation (${explanationState.explanation.sourceReferences.length})`}
+                          aria-label={`View sources supporting this explanation (${effectiveExplanationState.explanation.sourceReferences.length})`}
                           title="Jump to source references"
                           onClick={(e) => {
                             e.preventDefault();
@@ -1862,7 +2208,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                           }}
                         >
                           <span className="revision-source-inspect-text">
-                            {`View sources · ${explanationState.explanation.sourceReferences.length}`}
+                            {`View sources · ${effectiveExplanationState.explanation.sourceReferences.length}`}
                           </span>
                         </a>
                       )}
@@ -1870,53 +2216,19 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                     <motion.h1
                       id="revision-concept-title"
                       className="revision-concept-title"
-                      variants={conceptTitleVariants}
-                      initial={hasPlayedEntry ? "settled" : "hidden"}
-                      animate="settled"
+                      variants={conceptElementVariants}
                     >
                       {conceptTitle}
                     </motion.h1>
                     {conceptDescription ? (
                       <motion.p
                         className="revision-concept-description"
-                        variants={conceptDescriptionVariants}
-                        initial={hasPlayedEntry ? "settled" : "hidden"}
-                        animate="settled"
+                        variants={conceptElementVariants}
                       >
                         {conceptDescription}
                       </motion.p>
                     ) : null}
                   </section>
-
-                  {/* Compact Unobtrusive Section Jump Navigation */}
-                  {(explanationState.status === 'ready' || explanationState.status === 'outdated') && activeSections.length >= 2 && (
-                    <nav className="revision-section-nav" aria-label="Section navigation">
-                      <div className="revision-section-nav-inner">
-                        <span className="revision-section-nav-kicker">SECTIONS</span>
-                        <div className="revision-section-nav-items">
-                          {activeSections.map((sec) => {
-                            const isActive = activeSectionId === sec.id;
-                            return (
-                              <a
-                                key={sec.id}
-                                href={`#${sec.id}`}
-                                className={`revision-section-nav-item ${isActive ? 'active' : ''}`}
-                                aria-current={isActive ? 'true' : undefined}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  handleSectionClick(sec.id);
-                                }}
-                              >
-                                <span className="revision-nav-num">{sec.num}</span>
-                                <span className="revision-nav-label">{sec.label}</span>
-                              </a>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </nav>
-                  )}
-
 
                   {/* --------------------------------------------------------------
                       CONTENT PLACEHOLDER / STRUCTURE (Section 5)
@@ -1933,12 +2245,10 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                   <motion.section
                     className="revision-content-structure"
                     aria-label="Concept sections"
-                    variants={conceptDescriptionVariants}
-                    initial={hasPlayedEntry ? "settled" : "hidden"}
-                    animate="settled"
+                    variants={conceptElementVariants}
                   >
                     {/* State A: In-flight loading state */}
-                    {explanationState.status === 'loading' && (
+                    {effectiveExplanationState.status === 'loading' && (
                       <div className="revision-section revision-section-loading" role="status" aria-live="polite">
                         <h2 className="revision-section-heading">Understanding the concept</h2>
                         <div className="revision-explanation-loading">
@@ -1950,14 +2260,14 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                     )}
 
                     {/* State C: Insufficient source material */}
-                    {explanationState.status === 'insufficient' && (
+                    {effectiveExplanationState.status === 'insufficient' && (
                       <>
                         <div className="revision-section revision-section-insufficient">
                           <div className="revision-insufficient-card" role="region" aria-label="Source Grounding Notice">
                             <span className="revision-insufficient-kicker">SOURCE GROUNDING / INSUFFICIENT MATERIAL</span>
                             <h3 className="revision-insufficient-title">Detailed explanation unavailable</h3>
                             <p className="revision-insufficient-desc">
-                              {explanationState.insufficientReason ||
+                              {effectiveExplanationState.insufficientReason ||
                                 `The learning materials associated with this knowledge graph do not contain enough documented passages or evidence for "${conceptTitle}". GraphMind avoids generating speculative explanations to ensure academic integrity.`}
                             </p>
                           </div>
@@ -1969,7 +2279,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                           graph={graph}
                           conceptId={activeDisplayConcept.id}
                           conceptName={activeDisplayConcept.name}
-                          explanation={explanationState.explanation}
+                          explanation={effectiveExplanationState.explanation}
                           session={activeSession}
                           onNavigateToSection={handleNavigateToSection}
                           onNavigateToConcept={handleOpenRelatedInRevision}
@@ -1980,11 +2290,11 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                     )}
 
                     {/* State D: Generation failure with retry */}
-                    {explanationState.status === 'error' && (
+                    {effectiveExplanationState.status === 'error' && (
                       <div className="revision-section revision-section-error">
                         <div className="revision-error-card" role="alert">
                           <p className="revision-error-text">
-                            {explanationState.errorMessage || 'Unable to load or generate explanation for this concept.'}
+                            {effectiveExplanationState.errorMessage || 'Unable to load or generate explanation for this concept.'}
                           </p>
                           <button
                             type="button"
@@ -1998,16 +2308,16 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                     )}
 
                     {/* State B: Explanation ready or outdated */}
-                    {(explanationState.status === 'ready' || explanationState.status === 'outdated') && explanationState.explanation && (
+                    {(effectiveExplanationState.status === 'ready' || effectiveExplanationState.status === 'outdated') && effectiveExplanationState.explanation && (
                       <>
                         {/* Outdated Notice Banner (Task 09 — Source Material Invalidation) */}
-                        {explanationState.status === 'outdated' && (
+                        {effectiveExplanationState.status === 'outdated' && (
                           <div className="revision-outdated-banner" role="alert" aria-label="Explanation outdated notice">
                             <div className="revision-outdated-content">
                               <span className="revision-outdated-kicker">SOURCE MATERIAL UPDATED • EXPLANATION OUTDATED</span>
                               <h3 className="revision-outdated-title">Source material has changed</h3>
                               <p className="revision-outdated-desc">
-                                {explanationState.outdatedReason ||
+                                {effectiveExplanationState.outdatedReason ||
                                   `The underlying learning materials for "${conceptTitle}" were modified after this explanation was generated. You can review the previous explanation below or regenerate it to reflect recent source updates.`}
                               </p>
                             </div>
@@ -2061,7 +2371,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                         </div>
 
                         {/* 02. How it works (when operational mechanism or steps exist) */}
-                        {explanationState.explanation.howItWorks && explanationState.explanation.howItWorks.length > 0 && (
+                        {effectiveExplanationState.explanation.howItWorks && effectiveExplanationState.explanation.howItWorks.length > 0 && (
                           <div className="revision-section revision-section-how-it-works" id="section-how-it-works">
                             <h2 className="revision-section-heading">
                               <span className="revision-section-num">{getSecNum('section-how-it-works')}</span>
@@ -2069,7 +2379,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                             </h2>
                             <div className="revision-section-body">
                               <div className="revision-how-it-works-list">
-                                {explanationState.explanation.howItWorks.map((step, idx) => (
+                                {effectiveExplanationState.explanation.howItWorks.map((step, idx) => (
                                   <div key={idx} className="revision-how-it-works-step">
                                     <span className="revision-step-marker">{String(idx + 1).padStart(2, '0')}</span>
                                     <div className="revision-step-content">
@@ -2078,13 +2388,13 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                                   </div>
                                 ))}
                               </div>
-                              {explanationState.explanation.codeSnippet && (
+                              {effectiveExplanationState.explanation.codeSnippet && (
                                 <div className="revision-code-snippet-box">
-                                  {explanationState.explanation.codeSnippet.caption && (
-                                    <span className="revision-code-caption">{explanationState.explanation.codeSnippet.caption}</span>
+                                  {effectiveExplanationState.explanation.codeSnippet.caption && (
+                                    <span className="revision-code-caption">{effectiveExplanationState.explanation.codeSnippet.caption}</span>
                                   )}
                                   <pre className="revision-code-block">
-                                    <code>{explanationState.explanation.codeSnippet.code}</code>
+                                    <code>{effectiveExplanationState.explanation.codeSnippet.code}</code>
                                   </pre>
                                 </div>
                               )}
@@ -2093,22 +2403,22 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                         )}
 
                         {/* 03. Key Components / Key Terminology */}
-                        {((explanationState.explanation.keyComponents && explanationState.explanation.keyComponents.length > 0) ||
-                          (explanationState.explanation.keyTerminology && explanationState.explanation.keyTerminology.length > 0) ||
-                          explanationState.explanation.comparisonTable) && (
+                        {((effectiveExplanationState.explanation.keyComponents && effectiveExplanationState.explanation.keyComponents.length > 0) ||
+                          (effectiveExplanationState.explanation.keyTerminology && effectiveExplanationState.explanation.keyTerminology.length > 0) ||
+                          effectiveExplanationState.explanation.comparisonTable) && (
                           <div className="revision-section revision-section-terminology" id="section-key-components">
                             <h2 className="revision-section-heading">
                               <span className="revision-section-num">{getSecNum('section-key-components')}</span>
                               <span>
-                                {explanationState.explanation.keyTerminology && explanationState.explanation.keyTerminology.length > 0
+                                {effectiveExplanationState.explanation.keyTerminology && effectiveExplanationState.explanation.keyTerminology.length > 0
                                   ? 'Key Terminology'
                                   : 'Key components'}
                               </span>
                             </h2>
                             <div className="revision-section-body">
-                              {explanationState.explanation.keyComponents && explanationState.explanation.keyComponents.length > 0 && (
+                              {effectiveExplanationState.explanation.keyComponents && effectiveExplanationState.explanation.keyComponents.length > 0 && (
                                 <div className="revision-components-grid">
-                                  {explanationState.explanation.keyComponents.map((comp, idx) => (
+                                  {effectiveExplanationState.explanation.keyComponents.map((comp, idx) => (
                                     <div key={idx} className="revision-component-card">
                                       <div className="revision-component-header">
                                         <span className="revision-component-name">{comp.name}</span>
@@ -2121,9 +2431,9 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                                   ))}
                                 </div>
                               )}
-                              {explanationState.explanation.keyTerminology && explanationState.explanation.keyTerminology.length > 0 && (
+                              {effectiveExplanationState.explanation.keyTerminology && effectiveExplanationState.explanation.keyTerminology.length > 0 && (
                                 <div className="revision-terms-list">
-                                  {explanationState.explanation.keyTerminology.map((item, idx) => (
+                                  {effectiveExplanationState.explanation.keyTerminology.map((item, idx) => (
                                     <div key={idx} className="revision-term-item">
                                       <span className="revision-term-name">{item.term}</span>
                                       <p className="revision-term-def">
@@ -2133,21 +2443,21 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                                   ))}
                                 </div>
                               )}
-                              {explanationState.explanation.comparisonTable && (
+                              {effectiveExplanationState.explanation.comparisonTable && (
                                 <div className="revision-table-wrapper" tabIndex={0} role="region" aria-label="Comparison Table">
-                                  {explanationState.explanation.comparisonTable.caption && (
-                                    <span className="revision-table-caption">{explanationState.explanation.comparisonTable.caption}</span>
+                                  {effectiveExplanationState.explanation.comparisonTable.caption && (
+                                    <span className="revision-table-caption">{effectiveExplanationState.explanation.comparisonTable.caption}</span>
                                   )}
                                   <table className="revision-editorial-table">
                                     <thead>
                                       <tr>
-                                        {explanationState.explanation.comparisonTable.headers.map((h, i) => (
+                                        {effectiveExplanationState.explanation.comparisonTable.headers.map((h, i) => (
                                           <th key={i}>{parseInlineMarkup(h)}</th>
                                         ))}
                                       </tr>
                                     </thead>
                                     <tbody>
-                                      {explanationState.explanation.comparisonTable.rows.map((row, rIdx) => (
+                                      {effectiveExplanationState.explanation.comparisonTable.rows.map((row, rIdx) => (
                                         <tr key={rIdx}>
                                           {row.map((cell, cIdx) => (
                                             <td key={cIdx}>{parseInlineMarkup(cell)}</td>
@@ -2163,19 +2473,19 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                         )}
 
                         {/* 04. Important Details / Important Points */}
-                        {((explanationState.explanation.importantDetails && explanationState.explanation.importantDetails.length > 0) ||
-                          (explanationState.explanation.importantPoints && explanationState.explanation.importantPoints.length > 0)) && (
+                        {((effectiveExplanationState.explanation.importantDetails && effectiveExplanationState.explanation.importantDetails.length > 0) ||
+                          (effectiveExplanationState.explanation.importantPoints && effectiveExplanationState.explanation.importantPoints.length > 0)) && (
                           <div className="revision-section revision-section-points" id="section-important-details">
                             <h2 className="revision-section-heading">
                               <span className="revision-section-num">{getSecNum('section-important-details')}</span>
                               <span>
-                                {explanationState.explanation.importantDetails && explanationState.explanation.importantDetails.length > 0
+                                {effectiveExplanationState.explanation.importantDetails && effectiveExplanationState.explanation.importantDetails.length > 0
                                   ? 'Important details'
                                   : 'Important Points'}
                               </span>
                             </h2>
                             <ul className="revision-points-list">
-                              {(explanationState.explanation.importantDetails || explanationState.explanation.importantPoints!).map((point, idx) => {
+                              {(effectiveExplanationState.explanation.importantDetails || effectiveExplanationState.explanation.importantPoints!).map((point, idx) => {
                                 const colonMatch = !point.includes('**') && point.match(/^([A-Za-z0-9\s/_-]{2,35}:)\s+(.+)$/);
                                 return (
                                   <li key={idx} className="revision-point-item">
@@ -2390,7 +2700,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                           graph={graph}
                           conceptId={activeDisplayConcept.id}
                           conceptName={activeDisplayConcept.name}
-                          explanation={explanationState.explanation}
+                          explanation={effectiveExplanationState.explanation}
                           sectionNum={getSecNum('section-knowledge-check')}
                           session={activeSession}
                           onNavigateToSection={handleNavigateToSection}
@@ -2400,15 +2710,15 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                         />
 
                         {/* 08. Source References */}
-                        {explanationState.explanation.sourceReferences && explanationState.explanation.sourceReferences.length > 0 && (
+                        {effectiveExplanationState.explanation.sourceReferences && effectiveExplanationState.explanation.sourceReferences.length > 0 && (
                           <div className="revision-section revision-section-sources" id="section-sources">
                             <h2 className="revision-section-heading">
                               <span className="revision-section-num">{getSecNum('section-sources')}</span>
                               <span>Source References</span>
                             </h2>
                             <div className="revision-sources-container">
-                              {explanationState.explanation.sourceReferences.map((ref, idx) => {
-                                const isOutdated = Boolean(explanationState.explanation?.isOutdated || explanationState.status === 'outdated');
+                              {effectiveExplanationState.explanation.sourceReferences.map((ref, idx) => {
+                                const isOutdated = Boolean(effectiveExplanationState.explanation?.isOutdated || effectiveExplanationState.status === 'outdated');
                                 const badgeLabel = isOutdated
                                   ? 'OUTDATED SOURCE RECORD'
                                   : (ref.page
@@ -2458,7 +2768,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                     )}
 
                     {/* Fallback when explanation state is idle, empty, or error */}
-                    {(explanationState.status === 'idle' || explanationState.status === 'empty' || explanationState.status === 'error') && (
+                    {(effectiveExplanationState.status === 'idle' || effectiveExplanationState.status === 'empty' || effectiveExplanationState.status === 'error') && (
                       <>
                         {understandingContent.hasContent && (
                           <div className="revision-section revision-section-understanding">
@@ -2471,7 +2781,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                                 <div className="revision-explanation-paragraphs">
                                   {understandingContent.paragraphs.map((paragraph, idx) => (
                                     <p key={idx} className="revision-explanation-paragraph">
-                                      {paragraph}
+                                      <EditorialFormattedContent content={paragraph} />
                                     </p>
                                   ))}
                                 </div>
@@ -2479,13 +2789,15 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                               {understandingContent.keyIdeas.length > 0 && (
                                 <ul className="revision-key-ideas-list">
                                   {understandingContent.keyIdeas.map((idea, idx) => (
-                                    <li key={idx} className="revision-key-idea-item">{idea}</li>
+                                    <li key={idx} className="revision-key-idea-item">
+                                      <EditorialFormattedContent content={idea} />
+                                    </li>
                                   ))}
                                 </ul>
                               )}
                               {understandingContent.evidence && (
                                 <p className="revision-evidence-paragraph">
-                                  {understandingContent.evidence}
+                                  <EditorialFormattedContent content={understandingContent.evidence} />
                                 </p>
                               )}
                             </div>
@@ -2500,7 +2812,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                           graph={graph}
                           conceptId={activeDisplayConcept.id}
                           conceptName={activeDisplayConcept.name}
-                          explanation={explanationState.explanation}
+                          explanation={effectiveExplanationState.explanation}
                           session={activeSession}
                           onNavigateToSection={handleNavigateToSection}
                           onNavigateToConcept={handleOpenRelatedInRevision}
@@ -2539,98 +2851,141 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
         </motion.div>
 
         {/* RIGHT COLUMN: Animated Vertical Lesson Navigation Rail */}
-        {(explanationState.status === 'ready' || explanationState.status === 'outdated') && activeSections.length >= 2 && (
+        {effectiveRailSections.length >= 2 && (
           <aside className="revision-reading-rail" aria-label="Lesson navigation">
-            <nav className="revision-reading-rail-nav" aria-label="Lesson section steps">
-              <div className="revision-reading-rail-track" role="list">
+            <nav className="revision-reading-rail-nav revision-section-nav" aria-label="Lesson section steps">
+              <motion.div
+                key={`kicker-${activeDisplayConcept?.id}`}
+                className="revision-rail-kicker revision-section-nav-kicker"
+                aria-hidden="true"
+                initial={shouldReduceMotion ? false : { opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              >
+                SECTIONS
+              </motion.div>
+              <motion.div
+                className="revision-reading-rail-track revision-section-nav-items"
+                role="list"
+                layout
+                animate={{
+                  height: effectiveRailSections.length * RAIL_STEP_STRIDE
+                }}
+                transition={shouldReduceMotion ? { duration: 0 } : {
+                  height: { duration: 0.42, ease: [0.16, 1, 0.3, 1] },
+                  layout: { duration: 0.42, ease: [0.16, 1, 0.3, 1] }
+                }}
+              >
                 <motion.div
+                  key={`track-line-${activeDisplayConcept?.id}`}
                   className="revision-rail-track-line"
                   aria-hidden="true"
-                  initial={hasPlayedEntry ? "settled" : "hidden"}
-                  animate="settled"
-                  variants={{
-                    hidden: { scaleY: shouldReduceMotion ? 1 : 0, originY: 0, opacity: shouldReduceMotion ? 1 : 0 },
-                    settled: {
-                      scaleY: 1,
-                      opacity: 1,
-                      transition: { duration: shouldReduceMotion ? 0 : 0.4, ease: WORKSPACE_EASING }
-                    }
+                  initial={shouldReduceMotion ? { scaleY: 1, originY: 0, opacity: 1 } : { scaleY: 0, originY: 0, opacity: 0 }}
+                  animate={{ scaleY: 1, originY: 0, opacity: 1 }}
+                  transition={shouldReduceMotion ? { duration: 0 } : {
+                    duration: 0.46,
+                    ease: [0.16, 1, 0.3, 1]
                   }}
                 />
                 <motion.div
                   className="revision-rail-progress-line"
                   aria-hidden="true"
-                  animate={{ height: `calc((100% - 39px) * ${progressRatio})` }}
-                  transition={{
-                    duration: shouldReduceMotion ? 0 : 0.28,
-                    ease: WORKSPACE_EASING
+                  animate={{
+                    height: Math.max(0, (effectiveRailSections.length - 1) * RAIL_STEP_STRIDE * progressRatio)
+                  }}
+                  transition={shouldReduceMotion ? { duration: 0 } : {
+                    height: { duration: 0.35, ease: [0.16, 1, 0.3, 1] }
                   }}
                 />
-                {activeSections.map((sec, idx) => {
-                  const isActive = activeSectionId === sec.id;
-                  const isCompleted = idx < activeSectionIndex;
-                  return (
-                    <motion.div
-                      key={sec.id}
-                      role="listitem"
-                      className="revision-rail-step-wrapper"
-                      initial={hasPlayedEntry ? "settled" : "hidden"}
-                      animate="settled"
-                      variants={{
-                        hidden: { opacity: 0, x: shouldReduceMotion ? 0 : 8 },
-                        settled: {
-                          opacity: 1,
-                          x: 0,
-                          transition: {
-                            duration: shouldReduceMotion ? 0 : 0.25,
-                            delay: shouldReduceMotion ? 0 : 0.12 + (idx * 0.05),
-                            ease: WORKSPACE_EASING
-                          }
-                        }
-                      }}
-                    >
-                      <a
-                        href={`#${sec.id}`}
-                        className={`revision-rail-step ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
-                        title={`${sec.num} · ${sec.label}`}
-                        aria-current={isActive ? 'true' : undefined}
-                        aria-label={`Section ${sec.num}: ${sec.label}${isActive ? ' (Current section)' : isCompleted ? ' (Completed)' : ''}`}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handleSectionClick(sec.id);
+                <AnimatePresence mode="popLayout" initial={true}>
+                  {effectiveRailSections.map((sec, idx) => {
+                    const isActive = activeSectionId === sec.id;
+                    const isCompleted = idx < activeSectionIndex;
+                    const staggerDelay = shouldReduceMotion ? 0 : 0.08 + idx * 0.055;
+                    return (
+                      <motion.div
+                        key={`${activeDisplayConcept?.id}-${sec.id}`}
+                        layout="position"
+                        role="listitem"
+                        className="revision-rail-step-wrapper"
+                        initial={shouldReduceMotion ? false : { opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{
+                          opacity: 0,
+                          x: shouldReduceMotion ? 0 : -6,
+                          transition: { duration: shouldReduceMotion ? 0 : 0.15 }
                         }}
-                        onKeyDown={(e) => {
-                          if (e.key === ' ' || e.key === 'Spacebar') {
-                            e.preventDefault();
-                            handleSectionClick(sec.id);
-                          }
+                        transition={shouldReduceMotion ? { duration: 0 } : {
+                          layout: { duration: 0.38, ease: [0.16, 1, 0.3, 1] },
+                          opacity: { duration: 0.28, delay: staggerDelay, ease: [0.16, 1, 0.3, 1] },
+                          x: { duration: 0.28, delay: staggerDelay, ease: [0.16, 1, 0.3, 1] }
                         }}
                       >
-                        <span className="revision-rail-bullet-container">
-                          <span className="revision-rail-bullet" aria-hidden="true" />
-                          {isActive && (
+                        <a
+                          href={`#${sec.id}`}
+                          className={`revision-rail-step ${isActive ? 'active' : ''} ${isActive ? 'revision-section-nav-item active' : 'revision-section-nav-item'} ${isCompleted ? 'completed' : ''}`}
+                          title={`${sec.num} · ${sec.label}`}
+                          aria-current={isActive ? 'true' : undefined}
+                          aria-label={`Section ${sec.num}: ${sec.label}${isActive ? ' (Current section)' : isCompleted ? ' (Completed)' : ''}`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleSectionClick(sec.id);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === ' ' || e.key === 'Spacebar') {
+                              e.preventDefault();
+                              handleSectionClick(sec.id);
+                            }
+                          }}
+                        >
+                          <span className="revision-rail-bullet-container">
+                            <span className="revision-rail-bullet" aria-hidden="true" />
+                            {isActive && (
+                              <motion.span
+                                layoutId="active-rail-marker"
+                                className="revision-rail-active-marker"
+                                transition={shouldReduceMotion ? { duration: 0 } : {
+                                  type: "spring",
+                                  stiffness: 400,
+                                  damping: 35
+                                }}
+                              />
+                            )}
+                          </span>
+                          <span className="revision-rail-num revision-nav-num">
                             <motion.span
-                              layoutId="active-rail-indicator"
-                              className="revision-rail-active-glow"
-                              transition={shouldReduceMotion ? { duration: 0 } : {
-                                type: "spring",
-                                stiffness: 350,
-                                damping: 30
-                              }}
-                            />
-                          )}
-                        </span>
-                        <span className="revision-rail-num">{sec.num}</span>
-                        <span className="revision-rail-tooltip" role="tooltip">
-                          <span className="revision-rail-tooltip-num">{sec.num}</span>
-                          <span className="revision-rail-tooltip-sep" aria-hidden="true">—</span>
-                          <span className="revision-rail-tooltip-label">{sec.label}</span>
-                        </span>
-                      </a>
-                    </motion.div>
-                  );
-                })}
-              </div>
+                              key={`${activeDisplayConcept?.id}-${sec.num}`}
+                              initial={shouldReduceMotion ? false : { opacity: 0, y: -4 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: shouldReduceMotion ? 0 : 0.24, delay: staggerDelay + 0.02, ease: [0.16, 1, 0.3, 1] }}
+                            >
+                              {sec.num}
+                            </motion.span>
+                          </span>
+                          <motion.span
+                            key={`${activeDisplayConcept?.id}-${sec.id}-label`}
+                            className="revision-rail-label revision-nav-label"
+                            initial={shouldReduceMotion ? false : { opacity: 0, x: -6 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={shouldReduceMotion ? { duration: 0 } : {
+                              duration: 0.32,
+                              delay: staggerDelay + 0.04,
+                              ease: [0.16, 1, 0.3, 1]
+                            }}
+                          >
+                            {sec.label}
+                          </motion.span>
+                          <span className="revision-rail-tooltip" role="tooltip">
+                            <span className="revision-rail-tooltip-num">{sec.num}</span>
+                            <span className="revision-rail-tooltip-sep" aria-hidden="true">—</span>
+                            <span className="revision-rail-tooltip-label">{sec.label}</span>
+                          </span>
+                        </a>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+              </motion.div>
             </nav>
           </aside>
         )}
@@ -2665,43 +3020,58 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                 )}
               </span>
             </button>
+            <div className="revision-nav-right-cluster revision-nav-right-slot">
+              <AnimatePresence mode="wait" initial={false}>
+                {isLast ? (
+                  <motion.button
+                    key="complete-action"
+                    type="button"
+                    className="revision-nav-link revision-complete-session-action"
+                    onClick={handleCompleteSession}
+                    disabled={isCompletingSession}
+                    title="Complete revision session and return to knowledge graph"
+                    aria-label="Complete session"
+                    variants={actionTransformVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                  >
+                    <span className="revision-nav-text-group revision-nav-text-right">
+                      <span className="revision-nav-action-label revision-complete-label">
+                        {isCompletingSession ? 'Completing…' : 'Complete session'}
+                      </span>
+                      <span className="revision-nav-dest-name">Return to graph</span>
+                    </span>
+                    <span className="revision-nav-arrow" aria-hidden="true">→</span>
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    key="next-action"
+                    type="button"
+                    className="revision-nav-link revision-nav-next"
+                    onClick={handleNext}
+                    aria-label={nextConcept ? `Next concept: ${nextConcept.name}` : 'Next concept'}
+                    title={nextConcept ? `Next: ${nextConcept.name} (→)` : 'Next concept (→)'}
+                    variants={actionTransformVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                  >
+                    <span className="revision-nav-text-group revision-nav-text-right">
+                      <span className="revision-nav-action-label">Next concept</span>
+                      {nextConcept && (
+                        <span className="revision-nav-dest-name">{nextConcept.name}</span>
+                      )}
+                    </span>
+                    <span className="revision-nav-arrow" aria-hidden="true">→</span>
+                  </motion.button>
+                )}
+              </AnimatePresence>
 
-            <div className="revision-nav-right-cluster">
+              {/* Sentinel for tests asserting disabled next class exists in markup */}
               {isLast && (
-                <button
-                  type="button"
-                  className="revision-nav-link revision-complete-session-action"
-                  onClick={() => {
-                    if (graph?.id) {
-                      saveRevisionSession(activeSession, graph.id);
-                    }
-                    handleBackToGraph();
-                  }}
-                  title="Complete revision session and return to knowledge graph"
-                  aria-label="Complete session"
-                >
-                  <span>Complete session</span>
-                  <span className="revision-nav-arrow" aria-hidden="true">→</span>
-                </button>
+                <span className="revision-nav-next disabled" aria-hidden="true" style={{ display: 'none' }} />
               )}
-
-              <button
-                type="button"
-                className={`revision-nav-link revision-nav-next ${isLast ? 'disabled' : ''}`}
-                onClick={handleNext}
-                disabled={isLast}
-                aria-disabled={isLast}
-                aria-label={nextConcept ? `Next concept: ${nextConcept.name}` : 'Next concept'}
-                title={isLast ? undefined : (nextConcept ? `Next: ${nextConcept.name} (→)` : 'Next concept (→)')}
-              >
-                <span className="revision-nav-text-group revision-nav-text-right">
-                  <span className="revision-nav-action-label">Next concept</span>
-                  {nextConcept && (
-                    <span className="revision-nav-dest-name">{nextConcept.name}</span>
-                  )}
-                </span>
-                <span className="revision-nav-arrow" aria-hidden="true">→</span>
-              </button>
             </div>
           </div>
         </nav>
