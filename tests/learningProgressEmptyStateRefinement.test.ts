@@ -46,8 +46,8 @@ describe('GRAPHMIND — REFINEMENT OF LEARNING PROGRESS EMPTY STATE', () => {
     it('keeps empty state constrained to comfortable horizontal width without full-page stretching', () => {
       assert.match(
         studyCss,
-        /\.study-progress-empty-card[\s\S]*?max-width:\s*580px;/,
-        'Must constrain width to max-width: 580px'
+        /\.study-progress-empty-card[\s\S]*?max-width:\s*(?:520|540|560|580)px;/,
+        'Must constrain width to comfortable measure (e.g. 540px)'
       );
     });
   });
@@ -80,10 +80,14 @@ describe('GRAPHMIND — REFINEMENT OF LEARNING PROGRESS EMPTY STATE', () => {
       );
     });
 
-    it('displays exact main message: Your progress starts here.', () => {
+    it('omits redundant "Your progress starts here." headline from learning progress empty state', () => {
+      const emptyProgressSnippet = studyViewSrc.substring(
+        studyViewSrc.indexOf('study-progress-empty-card'),
+        studyViewSrc.indexOf('className="study-history-section"')
+      );
       assert.ok(
-        studyViewSrc.includes('Your progress starts here.'),
-        'Must render exact main message'
+        !emptyProgressSnippet.includes('Your progress starts here.'),
+        'Must omit redundant "Your progress starts here." from learning progress empty state'
       );
     });
 
@@ -112,11 +116,11 @@ describe('GRAPHMIND — REFINEMENT OF LEARNING PROGRESS EMPTY STATE', () => {
   });
 
   describe('3. Minimal Typography & Design Tokens (Requirement 3)', () => {
-    it('styles graph name as medium-sized heading with restrained weight and light text', () => {
+    it('styles graph name as clear contextual heading anchor (20px, 600 weight)', () => {
       assert.match(
         studyCss,
-        /\.study-progress-empty-graph-title\s*\{[\s\S]*?font-size:\s*19px;[\s\S]*?color:\s*var\(--text-primary,\s*#F5F5F5\);/,
-        'Graph title must use restrained medium size and near-white color'
+        /\.study-progress-empty-graph-title\s*\{[\s\S]*?font-size:\s*20px;[\s\S]*?font-weight:\s*600;[\s\S]*?color:\s*var\(--text-primary,\s*#F5F5F5\);/,
+        'Graph title must use prominent 20px size and semibold weight'
       );
     });
 
@@ -133,19 +137,11 @@ describe('GRAPHMIND — REFINEMENT OF LEARNING PROGRESS EMPTY STATE', () => {
       );
     });
 
-    it('styles main message with strong editorial hierarchy smaller than page heading', () => {
+    it('styles supporting text with comfortable line height and restrained width (~520px)', () => {
       assert.match(
         studyCss,
-        /\.study-progress-empty-heading\s*\{[\s\S]*?font-size:\s*21px;[\s\S]*?font-weight:\s*600;/,
-        'Main message must use 21px font size and semi-bold weight'
-      );
-    });
-
-    it('styles supporting text with comfortable line height and restrained width', () => {
-      assert.match(
-        studyCss,
-        /\.study-progress-empty-desc\s*\{[\s\S]*?line-height:\s*1\.6;[\s\S]*?max-width:\s*540px;[\s\S]*?color:\s*var\(--text-secondary,\s*#9CA3AF\);/,
-        'Supporting text must use comfortable line-height and max-width ~540px'
+        /\.study-progress-empty-desc\s*\{[\s\S]*?line-height:\s*1\.6;[\s\S]*?max-width:\s*520px;[\s\S]*?color:\s*var\(--text-secondary,\s*#9CA3AF\);/,
+        'Supporting text must use comfortable line-height and max-width 520px'
       );
     });
 
@@ -163,8 +159,8 @@ describe('GRAPHMIND — REFINEMENT OF LEARNING PROGRESS EMPTY STATE', () => {
     });
   });
 
-  describe('4. Left-Aligned Layout & Vertical Spacing (Requirement 4)', () => {
-    it('lays out header elements left-aligned with small gap between title and count', () => {
+  describe('4. Left-Aligned Layout & Deliberate Vertical Spacing (Requirement 4)', () => {
+    it('lays out header elements left-aligned with small gap between title and count, plus comfortable spacing to explanation and action', () => {
       assert.match(
         studyCss,
         /\.study-progress-empty-header\s*\{[\s\S]*?display:\s*flex;[\s\S]*?align-items:\s*baseline;[\s\S]*?gap:\s*14px;/,
@@ -172,8 +168,13 @@ describe('GRAPHMIND — REFINEMENT OF LEARNING PROGRESS EMPTY STATE', () => {
       );
       assert.match(
         studyCss,
-        /\.study-progress-empty-header\s*\{[\s\S]*?margin-bottom:\s*24px;/,
-        'Must provide deliberate space before main message'
+        /\.study-progress-empty-header\s*\{[\s\S]*?margin-bottom:\s*14px;/,
+        'Must provide clean 14px space before explanation'
+      );
+      assert.match(
+        studyCss,
+        /\.study-progress-empty-desc\s*\{[\s\S]*?margin:\s*0\s+0\s+20px\s+0;/,
+        'Must provide 20px space between description and action'
       );
     });
 

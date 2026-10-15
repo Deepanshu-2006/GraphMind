@@ -631,19 +631,20 @@
   border-radius: 0;
   box-shadow: none;
   margin-top: 32px;
-  max-width: 580px;
+  max-width: 540px;
 }
 
+/* Graph Context Row */
 .study-progress-empty-header {
   display: flex;
   align-items: baseline;
   gap: 14px;
-  margin-bottom: 24px;
+  margin-bottom: 14px;
 }
 
 .study-progress-empty-graph-title {
   font-family: var(--font-display, var(--font-body, sans-serif));
-  font-size: 19px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--text-primary, #F5F5F5);
   margin: 0;
@@ -660,24 +661,14 @@
   line-height: 1;
 }
 
+/* Body: Explanatory Copy & Direct Action */
 .study-progress-empty-body {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 12px;
   padding: 0;
   border: none;
   background: transparent;
-}
-
-.study-progress-empty-heading {
-  font-family: var(--font-display, var(--font-body, sans-serif));
-  font-size: 21px;
-  font-weight: 600;
-  color: var(--text-primary, #F5F5F5);
-  margin: 0;
-  letter-spacing: -0.015em;
-  line-height: 1.3;
 }
 
 .study-progress-empty-desc {
@@ -685,8 +676,8 @@
   font-size: 14.5px;
   line-height: 1.6;
   color: var(--text-secondary, #9CA3AF);
-  max-width: 540px;
-  margin: 0;
+  max-width: 520px;
+  margin: 0 0 20px 0;
 }
 
 .study-progress-empty-action {
@@ -694,7 +685,7 @@
   border: none;
   cursor: pointer;
   padding: 0;
-  margin-top: 8px;
+  margin: 0;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -705,7 +696,7 @@
   letter-spacing: -0.01em;
   outline: none;
   text-decoration: none;
-  transition: color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: color 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .study-progress-empty-action:hover,
@@ -2315,6 +2306,108 @@
   line-height: 1.5;
 }
 
+/* --------------------------------------------------------------------------
+   8b. Assessment History Initial Empty State (0 assessments)
+   -------------------------------------------------------------------------- */
+.study-history-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  margin-top: 24px;
+  max-width: 520px;
+}
+
+.study-history-empty-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.study-history-empty-title {
+  font-family: var(--font-display, var(--font-body, sans-serif));
+  font-size: 16px;
+  font-weight: 550;
+  letter-spacing: -0.015em;
+  color: var(--text-primary, #F5F5F5);
+  margin: 0 0 6px 0;
+  line-height: 1.35;
+}
+
+.study-history-empty-desc,
+.study-history-empty-sub {
+  font-family: var(--font-body, sans-serif);
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-secondary, #9CA3AF);
+  max-width: 480px;
+  margin: 0 0 20px 0;
+}
+
+.study-history-empty-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+}
+
+.study-history-empty-action {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary, #F5F5F5);
+  font-family: var(--font-body, sans-serif);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  outline: none;
+  text-decoration: none;
+  transition: color 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.study-history-empty-action:hover,
+.study-history-empty-action:focus-visible {
+  color: var(--accent, #A3FF12);
+}
+
+.study-history-empty-action-label {
+  display: inline-block;
+  line-height: 1.4;
+}
+
+.study-history-empty-action-arrow {
+  display: inline-block;
+  font-size: 14px;
+  line-height: 1;
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.study-history-empty-action:hover .study-history-empty-action-arrow,
+.study-history-empty-action:focus-visible .study-history-empty-action-arrow {
+  transform: translateX(4px);
+}
+
+.study-history-empty-action:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
 .study-search-empty-actions {
   display: flex;
   align-items: center;
@@ -3877,7 +3970,8 @@
   }
 
   .study-progress-empty-card,
-  .study-progress-empty-state {
+  .study-progress-empty-state,
+  .study-history-empty-state {
     padding: 0;
     max-width: 100%;
   }
@@ -5687,7 +5781,8 @@
   .overview-attention-clean,
   .study-continue-rotating-ring,
   .study-continue-empty-action-arrow,
-  .study-progress-empty-action-arrow {
+  .study-progress-empty-action-arrow,
+  .study-history-empty-action-arrow {
     transition: none !important;
     animation: none !important;
     transform: none !important;

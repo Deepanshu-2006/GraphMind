@@ -3748,10 +3748,7 @@ export function StudySpaceView({
                       <span className="study-progress-empty-count">0 assessments</span>
                     </div>
                     <div className="study-progress-empty-body">
-                      <h4 className="study-progress-empty-heading study-progress-empty-msg">
-                        Your progress starts here.
-                      </h4>
-                      <p className="study-progress-empty-desc study-progress-empty-sub">
+                      <p className="study-progress-empty-desc study-progress-empty-sub study-progress-empty-msg">
                         Complete your first assessment to begin tracking your scores, review past attempts, and see how your understanding develops over time.
                       </p>
                       {onNavigateToGraph && (
@@ -3904,30 +3901,36 @@ export function StudySpaceView({
 
             {/* Search/Filter or No History Empty State */}
             {selectedGraphAttempts.length === 0 ? (
-              <div className="study-search-empty">
-                <span className="study-search-empty-title">
-                  No assessment history yet.
-                </span>
-                <p className="study-search-empty-sub">
-                  Completed assessments will appear here.
-                </p>
-                {onNavigateToGraph && (
-                  <div className="study-search-empty-actions">
-                    <button
-                      type="button"
-                      className="study-editorial-btn"
-                      onClick={onNavigateToGraph}
-                      aria-label={selectedGraphMeta ? `Start assessment for ${selectedGraphMeta.name}` : 'Start assessment'}
-                    >
-                      <span className="study-btn-content">
-                        <span>Start assessment</span>
-                        <span className="study-btn-arrow" aria-hidden="true">→</span>
-                      </span>
-                      <span className="study-btn-underline" aria-hidden="true" />
-                    </button>
-                  </div>
-                )}
-              </div>
+              <motion.div 
+                className="study-history-empty-state"
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
+                animate={hasHistoryEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.38, delay: 0.16, ease: REVEAL_EASE }}
+              >
+                <div className="study-history-empty-body">
+                  <span className="study-history-empty-title">
+                    No assessment history yet.
+                  </span>
+                  <p className="study-history-empty-desc study-history-empty-sub">
+                    Completed assessments will appear here.
+                  </p>
+                  {onNavigateToGraph && (
+                    <div className="study-history-empty-actions">
+                      <button
+                        type="button"
+                        className="study-history-empty-action"
+                        onClick={onNavigateToGraph}
+                        aria-label={selectedGraphMeta ? `Start assessment for ${selectedGraphMeta.name}` : 'Start assessment'}
+                      >
+                        <span className="study-history-empty-action-label">
+                          <span>Start assessment</span>
+                        </span>
+                        <span className="study-history-empty-action-arrow" aria-hidden="true">→</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
             ) : filteredGroups.length === 0 ? (
               <motion.div 
                 key={`empty-${filterMode}-${searchQuery}`}

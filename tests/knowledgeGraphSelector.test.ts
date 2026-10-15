@@ -181,7 +181,7 @@ describe('GRAPHMIND STUDY SPACE — KNOWLEDGE GRAPH SELECTOR & FILTERED LEARNING
     it('renders refined empty state when selected graph has 0 assessments', () => {
       assert.ok(studyViewSrc.includes('study-progress-empty-card'));
       assert.ok(studyViewSrc.includes('study-progress-empty-msg'));
-      assert.ok(studyViewSrc.includes('Your progress starts here.'));
+      assert.ok(studyViewSrc.includes('Complete your first assessment to begin tracking your scores'));
       assert.ok(studyViewSrc.includes('study-progress-empty-action'));
     });
 
