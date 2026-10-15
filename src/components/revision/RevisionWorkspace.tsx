@@ -18,6 +18,7 @@ import {
   loadStoredExplanation,
   extractConceptSourceContext,
   synthesizeGroundedExplanation,
+  sanitizeGroundedExplanationText,
   computeConceptSourceFingerprint
 } from '../../services/conceptExplanation';
 import { KnowledgeCheckSection } from './KnowledgeCheckSection';
@@ -387,21 +388,26 @@ export function EditorialFormattedContent({ content }: { content: string }) {
     );
   }
 
-  // 5. Multi-line text with breaks
-  if (lines.length > 1) {
+  // 5. Multi-line prose: split by paragraph breaks (\n\s*\n+), collapsing soft line breaks within each paragraph to spaces so text flows naturally
+  const paragraphs = trimmed.split(/\r?\n\s*\r?\n+/);
+  if (paragraphs.length > 1) {
     return (
       <>
-        {lines.map((l, idx) => (
-          <React.Fragment key={idx}>
-            {idx > 0 && <br />}
-            {parseInlineMarkup(l)}
-          </React.Fragment>
-        ))}
+        {paragraphs.map((p, idx) => {
+          const flowText = p.replace(/\r?\n+/g, ' ').trim();
+          return (
+            <p key={idx} className="revision-editorial-p" style={{ marginTop: idx === 0 ? 0 : '16px', marginBottom: 0 }}>
+              {parseInlineMarkup(flowText)}
+            </p>
+          );
+        })}
       </>
     );
   }
 
-  return <>{parseInlineMarkup(trimmed)}</>;
+  // Single paragraph: collapse soft line breaks to space so sentences flow naturally without fragmented line breaks
+  const flowText = trimmed.replace(/\r?\n+/g, ' ').trim();
+  return <>{parseInlineMarkup(flowText)}</>;
 }
 
 export interface RevisionConceptItem {
@@ -1190,11 +1196,14 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     const keyIdeas: string[] = [];
     let evidence: string | null = null;
 
+    const sourcesList = graph?.sources || [];
+
     if (exp) {
       // 1. Overview: only render as lead paragraph if it adds genuine value beyond the concept definition
       if (exp.overview && exp.overview.trim().length > 0) {
-        if (!isSubstantiallyIdentical(exp.overview, definition)) {
-          lead = exp.overview.trim();
+        const sanitizedLead = sanitizeGroundedExplanationText(exp.overview, conceptTitle, sourcesList);
+        if (sanitizedLead && !isSubstantiallyIdentical(sanitizedLead, definition)) {
+          lead = sanitizedLead;
         }
       }
 
@@ -1202,7 +1211,8 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
       if (exp.detailedExplanation && exp.detailedExplanation.length > 0) {
         exp.detailedExplanation.forEach((p) => {
           if (!p || !p.trim()) return;
-          let text = p.trim();
+          let text = sanitizeGroundedExplanationText(p, conceptTitle, sourcesList);
+          if (!text || text.length < 15) return;
 
           // If the entire paragraph is a duplicate of definition or lead, skip it
           if (isSubstantiallyIdentical(text, definition)) return;
@@ -1213,7 +1223,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
           if (sentenceSplit) {
             const firstSentence = sentenceSplit[1].trim();
             const remainder = sentenceSplit[2].trim();
-            if (isSubstantiallyIdentical(firstSentence, definition) && remainder.length > 0) {
+            if (isSubstantiallyIdentical(firstSentence, definition) && remainder.length >= 15) {
               text = remainder;
             }
           }
@@ -1230,7 +1240,8 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     if (activeDisplayConcept?.keyIdeas && activeDisplayConcept.keyIdeas.length > 0) {
       activeDisplayConcept.keyIdeas.forEach((idea) => {
         if (!idea || !idea.trim()) return;
-        const text = idea.trim();
+        const text = sanitizeGroundedExplanationText(idea.trim(), conceptTitle, sourcesList);
+        if (!text || text.length < 10) return;
         if (isSubstantiallyIdentical(text, definition)) return;
         if (lead && isSubstantiallyIdentical(text, lead)) return;
         if (paragraphs.some(p => isSubstantiallyIdentical(p, text))) return;
@@ -1242,14 +1253,16 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
 
     // 4. Evidence text from node data
     if (activeDisplayConcept?.evidence && activeDisplayConcept.evidence.trim().length > 0) {
-      const text = activeDisplayConcept.evidence.trim();
-      const isDuplicate =
-        isSubstantiallyIdentical(text, definition) ||
-        (lead && isSubstantiallyIdentical(text, lead)) ||
-        paragraphs.some(p => isSubstantiallyIdentical(p, text) || p.includes(text));
+      const text = sanitizeGroundedExplanationText(activeDisplayConcept.evidence.trim(), conceptTitle, sourcesList);
+      if (text && text.length >= 15) {
+        const isDuplicate =
+          isSubstantiallyIdentical(text, definition) ||
+          (lead && isSubstantiallyIdentical(text, lead)) ||
+          paragraphs.some(p => isSubstantiallyIdentical(p, text) || p.includes(text));
 
-      if (!isDuplicate) {
-        evidence = text;
+        if (!isDuplicate) {
+          evidence = text;
+        }
       }
     }
 
@@ -1257,7 +1270,8 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     // key ideas, or evidence, provide the overview as a normal body paragraph (not a prominent lead)
     // so the section doesn't render completely empty if it's the only text available.
     if (!lead && paragraphs.length === 0 && keyIdeas.length === 0 && !evidence && exp?.overview) {
-      paragraphs.push(exp.overview.trim());
+      const sanitized = sanitizeGroundedExplanationText(exp.overview, conceptTitle, sourcesList);
+      if (sanitized) paragraphs.push(sanitized);
     }
 
     return {
@@ -1267,7 +1281,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
       evidence,
       hasContent: Boolean(lead || paragraphs.length > 0 || keyIdeas.length > 0 || evidence)
     };
-  }, [conceptDescription, explanationState, activeDisplayConcept?.keyIdeas, activeDisplayConcept?.evidence]);
+  }, [conceptDescription, conceptTitle, graph?.sources, explanationState, activeDisplayConcept?.keyIdeas, activeDisplayConcept?.evidence]);
 
 
   const workspaceRootRef = useRef<HTMLDivElement | null>(null);
@@ -1277,6 +1291,21 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
 
   const workedExample = explanationState.explanation?.workedExample;
   const totalWorkedSteps = workedExample?.steps?.length || 0;
+
+  // Filter out accidental graph relationship fragments (e.g. "Shortest Remaining Time First (type of)")
+  const authenticExamples = useMemo(() => {
+    const raw = explanationState.explanation?.examples;
+    if (!raw || !Array.isArray(raw)) return [];
+    return raw.filter(ex => {
+      if (!ex || typeof ex !== 'string') return false;
+      const t = ex.trim();
+      if (t.length < 5) return false;
+      if (/\((?:type of|is a|part of|kind of|outgoing|incoming)\)/i.test(t)) return false;
+      if (/^[a-z\s-]+\s*\((?:type of|is a|part of|kind of)\)$/i.test(t)) return false;
+      return true;
+    });
+  }, [explanationState.explanation?.examples]);
+
   const currentRevealedSteps = activeDisplayConcept?.id
     ? (revealedStepsMap[activeDisplayConcept.id] !== undefined
         ? revealedStepsMap[activeDisplayConcept.id]
@@ -1353,7 +1382,8 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
       });
     }
     // Examples (including structured worked example)
-    if ((exp.examples && exp.examples.length > 0) || Boolean(exp.workedExample)) {
+    const hasExamples = (authenticExamples && authenticExamples.length > 0) || Boolean(exp.workedExample);
+    if (hasExamples) {
       list.push({ id: 'section-examples', num: String(counter++).padStart(2, '0'), label: 'Example' });
     }
     // Related concepts
@@ -1371,7 +1401,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
     }
 
     return list;
-  }, [explanationState, hasUnderstandingData, hasRelatedConcepts]);
+  }, [explanationState, hasUnderstandingData, hasRelatedConcepts, authenticExamples]);
 
   const getSecNum = (id: string) => activeSections.find(s => s.id === id)?.num || String(activeSections.length + 1).padStart(2, '0');
 
@@ -1784,6 +1814,39 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                     ) : null}
                   </section>
 
+                  {/* Compact Unobtrusive Section Jump Navigation */}
+                  {(explanationState.status === 'ready' || explanationState.status === 'outdated') && activeSections.length >= 2 && (
+                    <nav className="revision-section-nav" aria-label="Section navigation">
+                      <div className="revision-section-nav-inner">
+                        <span className="revision-section-nav-kicker">SECTIONS</span>
+                        <div className="revision-section-nav-items">
+                          {activeSections.map((sec) => {
+                            const isActive = activeSectionId === sec.id;
+                            return (
+                              <a
+                                key={sec.id}
+                                href={`#${sec.id}`}
+                                className={`revision-section-nav-item ${isActive ? 'active' : ''}`}
+                                aria-current={isActive ? 'true' : undefined}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setActiveSectionId(sec.id);
+                                  const el = document.getElementById(sec.id);
+                                  if (el) {
+                                    el.scrollIntoView({ behavior: shouldReduceMotion ? 'auto' : 'smooth', block: 'start' });
+                                  }
+                                }}
+                              >
+                                <span className="revision-nav-num">{sec.num}</span>
+                                <span className="revision-nav-label">{sec.label}</span>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </nav>
+                  )}
+
 
                   {/* --------------------------------------------------------------
                       CONTENT PLACEHOLDER / STRUCTURE (Section 5)
@@ -1888,38 +1951,6 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                           </div>
                         )}
 
-                        {/* Compact Unobtrusive Section Jump Navigation (Task 06 Section 5) */}
-                        {activeSections.length >= 2 && (
-                          <nav className="revision-section-nav" aria-label="Section navigation">
-                            <div className="revision-section-nav-inner">
-                              <span className="revision-section-nav-kicker">SECTIONS</span>
-                              <div className="revision-section-nav-items">
-                                {activeSections.map((sec) => {
-                                  const isActive = activeSectionId === sec.id;
-                                  return (
-                                    <a
-                                      key={sec.id}
-                                      href={`#${sec.id}`}
-                                      className={`revision-section-nav-item ${isActive ? 'active' : ''}`}
-                                      aria-current={isActive ? 'true' : undefined}
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        setActiveSectionId(sec.id);
-                                        const el = document.getElementById(sec.id);
-                                        if (el) {
-                                          el.scrollIntoView({ behavior: shouldReduceMotion ? 'auto' : 'smooth', block: 'start' });
-                                        }
-                                      }}
-                                    >
-                                      <span className="revision-nav-num">{sec.num}</span>
-                                      <span className="revision-nav-label">{sec.label}</span>
-                                    </a>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          </nav>
-                        )}
 
                         {/* 01. Understanding the concept (Overview + Elaboration) */}
                         <div className="revision-section revision-section-understanding" id="section-understanding">
@@ -1933,8 +1964,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                                 <EditorialFormattedContent content={understandingContent.lead} />
                               </p>
                             )}
-                            {(!explanationState.explanation.howItWorks || explanationState.explanation.howItWorks.length === 0) &&
-                              understandingContent.paragraphs.length > 0 && (
+                            {understandingContent.paragraphs.length > 0 && (
                               <div className="revision-explanation-paragraphs">
                                 {understandingContent.paragraphs.map((paragraph, idx) => (
                                   <p key={idx} className="revision-explanation-paragraph">
@@ -2098,7 +2128,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                         )}
 
                         {/* 05. Examples & Structured Worked Example (Task 07) */}
-                        {((explanationState.explanation.examples && explanationState.explanation.examples.length > 0) ||
+                        {((authenticExamples && authenticExamples.length > 0) ||
                           Boolean(workedExample)) && (
                           <div className="revision-section revision-section-examples" id="section-examples">
                             <h2 className="revision-section-heading">
@@ -2263,14 +2293,14 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
                             )}
 
                             {/* Additional or Legacy Examples List */}
-                            {explanationState.explanation.examples && explanationState.explanation.examples.length > 0 && (
+                            {authenticExamples && authenticExamples.length > 0 && (
                               <div className="revision-example-box" style={{ marginTop: workedExample ? '14px' : 0 }}>
                                 {workedExample && (
                                   <span className="revision-problem-kicker" style={{ marginBottom: '8px' }}>
                                     ADDITIONAL EXAMPLES
                                   </span>
                                 )}
-                                {explanationState.explanation.examples.map((ex, idx) => (
+                                {authenticExamples.map((ex, idx) => (
                                   <div key={idx} style={{ marginTop: idx === 0 ? 0 : '8px' }}>
                                     <EditorialFormattedContent content={ex} />
                                   </div>

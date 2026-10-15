@@ -640,8 +640,19 @@ export class CandidateGenerator {
       if (hText) {
         hText = hText.replace(/^(?:chapter|section)\s+\d+[:–—\-]?\s*/i, '').trim();
 
-        const nextLines = lines.slice(li + 1, li + 4).map(l => l.trim()).filter(Boolean);
-        const headingEvidence = [trimmed, ...nextLines].join('\n').slice(0, 350);
+        const subsequentLines: string[] = [];
+        for (let j = li + 1; j < Math.min(lines.length, li + 10); j++) {
+          const lineTrim = lines[j].trim();
+          if (!lineTrim) {
+            if (subsequentLines.join(' ').length >= 80) break;
+            continue;
+          }
+          if (/^(?:[0-9]+(?:\.[0-9]+)*\.?|#+)\s+[A-Z]/.test(lineTrim)) break;
+          subsequentLines.push(lineTrim);
+          if (subsequentLines.join(' ').length >= 160 && /[.!?]$/.test(lineTrim)) break;
+        }
+        const nextContent = subsequentLines.join(' ').trim();
+        const headingEvidence = nextContent ? `${trimmed}\n${nextContent}` : trimmed;
 
         if (hText && !ACADEMIC_AND_GENERIC_FILLER.has(hText.toLowerCase())) {
           // Check for parenthesized alias: e.g. "First-Come, First-Served (FCFS)"

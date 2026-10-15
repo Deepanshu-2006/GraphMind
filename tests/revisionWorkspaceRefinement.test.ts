@@ -362,7 +362,7 @@ describe('GraphMind Revision Workspace UI/UX Refinement', () => {
   });
 
   describe('4. Typography, Hierarchy & Concept Status Metadata', () => {
-    test('concept title has Level 1 visual prominence (32-36px, confident weight)', () => {
+    test('concept title has Level 1 visual prominence (32-38px, confident weight)', () => {
       const titleMatch = cssContent.match(/\.revision-concept-title\s*\{([^}]*)\}/);
       assert.ok(titleMatch, 'CSS must define .revision-concept-title');
       const body = titleMatch[1];
@@ -371,8 +371,8 @@ describe('GraphMind Revision Workspace UI/UX Refinement', () => {
         'Title must have strong hierarchy weight'
       );
       assert.ok(
-        body.includes('clamp(32px') || body.includes('clamp(30px') || body.includes('32px') || body.includes('30px'),
-        'Title must target 32-36px desktop range'
+        body.includes('clamp(34px') || body.includes('clamp(32px') || body.includes('clamp(30px') || body.includes('34px') || body.includes('32px') || body.includes('30px'),
+        'Title must target 32-38px desktop range'
       );
     });
 

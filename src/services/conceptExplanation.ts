@@ -420,6 +420,58 @@ export function validateWorkedExample(
 }
 
 /**
+ * Sanitizes grounded explanation text by stripping leading numbered heading artifacts,
+ * duplicate title lines, and cleanly completing or trimming incomplete trailing sentences.
+ */
+export function sanitizeGroundedExplanationText(
+  rawText: string,
+  conceptName: string,
+  matchingSources?: ConceptSourceContext['matchingSources']
+): string {
+  if (!rawText || typeof rawText !== 'string') return '';
+  let text = rawText.trim();
+
+  // Strip leading numbering or heading markers e.g. "5. Shortest Remaining Time First (SRTF)\n" or "Chapter 2: "
+  const escapedName = conceptName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const headingPattern = new RegExp(
+    `^(?:(?:Chapter|Section)\\s+\\d+[:–—\\-]?\\s*)?(?:\\d+(?:\\.\\d+)*\\.?\\s*)?(?:${escapedName}|${conceptName.replace(/[-_]/g, ' ')})?(?:\\s*\\([A-Z0-9]{2,6}\\))?[:–—\\-\\n\\s]*`,
+    'i'
+  );
+  const stripped = text.replace(headingPattern, '').trim();
+  if (stripped.length >= 20) {
+    text = stripped;
+  }
+
+  // Check if text ends with an incomplete sentence (lacks terminal punctuation . ! ?)
+  if (!/[.!?]["']?\s*$/.test(text)) {
+    let completedFromSource = false;
+    if (matchingSources && matchingSources.length > 0) {
+      const lastWords = text.slice(-40).trim();
+      for (const src of matchingSources) {
+        if (src.text && src.text.includes(lastWords)) {
+          const idx = src.text.indexOf(lastWords);
+          const remainder = src.text.slice(idx + lastWords.length);
+          const endPunctMatch = remainder.match(/^([^.!?]*[.!?])/);
+          if (endPunctMatch) {
+            text = text + endPunctMatch[1];
+            completedFromSource = true;
+            break;
+          }
+        }
+      }
+    }
+    if (!completedFromSource) {
+      const lastTerm = Math.max(text.lastIndexOf('.'), text.lastIndexOf('!'), text.lastIndexOf('?'));
+      if (lastTerm > 30) {
+        text = text.slice(0, lastTerm + 1).trim();
+      }
+    }
+  }
+
+  return text;
+}
+
+/**
  * Deterministic Grounded Synthesizer
  * Produces structured, editorial, student-focused explanations grounded
  * in the real graph node, evidence passages, relationships, and source texts.
@@ -433,58 +485,40 @@ export function synthesizeGroundedExplanation(
 
   // 1. Overview (Clear, understandable high-level foundation)
   // Prioritize authentic evidence text when it provides distinct depth beyond the short definition
-  let overview = '';
+  let rawOverview = '';
   if (evidenceItems.length > 0 && evidenceItems[0]?.text && evidenceItems[0].text.trim().length >= 20) {
-    overview = evidenceItems[0].text.trim();
+    rawOverview = evidenceItems[0].text.trim();
   } else if (description && description.trim().length >= 25) {
-    overview = description.trim();
+    rawOverview = description.trim();
   } else {
-    overview = `${conceptName} is a foundational ${category} within this knowledge domain.`;
+    rawOverview = `${conceptName} is a foundational ${category} within this knowledge domain.`;
   }
+  const overview = sanitizeGroundedExplanationText(rawOverview, conceptName, matchingSources);
 
   // 2. Detailed Explanation (Clear, cohesive paragraphs unrolling concepts progressively)
   const paragraphs: string[] = [];
 
   // Paragraph A: Core mechanism & operational context
-  const primaryEvidence = evidenceItems[0]?.text;
+  const primaryEvidence = evidenceItems[0]?.text 
+    ? sanitizeGroundedExplanationText(evidenceItems[0].text, conceptName, matchingSources) 
+    : '';
+  const secondaryEvidence = (evidenceItems.length > 1 && evidenceItems[1]?.text)
+    ? sanitizeGroundedExplanationText(evidenceItems[1].text, conceptName, matchingSources)
+    : '';
+
   if (primaryEvidence && primaryEvidence !== overview && primaryEvidence !== description) {
     paragraphs.push(primaryEvidence);
-  } else if (evidenceItems.length > 1 && evidenceItems[1]?.text && evidenceItems[1].text !== overview) {
-    paragraphs.push(evidenceItems[1].text);
-  } else if (description && description !== overview) {
-    paragraphs.push(description);
+  } else if (secondaryEvidence && secondaryEvidence !== overview) {
+    paragraphs.push(secondaryEvidence);
   } else {
     paragraphs.push(
       `In the context of ${category}, ${conceptName} establishes critical operational principles for structured computation and domain reasoning.`
     );
   }
 
-  // Paragraph B: Structural relationships & dependencies
-  if (relatedRelationships.length > 0) {
-    const outgoing = relatedRelationships.filter(r => r.direction === 'outgoing');
-    const incoming = relatedRelationships.filter(r => r.direction === 'incoming');
-
-    const relSentences: string[] = [];
-    if (outgoing.length > 0) {
-      const formatted = outgoing.slice(0, 3).map(r => `${r.type.replace(/-/g, ' ')} ${r.targetName}`).join(', ');
-      relSentences.push(`${conceptName} directly connects to other key domain ideas, specifically through ${formatted}.`);
-    }
-    if (incoming.length > 0) {
-      const formatted = incoming.slice(0, 2).map(r => `${r.targetName} (${r.type.replace(/-/g, ' ')})`).join(', ');
-      relSentences.push(`It is supported by foundational concepts including ${formatted}.`);
-    }
-
-    if (relSentences.length > 0) {
-      paragraphs.push(relSentences.join(' '));
-    }
-  }
-
-  // Paragraph C: Secondary evidence or deeper details if available
-  if (evidenceItems.length > 1) {
-    const secondaryEvidence = evidenceItems[1].text;
-    if (secondaryEvidence && !paragraphs.includes(secondaryEvidence)) {
-      paragraphs.push(secondaryEvidence);
-    }
+  // Paragraph B: Secondary evidence or deeper domain details if available and distinct
+  if (secondaryEvidence && !paragraphs.includes(secondaryEvidence) && secondaryEvidence !== overview) {
+    paragraphs.push(secondaryEvidence);
   }
 
   // 3. Key Terminology (Extracted from node prerequisites, aliases, and evidence)
@@ -515,9 +549,12 @@ export function synthesizeGroundedExplanation(
   // 5. Worked Examples and Concrete Applications (Task 07)
   let workedExample: WorkedExample | undefined = undefined;
   let examples: string[] | undefined = undefined;
-  const exampleMatches = (overview + ' ' + paragraphs.join(' ')).match(/(?:for example|such as|e\.g\.|including)\s+([^.]+)/i);
+  const exampleMatches = (overview + ' ' + paragraphs.join(' ')).match(/(?:for example|such as|e\.g\.)\s+([^.]+)/i);
   if (exampleMatches && exampleMatches[1]) {
-    examples = [exampleMatches[1].trim()];
+    const candidateEx = exampleMatches[1].trim();
+    if (!/\((?:type of|is a|part of|kind of|outgoing|incoming)\)/i.test(candidateEx) && candidateEx.length >= 8) {
+      examples = [candidateEx];
+    }
   }
 
   // Synthesize structured worked example ONLY if concept involves an algorithm, procedure, or explicit problem/calculation
