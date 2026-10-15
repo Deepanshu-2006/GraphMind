@@ -219,6 +219,7 @@ describe('GraphMind — Revision Workspace Section Timeline Rail Upgrade', () =>
       assert.ok(progressMatch[1].includes('top: 19.5px'), 'Progress line must start at 19.5px marker center');
       assert.ok(progressMatch[1].includes('max-height: calc(100% - 39px)'), 'Progress line max-height must terminate exactly at last marker center');
       assert.ok(progressMatch[1].includes('var(--accent, #A3FF12)'), 'Progress line must use lime green accent');
+      assert.ok(!progressMatch[1].includes('box-shadow'), 'Progress line must not have a glow/shadow dominating the page');
     });
   });
 
@@ -235,10 +236,11 @@ describe('GraphMind — Revision Workspace Section Timeline Rail Upgrade', () =>
 
       // Active
       assert.ok(cssContent.includes('.revision-rail-step.active .revision-rail-bullet'), 'CSS must style active bullet');
-      assert.ok(cssContent.includes('.revision-rail-active-glow'), 'CSS must define active halo ring');
+      assert.ok(cssContent.includes('.revision-rail-active-marker'), 'CSS must define refined active marker');
+      assert.ok(!cssContent.includes('.revision-rail-active-glow'), 'CSS must completely remove the oversized circular glow ring');
     });
 
-    test('active marker includes traveling halo ring element with layoutId and spring physics', () => {
+    test('active marker includes traveling 5px lime marker with precision tick and layoutId', () => {
       const html = renderToString(
         React.createElement(RevisionWorkspace, {
           graph: mockGraph,
@@ -248,7 +250,8 @@ describe('GraphMind — Revision Workspace Section Timeline Rail Upgrade', () =>
         })
       );
 
-      assert.ok(html.includes('revision-rail-active-glow'), 'Must render active halo element on current section');
+      assert.ok(html.includes('revision-rail-active-marker'), 'Must render active marker element on current section');
+      assert.ok(!html.includes('revision-rail-active-glow'), 'Must NOT render any circular active glow ring');
       assert.ok(html.includes('aria-current="true"'), 'Must designate current section with aria-current="true"');
     });
   });
@@ -273,11 +276,12 @@ describe('GraphMind — Revision Workspace Section Timeline Rail Upgrade', () =>
       assert.ok(numMatch[1].includes('tabular-nums'), 'Must use tabular-nums to eliminate layout jitter');
     });
 
-    test('active number transitions to bright white with subtle horizontal micro-shift', () => {
+    test('active number transitions to electric lime with fixed position and no horizontal shift', () => {
       const activeNumMatch = cssContent.match(/\.revision-rail-step\.active\s+\.revision-rail-num\s*\{([^}]*)\}/);
       assert.ok(activeNumMatch, 'Must define .revision-rail-step.active .revision-rail-num');
-      assert.ok(activeNumMatch[1].includes('#FFFFFF'), 'Active number must be bright white');
-      assert.ok(activeNumMatch[1].includes('translateX(1.5px)'), 'Active number must have subtle 1.5px micro-shift');
+      assert.ok(activeNumMatch[1].includes('var(--accent, #A3FF12)'), 'Active number must highlight in lime accent');
+      assert.ok(activeNumMatch[1].includes('font-weight: 600'), 'Active number must have slightly stronger font weight');
+      assert.ok(!activeNumMatch[1].includes('translateX'), 'Active number must keep its position fixed without horizontal shifting');
     });
   });
 

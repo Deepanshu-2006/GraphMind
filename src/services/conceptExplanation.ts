@@ -43,8 +43,23 @@ export function loadStoredExplanation(graphId: string, conceptId: string): Conce
 /**
  * Saves a concept explanation to persistent cache.
  */
-export function saveStoredExplanation(explanation: ConceptExplanation): void {
-  if (typeof localStorage === 'undefined' || !explanation?.graphId || !explanation?.conceptId) {
+export function saveStoredExplanation(
+  explanationOrGraphId: ConceptExplanation | string,
+  conceptId?: string,
+  maybeExplanation?: ConceptExplanation
+): void {
+  if (typeof localStorage === 'undefined') return;
+  let explanation: ConceptExplanation | undefined;
+  if (typeof explanationOrGraphId === 'string' && conceptId && maybeExplanation) {
+    explanation = {
+      ...maybeExplanation,
+      graphId: explanationOrGraphId,
+      conceptId
+    };
+  } else if (typeof explanationOrGraphId === 'object' && explanationOrGraphId !== null) {
+    explanation = explanationOrGraphId;
+  }
+  if (!explanation?.graphId || !explanation?.conceptId) {
     return;
   }
   try {
@@ -434,7 +449,7 @@ export function sanitizeGroundedExplanationText(
   // Strip leading numbering or heading markers e.g. "5. Shortest Remaining Time First (SRTF)\n" or "Chapter 2: "
   const escapedName = conceptName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const headingPattern = new RegExp(
-    `^(?:(?:Chapter|Section)\\s+\\d+[:–—\\-]?\\s*)?(?:\\d+(?:\\.\\d+)*\\.?\\s*)?(?:${escapedName}|${conceptName.replace(/[-_]/g, ' ')})?(?:\\s*\\([A-Z0-9]{2,6}\\))?[:–—\\-\\n\\s]*`,
+    `^(?:(?:Chapter|Section)\\s+\\d+[:–—\\-]?\\s*)?(?:\\d+(?:\\.\\d+)*\\.?\\s+)?(?:${escapedName}|${conceptName.replace(/[-_]/g, ' ')})?(?:\\s*\\([A-Z0-9]{2,6}\\))?(?:\\s*[:–—\\-]\\s*|\\s*\\r?\\n+\\s*)`,
     'i'
   );
   const stripped = text.replace(headingPattern, '').trim();

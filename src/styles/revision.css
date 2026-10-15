@@ -135,6 +135,7 @@
   max-width: 100%;
   margin: 0 auto;
   padding-left: 76px;  /* 48px (rail width) + 28px (clearance) to keep reading column symmetrically centered */
+  padding-left: clamp(76px, 12vw, 168px);
   padding-right: 28px; /* Clean, intentional clearance from the right scrollbar */
   box-sizing: border-box;
   position: relative;
@@ -164,7 +165,8 @@
   --rail-usable-height: calc(100vh - var(--rail-nav-overhead));
   --rail-sticky-center: calc(var(--rail-top-nav) + (var(--rail-usable-height) / 2));
 
-  width: 48px;
+  width: 140px;
+  min-width: 48px;
   flex-shrink: 0;
   margin-left: auto;
   position: sticky;
@@ -185,12 +187,32 @@
   flex-direction: column;
 }
 
+.revision-reading-rail-nav.revision-section-nav {
+  margin-bottom: 0;
+  padding: 0;
+  border-bottom: none;
+  width: auto;
+}
+
+.revision-rail-kicker {
+  font-family: var(--font-body, 'Inter', -apple-system, sans-serif);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #52525B;
+  padding-left: 2px;
+  margin-bottom: 6px;
+  user-select: none;
+}
+
 .revision-reading-rail-track {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 20px;
   padding: 10px 0 10px 2px;
+  box-sizing: border-box;
 }
 
 /* Background static engineered track line */
@@ -227,7 +249,6 @@
   transform: translateX(-0.25px);
   max-height: calc(100% - 39px);
   background-color: var(--accent, #A3FF12);
-  box-shadow: 0 0 6px rgba(163, 255, 18, 0.35);
   pointer-events: none;
   border-radius: 1px;
   transform-origin: top;
@@ -235,25 +256,26 @@
 
 .revision-rail-step-wrapper {
   position: relative;
+  width: 100%;
 }
 
 .revision-rail-step {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   text-decoration: none;
   background: transparent;
   border: none;
   padding: 3px 0;
   cursor: pointer;
   outline: none;
-  transition: opacity var(--transition-fast, 150ms ease),
-              transform var(--transition-fast, 150ms ease);
+  transition: opacity var(--transition-fast, 150ms ease);
+  max-width: 100%;
 }
 
 .revision-rail-step:active {
-  transform: scale(0.96);
+  opacity: 0.8;
 }
 
 .revision-rail-step:focus-visible {
@@ -272,17 +294,16 @@
   flex-shrink: 0;
 }
 
-/* Inactive / Upcoming Marker: small, graphite, engineered */
+/* Inactive / Upcoming Marker: small 5px graphite dot */
 .revision-rail-bullet {
   width: 5px;
   height: 5px;
   border-radius: 50%;
   background-color: #27272A;
   border: 1px solid #3F3F46;
+  box-sizing: border-box;
   transition: background-color var(--transition-fast, 150ms ease),
-              border-color var(--transition-fast, 150ms ease),
-              transform var(--transition-fast, 150ms ease),
-              box-shadow var(--transition-fast, 150ms ease);
+              border-color var(--transition-fast, 150ms ease);
   z-index: 2;
   flex-shrink: 0;
 }
@@ -290,45 +311,51 @@
 .revision-rail-step:hover .revision-rail-bullet {
   background-color: #52525B;
   border-color: #71717A;
-  transform: scale(1.2);
 }
 
 /* Completed Marker: subtle muted lime tint, visually connected */
 .revision-rail-step.completed .revision-rail-bullet {
   background-color: rgba(163, 255, 18, 0.45);
-  border-color: rgba(163, 255, 18, 0.35);
-  box-shadow: 0 0 4px rgba(163, 255, 18, 0.2);
+  border-color: rgba(163, 255, 18, 0.45);
 }
 
 .revision-rail-step.completed:hover .revision-rail-bullet {
   background-color: rgba(163, 255, 18, 0.7);
-  border-color: var(--accent, #A3FF12);
-  transform: scale(1.2);
+  border-color: rgba(163, 255, 18, 0.7);
 }
 
 .revision-rail-step.completed .revision-rail-num {
   color: #A1A1AA;
 }
 
-/* Active Marker: crisp lime center + travelling outer ring */
+/* Active Marker: 5px crisp lime center */
 .revision-rail-step.active .revision-rail-bullet {
   width: 5px;
   height: 5px;
   background-color: var(--accent, #A3FF12);
   border-color: var(--accent, #A3FF12);
-  box-shadow: 0 0 6px rgba(163, 255, 18, 0.6);
-  transform: scale(1.1);
 }
 
-/* Travelling Active Outer Ring / Halo */
-.revision-rail-active-glow {
+/* Travelling Active Marker: small, understated 5px lime marker with precision index tick */
+.revision-rail-active-marker {
   position: absolute;
-  inset: -3px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  border: 1.5px solid var(--accent, #A3FF12);
-  background-color: rgba(163, 255, 18, 0.08);
-  box-shadow: 0 0 8px rgba(163, 255, 18, 0.3);
-  z-index: 1;
+  background-color: var(--accent, #A3FF12);
+  z-index: 3;
+  pointer-events: none;
+}
+
+.revision-rail-active-marker::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 3px;
+  height: 1px;
+  background-color: var(--accent, #A3FF12);
+  border-radius: 0.5px;
   pointer-events: none;
 }
 
@@ -343,8 +370,7 @@
   width: 18px;
   text-align: left;
   transition: color var(--transition-fast, 150ms ease),
-              text-shadow var(--transition-fast, 150ms ease),
-              transform var(--transition-fast, 150ms ease);
+              opacity var(--transition-fast, 150ms ease);
 }
 
 .revision-rail-step:hover .revision-rail-num {
@@ -352,14 +378,41 @@
 }
 
 .revision-rail-step.active .revision-rail-num {
-  color: #FFFFFF;
+  color: var(--accent, #A3FF12);
   font-weight: 600;
-  transform: translateX(1.5px);
-  text-shadow: 0 0 8px rgba(255, 255, 255, 0.25);
+}
+
+/* Clean Editorial Section Name in Vertical Rail */
+.revision-rail-label {
+  font-family: var(--font-body, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
+  font-size: 11px;
+  font-weight: 450;
+  line-height: 1.2;
+  color: #71717A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.01em;
+  transition: color var(--transition-fast, 150ms ease);
+}
+
+.revision-rail-step:hover .revision-rail-label {
+  color: #F4F4F5;
+}
+
+.revision-rail-step.completed .revision-rail-label {
+  color: #A1A1AA;
+}
+
+.revision-rail-step.active .revision-rail-label,
+.revision-section-nav-item.active .revision-nav-label {
+  color: var(--accent, #A3FF12);
+  font-weight: 600;
 }
 
 /* Sleek Instrument Hover Tooltip (Positioned to the LEFT of the right rail) */
 .revision-rail-tooltip {
+  display: none;
   position: absolute;
   right: calc(100% + 12px);
   left: auto;
@@ -379,15 +432,13 @@
   transition: opacity 160ms cubic-bezier(0.16, 1, 0.3, 1),
               transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 40;
-  display: flex;
-  align-items: center;
   gap: 7px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .revision-rail-step:hover .revision-rail-tooltip,
 .revision-rail-step:focus-visible .revision-rail-tooltip {
-  opacity: 1;
+  opacity: 0;
   transform: translateY(-50%) translateX(0);
   transition-delay: 50ms;
 }
@@ -437,10 +488,14 @@
 
 @media (prefers-reduced-motion: reduce) {
   .revision-rail-bullet,
+  .revision-rail-active-marker,
   .revision-rail-step,
   .revision-rail-num,
   .revision-rail-tooltip,
-  .revision-rail-progress-line {
+  .revision-rail-track-line,
+  .revision-rail-progress-line,
+  .revision-reading-rail-track,
+  .revision-rail-step-wrapper {
     transition: none !important;
     transform: none !important;
   }
@@ -537,7 +592,7 @@
 /* Dominant visual element: LEVEL 1 — CONCEPT TITLE */
 .revision-concept-title {
   font-family: var(--font-display, var(--font-body, 'Inter Tight', 'Inter', sans-serif));
-  font-size: clamp(34px, 4.2vw, 40px);
+  font-size: clamp(30px, 3.2vw, 34px);
   font-weight: 600;
   letter-spacing: -0.035em;
   line-height: 1.12;
@@ -583,7 +638,7 @@
   align-items: baseline;
   gap: 8px;
   font-family: var(--font-body, 'Inter', sans-serif);
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -595,7 +650,7 @@
 
 .revision-section-num {
   font-family: var(--font-mono, monospace);
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--accent, #A3FF12);
   letter-spacing: 0.08em;
@@ -921,11 +976,11 @@
    -------------------------------------------------------------------------- */
 .revision-explanation-lead {
   font-family: var(--font-body, 'Inter', sans-serif);
-  font-size: 19px;
-  font-weight: 500;
-  line-height: 1.5;
-  color: #F9FAFB;
-  letter-spacing: -0.01em;
+  font-size: 16.5px;
+  font-weight: 400;
+  line-height: 1.75;
+  color: #D1D5DB;
+  letter-spacing: normal;
   margin: 0 0 18px 0;
   max-width: 68ch;
 }
@@ -944,6 +999,46 @@
   line-height: 1.75;
   color: #D1D5DB;
   margin: 0;
+  max-width: 68ch;
+}
+
+.revision-editorial-p {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 16.5px;
+  font-weight: 400;
+  line-height: 1.75;
+  color: #D1D5DB;
+  margin: 0 0 18px 0;
+  max-width: 68ch;
+}
+
+.revision-editorial-p:last-child {
+  margin-bottom: 0;
+}
+
+.revision-editorial-subheading {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #F9FAFB;
+  letter-spacing: -0.01em;
+  margin: 22px 0 10px 0;
+  max-width: 68ch;
+}
+
+.revision-editorial-subheading:first-child {
+  margin-top: 0;
+}
+
+.revision-editorial-blockquote {
+  border-left: 2px solid rgba(255, 255, 255, 0.16);
+  padding-left: 14px;
+  margin: 18px 0;
+  color: #A1A1AA;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 15.5px;
+  line-height: 1.7;
   max-width: 68ch;
 }
 
@@ -1663,10 +1758,12 @@
 
 /* Formatted Lists */
 .revision-ordered-list {
-  margin: 10px 0 14px 0;
+  margin: 12px 0 16px 0;
   padding-left: 22px;
-  color: #C5C5C5;
-  line-height: 1.7;
+  color: #D1D5DB;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 16px;
+  line-height: 1.75;
 }
 
 .revision-ordered-list li {
@@ -1674,10 +1771,16 @@
 }
 
 .revision-unordered-list {
-  margin: 10px 0 14px 0;
+  margin: 12px 0 16px 0;
   padding-left: 20px;
-  color: #C5C5C5;
-  line-height: 1.7;
+  color: #D1D5DB;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+.revision-unordered-list li {
+  margin-bottom: 6px;
 }
 
 /* --------------------------------------------------------------------------
@@ -2142,10 +2245,14 @@ body.graph-fullscreen-active .revision-concept-navigation {
   color: #FFFFFF;
 }
 
-.revision-nav-right-cluster {
+.revision-nav-right-cluster,
+.revision-nav-right-slot {
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: flex-end;
+  position: relative;
+  min-width: 140px;
+  margin-left: auto;
 }
 
 .revision-nav-link.disabled::after,
@@ -2400,7 +2507,7 @@ body.graph-fullscreen-active .revision-concept-navigation {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--accent, #A3FF12);
+  color: var(--text-muted, #8E8E93);
   background: transparent;
   border: none;
   padding: 0;
@@ -3398,15 +3505,38 @@ body.graph-fullscreen-active .revision-concept-navigation {
 }
 
 .revision-complete-session-action {
-  color: var(--accent, #A3FF12);
-  border-color: rgba(163, 255, 18, 0.4);
-  background-color: rgba(163, 255, 18, 0.05);
+  background: transparent;
+  border: none;
+  padding: 4px 0;
+  color: var(--text-normal, #E4E4E7);
 }
 
-.revision-complete-session-action:hover {
-  background-color: rgba(163, 255, 18, 0.12);
-  border-color: var(--accent, #A3FF12);
+.revision-complete-session-action .revision-complete-label {
+  color: var(--accent, #A3FF12);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.revision-complete-session-action .revision-nav-arrow {
+  color: var(--accent, #A3FF12);
+  transition: transform var(--transition-fast, 150ms ease), color var(--transition-fast, 150ms ease);
+}
+
+.revision-complete-session-action::after {
+  transform-origin: right center;
+}
+
+.revision-complete-session-action:hover:not(:disabled) .revision-complete-label {
+  color: #BFFF3B;
+}
+
+.revision-complete-session-action:hover:not(:disabled) .revision-nav-dest-name {
   color: #FFFFFF;
+}
+
+.revision-complete-session-action:hover:not(:disabled) .revision-nav-arrow {
+  transform: translateX(3px);
+  color: #BFFF3B;
 }
 
 .revision-insights-container {
