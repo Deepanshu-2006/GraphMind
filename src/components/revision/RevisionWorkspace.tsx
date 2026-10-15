@@ -1407,10 +1407,16 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
 
   // Active section tracking for section jump nav highlighting
   const [activeSectionId, setActiveSectionId] = useState<string>('section-understanding');
+  const isProgrammaticScrollRef = useRef(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (activeSections.length > 0) {
       setActiveSectionId(activeSections[0].id);
+    }
+    isProgrammaticScrollRef.current = false;
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
     }
   }, [activeDisplayConcept?.id]);
 
@@ -1426,53 +1432,86 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
 
   const handleSectionClick = useCallback((secId: string) => {
     setActiveSectionId(secId);
+    isProgrammaticScrollRef.current = true;
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    // Lock manual detection for 650ms while smooth scrolling completes
+    scrollTimeoutRef.current = setTimeout(() => {
+      isProgrammaticScrollRef.current = false;
+    }, 650);
+
     const el = document.getElementById(secId);
     if (el) {
       el.scrollIntoView({ behavior: shouldReduceMotion ? 'auto' : 'smooth', block: 'start' });
     }
   }, [shouldReduceMotion]);
 
-  // Robust bottom-scroll observer so short trailing sections (e.g. Sources) activate when scrolled to the end
+  // Deterministic scroll tracker: reading zone beneath sticky header (140px) + bottom/top detection
   useEffect(() => {
     const rootEl = workspaceRootRef.current;
     if (!rootEl || activeSections.length === 0) return;
 
     const handleScroll = () => {
+      if (isProgrammaticScrollRef.current) return;
+
+      // 1. Bottom of document check (for short trailing sections such as Sources)
       if (rootEl.scrollHeight - rootEl.scrollTop - rootEl.clientHeight <= 40) {
-        setActiveSectionId(activeSections[activeSections.length - 1].id);
+        const lastSec = activeSections[activeSections.length - 1];
+        if (lastSec) setActiveSectionId(lastSec.id);
+        return;
+      }
+
+      // 2. Top of document check
+      if (rootEl.scrollTop <= 40) {
+        setActiveSectionId(activeSections[0].id);
+        return;
+      }
+
+      // 3. Reading zone detection: section crossing the 140px reading line beneath sticky header
+      const readingLine = 140;
+      let matchedSectionId = '';
+
+      for (let i = 0; i < activeSections.length; i++) {
+        const sec = activeSections[i];
+        const el = document.getElementById(sec.id);
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.top <= readingLine && rect.bottom > readingLine) {
+          matchedSectionId = sec.id;
+          break;
+        }
+      }
+
+      // If in transition between sections, find the closest preceding section
+      if (!matchedSectionId) {
+        let closestDist = Infinity;
+        for (let i = 0; i < activeSections.length; i++) {
+          const sec = activeSections[i];
+          const el = document.getElementById(sec.id);
+          if (!el) continue;
+          const rect = el.getBoundingClientRect();
+          if (rect.top <= readingLine) {
+            const dist = readingLine - rect.top;
+            if (dist < closestDist) {
+              closestDist = dist;
+              matchedSectionId = sec.id;
+            }
+          }
+        }
+      }
+
+      if (matchedSectionId) {
+        setActiveSectionId(matchedSectionId);
       }
     };
 
     rootEl.addEventListener('scroll', handleScroll, { passive: true });
-    return () => rootEl.removeEventListener('scroll', handleScroll);
+    return () => {
+      rootEl.removeEventListener('scroll', handleScroll);
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    };
   }, [activeSections]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return;
-    const sectionIds = activeSections.map(s => s.id);
-    const elements = sectionIds.map(id => document.getElementById(id)).filter(Boolean) as HTMLElement[];
-    if (elements.length === 0) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const intersecting = entries.filter(e => e.isIntersecting);
-        if (intersecting.length > 0) {
-          intersecting.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-          const topEl = intersecting[0];
-          if (topEl.target.id) {
-            setActiveSectionId(topEl.target.id);
-          }
-        }
-      },
-      {
-        rootMargin: '-10% 0px -65% 0px',
-        threshold: [0, 0.2]
-      }
-    );
-
-    elements.forEach(el => observer.observe(el));
-    return () => observer.disconnect();
-  }, [activeSections, activeDisplayConcept?.id]);
 
   // Section 06 Editorial Related Concepts renderer
   const renderRelatedConceptsSection = (secNum?: string) => {
@@ -1677,98 +1716,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
           -------------------------------------------------------------------- */}
       <main className="revision-reading-area" role="main" id="revision-content" tabIndex={-1}>
         <div className="revision-lesson-layout">
-          {/* LEFT COLUMN: Animated Vertical Lesson Navigation Rail (Visual Anchor) */}
-          {(explanationState.status === 'ready' || explanationState.status === 'outdated') && activeSections.length >= 2 && (
-            <aside className="revision-reading-rail" aria-label="Lesson navigation">
-              <nav className="revision-reading-rail-nav" aria-label="Lesson section steps">
-                <div className="revision-reading-rail-track" role="list">
-                  <motion.div
-                    className="revision-rail-track-line"
-                    aria-hidden="true"
-                    initial={hasPlayedEntry ? "settled" : "hidden"}
-                    animate="settled"
-                    variants={{
-                      hidden: { scaleY: shouldReduceMotion ? 1 : 0, originY: 0, opacity: shouldReduceMotion ? 1 : 0 },
-                      settled: {
-                        scaleY: 1,
-                        opacity: 1,
-                        transition: { duration: shouldReduceMotion ? 0 : 0.4, ease: WORKSPACE_EASING }
-                      }
-                    }}
-                  />
-                  <motion.div
-                    className="revision-rail-progress-line"
-                    aria-hidden="true"
-                    animate={{ height: `${progressRatio * 100}%` }}
-                    transition={{
-                      duration: shouldReduceMotion ? 0 : 0.26,
-                      ease: WORKSPACE_EASING
-                    }}
-                  />
-                  {activeSections.map((sec, idx) => {
-                    const isActive = activeSectionId === sec.id;
-                    const isCompleted = idx < activeSectionIndex;
-                    return (
-                      <motion.div
-                        key={sec.id}
-                        role="listitem"
-                        className="revision-rail-step-wrapper"
-                        initial={hasPlayedEntry ? "settled" : "hidden"}
-                        animate="settled"
-                        variants={{
-                          hidden: { opacity: 0, x: shouldReduceMotion ? 0 : -8 },
-                          settled: {
-                            opacity: 1,
-                            x: 0,
-                            transition: {
-                              duration: shouldReduceMotion ? 0 : 0.25,
-                              delay: shouldReduceMotion ? 0 : 0.12 + (idx * 0.05),
-                              ease: WORKSPACE_EASING
-                            }
-                          }
-                        }}
-                      >
-                        <a
-                          href={`#${sec.id}`}
-                          className={`revision-rail-step ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
-                          title={`${sec.num} · ${sec.label}`}
-                          aria-current={isActive ? 'true' : undefined}
-                          aria-label={`Section ${sec.num}: ${sec.label}${isActive ? ' (Current section)' : isCompleted ? ' (Completed)' : ''}`}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleSectionClick(sec.id);
-                          }}
-                        >
-                          <span className="revision-rail-bullet-container">
-                            <span className="revision-rail-bullet" aria-hidden="true" />
-                            {isActive && (
-                              <motion.span
-                                layoutId="active-rail-indicator"
-                                className="revision-rail-active-glow"
-                                transition={{
-                                  type: "spring",
-                                  stiffness: 380,
-                                  damping: 30,
-                                  duration: shouldReduceMotion ? 0 : 0.26
-                                }}
-                              />
-                            )}
-                          </span>
-                          <span className="revision-rail-num">{sec.num}</span>
-                          <span className="revision-rail-tooltip" role="tooltip">
-                            <span className="revision-rail-tooltip-num">{sec.num}</span>
-                            <span className="revision-rail-tooltip-label">{sec.label}</span>
-                          </span>
-                        </a>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </nav>
-            </aside>
-          )}
-
-          {/* RIGHT COLUMN: Centered Reading Column */}
+          {/* MAIN READING COLUMN */}
           <motion.div
             className="revision-reading-column"
             variants={workspaceArrivalVariants}
@@ -2589,6 +2537,103 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
             </div>
           )}
         </motion.div>
+
+        {/* RIGHT COLUMN: Animated Vertical Lesson Navigation Rail */}
+        {(explanationState.status === 'ready' || explanationState.status === 'outdated') && activeSections.length >= 2 && (
+          <aside className="revision-reading-rail" aria-label="Lesson navigation">
+            <nav className="revision-reading-rail-nav" aria-label="Lesson section steps">
+              <div className="revision-reading-rail-track" role="list">
+                <motion.div
+                  className="revision-rail-track-line"
+                  aria-hidden="true"
+                  initial={hasPlayedEntry ? "settled" : "hidden"}
+                  animate="settled"
+                  variants={{
+                    hidden: { scaleY: shouldReduceMotion ? 1 : 0, originY: 0, opacity: shouldReduceMotion ? 1 : 0 },
+                    settled: {
+                      scaleY: 1,
+                      opacity: 1,
+                      transition: { duration: shouldReduceMotion ? 0 : 0.4, ease: WORKSPACE_EASING }
+                    }
+                  }}
+                />
+                <motion.div
+                  className="revision-rail-progress-line"
+                  aria-hidden="true"
+                  animate={{ height: `calc((100% - 39px) * ${progressRatio})` }}
+                  transition={{
+                    duration: shouldReduceMotion ? 0 : 0.28,
+                    ease: WORKSPACE_EASING
+                  }}
+                />
+                {activeSections.map((sec, idx) => {
+                  const isActive = activeSectionId === sec.id;
+                  const isCompleted = idx < activeSectionIndex;
+                  return (
+                    <motion.div
+                      key={sec.id}
+                      role="listitem"
+                      className="revision-rail-step-wrapper"
+                      initial={hasPlayedEntry ? "settled" : "hidden"}
+                      animate="settled"
+                      variants={{
+                        hidden: { opacity: 0, x: shouldReduceMotion ? 0 : 8 },
+                        settled: {
+                          opacity: 1,
+                          x: 0,
+                          transition: {
+                            duration: shouldReduceMotion ? 0 : 0.25,
+                            delay: shouldReduceMotion ? 0 : 0.12 + (idx * 0.05),
+                            ease: WORKSPACE_EASING
+                          }
+                        }
+                      }}
+                    >
+                      <a
+                        href={`#${sec.id}`}
+                        className={`revision-rail-step ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+                        title={`${sec.num} · ${sec.label}`}
+                        aria-current={isActive ? 'true' : undefined}
+                        aria-label={`Section ${sec.num}: ${sec.label}${isActive ? ' (Current section)' : isCompleted ? ' (Completed)' : ''}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleSectionClick(sec.id);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === ' ' || e.key === 'Spacebar') {
+                            e.preventDefault();
+                            handleSectionClick(sec.id);
+                          }
+                        }}
+                      >
+                        <span className="revision-rail-bullet-container">
+                          <span className="revision-rail-bullet" aria-hidden="true" />
+                          {isActive && (
+                            <motion.span
+                              layoutId="active-rail-indicator"
+                              className="revision-rail-active-glow"
+                              transition={shouldReduceMotion ? { duration: 0 } : {
+                                type: "spring",
+                                stiffness: 350,
+                                damping: 30
+                              }}
+                            />
+                          )}
+                        </span>
+                        <span className="revision-rail-num">{sec.num}</span>
+                        <span className="revision-rail-tooltip" role="tooltip">
+                          <span className="revision-rail-tooltip-num">{sec.num}</span>
+                          <span className="revision-rail-tooltip-sep" aria-hidden="true">—</span>
+                          <span className="revision-rail-tooltip-label">{sec.label}</span>
+                        </span>
+                      </a>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </nav>
+          </aside>
+        )}
       </div>
     </main>
 

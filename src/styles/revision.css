@@ -131,36 +131,50 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  gap: 32px;
-  max-width: 876px;
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 0 24px;
+  padding-left: 76px;  /* 48px (rail width) + 28px (clearance) to keep reading column symmetrically centered */
+  padding-right: 28px; /* Clean, intentional clearance from the right scrollbar */
   box-sizing: border-box;
   position: relative;
 }
 
 .revision-reading-column {
-  max-width: 780px;
+  max-width: 760px;
   width: 100%;
-  margin: 0;
+  min-width: 0;
+  margin: 0 auto;
   padding: 56px 16px calc(120px + max(16px, env(safe-area-inset-bottom)));
   box-sizing: border-box;
 }
 
 /* --------------------------------------------------------------------------
-   2B. VERTICAL READING-PROGRESS RAIL (Left Visual Anchor & Lesson Navigator)
-   Positioned strictly to the LEFT of the reading column via flex composition
+   2B. VERTICAL READING-PROGRESS RAIL (Right Lesson Navigator)
+   Positioned strictly to the RIGHT of the reading column via flex composition,
+   shifted close to the right scrollbar with a clean clearance distance, and
+   vertically CENTERED within the usable viewport between the top workspace
+   navigation and fixed bottom navigation.
    -------------------------------------------------------------------------- */
 .revision-reading-rail {
-  width: 56px;
+  --rail-top-nav: 55px;
+  --rail-bottom-nav: 64px;
+  --rail-global-topbar: var(--topbar-height, 52px);
+  --rail-nav-overhead: calc(var(--rail-global-topbar) + var(--rail-top-nav) + var(--rail-bottom-nav));
+  --rail-usable-height: calc(100vh - var(--rail-nav-overhead));
+  --rail-sticky-center: calc(var(--rail-top-nav) + (var(--rail-usable-height) / 2));
+
+  width: 48px;
   flex-shrink: 0;
+  margin-left: auto;
   position: sticky;
-  top: 76px;
+  top: max(calc(var(--rail-top-nav) + 110px), var(--rail-sticky-center));
+  transform: translateY(-50%);
   align-self: flex-start;
   z-index: 25;
   display: flex;
   flex-direction: column;
-  padding-top: 56px; /* Exact visual alignment with .revision-reading-column top padding */
+  padding-top: 0;
   box-sizing: border-box;
   pointer-events: auto;
 }
@@ -175,44 +189,48 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 8px 0 8px 4px;
+  gap: 20px;
+  padding: 10px 0 10px 2px;
 }
 
-/* Background static track line */
+/* Background static engineered track line */
 .revision-rail-track-line {
   position: absolute;
-  left: 9px;
-  top: 14px;
-  bottom: 14px;
+  left: 8px;
+  top: 19.5px;
+  bottom: 19.5px;
   width: 1px;
   background-color: rgba(255, 255, 255, 0.08);
   pointer-events: none;
   transform-origin: top;
+  border-radius: 0.5px;
 }
 
 /* Backward-compatible selector for existing test checks */
 .revision-reading-rail-track::before {
   content: '';
   position: absolute;
-  left: 9px;
-  top: 14px;
-  bottom: 14px;
+  left: 8px;
+  top: 19.5px;
+  bottom: 19.5px;
   width: 1px;
   background-color: rgba(255, 255, 255, 0.08);
   pointer-events: none;
 }
 
-/* Dynamic lime progress fill */
+/* Dynamic engineered lime progress segment */
 .revision-rail-progress-line {
   position: absolute;
-  left: 9px;
-  top: 14px;
-  width: 1px;
-  max-height: calc(100% - 28px);
+  left: 8px;
+  top: 19.5px;
+  width: 1.5px;
+  transform: translateX(-0.25px);
+  max-height: calc(100% - 39px);
   background-color: var(--accent, #A3FF12);
-  opacity: 0.6;
+  box-shadow: 0 0 6px rgba(163, 255, 18, 0.35);
   pointer-events: none;
+  border-radius: 1px;
+  transform-origin: top;
 }
 
 .revision-rail-step-wrapper {
@@ -223,34 +241,25 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   text-decoration: none;
   background: transparent;
   border: none;
   padding: 3px 0;
   cursor: pointer;
+  outline: none;
   transition: opacity var(--transition-fast, 150ms ease),
               transform var(--transition-fast, 150ms ease);
-  opacity: 0.4;
-  outline: none;
-}
-
-.revision-rail-step:hover {
-  opacity: 0.9;
-}
-
-.revision-rail-step.active {
-  opacity: 1;
 }
 
 .revision-rail-step:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
 }
 
 .revision-rail-step:focus-visible {
-  outline: 1px solid var(--accent, #A3FF12);
-  outline-offset: 3px;
-  border-radius: 2px;
+  outline: 1.5px solid var(--accent, #A3FF12);
+  outline-offset: 4px;
+  border-radius: 3px;
 }
 
 .revision-rail-bullet-container {
@@ -258,75 +267,108 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 11px;
-  height: 11px;
+  width: 13px;
+  height: 13px;
   flex-shrink: 0;
 }
 
+/* Inactive / Upcoming Marker: small, graphite, engineered */
 .revision-rail-bullet {
-  width: 7px;
-  height: 7px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background-color: #3F3F46;
-  border: 1px solid rgba(10, 10, 10, 0.9);
+  background-color: #27272A;
+  border: 1px solid #3F3F46;
   transition: background-color var(--transition-fast, 150ms ease),
               border-color var(--transition-fast, 150ms ease),
-              transform var(--transition-fast, 150ms ease);
+              transform var(--transition-fast, 150ms ease),
+              box-shadow var(--transition-fast, 150ms ease);
   z-index: 2;
   flex-shrink: 0;
 }
 
-/* Subtle Completed State for passed sections */
+.revision-rail-step:hover .revision-rail-bullet {
+  background-color: #52525B;
+  border-color: #71717A;
+  transform: scale(1.2);
+}
+
+/* Completed Marker: subtle muted lime tint, visually connected */
 .revision-rail-step.completed .revision-rail-bullet {
-  background-color: rgba(163, 255, 18, 0.35);
-  border-color: rgba(163, 255, 18, 0.2);
+  background-color: rgba(163, 255, 18, 0.45);
+  border-color: rgba(163, 255, 18, 0.35);
+  box-shadow: 0 0 4px rgba(163, 255, 18, 0.2);
+}
+
+.revision-rail-step.completed:hover .revision-rail-bullet {
+  background-color: rgba(163, 255, 18, 0.7);
+  border-color: var(--accent, #A3FF12);
+  transform: scale(1.2);
 }
 
 .revision-rail-step.completed .revision-rail-num {
   color: #A1A1AA;
 }
 
-/* Active State */
+/* Active Marker: crisp lime center + travelling outer ring */
 .revision-rail-step.active .revision-rail-bullet {
+  width: 5px;
+  height: 5px;
   background-color: var(--accent, #A3FF12);
   border-color: var(--accent, #A3FF12);
-  box-shadow: 0 0 8px rgba(163, 255, 18, 0.45);
-  transform: scale(1.15);
+  box-shadow: 0 0 6px rgba(163, 255, 18, 0.6);
+  transform: scale(1.1);
 }
 
+/* Travelling Active Outer Ring / Halo */
 .revision-rail-active-glow {
   position: absolute;
-  inset: -2px;
+  inset: -3px;
   border-radius: 50%;
-  border: 1px solid rgba(163, 255, 18, 0.5);
+  border: 1.5px solid var(--accent, #A3FF12);
+  background-color: rgba(163, 255, 18, 0.08);
+  box-shadow: 0 0 8px rgba(163, 255, 18, 0.3);
   z-index: 1;
   pointer-events: none;
 }
 
+/* Monospace Two-Digit Section Number */
 .revision-rail-num {
   font-family: var(--font-mono, monospace);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
   letter-spacing: 0.06em;
-  color: #71717A;
-  transition: color var(--transition-fast, 150ms ease);
+  color: #52525B;
+  width: 18px;
+  text-align: left;
+  transition: color var(--transition-fast, 150ms ease),
+              text-shadow var(--transition-fast, 150ms ease),
+              transform var(--transition-fast, 150ms ease);
+}
+
+.revision-rail-step:hover .revision-rail-num {
+  color: #D4D4D8;
 }
 
 .revision-rail-step.active .revision-rail-num {
   color: #FFFFFF;
   font-weight: 600;
+  transform: translateX(1.5px);
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.25);
 }
 
-/* Sleek Hover Tooltip */
+/* Sleek Instrument Hover Tooltip (Positioned to the LEFT of the right rail) */
 .revision-rail-tooltip {
   position: absolute;
-  left: calc(100% + 12px);
+  right: calc(100% + 12px);
+  left: auto;
   top: 50%;
-  transform: translateY(-50%) translateX(-4px);
-  background-color: #18181B;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  transform: translateY(-50%) translateX(4px);
+  background-color: #141416;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: #F4F4F5;
-  padding: 4px 9px;
+  padding: 4px 10px;
   border-radius: 4px;
   font-family: var(--font-body, 'Inter', sans-serif);
   font-size: 11px;
@@ -334,35 +376,45 @@
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 160ms ease, transform 160ms ease;
+  transition: opacity 160ms cubic-bezier(0.16, 1, 0.3, 1),
+              transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 40;
   display: flex;
   align-items: center;
-  gap: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  gap: 7px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .revision-rail-step:hover .revision-rail-tooltip,
 .revision-rail-step:focus-visible .revision-rail-tooltip {
   opacity: 1;
   transform: translateY(-50%) translateX(0);
+  transition-delay: 50ms;
 }
 
 .revision-rail-tooltip-num {
   font-family: var(--font-mono, monospace);
   color: var(--accent, #A3FF12);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.revision-rail-tooltip-sep {
+  color: #52525B;
   font-size: 10px;
 }
 
 .revision-rail-tooltip-label {
   color: #E4E4E7;
+  font-size: 11px;
+  letter-spacing: -0.01em;
 }
 
 /* Responsive Breakpoints */
 @media (min-width: 901px) and (max-width: 1180px) {
   .revision-lesson-layout {
-    gap: 20px;
-    padding: 0 16px;
+    padding-left: 68px;
+    padding-right: 20px;
   }
   .revision-reading-rail {
     width: 48px;
