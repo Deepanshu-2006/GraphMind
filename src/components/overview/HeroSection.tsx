@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { motion, useMotionValue, useSpring, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { ArrowUp, ArrowRight } from 'lucide-react';
 import { KnowledgeOrb3D } from './KnowledgeOrb3D';
+import { personaTransitionController } from '../persona/personaTransition';
 import type { KnowledgeGraph, KnowledgeGraphMeta } from '../../types/knowledgeGraph';
 import { useGraph } from '../../context/GraphContext';
 import { generateGraphDescription } from '../../services/editorialCopy';
@@ -34,6 +35,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   const shouldReduceMotion = useReducedMotion();
   const graphContext = useGraph();
   const effectiveGraph = graph !== undefined ? graph : graphContext?.activeGraph;
+
+  const [transitionState, setTransitionState] = useState(personaTransitionController.state);
+  useEffect(() => {
+    return personaTransitionController.subscribe(setTransitionState);
+  }, []);
 
   // Dynamic editorial description derived deterministically from actual graph concepts
   const heroDescription = useMemo(() => {
@@ -159,12 +165,19 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       <KnowledgeOrb3D scrollProgress={smoothScroll} />
 
       {/* Layer 2: Editorial Spatial Depth & Vignette */}
-      <div className="overview-hero-vignette" aria-hidden="true" />
+      <motion.div 
+        className="overview-hero-vignette" 
+        aria-hidden="true" 
+        animate={{ opacity: transitionState !== 'HERO_IDLE' ? 0 : 1 }}
+        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      />
 
       {/* Layer 3: Editorial Typography & Actions */}
       <motion.div 
         className="overview-hero-content"
         style={{ x: textParallaxX, y: textParallaxY }}
+        animate={{ opacity: transitionState !== 'HERO_IDLE' ? 0 : 1 }}
+        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       >
         {/* Eyebrow: Editorial section label with tiny GraphMind green marker */}
         <motion.div 
@@ -404,8 +417,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         className="overview-hero-cue" 
         aria-hidden="true"
         initial={{ opacity: 0 }}
-        animate={{ opacity: cueOpacity }}
-        transition={{ delay: 0.9, duration: 0.7 }}
+        animate={{ opacity: transitionState !== 'HERO_IDLE' ? 0 : cueOpacity }}
+        transition={{ duration: 0.35 }}
       >
         <span className="hero-cue-text">Scroll to explore</span>
         <span className="hero-cue-arrow">↓</span>

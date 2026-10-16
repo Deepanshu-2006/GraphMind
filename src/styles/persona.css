@@ -6,12 +6,25 @@
   width: 100vw;
   height: 100vh;
   z-index: 9999;
-  background-color: var(--bg-app, #0A0A0A);
+  background-color: transparent;
   color: var(--text-primary, #F5F5F5);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   user-select: none;
+}
+
+.persona-experience-root.solid-backdrop {
+  background-color: var(--bg-app, #0A0A0A);
+}
+
+/* Hide underlying workspace chrome during active Persona experience */
+.app-shell.persona-active .app-sidebar,
+.app-shell.persona-active .app-topbar,
+.app-shell.persona-active .topbar {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Background Atmosphere Canvas */
@@ -27,7 +40,7 @@
 /* Persona Header: Minimal editorial exit bar */
 .persona-header {
   position: relative;
-  z-index: 10;
+  z-index: 10001;
   display: flex;
   align-items: center;
   justify-content: space-between;

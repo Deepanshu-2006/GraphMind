@@ -59,7 +59,7 @@ export const AppShell: React.FC<AppShellProps> = ({
 
   return (
     <div
-      className={`app-shell ${isGraphFullscreen ? 'graph-fullscreen-active' : ''}`}
+      className={`app-shell ${isGraphFullscreen ? 'graph-fullscreen-active' : ''} ${isPersonaOpen ? 'persona-active' : ''}`}
       aria-hidden={isPersonaOpen}
       inert={isPersonaOpen ? '' : undefined}
     >

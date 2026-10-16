@@ -19,6 +19,7 @@ import { pipelineOrchestrator, type PipelineStage, type PipelineProgressEvent } 
 import { DEFAULT_MIGRATION_GRAPH_ID } from './services/storage';
 import { GraphProvider, useGraph } from './context/GraphContext';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { personaTransitionController } from './components/persona/personaTransition';
 import type { NavSection, RecentMaterial, ProjectWorkspace } from './types';
 
 export function AppContent() {
@@ -48,6 +49,7 @@ export function AppContent() {
 
   const handleOpenPersona = useCallback(() => {
     if (isPersonaOpen) return; // Prevent double activation
+    personaTransitionController.triggerOrbToHuman();
     if (typeof window !== 'undefined') {
       previousPathRef.current = window.location.pathname + window.location.search;
       setIsPersonaOpen(true);
@@ -62,6 +64,7 @@ export function AppContent() {
   const handleClosePersona = useCallback(() => {
     if (!isPersonaOpen) return;
     setIsPersonaOpen(false);
+    personaTransitionController.resetToHero();
     if (typeof window !== 'undefined') {
       const fallbackPath = currentSection === 'overview' ? '/' : `/${currentSection}`;
       const targetPath = previousPathRef.current || fallbackPath;
@@ -533,6 +536,7 @@ export function AppContent() {
           <PersonaExperience
             isOpen={isPersonaOpen}
             onClose={handleClosePersona}
+            characterSlot={<div className="persona-stage-placeholder" />}
           />
         )}
       </AnimatePresence>

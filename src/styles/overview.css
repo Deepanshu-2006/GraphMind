@@ -48,6 +48,15 @@
   z-index: 1;
 }
 
+.overview-hero-canvas-container.in-persona-transition {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9998 !important;
+  pointer-events: none !important;
+}
+
 .overview-hero-particle-canvas,
 .overview-hero-orb-canvas,
 .overview-hero-canvas {

@@ -3,6 +3,7 @@ import { motion, useReducedMotion, type Variants } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { PersonaAtmosphere } from './PersonaAtmosphere';
 import { PersonaHumanoidCanvas, type PersonaAnimationState } from './PersonaHumanoidCanvas';
+import { personaTransitionController, type PersonaTransitionState } from './personaTransition';
 
 export interface PersonaExperienceProps {
   isOpen: boolean;
@@ -21,6 +22,19 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const shouldReduceMotion = useReducedMotion();
   const [animationState, setAnimationState] = useState<PersonaAnimationState>('INITIALIZING');
+
+  // Synchronize status indicator with the shared persona transition controller
+  useEffect(() => {
+    return personaTransitionController.subscribe((state) => {
+      if (state === 'ORB_TO_HUMAN') {
+        setAnimationState('FORMING_HUMANOID');
+      } else if (state === 'HUMAN_FORMED' || state === 'PERSONA_READY') {
+        setAnimationState('IDLE');
+      } else if (state === 'HERO_IDLE') {
+        setAnimationState('INITIALIZING');
+      }
+    });
+  }, []);
 
   // Focus management: cache last active element and focus exit button
   useEffect(() => {

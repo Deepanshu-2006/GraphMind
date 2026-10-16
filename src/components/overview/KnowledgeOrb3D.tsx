@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { personaTransitionController, type PersonaTransitionState } from '../persona/personaTransition';
+import { PERSONA_SURFACE_POINTS } from '../persona/personaSurfaceData';
 
 /**
  * KnowledgeOrb3D — "PHYSICAL FLUID KNOWLEDGE ORB"
@@ -85,6 +87,19 @@ interface ParticleData {
   baseG: number;
   baseB: number;
   isFocal: boolean;
+
+  // Human Silhouette Transformation
+  transStartX: number;
+  transStartY: number;
+  transStartZ: number;
+  transTargetX: number;
+  transTargetY: number;
+  transTargetZ: number;
+  transMidX: number;
+  transMidY: number;
+  transMidZ: number;
+  transDelay: number;
+  transDuration: number;
 }
 
 interface GraphConnection {
@@ -200,10 +215,8 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
 
     // 3. Volumetric Particle Initialization
     const getParticleCount = (w: number): number => {
-      if (prefersReducedMotion) return 180;
-      if (w < 560) return 240;
-      if (w < 960) return 460;
-      return 760; // Optimal density with rock-solid 120fps performance
+      if (prefersReducedMotion) return 400;
+      return 2400; // 2,400 precision surface points matching human character silhouette
     };
 
     const particleCount = getParticleCount(window.innerWidth);
@@ -331,7 +344,18 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
         baseR,
         baseG,
         baseB,
-        isFocal
+        isFocal,
+        transStartX: 0,
+        transStartY: 0,
+        transStartZ: 0,
+        transTargetX: 0,
+        transTargetY: 0,
+        transTargetZ: 0,
+        transMidX: 0,
+        transMidY: 0,
+        transMidZ: 0,
+        transDelay: 0,
+        transDuration: 1.5
       });
 
       positionsArray[i * 3] = startX;
@@ -595,12 +619,294 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
     targetElement.addEventListener('pointerleave', handlePointerLeave, { passive: true });
     targetElement.addEventListener('pointerdown', handlePointerDown, { passive: true });
 
+    // 7. GraphMind Persona — Hero Orb to Human Character Transition Controller
+    let transitionState: PersonaTransitionState = personaTransitionController.state;
+    let transitionStartTime = 0;
+    let resetStartTime = 0;
+    const TRANSITION_DURATION = prefersReducedMotion ? 0.05 : 2.0;
+    const RESET_DURATION = prefersReducedMotion ? 0.05 : 0.85;
+
+    // Temporary vectors to avoid garbage collection spikes in 60/120fps loop
+    const tempWorldPos = new THREE.Vector3();
+    const tempLocalPos = new THREE.Vector3();
+
+    const startOrbToHuman = () => {
+      transitionStartTime = performance.now();
+      container.classList.add('in-persona-transition');
+      handleResize();
+
+      // Ensure matrix world is fresh
+      orbGroup.updateMatrixWorld(true);
+
+      for (let i = 0; i < particleCount; i++) {
+        const p = particles[i];
+        tempLocalPos.set(p.x, p.y, p.z);
+        tempWorldPos.copy(tempLocalPos).applyMatrix4(orbGroup.matrixWorld);
+
+        p.transStartX = tempWorldPos.x;
+        p.transStartY = tempWorldPos.y;
+        p.transStartZ = tempWorldPos.z;
+
+        const target = PERSONA_SURFACE_POINTS[i % PERSONA_SURFACE_POINTS.length];
+        p.transTargetX = target.x;
+        p.transTargetY = target.y;
+        p.transTargetZ = target.z;
+
+        // Arched mid-point for curved 3D stream:
+        // Lifting upward (y) and depth variation (z) for an organic vortex
+        p.transMidX = (p.transStartX + p.transTargetX) * 0.5 + (Math.random() - 0.5) * 0.25;
+        p.transMidY = (p.transStartY + p.transTargetY) * 0.5 + 0.28 + Math.random() * 0.22;
+        p.transMidZ = (p.transStartZ + p.transTargetZ) * 0.5 + (Math.random() - 0.5) * 0.35;
+
+        // Wave ascending from chest to head
+        const normY = Math.max(0, Math.min(1, (target.y - (-0.36)) / (0.26 - (-0.36))));
+        p.transDelay = prefersReducedMotion ? 0 : normY * 0.28 + Math.random() * 0.16;
+        p.transDuration = prefersReducedMotion ? 0.05 : 1.35 + Math.random() * 0.25;
+
+        p.x = p.transStartX;
+        p.y = p.transStartY;
+        p.z = p.transStartZ;
+        p.vx = 0;
+        p.vy = 0;
+        p.vz = 0;
+      }
+
+      orbGroup.position.set(0, 0, 0);
+      orbGroup.rotation.set(0, 0, 0);
+      orbGroup.scale.set(1, 1, 1);
+      orbGroup.updateMatrixWorld(true);
+    };
+
+    const startResetToHero = () => {
+      resetStartTime = performance.now();
+      orbGroup.updateMatrixWorld(true);
+
+      for (let i = 0; i < particleCount; i++) {
+        const p = particles[i];
+        p.transStartX = p.x;
+        p.transStartY = p.y;
+        p.transStartZ = p.z;
+
+        p.transTargetX = homePosition.x + p.sphereX;
+        p.transTargetY = homePosition.y + p.sphereY;
+        p.transTargetZ = homePosition.z + p.sphereZ;
+
+        p.transMidX = (p.transStartX + p.transTargetX) * 0.5;
+        p.transMidY = (p.transStartY + p.transTargetY) * 0.5 + 0.15;
+        p.transMidZ = (p.transStartZ + p.transTargetZ) * 0.5;
+
+        p.transDelay = prefersReducedMotion ? 0 : Math.random() * 0.12;
+        p.transDuration = prefersReducedMotion ? 0.05 : 0.65 + Math.random() * 0.15;
+      }
+    };
+
+    const finishResetToHero = () => {
+      container.classList.remove('in-persona-transition');
+      handleResize();
+      orbGroup.position.copy(homePosition);
+      orbGroup.rotation.set(0, 0, 0);
+      orbGroup.scale.copy(homeScale);
+      orbGroup.updateMatrixWorld(true);
+
+      for (let i = 0; i < particleCount; i++) {
+        const p = particles[i];
+        p.x = p.sphereX;
+        p.y = p.sphereY;
+        p.z = p.sphereZ;
+        p.vx = 0;
+        p.vy = 0;
+        p.vz = 0;
+      }
+
+      camera.position.set(0, 0, 5.2);
+      camera.fov = 44;
+      camera.lookAt(0, 0, 0);
+      camera.updateProjectionMatrix();
+
+      pointsMaterial.size = 0.048;
+      linesMaterial.opacity = 0.52;
+    };
+
+    const unsubscribeTransition = personaTransitionController.subscribe((state) => {
+      const prevState = transitionState;
+      transitionState = state;
+      if (state === 'ORB_TO_HUMAN' && prevState !== 'ORB_TO_HUMAN') {
+        startOrbToHuman();
+      } else if (state === 'HERO_IDLE' && (prevState === 'ORB_TO_HUMAN' || prevState === 'HUMAN_FORMED')) {
+        startResetToHero();
+      }
+    });
+
+    // If already in ORB_TO_HUMAN or HUMAN_FORMED at mount
+    if (transitionState === 'ORB_TO_HUMAN') {
+      startOrbToHuman();
+    }
+
     /**
      * Continuous Frame-Rate Independent Physics Simulation Loop (Section 30)
      */
     const animate = (now: number) => {
       animationFrameId = requestAnimationFrame(animate);
       if (!isVisible || width === 0 || height === 0) return;
+
+      // ----------------------------------------------------
+      // A. Active Transformation: ORB_TO_HUMAN
+      // ----------------------------------------------------
+      if (transitionState === 'ORB_TO_HUMAN') {
+        const elapsed = (now - transitionStartTime) * 0.001;
+        const progress = Math.min(1.0, elapsed / TRANSITION_DURATION);
+
+        // Smooth cubic easing for camera fly-in / focus pull
+        const camEase = smoothstep(0.0, 1.0, progress);
+        camera.position.set(
+          0,
+          0,
+          THREE.MathUtils.lerp(5.2, 1.48, camEase)
+        );
+        camera.fov = THREE.MathUtils.lerp(44, 30, camEase);
+        camera.lookAt(0, 0, 0);
+        camera.updateProjectionMatrix();
+
+        pointsMaterial.size = THREE.MathUtils.lerp(0.048, 0.0075, camEase);
+
+        // Fade relationship lines rapidly within initial 350ms
+        const lineFade = Math.max(0, 1.0 - elapsed / 0.35);
+        linesMaterial.opacity = 0.52 * lineFade;
+
+        const posAttr = pointsGeometry.attributes.position;
+        const colAttr = pointsGeometry.attributes.color;
+        const sizesAttr = pointsGeometry.attributes.pSize;
+
+        for (let i = 0; i < particleCount; i++) {
+          const p = particles[i];
+          const pTime = Math.max(0, elapsed - p.transDelay);
+          const rawP = Math.min(1.0, pTime / p.transDuration);
+
+          // Smooth cubic trajectory easing
+          const u = rawP * rawP * (3 - 2 * rawP);
+          const invU = 1 - u;
+          const b0 = invU * invU;
+          const b1 = 2 * invU * u;
+          const b2 = u * u;
+
+          p.x = b0 * p.transStartX + b1 * p.transMidX + b2 * p.transTargetX;
+          p.y = b0 * p.transStartY + b1 * p.transMidY + b2 * p.transTargetY;
+          p.z = b0 * p.transStartZ + b1 * p.transMidZ + b2 * p.transTargetZ;
+
+          posAttr.setXYZ(i, p.x, p.y, p.z);
+
+          // Luminous arrival effect
+          const isHead = p.transTargetY >= 0.05;
+          const arrivalPulse = Math.sin(rawP * Math.PI) * 0.35;
+
+          let targetR = 0.16;
+          let targetG = 0.52;
+          let targetB = 0.10;
+
+          if (p.isFocal || isHead) {
+            targetR = 0.58 + arrivalPulse;
+            targetG = 0.98 + arrivalPulse * 0.02;
+            targetB = 0.07;
+          } else {
+            targetR = 0.20 + arrivalPulse * 0.4;
+            targetG = 0.62 + arrivalPulse * 0.3;
+            targetB = 0.09;
+          }
+
+          const curR = THREE.MathUtils.lerp(p.baseR, targetR, u);
+          const curG = THREE.MathUtils.lerp(p.baseG, targetG, u);
+          const curB = THREE.MathUtils.lerp(p.baseB, targetB, u);
+          colAttr.setXYZ(i, curR, curG, curB);
+
+          const targetScale = p.isFocal ? 1.6 : 1.1;
+          sizesAttr.setX(i, THREE.MathUtils.lerp(p.baseSize, targetScale, u));
+        }
+
+        posAttr.needsUpdate = true;
+        colAttr.needsUpdate = true;
+        sizesAttr.needsUpdate = true;
+
+        if (progress >= 1.0) {
+          personaTransitionController.completeHumanFormed();
+          transitionState = 'HUMAN_FORMED';
+        }
+
+        renderer.render(scene, camera);
+        return;
+      }
+
+      // ----------------------------------------------------
+      // B. Stabilized State: HUMAN_FORMED
+      // ----------------------------------------------------
+      if (transitionState === 'HUMAN_FORMED') {
+        camera.position.set(0, 0.0, 1.48);
+        camera.fov = 30;
+        camera.lookAt(0, 0, 0);
+        camera.updateProjectionMatrix();
+
+        pointsMaterial.size = 0.0075;
+        linesMaterial.opacity = 0;
+
+        // Rock-solid stable: no floating, no drift, stable silhouette
+        renderer.render(scene, camera);
+        return;
+      }
+
+      // ----------------------------------------------------
+      // C. Reverse Transformation: Reset to Hero Orb
+      // ----------------------------------------------------
+      if (resetStartTime > 0) {
+        const elapsed = (now - resetStartTime) * 0.001;
+        const progress = Math.min(1.0, elapsed / RESET_DURATION);
+        const camEase = smoothstep(0.0, 1.0, progress);
+
+        camera.position.set(
+          0,
+          0,
+          THREE.MathUtils.lerp(1.48, 5.2, camEase)
+        );
+        camera.fov = THREE.MathUtils.lerp(30, 44, camEase);
+        camera.lookAt(0, 0, 0);
+        camera.updateProjectionMatrix();
+
+        pointsMaterial.size = THREE.MathUtils.lerp(0.0075, 0.048, camEase);
+        linesMaterial.opacity = 0.52 * camEase;
+
+        const posAttr = pointsGeometry.attributes.position;
+        const colAttr = pointsGeometry.attributes.color;
+        const sizesAttr = pointsGeometry.attributes.pSize;
+
+        for (let i = 0; i < particleCount; i++) {
+          const p = particles[i];
+          const pTime = Math.max(0, elapsed - p.transDelay);
+          const rawP = Math.min(1.0, pTime / p.transDuration);
+          const u = rawP * rawP * (3 - 2 * rawP);
+          const invU = 1 - u;
+          const b0 = invU * invU;
+          const b1 = 2 * invU * u;
+          const b2 = u * u;
+
+          p.x = b0 * p.transStartX + b1 * p.transMidX + b2 * p.transTargetX;
+          p.y = b0 * p.transStartY + b1 * p.transMidY + b2 * p.transTargetY;
+          p.z = b0 * p.transStartZ + b1 * p.transMidZ + b2 * p.transTargetZ;
+
+          posAttr.setXYZ(i, p.x, p.y, p.z);
+          colAttr.setXYZ(i, p.baseR, p.baseG, p.baseB);
+          sizesAttr.setX(i, p.baseSize);
+        }
+
+        posAttr.needsUpdate = true;
+        colAttr.needsUpdate = true;
+        sizesAttr.needsUpdate = true;
+
+        if (progress >= 1.0) {
+          resetStartTime = 0;
+          finishResetToHero();
+        }
+
+        renderer.render(scene, camera);
+        return;
+      }
 
       // Delta time calculation clamped to avoid huge jumps on tab switch
       const dt = Math.min(Math.max((now - lastTime) * 0.001, 0.001), 0.05);
@@ -1004,6 +1310,7 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
 
     return () => {
       cancelAnimationFrame(animationFrameId);
+      unsubscribeTransition();
       resizeObserver.disconnect();
       intersectionObserver.disconnect();
       targetElement.removeEventListener('pointermove', handlePointerMove);
