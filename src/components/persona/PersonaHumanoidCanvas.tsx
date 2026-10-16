@@ -49,7 +49,7 @@ export const PERSONA_ANIMATION_CONFIG = {
   fullySolidDuration: 0.8,
   minY: CHARACTER_Y_BOUNDS.min - 0.05,
   maxY: CHARACTER_Y_BOUNDS.max + 0.05,
-  transitionBand: 0.045,
+  transitionBand: 0.035,
   particleCount: 5200
 };
 
@@ -182,11 +182,13 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     const solidifyUniforms: SolidifyMaterialUniforms = {
       uSolidifyY: { value: cfg.minY - 1.0 },
       uTransitionBand: { value: cfg.transitionBand },
-      uGlowColor: { value: new THREE.Color('#A3FF12') },
-      uGlowIntensity: { value: 2.2 }
+      uGlowColor: { value: new THREE.Color('#00E575') },
+      uGlowIntensity: { value: 0.40 }
     };
 
     let loadedSolidModel: THREE.Object3D | null = null;
+    let leftEyeBone: THREE.Bone | null = null;
+    let rightEyeBone: THREE.Bone | null = null;
     const gltfLoader = new GLTFLoader();
     gltfLoader.setMeshoptDecoder(MeshoptDecoder);
 
@@ -202,6 +204,12 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         const rightArm = model.getObjectByName('RightArm');
         if (leftArm) leftArm.rotation.set(1.20, 0.0, 0.0);
         if (rightArm) rightArm.rotation.set(1.80, 1.40, -0.60);
+
+        // Cache eye bones and record neutral anatomical rest quaternions
+        leftEyeBone = model.getObjectByName('LeftEye') as THREE.Bone | null;
+        rightEyeBone = model.getObjectByName('RightEye') as THREE.Bone | null;
+        if (leftEyeBone) leftEyeBone.userData.restQuat = leftEyeBone.quaternion.clone();
+        if (rightEyeBone) rightEyeBone.userData.restQuat = rightEyeBone.quaternion.clone();
 
         model.position.set(0, -1.56, 0);
 
@@ -220,6 +228,10 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         });
 
         loadedSolidModel = model;
+        if (import.meta.env.DEV) {
+          (window as any).__personaModel = model;
+          (window as any).THREE = THREE;
+        }
         // Keep solid model hidden during particle-only phase
         model.visible = false;
         characterGroup.add(model);
@@ -602,8 +614,97 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     // Check if initial mount is already in settled/inspection state
     let isInstantSettled = personaTransitionController.state === 'PERSONA_READY' || prefersReducedMotion;
 
+    // ----------------------------------------------------
+    // Natural 3D Eye Tracking Architecture (Section 2, 3, 4, 5)
+    // ----------------------------------------------------
+    const forcedGazeX = searchParams?.get('gazeX');
+    const forcedGazeY = searchParams?.get('gazeY');
+
+    const gazeState = {
+      targetNDC: {
+        x: forcedGazeX !== null && !isNaN(parseFloat(forcedGazeX)) ? parseFloat(forcedGazeX) : 0,
+        y: forcedGazeY !== null && !isNaN(parseFloat(forcedGazeY)) ? parseFloat(forcedGazeY) : 0
+      },
+      currentNDC: {
+        x: forcedGazeX !== null && !isNaN(parseFloat(forcedGazeX)) ? parseFloat(forcedGazeX) : 0,
+        y: forcedGazeY !== null && !isNaN(parseFloat(forcedGazeY)) ? parseFloat(forcedGazeY) : 0
+      },
+      hasPointer: forcedGazeX !== null || forcedGazeY !== null
+    };
+
+    const handlePointerMove = (e: PointerEvent) => {
+      if (prefersReducedMotion) return;
+      if (forcedGazeX !== null || forcedGazeY !== null) return;
+      const x = (e.clientX / (window.innerWidth || 1200)) * 2 - 1;
+      const y = -((e.clientY / (window.innerHeight || 900)) * 2 - 1);
+      gazeState.targetNDC.x = Math.max(-1, Math.min(1, x));
+      gazeState.targetNDC.y = Math.max(-1, Math.min(1, y));
+      gazeState.hasPointer = true;
+    };
+
+    const handlePointerLeave = () => {
+      if (forcedGazeX !== null || forcedGazeY !== null) return;
+      gazeState.hasPointer = false;
+      gazeState.targetNDC.x = 0;
+      gazeState.targetNDC.y = 0;
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('pointerleave', handlePointerLeave, { passive: true });
+
+    const vRestForward = new THREE.Vector3(0, 0, 1);
+    const eyeWorldPos = new THREE.Vector3();
+    const parentWorldQuat = new THREE.Quaternion();
+    const desiredGazeDir = new THREE.Vector3();
+    const deltaGazeQuat = new THREE.Quaternion();
+    const localDeltaQuat = new THREE.Quaternion();
+    const gazeTargetPos = new THREE.Vector3();
+
+    const updateEyeGaze = (eyeBone: THREE.Bone | null, targetPos: THREE.Vector3) => {
+      if (!eyeBone || !eyeBone.parent || !eyeBone.userData.restQuat) return;
+
+      eyeBone.getWorldPosition(eyeWorldPos);
+      desiredGazeDir.subVectors(targetPos, eyeWorldPos).normalize();
+
+      deltaGazeQuat.setFromUnitVectors(vRestForward, desiredGazeDir);
+
+      eyeBone.parent.getWorldQuaternion(parentWorldQuat);
+      localDeltaQuat.copy(parentWorldQuat).invert().multiply(deltaGazeQuat).multiply(parentWorldQuat);
+
+      eyeBone.quaternion.copy(localDeltaQuat).multiply(eyeBone.userData.restQuat);
+      eyeBone.updateMatrixWorld(true);
+    };
+
+    const updateEyeTracking = (dt: number) => {
+      if (prefersReducedMotion || !leftEyeBone || !rightEyeBone) return;
+
+      // Natural responsive damped tracking (fast smooth pursuit while tracking, calm return)
+      const lerpSpeed = gazeState.hasPointer ? 18.0 : 8.0;
+      const factor = 1.0 - Math.exp(-lerpSpeed * Math.max(0.001, dt));
+
+      gazeState.currentNDC.x += (gazeState.targetNDC.x - gazeState.currentNDC.x) * factor;
+      gazeState.currentNDC.y += (gazeState.targetNDC.y - gazeState.currentNDC.y) * factor;
+
+      // Natural, anatomically safe gaze target at camera plane (Z = 1.48)
+      // Screen X [-1, 1] maps to [-0.48, +0.48] world units (~19.6 deg, distinct & clearly visible)
+      // Screen Y [-1, 1] maps to eye level 0.121 + [-0.24, +0.24] world units (~10.1 deg)
+      gazeTargetPos.set(
+        gazeState.currentNDC.x * 0.48,
+        0.121 + gazeState.currentNDC.y * 0.24,
+        1.48
+      );
+
+      updateEyeGaze(leftEyeBone, gazeTargetPos);
+      updateEyeGaze(rightEyeBone, gazeTargetPos);
+    };
+
+    let lastFrameTime = performance.now();
+
     const render = (now: number) => {
       if (isDisposed) return;
+
+      const dt = Math.min(0.1, (now - lastFrameTime) * 0.001);
+      lastFrameTime = now;
 
       const elapsed = forcedElapsed !== null && !isNaN(forcedElapsed)
         ? forcedElapsed
@@ -628,7 +729,10 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         sizesAttr.needsUpdate = true;
 
         if (comparisonMode === 'solid') {
-          if (loadedSolidModel) loadedSolidModel.visible = true;
+          if (loadedSolidModel) {
+            loadedSolidModel.visible = true;
+            updateEyeTracking(dt);
+          }
           solidifyUniforms.uSolidifyY.value = 10.0;
           solidifyUniforms.uGlowIntensity.value = 0.0;
           particleSystem.visible = false;
@@ -637,7 +741,10 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
           particleSystem.visible = true;
           particleMaterial.opacity = 0.98;
         } else if (comparisonMode === 'overlay') {
-          if (loadedSolidModel) loadedSolidModel.visible = true;
+          if (loadedSolidModel) {
+            loadedSolidModel.visible = true;
+            updateEyeTracking(dt);
+          }
           solidifyUniforms.uSolidifyY.value = 10.0;
           solidifyUniforms.uGlowIntensity.value = 0.0;
           particleSystem.visible = true;
@@ -679,6 +786,8 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       if (isInstantSettled || elapsed >= 4.50) {
         if (loadedSolidModel) {
           loadedSolidModel.visible = true;
+          // Apply Natural 3D Eye Tracking (Section 2, 3, 4, 5)
+          updateEyeTracking(dt);
         }
         solidifyUniforms.uSolidifyY.value = 10.0;
         solidifyUniforms.uGlowIntensity.value = 0.0;
@@ -695,6 +804,14 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         return;
       }
 
+      // During active reconstruction wave, eyes remain anchored in neutral forward rest pose (Section 5)
+      if (leftEyeBone && leftEyeBone.userData.restQuat) {
+        leftEyeBone.quaternion.copy(leftEyeBone.userData.restQuat);
+      }
+      if (rightEyeBone && rightEyeBone.userData.restQuat) {
+        rightEyeBone.quaternion.copy(rightEyeBone.userData.restQuat);
+      }
+
       // ----------------------------------------------------
       // STAGE D: Final Convergence (4.15s -> 4.50s)
       // ----------------------------------------------------
@@ -704,7 +821,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         }
         solidifyUniforms.uSolidifyY.value = cfg.maxY + 0.20;
         const stageDProg = Math.min(1.0, (elapsed - 4.15) / 0.35);
-        solidifyUniforms.uGlowIntensity.value = 2.2 * (1.0 - stageDProg);
+        solidifyUniforms.uGlowIntensity.value = 0.40 * (1.0 - stageDProg);
         particleMaterial.opacity = 0.98 * (1.0 - stageDProg);
 
         for (let i = 0; i < particleCount; i++) {
@@ -736,39 +853,47 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         const currentY = cfg.minY + easeProg * (cfg.maxY - cfg.minY);
 
         solidifyUniforms.uSolidifyY.value = currentY;
-        solidifyUniforms.uGlowIntensity.value = 2.2;
+        solidifyUniforms.uGlowIntensity.value = 0.40;
         solidifyUniforms.uTransitionBand.value = cfg.transitionBand;
         particleMaterial.opacity = 0.98;
 
         for (let i = 0; i < particleCount; i++) {
           const p = particles[i];
-          // Organic anatomical reveal coordinate identical to the vertex shader
-          const pRevealY = p.targetY + 0.032 * (p.targetZ - 0.05) - 0.020 * Math.abs(p.targetX);
-          const distFromWave = pRevealY - currentY;
+          // Surface-hugging anatomical reveal coordinate identical to vertex shader
+          const lateralArmOffset = Math.max(0.0, Math.abs(p.targetX) - 0.14);
+          const pReveal = p.targetY + 0.028 * p.targetZ - 0.055 * lateralArmOffset;
+          const distFromWave = pReveal - currentY;
 
           if (distFromWave > cfg.transitionBand) {
-            // Unsolidified region above the advancing wave: full particle presence
+            // Unsolidified region above advancing wave: full particle presence
             posAttr.setXYZ(i, p.targetX, p.targetY, p.targetZ);
             sizesAttr.setX(i, p.baseScale);
             colAttr.setXYZ(i, p.targetR, p.targetG, p.targetB);
-          } else if (distFromWave < -cfg.transitionBand) {
-            // Already solidified region below the wave: dissolved cleanly offscreen
+          } else if (distFromWave < 0.0) {
+            // Solidified region below active wave: dissolved cleanly offscreen
             posAttr.setXYZ(i, 0.0, -10.0, 0.0);
             sizesAttr.setX(i, 0.0);
             colAttr.setXYZ(i, 0.0, 0.0, 0.0);
           } else {
-            // Transition band: smooth continuous blending and wavefront luminosity
+            // Transition band (0.0 <= distFromWave <= cfg.transitionBand):
+            // Smooth handoff as solid surface condenses, with restrained subtle edge sparks
+            const norm = distFromWave / cfg.transitionBand; // 0.0 at solid boundary, 1.0 at particle boundary
+
+            // Short-lived restrained reconstruction sparks (Section 4C)
+            const isSpark = (i % 6 === 0);
+            const sparkBoost = isSpark ? (1.0 - Math.abs(norm - 0.5) * 2.0) * 0.18 : 0.0;
+
+            // Refined GraphMind emerald green transition (no yellowing)
+            const edgeR = THREE.MathUtils.lerp(0.05, p.targetR, norm);
+            const edgeG = Math.min(1.0, THREE.MathUtils.lerp(0.92, p.targetG, norm) + sparkBoost);
+            const edgeB = THREE.MathUtils.lerp(0.35, p.targetB, norm);
+
+            // Particles scale down smoothly as solid surface takes over
+            const scale = p.baseScale * (0.15 + 0.85 * norm) * (1.0 + sparkBoost * 0.20);
+
             posAttr.setXYZ(i, p.targetX, p.targetY, p.targetZ);
-            const bandNorm = (distFromWave + cfg.transitionBand) / (2.0 * cfg.transitionBand);
-            const bandEase = bandNorm * bandNorm * (3.0 - 2.0 * bandNorm);
-            const waveGlow = Math.sin(bandNorm * Math.PI);
-
-            const edgeR = THREE.MathUtils.lerp(0.64, p.targetR, bandNorm);
-            const edgeG = THREE.MathUtils.lerp(1.00, p.targetG, bandNorm);
-            const edgeB = THREE.MathUtils.lerp(0.07, p.targetB, bandNorm);
-
             colAttr.setXYZ(i, edgeR, edgeG, edgeB);
-            sizesAttr.setX(i, p.baseScale * (0.20 + 0.80 * bandEase) * (1.0 + waveGlow * 0.35));
+            sizesAttr.setX(i, scale);
           }
         }
 
@@ -883,6 +1008,15 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
       window.removeEventListener('keydown', handleDevKeyDown);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerleave', handlePointerLeave);
+
+      if (leftEyeBone && leftEyeBone.userData.restQuat) {
+        leftEyeBone.quaternion.copy(leftEyeBone.userData.restQuat);
+      }
+      if (rightEyeBone && rightEyeBone.userData.restQuat) {
+        rightEyeBone.quaternion.copy(rightEyeBone.userData.restQuat);
+      }
 
       // Clean disposal of independent Persona resources
       particleGeometry.dispose();
