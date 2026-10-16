@@ -262,10 +262,10 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       // 3D Lighting & Normal Grading
       const nDotL = Math.max(0.0, target.nx * lx + target.ny * ly + target.nz * lz);
       const facing = Math.max(0.0, target.nz);
-      const diff = 0.82 + 0.18 * nDotL;
+      const diff = 0.75 + 0.25 * nDotL;
       const lum = target.lum ?? 0.50;
-      const lumFactor = 0.72 + 0.28 * Math.min(1.0, lum / 0.60);
       const cat = target.category || 'base_surface';
+      const subCat = target.subCategory || cat;
 
       // Anatomical feature zones
       const isEyeball =
@@ -289,53 +289,145 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         (target.y >= -0.09 && target.y < 0.01);
       const isChestOrShoulder = target.y < -0.09;
 
-      let targetR = 0.38 * diff * lumFactor;
-      let targetG = 0.92 * diff * lumFactor;
+      let targetR = 0.36 * diff;
+      let targetG = 0.90 * diff;
       let targetB = 0.07;
-      let baseScale = 1.0;
+      let baseScale = 0.95;
 
-      if (cat.includes('hair') || isTopCrown) {
-        // Crown and authentic hair silhouette
-        targetR = 0.20 * diff * (0.7 + 0.3 * lumFactor);
-        targetG = 0.62 * diff * (0.7 + 0.3 * lumFactor);
+      if (subCat === 'hair' || cat === 'hair') {
+        // Authentic Asian male dark hair volume & silhouette
+        targetR = 0.16 * diff * (0.60 + 0.40 * lum);
+        targetG = 0.52 * diff * (0.60 + 0.40 * lum);
         targetB = 0.08;
-        baseScale = 1.0;
-      } else if (cat.includes('eyebrow')) {
-        // Eyebrow arches
-        targetR = 0.22 * (0.65 + 0.35 * lumFactor);
-        targetG = 0.64 * (0.65 + 0.35 * lumFactor);
-        targetB = 0.07;
         baseScale = 0.95;
-      } else if (cat.includes('eye') || isEyeball) {
-        // Harmonious, restrained eye glint with subtle specular reflection
-        targetR = 0.40 * diff * (0.85 + 0.15 * lumFactor);
-        targetG = 0.94 * diff * (0.85 + 0.15 * lumFactor);
-        targetB = 0.09;
-        baseScale = 0.92;
-      } else if (cat.includes('lips')) {
-        // Soft vermilion lip tone (fully closed, no gaping hole)
-        targetR = 0.46 * diff;
-        targetG = 0.88 * diff;
-        targetB = 0.10;
-        baseScale = 0.96;
-      } else if (isCheekOrFace) {
-        // Facial planes with natural diffuse curvature and skin luminance
-        targetR = 0.38 * diff * lumFactor;
-        targetG = 0.92 * diff * lumFactor;
+      } else if (subCat === 'forehead' || cat === 'forehead') {
+        // Smooth frontal bone plane
+        targetR = 0.36 * diff;
+        targetG = 0.90 * diff;
         targetB = 0.07;
-        baseScale = 1.0;
-      } else if (isNeckOrJaw) {
-        // Slender neck & mandibular contour connecting head to torso
-        targetR = 0.36 * diff * lumFactor;
-        targetG = 0.90 * diff * lumFactor;
+        baseScale = 0.92;
+      } else if (subCat.includes('eyebrow') || cat.includes('eyebrow')) {
+        // Defined masculine brow arches matching texture pigment
+        targetR = 0.18 * (0.50 + 0.50 * lum);
+        targetG = 0.58 * (0.50 + 0.50 * lum);
+        targetB = 0.07;
+        baseScale = 0.88;
+      } else if (subCat.includes('pupil')) {
+        // Center dark pupil & iris: provides crisp gaze contrast
+        targetR = 0.05;
+        targetG = 0.24;
+        targetB = 0.04;
+        baseScale = 0.78;
+      } else if (subCat.includes('sclera')) {
+        // White sclera & corneal reflection glint
+        targetR = 0.50 * diff;
+        targetG = 1.00 * diff;
+        targetB = 0.15;
+        baseScale = 0.94;
+      } else if (subCat.includes('eye_lid')) {
+        // Eyelid contour & palpebral margin separating eye from cheek
+        targetR = 0.28 * diff;
+        targetG = 0.75 * diff;
+        targetB = 0.07;
+        baseScale = 0.82;
+      } else if (subCat === 'nose_tip') {
+        // Protruding nose tip highlight (maximum Z forward)
+        targetR = 0.48 * diff;
+        targetG = 1.00 * diff;
+        targetB = 0.10;
+        baseScale = 1.08;
+      } else if (subCat === 'nose_bridge') {
+        // Dorsal nasal ridge
+        targetR = 0.44 * diff;
+        targetG = 0.96 * diff;
         targetB = 0.08;
-        baseScale = 1.0;
-      } else if (isChestOrShoulder) {
-        // Broad polo shirt torso, deltoids, and collar
-        targetR = 0.30 * diff * (0.75 + 0.25 * lumFactor);
-        targetG = 0.82 * diff * (0.75 + 0.25 * lumFactor);
+        baseScale = 1.02;
+      } else if (subCat === 'nose_wings') {
+        // Lateral alar wing slope (creates sharp plane boundary from cheek)
+        targetR = 0.26 * diff;
+        targetG = 0.72 * diff;
+        targetB = 0.06;
+        baseScale = 0.82;
+      } else if (subCat === 'nose_nostrils') {
+        // Dark nostril cavity depth
+        targetR = 0.10;
+        targetG = 0.32;
+        targetB = 0.04;
+        baseScale = 0.70;
+      } else if (subCat === 'philtrum') {
+        // Anatomical groove separating nose base from upper lip
+        targetR = 0.28 * diff;
+        targetG = 0.76 * diff;
+        targetB = 0.07;
+        baseScale = 0.82;
+      } else if (subCat === 'upper_lip') {
+        // Cupid's bow & upper vermilion lip
+        targetR = 0.46 * diff;
+        targetG = 0.82 * diff;
+        targetB = 0.10;
+        baseScale = 0.92;
+      } else if (subCat === 'mouth_line') {
+        // Dark horizontal lip slit / mouth line (crisp upper-to-lower separation)
+        targetR = 0.08;
+        targetG = 0.28;
+        targetB = 0.04;
+        baseScale = 0.68;
+      } else if (subCat === 'lower_lip') {
+        // Full lower vermilion lip highlight
+        targetR = 0.45 * diff;
+        targetG = 0.84 * diff;
+        targetB = 0.10;
+        baseScale = 0.94;
+      } else if (subCat === 'chin' || cat === 'chin') {
+        // Labiomental groove indent vs rounded chin pad
+        const isCrease = target.y >= 0.024 && target.y <= 0.030;
+        if (isCrease) {
+          targetR = 0.24 * diff;
+          targetG = 0.68 * diff;
+          targetB = 0.06;
+          baseScale = 0.80;
+        } else {
+          targetR = 0.36 * diff;
+          targetG = 0.88 * diff;
+          targetB = 0.07;
+          baseScale = 0.94;
+        }
+      } else if (subCat === 'jaw' || cat === 'jaw') {
+        // Mandibular contour curving to ears
+        targetR = 0.30 * diff;
+        targetG = 0.80 * diff;
+        targetB = 0.07;
+        baseScale = 0.92;
+      } else if (subCat === 'cheeks' || cat === 'cheeks') {
+        // Smooth midface and zygomatic planes (softer so nose & eyes read distinctly)
+        targetR = 0.30 * diff;
+        targetG = 0.78 * diff;
+        targetB = 0.07;
+        baseScale = 0.86;
+      } else if (cat.includes('ear')) {
+        // Left & right ears
+        targetR = 0.32 * diff;
+        targetG = 0.84 * diff;
+        targetB = 0.07;
+        baseScale = 0.92;
+      } else if (cat === 'neck') {
+        // Cervical column connecting head to torso
+        targetR = 0.30 * diff;
+        targetG = 0.82 * diff;
+        targetB = 0.08;
+        baseScale = 0.96;
+      } else if (cat === 'upper_chest' || cat === 'shoulders') {
+        // Polo shirt torso and deltoids
+        targetR = 0.28 * diff * (0.80 + 0.20 * lum);
+        targetG = 0.78 * diff * (0.80 + 0.20 * lum);
         targetB = 0.09;
-        baseScale = 1.0;
+        baseScale = 1.00;
+      } else if (cat === 'upper_arms') {
+        // Relaxed arms
+        targetR = 0.30 * diff;
+        targetG = 0.80 * diff;
+        targetB = 0.09;
+        baseScale = 1.00;
       }
 
       // Depth falloff for grazing angles (enhances 3D roundness and volumetric form)
@@ -481,6 +573,32 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     const forcedTimeParam = searchParams?.get('t');
     const forcedElapsed = forcedTimeParam !== null && forcedTimeParam !== undefined ? parseFloat(forcedTimeParam) : null;
 
+    // Development Comparison Mode support (Section 8):
+    // A. SOLID MODEL ONLY (?debugMode=solid, or Key '1')
+    // B. PARTICLE REPRESENTATION ONLY (?debugMode=particles, or Key '2')
+    // C. SOLID MODEL AND PARTICLES OVERLAID (?debugMode=overlay, or Key '3')
+    const debugModeParam = searchParams?.get('debugMode');
+    let comparisonMode: 'default' | 'solid' | 'particles' | 'overlay' =
+      debugModeParam === 'solid' ? 'solid'
+      : debugModeParam === 'overlay' ? 'overlay'
+      : debugModeParam === 'particles' ? 'particles'
+      : 'default';
+
+    const handleDevKeyDown = (e: KeyboardEvent) => {
+      if (import.meta.env.DEV) {
+        if (e.key === '1') {
+          comparisonMode = 'solid';
+        } else if (e.key === '2') {
+          comparisonMode = 'particles';
+        } else if (e.key === '3') {
+          comparisonMode = 'overlay';
+        } else if (e.key === '0' || e.key === 'Escape') {
+          comparisonMode = 'default';
+        }
+      }
+    };
+    window.addEventListener('keydown', handleDevKeyDown);
+
     // Check if initial mount is already in settled/inspection state
     let isInstantSettled = personaTransitionController.state === 'PERSONA_READY' || prefersReducedMotion;
 
@@ -492,6 +610,44 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         : isInstantSettled
         ? 5.0
         : (now - transitionStart) * 0.001;
+
+      // Development Comparison Mode rendering (Section 8)
+      if (comparisonMode !== 'default') {
+        const posAttr = particleGeometry.attributes.position;
+        const colAttr = particleGeometry.attributes.color;
+        const sizesAttr = particleGeometry.attributes.pSize;
+
+        for (let i = 0; i < particleCount; i++) {
+          const p = particles[i];
+          posAttr.setXYZ(i, p.targetX, p.targetY, p.targetZ);
+          colAttr.setXYZ(i, p.targetR, p.targetG, p.targetB);
+          sizesAttr.setX(i, p.baseScale);
+        }
+        posAttr.needsUpdate = true;
+        colAttr.needsUpdate = true;
+        sizesAttr.needsUpdate = true;
+
+        if (comparisonMode === 'solid') {
+          if (loadedSolidModel) loadedSolidModel.visible = true;
+          solidifyUniforms.uSolidifyY.value = 10.0;
+          solidifyUniforms.uGlowIntensity.value = 0.0;
+          particleSystem.visible = false;
+        } else if (comparisonMode === 'particles') {
+          if (loadedSolidModel) loadedSolidModel.visible = false;
+          particleSystem.visible = true;
+          particleMaterial.opacity = 0.98;
+        } else if (comparisonMode === 'overlay') {
+          if (loadedSolidModel) loadedSolidModel.visible = true;
+          solidifyUniforms.uSolidifyY.value = 10.0;
+          solidifyUniforms.uGlowIntensity.value = 0.0;
+          particleSystem.visible = true;
+          particleMaterial.opacity = 0.95;
+        }
+
+        renderer.render(scene, camera);
+        animationFrameId = requestAnimationFrame(render);
+        return;
+      }
 
       // Determine animation state
       let newState: PersonaAnimationState = 'FORMING_HUMANOID';
@@ -726,6 +882,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       isDisposed = true;
       cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
+      window.removeEventListener('keydown', handleDevKeyDown);
 
       // Clean disposal of independent Persona resources
       particleGeometry.dispose();
