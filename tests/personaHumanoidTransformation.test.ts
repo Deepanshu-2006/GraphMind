@@ -79,15 +79,15 @@ describe('GRAPHMIND — PERSONA: HIGH-QUALITY 3D HUMANOID CHARACTER & CHEST-UP F
   describe('2. Chest-Up Portrait Composition & Proportions', () => {
     it('frames the upper chest and shoulders upward without showing lower body', () => {
       assert.ok(
-        canvasSrc.includes('camera.position.set(0, 0.08, 0.98)'),
-        'Camera must be positioned for deliberate chest-up portrait framing (z ~ 0.98)'
+        canvasSrc.includes('camera.position.set(0, 0.0, 1.48)'),
+        'Camera must be positioned for cinematic full-bleed portrait framing (z ~ 1.48)'
       );
       assert.ok(
-        canvasSrc.includes('camera.lookAt(0, 0.08, 0)'),
+        canvasSrc.includes('camera.lookAt(0, 0.0, 0)'),
         'Camera must look at eye/face level'
       );
       assert.ok(
-        canvasSrc.includes('model.position.set(0, -1.52, 0)'),
+        canvasSrc.includes('model.position.set(0, -1.56, 0)'),
         'Model must be positioned so upper chest and head occupy the primary focal height'
       );
     });
@@ -213,7 +213,7 @@ describe('GRAPHMIND — PERSONA: HIGH-QUALITY 3D HUMANOID CHARACTER & CHEST-UP F
       assert.ok(canvasSrc.includes('new THREE.AmbientLight(0xffffff, 0.50)'), 'Soft ambient fill');
       assert.ok(canvasSrc.includes('new THREE.DirectionalLight(0xfff8ee'), 'Warm key light');
       assert.ok(canvasSrc.includes('new THREE.DirectionalLight(0x94a3b8'), 'Cool fill light');
-      assert.ok(canvasSrc.includes('new THREE.DirectionalLight(0xa3ff12, 0.38)'), 'Subtle restrained lime rim light');
+      assert.ok(canvasSrc.includes('new THREE.DirectionalLight(0xa3ff12, 0.34)'), 'Subtle restrained lime rim light');
       assert.ok(canvasSrc.includes('rimLight.position.set(0.9, 1.3, -2.2)'), 'Rim light positioned behind character edge');
     });
 

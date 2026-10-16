@@ -155,25 +155,15 @@ describe('GRAPHMIND — PERSONA EXPERIENCE FOUNDATION (PROMPT 01)', () => {
     });
   });
 
-  describe('5. Initial Experience State & Required Content', () => {
-    it('renders the exact identity label "GRAPHMIND PERSONA"', () => {
+  describe('5. Experience State & Full-Bleed Character Composition', () => {
+    it('removes introductory hero copy in favor of full-bleed character composition', () => {
       assert.ok(
-        personaExperienceSrc.includes('GRAPHMIND PERSONA'),
-        'Must display GRAPHMIND PERSONA identity label'
+        !personaExperienceSrc.includes('Your learning, brought to life.'),
+        'Introductory headline must be removed for full-bleed composition'
       );
-    });
-
-    it('renders the exact introductory headline "Your learning, brought to life."', () => {
       assert.ok(
-        personaExperienceSrc.includes('Your learning, brought to life.'),
-        'Must render headline: Your learning, brought to life.'
-      );
-    });
-
-    it('renders the exact supporting sentence "A personal space for exploring your knowledge journey."', () => {
-      assert.ok(
-        personaExperienceSrc.includes('A personal space for exploring your knowledge journey.'),
-        'Must render supporting sentence: A personal space for exploring your knowledge journey.'
+        !personaExperienceSrc.includes('A personal space for exploring your knowledge journey.'),
+        'Supporting sentence must be removed'
       );
     });
 
@@ -183,7 +173,7 @@ describe('GRAPHMIND — PERSONA EXPERIENCE FOUNDATION (PROMPT 01)', () => {
       assert.ok(!personaExperienceSrc.includes('messages:'), 'No fake chat transcript');
     });
 
-    it('provides the future 3D character stage integration point with anchor attributes', () => {
+    it('provides the 3D character stage integration point with anchor attributes', () => {
       assert.ok(
         personaExperienceSrc.includes('data-character-stage="true"'),
         'Must declare data-character-stage="true"'
@@ -194,7 +184,7 @@ describe('GRAPHMIND — PERSONA EXPERIENCE FOUNDATION (PROMPT 01)', () => {
       );
       assert.ok(
         personaExperienceSrc.includes('characterSlot'),
-        'Must support characterSlot prop for Prompt 02'
+        'Must support characterSlot prop'
       );
     });
   });

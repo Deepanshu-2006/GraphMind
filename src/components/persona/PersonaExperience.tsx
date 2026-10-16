@@ -111,30 +111,6 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
     }
   };
 
-  const contentVariants: Variants = {
-    hidden: {
-      opacity: 0,
-      y: shouldReduceMotion ? 0 : 12
-    },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: shouldReduceMotion ? 0 : 0.45,
-        ease: [0.16, 1, 0.3, 1],
-        delay: shouldReduceMotion ? 0 : 0.08
-      }
-    },
-    exit: {
-      opacity: 0,
-      y: shouldReduceMotion ? 0 : -8,
-      transition: {
-        duration: shouldReduceMotion ? 0 : 0.2,
-        ease: [0.16, 1, 0.3, 1]
-      }
-    }
-  };
-
   const getStatusLabel = (state: PersonaAnimationState): string => {
     switch (state) {
       case 'INITIALIZING':
@@ -194,9 +170,9 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
         </div>
       </header>
 
-      {/* Main Experience Viewport */}
+      {/* Main Experience Viewport (Full-bleed cinematic character stage) */}
       <main className="persona-main-content">
-        {/* 3D Humanoid Character Stage (Prompt 02 Central Transformation) */}
+        {/* 3D Humanoid Character Stage — Emerging from the bottom edge */}
         <div
           className="persona-character-stage"
           id="persona-character-stage"
@@ -207,20 +183,6 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
             <PersonaHumanoidCanvas onStateChange={setAnimationState} />
           )}
         </div>
-
-        {/* Editorial Narrative Typography */}
-        <motion.div className="persona-typography-block" variants={contentVariants}>
-          <div className="persona-identity-tag">
-            <span className="persona-identity-dot" aria-hidden="true" />
-            <span>GRAPHMIND PERSONA</span>
-          </div>
-
-          <h1 className="persona-headline">Your learning, brought to life.</h1>
-
-          <p className="persona-supporting">
-            A personal space for exploring your knowledge journey.
-          </p>
-        </motion.div>
       </main>
     </motion.div>
   );

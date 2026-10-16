@@ -110,10 +110,10 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
 
     const scene = new THREE.Scene();
 
-    // 2. Camera Setup (Deliberate chest-up portrait framing: head, face, neck, shoulders, upper chest)
-    const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 50);
-    camera.position.set(0, 0.08, 0.98);
-    camera.lookAt(0, 0.08, 0);
+    // 2. Camera Setup (Full-bleed cinematic portrait: character emerging from bottom edge)
+    const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 50);
+    camera.position.set(0, 0.0, 1.48);
+    camera.lookAt(0, 0.0, 0);
 
     // 3. Controlled Studio Lighting Setup (Soft, restrained, premium)
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.50);
@@ -135,12 +135,12 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     scene.add(eyeCatchLight);
 
     // Subtle GraphMind lime-green rim light (#A3FF12) - restrained edge accent behind shoulders & hair
-    const rimLight = new THREE.DirectionalLight(0xa3ff12, 0.38);
+    const rimLight = new THREE.DirectionalLight(0xa3ff12, 0.34);
     rimLight.position.set(0.9, 1.3, -2.2);
     scene.add(rimLight);
 
     // Neutral soft hair kicker to balance silhouette separation against near-black background
-    const backKicker = new THREE.DirectionalLight(0xf1f5f9, 0.28);
+    const backKicker = new THREE.DirectionalLight(0xf1f5f9, 0.26);
     backKicker.position.set(-0.9, 1.4, -2.0);
     scene.add(backKicker);
 
@@ -175,8 +175,8 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         if (leftArm) leftArm.rotation.set(1.20, 0.0, 0.0);
         if (rightArm) rightArm.rotation.set(1.80, 1.40, -0.60);
 
-        // Position model chest-up: face center positioned with deliberate upper chest cropping
-        model.position.set(0, -1.52, 0);
+        // Position model so lower torso continues beyond bottom edge of viewport
+        model.position.set(0, -1.56, 0);
 
         // Attach bottom-up solidification shader and refine material PBR parameters
         model.traverse((child) => {
@@ -285,17 +285,17 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
 
-      // Adjust camera distance and FOV responsively to maintain deliberate chest-up portrait framing
+      // Adjust camera distance and FOV responsively for full-bleed portrait emerging from bottom edge
       if (width < 768) {
-        // Mobile: Slightly wider angle and adjusted distance to keep full head, hair, and both shoulders visible
-        camera.position.set(0, 0.08, 1.20);
-        camera.fov = 36;
-        camera.lookAt(0, 0.08, 0);
+        // Mobile: Adjusted distance so shoulders fit comfortably inside narrow viewport
+        camera.position.set(0, 0.04, 1.75);
+        camera.fov = 34;
+        camera.lookAt(0, 0.04, 0);
       } else {
-        // Desktop: Substantial, cinematic chest-up portrait framing with head and shoulders as primary focus
-        camera.position.set(0, 0.08, 0.98);
-        camera.fov = 32;
-        camera.lookAt(0, 0.08, 0);
+        // Desktop: Cinematic, immersive full-bleed portrait emerging from bottom edge
+        camera.position.set(0, 0.0, 1.48);
+        camera.fov = 30;
+        camera.lookAt(0, 0.0, 0);
       }
       camera.updateProjectionMatrix();
     };
@@ -463,15 +463,11 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         particleMaterial.opacity = Math.max(0, 1.0 - (elapsed - tSolidifyEnd) / cfg.fullySolidDuration);
         characterGroup.position.y = 0;
       } else {
-        // IDLE: High-quality solid character with subtle breathing motion
+        // IDLE: High-quality solid character stably anchored to the bottom edge (no floating/bobbing)
         solidifyUniforms.uSolidifyY.value = cfg.maxY + 1.0;
         particleMaterial.opacity = 0.0;
-
-        const idleTime = elapsed - tFullySolidEnd;
-        const breath = Math.sin(idleTime * 1.4) * 0.004;
-        const subtleSway = Math.sin(idleTime * 0.7) * 0.002;
-        characterGroup.position.y = breath;
-        characterGroup.rotation.y = subtleSway;
+        characterGroup.position.y = 0;
+        characterGroup.rotation.y = 0;
       }
 
       particleGeometry.attributes.position.needsUpdate = true;
