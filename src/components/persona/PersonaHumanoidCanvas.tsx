@@ -189,6 +189,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     let loadedSolidModel: THREE.Object3D | null = null;
     let leftEyeBone: THREE.Bone | null = null;
     let rightEyeBone: THREE.Bone | null = null;
+    let headMesh: THREE.Mesh | null = null;
     const gltfLoader = new GLTFLoader();
     gltfLoader.setMeshoptDecoder(MeshoptDecoder);
 
@@ -218,7 +219,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         }
 
         // Configure facial expressiveness via anatomical morph targets (Sections 2, 5, 6)
-        const headMesh = model.getObjectByName('H_DDS_HighRes') as THREE.Mesh | null;
+        headMesh = model.getObjectByName('H_DDS_HighRes') as THREE.Mesh | null;
         const teethDown = model.getObjectByName('h_TeethDown') as THREE.Mesh | null;
         const teethUp = model.getObjectByName('h_TeethUp') as THREE.Mesh | null;
         const leftEyeMesh = model.getObjectByName('h_L_eye') as THREE.Mesh | null;
@@ -711,10 +712,11 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     let isInstantSettled = personaTransitionController.state === 'PERSONA_READY' || prefersReducedMotion;
 
     // ----------------------------------------------------
-    // Natural 3D Eye Tracking Architecture (Section 2, 3, 4, 5)
+    // Natural 3D Eye Tracking & Ocular Life Dynamics
     // ----------------------------------------------------
     const forcedGazeX = searchParams?.get('gazeX');
     const forcedGazeY = searchParams?.get('gazeY');
+    const isForcedGaze = forcedGazeX !== null || forcedGazeY !== null;
 
     const gazeState = {
       targetNDC: {
@@ -725,21 +727,59 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         x: forcedGazeX !== null && !isNaN(parseFloat(forcedGazeX)) ? parseFloat(forcedGazeX) : 0,
         y: forcedGazeY !== null && !isNaN(parseFloat(forcedGazeY)) ? parseFloat(forcedGazeY) : 0
       },
-      hasPointer: forcedGazeX !== null || forcedGazeY !== null
+      hasPointer: isForcedGaze,
+      lastMoveTime: performance.now(),
+      clickEngagement: 0,
+      blink: {
+        active: false,
+        elapsed: 0,
+        duration: 0.16,
+        nextBlinkTime: performance.now() + 3200 + Math.random() * 2500
+      }
     };
 
+    const triggerBlink = (duration = 0.16) => {
+      if (isForcedGaze || prefersReducedMotion || gazeState.blink.active) return;
+      gazeState.blink.active = true;
+      gazeState.blink.elapsed = 0;
+      gazeState.blink.duration = duration;
+    };
+
+    let prevPointerNDC = { x: 0, y: 0 };
     const handlePointerMove = (e: PointerEvent) => {
-      if (prefersReducedMotion) return;
-      if (forcedGazeX !== null || forcedGazeY !== null) return;
+      if (prefersReducedMotion || isForcedGaze) return;
       const x = (e.clientX / (window.innerWidth || 1200)) * 2 - 1;
       const y = -((e.clientY / (window.innerHeight || 900)) * 2 - 1);
-      gazeState.targetNDC.x = Math.max(-1, Math.min(1, x));
-      gazeState.targetNDC.y = Math.max(-1, Math.min(1, y));
+      const clampedX = Math.max(-1, Math.min(1, x));
+      const clampedY = Math.max(-1, Math.min(1, y));
+
+      // Saccade detection: rapid cursor leaps trigger a subtle reflexive micro-blink
+      const dx = clampedX - prevPointerNDC.x;
+      const dy = clampedY - prevPointerNDC.y;
+      const saccadeDist = Math.sqrt(dx * dx + dy * dy);
+      const now = performance.now();
+      if (saccadeDist > 0.65 && now - gazeState.lastMoveTime < 180 && !gazeState.blink.active) {
+        triggerBlink(0.14);
+      }
+      prevPointerNDC.x = clampedX;
+      prevPointerNDC.y = clampedY;
+      gazeState.lastMoveTime = now;
+
+      gazeState.targetNDC.x = clampedX;
+      gazeState.targetNDC.y = clampedY;
       gazeState.hasPointer = true;
     };
 
+    const handlePointerDown = () => {
+      if (prefersReducedMotion || isForcedGaze) return;
+      gazeState.clickEngagement = 1.0;
+      if (!gazeState.blink.active && Math.random() < 0.60) {
+        triggerBlink(0.15);
+      }
+    };
+
     const handlePointerLeave = () => {
-      if (forcedGazeX !== null || forcedGazeY !== null) return;
+      if (isForcedGaze) return;
       gazeState.hasPointer = false;
       gazeState.targetNDC.x = 0;
       gazeState.targetNDC.y = 0;
@@ -747,6 +787,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
 
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
     window.addEventListener('pointerleave', handlePointerLeave, { passive: true });
+    window.addEventListener('pointerdown', handlePointerDown, { passive: true });
 
     const vRestForward = new THREE.Vector3(0, 0, 1);
     const eyeWorldPos = new THREE.Vector3();
@@ -771,27 +812,100 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       eyeBone.updateMatrixWorld(true);
     };
 
-    const updateEyeTracking = (dt: number) => {
+    const updateEyeTracking = (dt: number, nowMs: number) => {
       if (prefersReducedMotion || !leftEyeBone || !rightEyeBone) return;
 
-      // Natural responsive damped tracking (fast smooth pursuit while tracking, calm return)
-      const lerpSpeed = gazeState.hasPointer ? 18.0 : 8.0;
+      // 1. Spontaneous & Saccadic Blink Lifecycle
+      let blinkFactor = 0;
+      if (gazeState.blink.active) {
+        gazeState.blink.elapsed += dt;
+        const p = gazeState.blink.elapsed / gazeState.blink.duration;
+        if (p >= 1.0) {
+          gazeState.blink.active = false;
+          gazeState.blink.elapsed = 0;
+          gazeState.blink.nextBlinkTime = nowMs + 3200 + Math.random() * 2600;
+        } else if (p < 0.38) {
+          const t = p / 0.38;
+          blinkFactor = t * t * (3 - 2 * t);
+        } else if (p < 0.48) {
+          blinkFactor = 1.0;
+        } else {
+          const t = (p - 0.48) / 0.52;
+          blinkFactor = 1.0 - t * t * (3 - 2 * t);
+        }
+      } else if (!isForcedGaze && nowMs >= gazeState.blink.nextBlinkTime) {
+        triggerBlink(0.16 + Math.random() * 0.04);
+      }
+
+      // Decay interactive click engagement
+      if (gazeState.clickEngagement > 0) {
+        gazeState.clickEngagement = Math.max(0, gazeState.clickEngagement - dt * 2.5);
+      }
+
+      // 2. Subtle Organic Micro-Fixations (Ocular Tremor / Life)
+      let effectiveTargetX = gazeState.targetNDC.x;
+      let effectiveTargetY = gazeState.targetNDC.y;
+      if (!isForcedGaze && gazeState.hasPointer) {
+        const timeSec = nowMs * 0.001;
+        const microDriftX = Math.sin(timeSec * 1.8) * 0.0035 + Math.cos(timeSec * 3.7) * 0.0018;
+        const microDriftY = Math.cos(timeSec * 1.4) * 0.0025 + Math.sin(timeSec * 2.9) * 0.0012;
+        effectiveTargetX += microDriftX;
+        effectiveTargetY += microDriftY;
+      }
+
+      // 3. Dynamic Saccadic Velocity Profile:
+      // High agility during fast cursor sweeps, critically-damped arrival at target, calm return
+      const dx = effectiveTargetX - gazeState.currentNDC.x;
+      const dy = effectiveTargetY - gazeState.currentNDC.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      const baseSpeed = gazeState.hasPointer ? 16.0 : 8.5;
+      const saccadeBoost = Math.min(12.0, dist * 18.0);
+      const lerpSpeed = baseSpeed + saccadeBoost;
       const factor = 1.0 - Math.exp(-lerpSpeed * Math.max(0.001, dt));
 
-      gazeState.currentNDC.x += (gazeState.targetNDC.x - gazeState.currentNDC.x) * factor;
-      gazeState.currentNDC.y += (gazeState.targetNDC.y - gazeState.currentNDC.y) * factor;
+      gazeState.currentNDC.x += (effectiveTargetX - gazeState.currentNDC.x) * factor;
+      gazeState.currentNDC.y += (effectiveTargetY - gazeState.currentNDC.y) * factor;
 
-      // Natural, anatomically safe gaze target at camera plane (Z = 1.48)
-      // Screen X [-1, 1] maps to [-0.48, +0.48] world units (~19.6 deg, distinct & clearly visible)
-      // Screen Y [-1, 1] maps to eye level 0.121 + [-0.24, +0.24] world units (~10.1 deg)
+      // 4. Natural 3D Gaze Target Mapping (Z = 1.48 at camera focal plane)
+      // Horizontal span: 0.52 world units (~21 deg, rich widescreen tracking)
+      // Vertical span: 0.26 world units (~11 deg, natural gaze arc)
       gazeTargetPos.set(
-        gazeState.currentNDC.x * 0.48,
-        0.121 + gazeState.currentNDC.y * 0.24,
+        gazeState.currentNDC.x * 0.52,
+        0.121 + gazeState.currentNDC.y * 0.26,
         1.48
       );
 
       updateEyeGaze(leftEyeBone, gazeTargetPos);
       updateEyeGaze(rightEyeBone, gazeTargetPos);
+
+      // 5. Coordinated Eyelid & Brow Tracking (Levator & Orbicularis Coordination)
+      if (headMesh && headMesh.morphTargetInfluences) {
+        const morphs = headMesh.morphTargetInfluences;
+        const yNorm = gazeState.currentNDC.y;
+        const baseEyeOpen = 0.32;
+
+        // Eyelid follows gaze pitch:
+        // When looking UP: upper eyelids raise slightly (up to +0.10), eyebrows slightly elevate
+        // When looking DOWN: upper eyelids droop naturally (relaxed levator), lower lids engage slightly
+        const lidPitchOffset = yNorm > 0 ? yNorm * 0.10 : yNorm * 0.16;
+        const clickAperture = gazeState.clickEngagement * 0.05;
+
+        const currentOpen = Math.max(0.08, Math.min(0.48, baseEyeOpen + lidPitchOffset + clickAperture)) * (1.0 - blinkFactor);
+        const downLidClose = yNorm < -0.15 ? (-yNorm - 0.15) * 0.26 : 0.0;
+        const currentClose = Math.min(1.0, blinkFactor + downLidClose * (1.0 - blinkFactor));
+        const currentLowLid = yNorm < -0.10 ? (-yNorm - 0.10) * 0.14 : 0.0;
+        const currentBrowUp = (yNorm > 0.25 ? (yNorm - 0.25) * 0.08 : 0.0) + gazeState.clickEngagement * 0.08;
+
+        morphs[45] = currentClose;   // ReyeClose_h
+        morphs[46] = currentClose;   // LeyeClose_h
+        morphs[47] = currentOpen;    // ReyeOpen_h
+        morphs[48] = currentOpen;    // LeyeOpen_h
+        morphs[51] = currentLowLid;  // RlowLid_h
+        morphs[52] = currentLowLid;  // LlowLid_h
+        morphs[58] = currentBrowUp;  // RbrowUp_h
+        morphs[59] = currentBrowUp;  // LbrowUp_h
+      }
     };
 
     let lastFrameTime = performance.now();
@@ -827,7 +941,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         if (comparisonMode === 'solid') {
           if (loadedSolidModel) {
             loadedSolidModel.visible = true;
-            updateEyeTracking(dt);
+            updateEyeTracking(dt, now);
           }
           solidifyUniforms.uSolidifyY.value = 10.0;
           solidifyUniforms.uGlowIntensity.value = 0.0;
@@ -839,7 +953,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         } else if (comparisonMode === 'overlay') {
           if (loadedSolidModel) {
             loadedSolidModel.visible = true;
-            updateEyeTracking(dt);
+            updateEyeTracking(dt, now);
           }
           solidifyUniforms.uSolidifyY.value = 10.0;
           solidifyUniforms.uGlowIntensity.value = 0.0;
@@ -883,7 +997,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         if (loadedSolidModel) {
           loadedSolidModel.visible = true;
           // Apply Natural 3D Eye Tracking (Section 2, 3, 4, 5)
-          updateEyeTracking(dt);
+          updateEyeTracking(dt, now);
         }
         solidifyUniforms.uSolidifyY.value = 10.0;
         solidifyUniforms.uGlowIntensity.value = 0.0;
@@ -1106,6 +1220,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       window.removeEventListener('keydown', handleDevKeyDown);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerleave', handlePointerLeave);
+      window.removeEventListener('pointerdown', handlePointerDown);
 
       if (leftEyeBone && leftEyeBone.userData.restQuat) {
         leftEyeBone.quaternion.copy(leftEyeBone.userData.restQuat);
