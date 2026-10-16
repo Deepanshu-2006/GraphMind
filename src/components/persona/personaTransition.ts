@@ -6,14 +6,15 @@
  */
 
 export type PersonaTransitionState =
+  | 'HERO_ENTERING'
   | 'HERO_IDLE'
   | 'ORB_TO_HUMAN'
   | 'HUMAN_FORMED'
-  | 'HUMAN_SOLIDIFYING'
-  | 'PERSONA_READY';
+  | 'PERSONA_READY'
+  | 'RETURNING_TO_HERO';
 
 class PersonaTransitionController {
-  private _state: PersonaTransitionState = 'HERO_IDLE';
+  private _state: PersonaTransitionState = 'HERO_ENTERING';
   private _startTime = 0;
   private _listeners = new Set<(state: PersonaTransitionState) => void>();
 
@@ -50,12 +51,60 @@ class PersonaTransitionController {
   }
 
   /**
+   * Transitions to PERSONA_READY once persona experience is fully active.
+   */
+  setPersonaReady(): void {
+    if (this._state === 'HUMAN_FORMED') {
+      this._state = 'PERSONA_READY';
+      this.notify();
+    }
+  }
+
+  /**
+   * Triggers exit from Persona and begins preparation for return to hero.
+   */
+  triggerReturnToHero(): boolean {
+    if (this._state !== 'PERSONA_READY' && this._state !== 'HUMAN_FORMED') {
+      return false;
+    }
+    this._state = 'RETURNING_TO_HERO';
+    this._startTime = 0;
+    this.notify();
+    return true;
+  }
+
+  /**
+   * Begins the hero entrance animation playback from its proper initial state.
+   */
+  startHeroEntering(): void {
+    if (this._state === 'RETURNING_TO_HERO') {
+      this._state = 'HERO_ENTERING';
+      this._startTime = performance.now();
+      this.notify();
+    }
+  }
+
+  /**
+   * Completes the hero entrance animation, returning orb to rest in HERO_IDLE.
+   */
+  completeHeroEntry(): void {
+    if (this._state === 'HERO_ENTERING') {
+      this._state = 'HERO_IDLE';
+      this.notify();
+    }
+  }
+
+  /**
    * Resets transition state back to HERO_IDLE when returning to workspace.
    */
   resetToHero(): void {
-    this._state = 'HERO_IDLE';
-    this._startTime = 0;
-    this.notify();
+    if (this._state === 'PERSONA_READY' || this._state === 'HUMAN_FORMED') {
+      this.triggerReturnToHero();
+    } else {
+      this._state = 'HERO_IDLE';
+      this._startTime = 0;
+      this.notify();
+    }
   }
 
   /**
@@ -78,3 +127,7 @@ class PersonaTransitionController {
 }
 
 export const personaTransitionController = new PersonaTransitionController();
+
+if (typeof window !== 'undefined') {
+  (window as unknown as { __personaTransitionController: PersonaTransitionController }).__personaTransitionController = personaTransitionController;
+}

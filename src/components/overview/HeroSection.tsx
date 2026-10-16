@@ -37,8 +37,14 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   const effectiveGraph = graph !== undefined ? graph : graphContext?.activeGraph;
 
   const [transitionState, setTransitionState] = useState(personaTransitionController.state);
+  const [entryKey, setEntryKey] = useState(0);
   useEffect(() => {
-    return personaTransitionController.subscribe(setTransitionState);
+    return personaTransitionController.subscribe((state) => {
+      setTransitionState(state);
+      if (state === 'HERO_ENTERING') {
+        setEntryKey((prev) => prev + 1);
+      }
+    });
   }, []);
 
   // Dynamic editorial description derived deterministically from actual graph concepts
@@ -159,6 +165,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   // D. Scroll cue fade
   const cueOpacity = Math.max(0, 1.0 - smoothScroll / 0.10) * 0.55;
 
+  const isInPersona = transitionState === 'ORB_TO_HUMAN' || transitionState === 'HUMAN_FORMED' || transitionState === 'PERSONA_READY' || transitionState === 'RETURNING_TO_HERO';
+
   return (
     <section ref={heroRef} className="overview-hero" aria-label="GraphMind interactive 3d knowledge orb hero">
       {/* Layer 1: The Interactive 3D Knowledge Orb with Continuous Scroll Dissolution */}
@@ -168,15 +176,16 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       <motion.div 
         className="overview-hero-vignette" 
         aria-hidden="true" 
-        animate={{ opacity: transitionState !== 'HERO_IDLE' ? 0 : 1 }}
+        animate={{ opacity: isInPersona ? 0 : 1 }}
         transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       />
 
       {/* Layer 3: Editorial Typography & Actions */}
       <motion.div 
+        key={`hero-content-${entryKey}`}
         className="overview-hero-content"
         style={{ x: textParallaxX, y: textParallaxY }}
-        animate={{ opacity: transitionState !== 'HERO_IDLE' ? 0 : 1 }}
+        animate={{ opacity: isInPersona ? 0 : 1 }}
         transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       >
         {/* Eyebrow: Editorial section label with tiny GraphMind green marker */}
@@ -414,11 +423,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
       {/* Understated Editorial Bottom Scroll Cue */}
       <motion.div 
+        key={`hero-cue-${entryKey}`}
         className="overview-hero-cue" 
         aria-hidden="true"
         initial={{ opacity: 0 }}
-        animate={{ opacity: transitionState !== 'HERO_IDLE' ? 0 : cueOpacity }}
-        transition={{ duration: 0.35 }}
+        animate={{ opacity: isInPersona ? 0 : cueOpacity }}
+        transition={{ delay: 0.9, duration: 0.7 }}
       >
         <span className="hero-cue-text">Scroll to explore</span>
         <span className="hero-cue-arrow">↓</span>

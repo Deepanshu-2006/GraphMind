@@ -49,7 +49,8 @@ export function AppContent() {
 
   const handleOpenPersona = useCallback(() => {
     if (isPersonaOpen) return; // Prevent double activation
-    personaTransitionController.triggerOrbToHuman();
+    const started = personaTransitionController.triggerOrbToHuman();
+    if (!started) return;
     if (typeof window !== 'undefined') {
       previousPathRef.current = window.location.pathname + window.location.search;
       setIsPersonaOpen(true);
@@ -64,7 +65,7 @@ export function AppContent() {
   const handleClosePersona = useCallback(() => {
     if (!isPersonaOpen) return;
     setIsPersonaOpen(false);
-    personaTransitionController.resetToHero();
+    personaTransitionController.triggerReturnToHero();
     if (typeof window !== 'undefined') {
       const fallbackPath = currentSection === 'overview' ? '/' : `/${currentSection}`;
       const targetPath = previousPathRef.current || fallbackPath;
@@ -177,9 +178,14 @@ export function AppContent() {
   useEffect(() => {
     const handlePopState = () => {
       const isPersonaRoute = window.location.pathname.toLowerCase() === '/persona';
-      setIsPersonaOpen(isPersonaRoute);
       if (!isPersonaRoute) {
+        setIsPersonaOpen(false);
         setCurrentSection(getInitialSection());
+        if (personaTransitionController.state === 'PERSONA_READY' || personaTransitionController.state === 'HUMAN_FORMED') {
+          personaTransitionController.triggerReturnToHero();
+        }
+      } else {
+        setIsPersonaOpen(true);
       }
     };
     window.addEventListener('popstate', handlePopState);

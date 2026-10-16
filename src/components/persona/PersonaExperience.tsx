@@ -30,7 +30,7 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
         setAnimationState('FORMING_HUMANOID');
       } else if (state === 'HUMAN_FORMED' || state === 'PERSONA_READY') {
         setAnimationState('IDLE');
-      } else if (state === 'HERO_IDLE') {
+      } else {
         setAnimationState('INITIALIZING');
       }
     });

@@ -215,8 +215,10 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
 
     // 3. Volumetric Particle Initialization
     const getParticleCount = (w: number): number => {
-      if (prefersReducedMotion) return 400;
-      return 2400; // 2,400 precision surface points matching human character silhouette
+      if (prefersReducedMotion) return 180;
+      if (w < 560) return 240;
+      if (w < 960) return 460;
+      return 760; // Optimal density with rock-solid 120fps performance
     };
 
     const particleCount = getParticleCount(window.innerWidth);
@@ -503,7 +505,7 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
     scene.add(orbGroup);
 
     // 6. Interaction & Motion Physics State
-    const startTime = performance.now();
+    let startTime = performance.now();
     let lastTime = startTime;
 
     // Smoothed continuous scroll progress
@@ -622,9 +624,7 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
     // 7. GraphMind Persona — Hero Orb to Human Character Transition Controller
     let transitionState: PersonaTransitionState = personaTransitionController.state;
     let transitionStartTime = 0;
-    let resetStartTime = 0;
     const TRANSITION_DURATION = prefersReducedMotion ? 0.05 : 2.0;
-    const RESET_DURATION = prefersReducedMotion ? 0.05 : 0.85;
 
     // Temporary vectors to avoid garbage collection spikes in 60/120fps loop
     const tempWorldPos = new THREE.Vector3();
@@ -647,7 +647,8 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
         p.transStartY = tempWorldPos.y;
         p.transStartZ = tempWorldPos.z;
 
-        const target = PERSONA_SURFACE_POINTS[i % PERSONA_SURFACE_POINTS.length];
+        const targetIdx = Math.floor((i * PERSONA_SURFACE_POINTS.length) / particleCount);
+        const target = PERSONA_SURFACE_POINTS[targetIdx];
         p.transTargetX = target.x;
         p.transTargetY = target.y;
         p.transTargetZ = target.z;
@@ -677,30 +678,7 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
       orbGroup.updateMatrixWorld(true);
     };
 
-    const startResetToHero = () => {
-      resetStartTime = performance.now();
-      orbGroup.updateMatrixWorld(true);
-
-      for (let i = 0; i < particleCount; i++) {
-        const p = particles[i];
-        p.transStartX = p.x;
-        p.transStartY = p.y;
-        p.transStartZ = p.z;
-
-        p.transTargetX = homePosition.x + p.sphereX;
-        p.transTargetY = homePosition.y + p.sphereY;
-        p.transTargetZ = homePosition.z + p.sphereZ;
-
-        p.transMidX = (p.transStartX + p.transTargetX) * 0.5;
-        p.transMidY = (p.transStartY + p.transTargetY) * 0.5 + 0.15;
-        p.transMidZ = (p.transStartZ + p.transTargetZ) * 0.5;
-
-        p.transDelay = prefersReducedMotion ? 0 : Math.random() * 0.12;
-        p.transDuration = prefersReducedMotion ? 0.05 : 0.65 + Math.random() * 0.15;
-      }
-    };
-
-    const finishResetToHero = () => {
+    const prepareFreshHeroEntry = () => {
       container.classList.remove('in-persona-transition');
       handleResize();
       orbGroup.position.copy(homePosition);
@@ -708,14 +686,39 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
       orbGroup.scale.copy(homeScale);
       orbGroup.updateMatrixWorld(true);
 
+      currentOrbPosition.copy(homePosition);
+      orbPositionVelocity.set(0, 0, 0);
+      targetOrbRotation.set(0, 0, 0);
+
+      const posAttr = pointsGeometry.attributes.position;
+      const colAttr = pointsGeometry.attributes.color;
+      const sizesAttr = pointsGeometry.attributes.pSize;
+
       for (let i = 0; i < particleCount; i++) {
         const p = particles[i];
-        p.x = p.sphereX;
-        p.y = p.sphereY;
-        p.z = p.sphereZ;
+        p.x = prefersReducedMotion ? p.sphereX : p.scatterX;
+        p.y = prefersReducedMotion ? p.sphereY : p.scatterY;
+        p.z = prefersReducedMotion ? p.sphereZ : p.scatterZ;
         p.vx = 0;
         p.vy = 0;
         p.vz = 0;
+
+        posAttr.setXYZ(i, p.x, p.y, p.z);
+        colAttr.setXYZ(i, p.baseR, p.baseG, p.baseB);
+        sizesAttr.setX(i, p.baseSize);
+      }
+
+      posAttr.needsUpdate = true;
+      colAttr.needsUpdate = true;
+      sizesAttr.needsUpdate = true;
+
+      // Reset internal relationship line states
+      for (let c = 0; c < connections.length; c++) {
+        connections[c].currentOpacity = 0;
+        connections[c].active = 0;
+      }
+      for (let c = 0; c < clusters.length; c++) {
+        clusters[c].activation = 0;
       }
 
       camera.position.set(0, 0, 5.2);
@@ -724,7 +727,17 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
       camera.updateProjectionMatrix();
 
       pointsMaterial.size = 0.048;
+      pointsMaterial.opacity = 0.94;
       linesMaterial.opacity = 0.52;
+
+      smoothScrollProgress = 0;
+      mouseActiveInfluence = 0;
+      activeRipple = null;
+
+      startTime = performance.now();
+      lastTime = startTime;
+
+      personaTransitionController.startHeroEntering();
     };
 
     const unsubscribeTransition = personaTransitionController.subscribe((state) => {
@@ -732,8 +745,8 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
       transitionState = state;
       if (state === 'ORB_TO_HUMAN' && prevState !== 'ORB_TO_HUMAN') {
         startOrbToHuman();
-      } else if (state === 'HERO_IDLE' && (prevState === 'ORB_TO_HUMAN' || prevState === 'HUMAN_FORMED')) {
-        startResetToHero();
+      } else if (state === 'RETURNING_TO_HERO') {
+        prepareFreshHeroEntry();
       }
     });
 
@@ -828,7 +841,8 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
 
         if (progress >= 1.0) {
           personaTransitionController.completeHumanFormed();
-          transitionState = 'HUMAN_FORMED';
+          personaTransitionController.setPersonaReady();
+          transitionState = 'PERSONA_READY';
         }
 
         renderer.render(scene, camera);
@@ -836,9 +850,9 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
       }
 
       // ----------------------------------------------------
-      // B. Stabilized State: HUMAN_FORMED
+      // B. Stabilized State: HUMAN_FORMED / PERSONA_READY
       // ----------------------------------------------------
-      if (transitionState === 'HUMAN_FORMED') {
+      if (transitionState === 'HUMAN_FORMED' || transitionState === 'PERSONA_READY') {
         camera.position.set(0, 0.0, 1.48);
         camera.fov = 30;
         camera.lookAt(0, 0, 0);
@@ -848,62 +862,6 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
         linesMaterial.opacity = 0;
 
         // Rock-solid stable: no floating, no drift, stable silhouette
-        renderer.render(scene, camera);
-        return;
-      }
-
-      // ----------------------------------------------------
-      // C. Reverse Transformation: Reset to Hero Orb
-      // ----------------------------------------------------
-      if (resetStartTime > 0) {
-        const elapsed = (now - resetStartTime) * 0.001;
-        const progress = Math.min(1.0, elapsed / RESET_DURATION);
-        const camEase = smoothstep(0.0, 1.0, progress);
-
-        camera.position.set(
-          0,
-          0,
-          THREE.MathUtils.lerp(1.48, 5.2, camEase)
-        );
-        camera.fov = THREE.MathUtils.lerp(30, 44, camEase);
-        camera.lookAt(0, 0, 0);
-        camera.updateProjectionMatrix();
-
-        pointsMaterial.size = THREE.MathUtils.lerp(0.0075, 0.048, camEase);
-        linesMaterial.opacity = 0.52 * camEase;
-
-        const posAttr = pointsGeometry.attributes.position;
-        const colAttr = pointsGeometry.attributes.color;
-        const sizesAttr = pointsGeometry.attributes.pSize;
-
-        for (let i = 0; i < particleCount; i++) {
-          const p = particles[i];
-          const pTime = Math.max(0, elapsed - p.transDelay);
-          const rawP = Math.min(1.0, pTime / p.transDuration);
-          const u = rawP * rawP * (3 - 2 * rawP);
-          const invU = 1 - u;
-          const b0 = invU * invU;
-          const b1 = 2 * invU * u;
-          const b2 = u * u;
-
-          p.x = b0 * p.transStartX + b1 * p.transMidX + b2 * p.transTargetX;
-          p.y = b0 * p.transStartY + b1 * p.transMidY + b2 * p.transTargetY;
-          p.z = b0 * p.transStartZ + b1 * p.transMidZ + b2 * p.transTargetZ;
-
-          posAttr.setXYZ(i, p.x, p.y, p.z);
-          colAttr.setXYZ(i, p.baseR, p.baseG, p.baseB);
-          sizesAttr.setX(i, p.baseSize);
-        }
-
-        posAttr.needsUpdate = true;
-        colAttr.needsUpdate = true;
-        sizesAttr.needsUpdate = true;
-
-        if (progress >= 1.0) {
-          resetStartTime = 0;
-          finishResetToHero();
-        }
-
         renderer.render(scene, camera);
         return;
       }
@@ -925,6 +883,10 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
       // 0–25% particles begin moving, 20–55% converge, 45–75% connections appear, 65–100% settle
       const formationTime = Math.max(0, elapsedSeconds - 0.25);
       const globalFormation = prefersReducedMotion ? 1.0 : Math.min(1.0, formationTime / 2.2);
+
+      if (transitionState === 'HERO_ENTERING' && globalFormation >= 1.0) {
+        personaTransitionController.completeHeroEntry();
+      }
 
       // Smooth blended influence values:
       // formationInfluence: 1 -> 0 over the final portion of formation
