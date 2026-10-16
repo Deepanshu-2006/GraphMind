@@ -20,6 +20,8 @@ interface AppShellProps {
   onSelectConcept?: (conceptId: string) => void;
   onOpenCreateModal: () => void;
   isGraphFullscreen?: boolean;
+  onOpenPersona?: () => void;
+  isPersonaOpen?: boolean;
   children: React.ReactNode;
 }
 
@@ -38,6 +40,8 @@ export const AppShell: React.FC<AppShellProps> = ({
   onSelectConcept,
   onOpenCreateModal,
   isGraphFullscreen = false,
+  onOpenPersona,
+  isPersonaOpen = false,
   children
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -54,7 +58,11 @@ export const AppShell: React.FC<AppShellProps> = ({
   }, [mobileMenuOpen]);
 
   return (
-    <div className={`app-shell ${isGraphFullscreen ? 'graph-fullscreen-active' : ''}`}>
+    <div
+      className={`app-shell ${isGraphFullscreen ? 'graph-fullscreen-active' : ''}`}
+      aria-hidden={isPersonaOpen}
+      inert={isPersonaOpen ? '' : undefined}
+    >
       {/* Mobile backdrop */}
       {mobileMenuOpen && (
         <div 
@@ -91,6 +99,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           onToggleMobileMenu={() => setMobileMenuOpen(prev => !prev)}
           onOpenCreateModal={onOpenCreateModal}
           isMobileMenuOpen={mobileMenuOpen}
+          onOpenPersona={onOpenPersona}
         />
         
         <main className="workspace-viewport" id="main-content" tabIndex={-1}>

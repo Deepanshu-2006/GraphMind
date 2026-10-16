@@ -19,6 +19,7 @@ interface TopBarProps {
   onToggleMobileMenu: () => void;
   onOpenCreateModal: () => void;
   isMobileMenuOpen?: boolean;
+  onOpenPersona?: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -33,7 +34,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   onSelectConcept,
   onToggleMobileMenu,
   onOpenCreateModal,
-  isMobileMenuOpen = false
+  isMobileMenuOpen = false,
+  onOpenPersona
 }) => {
   return (
     <header className="app-topbar" role="banner">
@@ -87,13 +89,24 @@ export const TopBar: React.FC<TopBarProps> = ({
           <span className="topbar-btn-text-short">Upload</span>
         </button>
 
-        {/* Profile Avatar: Quiet 30px circular surface */}
+        {/* Profile Avatar: Quiet 30px circular surface (Persona entry point) */}
         <div 
           className="profile-avatar" 
-          title="Profile (DK)" 
+          title="Open GraphMind Persona (DK)" 
           role="button" 
           tabIndex={0} 
-          aria-label="User profile"
+          aria-label="Open GraphMind Persona"
+          id="btn-profile-persona"
+          onClick={(e) => {
+            e.preventDefault();
+            onOpenPersona?.();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onOpenPersona?.();
+            }
+          }}
         >
           <span className="profile-initials">DK</span>
         </div>

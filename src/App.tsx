@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { AppShell } from './components/layout/AppShell';
 import { OverviewView } from './components/overview/OverviewView';
 import { KnowledgeGraphWorkspace } from './components/graph/KnowledgeGraphWorkspace';
@@ -10,6 +11,7 @@ import { SourcesView } from './components/sources/SourcesView';
 import { StudySpaceView } from './components/study/StudySpaceView';
 import { SettingsView } from './components/settings/SettingsView';
 import { RevisionWorkspace } from './components/revision/RevisionWorkspace';
+import { PersonaExperience } from './components/persona/PersonaExperience';
 import { demoKnowledgeGraph } from './data/graphData';
 import type { KnowledgeSource, KnowledgeGraph } from './types/knowledgeGraph';
 import { sourceToRecentMaterial } from './services/sourceIngestion';
@@ -36,6 +38,42 @@ export function AppContent() {
   const [newGraphModalOpen, setNewGraphModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [focusedConceptId, setFocusedConceptId] = useState<string | null>(null);
+
+  // Full-Screen GraphMind Persona Experience State
+  const [isPersonaOpen, setIsPersonaOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.location.pathname.toLowerCase() === '/persona';
+  });
+  const previousPathRef = useRef<string | null>(null);
+
+  const handleOpenPersona = useCallback(() => {
+    if (isPersonaOpen) return; // Prevent double activation
+    if (typeof window !== 'undefined') {
+      previousPathRef.current = window.location.pathname + window.location.search;
+      setIsPersonaOpen(true);
+      if (window.location.pathname.toLowerCase() !== '/persona') {
+        window.history.pushState({ persona: true }, '', '/persona');
+      }
+    } else {
+      setIsPersonaOpen(true);
+    }
+  }, [isPersonaOpen]);
+
+  const handleClosePersona = useCallback(() => {
+    if (!isPersonaOpen) return;
+    setIsPersonaOpen(false);
+    if (typeof window !== 'undefined') {
+      const fallbackPath = currentSection === 'overview' ? '/' : `/${currentSection}`;
+      const targetPath = previousPathRef.current || fallbackPath;
+      if (window.location.pathname.toLowerCase() === '/persona') {
+        if (window.history.state && window.history.state.persona) {
+          window.history.back();
+        } else {
+          window.history.replaceState({}, '', targetPath);
+        }
+      }
+    }
+  }, [isPersonaOpen, currentSection]);
 
   const getInitialMode = (): WorkspaceMode => {
     const modeParam = new URLSearchParams(window.location.search).get('mode');
@@ -135,7 +173,11 @@ export function AppContent() {
   // Sync route on browser back/forward
   useEffect(() => {
     const handlePopState = () => {
-      setCurrentSection(getInitialSection());
+      const isPersonaRoute = window.location.pathname.toLowerCase() === '/persona';
+      setIsPersonaOpen(isPersonaRoute);
+      if (!isPersonaRoute) {
+        setCurrentSection(getInitialSection());
+      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -384,6 +426,8 @@ export function AppContent() {
         onSelectConcept={handleExploreConceptInGraph}
         onOpenCreateModal={() => setCreateModalOpen(true)}
         isGraphFullscreen={isGraphFullscreen}
+        onOpenPersona={handleOpenPersona}
+        isPersonaOpen={isPersonaOpen}
       >
         {/* Overview View */}
         {currentSection === 'overview' && (
@@ -482,6 +526,16 @@ export function AppContent() {
           />
         )}
       </AppShell>
+
+      {/* Dedicated Full-Screen GraphMind Persona Experience */}
+      <AnimatePresence>
+        {isPersonaOpen && (
+          <PersonaExperience
+            isOpen={isPersonaOpen}
+            onClose={handleClosePersona}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Upload Material Modal */}
       <CreateGraphModal
