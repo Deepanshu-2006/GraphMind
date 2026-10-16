@@ -3,7 +3,7 @@ import { motion, useReducedMotion, type Variants } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { PersonaAtmosphere } from './PersonaAtmosphere';
 import { PersonaHumanoidCanvas, type PersonaAnimationState } from './PersonaHumanoidCanvas';
-import { personaTransitionController, type PersonaTransitionState } from './personaTransition';
+import { personaTransitionController } from './personaTransition';
 
 export interface PersonaExperienceProps {
   isOpen: boolean;

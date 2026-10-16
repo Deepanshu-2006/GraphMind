@@ -624,11 +624,12 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
     // 7. GraphMind Persona — Hero Orb to Human Character Transition Controller
     let transitionState: PersonaTransitionState = personaTransitionController.state;
     let transitionStartTime = 0;
-    const TRANSITION_DURATION = prefersReducedMotion ? 0.05 : 2.0;
 
     // Temporary vectors to avoid garbage collection spikes in 60/120fps loop
     const tempWorldPos = new THREE.Vector3();
     const tempLocalPos = new THREE.Vector3();
+
+    const TRANSITION_DURATION = prefersReducedMotion ? 0.05 : 2.40;
 
     const startOrbToHuman = () => {
       transitionStartTime = performance.now();
@@ -647,22 +648,49 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
         p.transStartY = tempWorldPos.y;
         p.transStartZ = tempWorldPos.z;
 
+        // Uniform stride across all 2,400 GLB surface points to preserve comprehensive anatomical coverage
         const targetIdx = Math.floor((i * PERSONA_SURFACE_POINTS.length) / particleCount);
         const target = PERSONA_SURFACE_POINTS[targetIdx];
         p.transTargetX = target.x;
         p.transTargetY = target.y;
         p.transTargetZ = target.z;
 
-        // Arched mid-point for curved 3D stream:
-        // Lifting upward (y) and depth variation (z) for an organic vortex
-        p.transMidX = (p.transStartX + p.transTargetX) * 0.5 + (Math.random() - 0.5) * 0.25;
-        p.transMidY = (p.transStartY + p.transTargetY) * 0.5 + 0.28 + Math.random() * 0.22;
-        p.transMidZ = (p.transStartZ + p.transTargetZ) * 0.5 + (Math.random() - 0.5) * 0.35;
+        // Target-aware anatomical classification:
+        // Identify structural silhouette & key facial/neck/shoulder landmarks vs interior volumetric fill
+        const isTopHair = target.y > 0.20;
+        const isShoulder = Math.abs(target.x) > 0.18 && target.y < -0.06;
+        const isFaceLandmark = target.z > 0.075 && target.y >= 0.02 && target.y <= 0.20;
+        const isOuterHead = target.y >= 0.08 && Math.abs(target.x) > 0.085;
+        const isOuterJaw = target.y >= 0.0 && target.y < 0.08 && Math.abs(target.x) > 0.065;
+        const isNeckContour = target.y >= -0.08 && target.y < 0.02 && Math.abs(target.x) > 0.05;
+        const isChestBaseline = target.y < -0.20 && Math.abs(target.x) > 0.14;
 
-        // Wave ascending from chest to head
-        const normY = Math.max(0, Math.min(1, (target.y - (-0.36)) / (0.26 - (-0.36))));
-        p.transDelay = prefersReducedMotion ? 0 : normY * 0.28 + Math.random() * 0.16;
-        p.transDuration = prefersReducedMotion ? 0.05 : 1.35 + Math.random() * 0.25;
+        const isSilhouette = isTopHair || isShoulder || isFaceLandmark || isOuterHead || isOuterJaw || isNeckContour || isChestBaseline;
+
+        // Parametric 3D trajectory control point (curved orbital arc from hero position on right to center bust)
+        // Coordinated space curve: arches gracefully upward (+y), forward in depth (+z), and sweeps inward from right
+        p.transMidX = (p.transStartX + p.transTargetX) * 0.52 - 0.20 + Math.sin(i * 2.3) * 0.16;
+        p.transMidY = Math.max(p.transStartY, p.transTargetY) * 0.65 + 0.36 + Math.cos(i * 1.9) * 0.12;
+        p.transMidZ = (p.transStartZ + p.transTargetZ) * 0.5 + 0.42 + Math.sin(i * 3.7) * 0.20;
+
+        // Phase-aware arrival scheduling:
+        // Phase A: 0.0s -> 0.35s (orb pulse & energize in place)
+        // Phase B: 0.35s -> 0.95s (orbital vortex flow)
+        // Phase C: 0.95s -> 1.95s (human formation: silhouette arrives first, followed by upward interior wave)
+        // Phase D: 1.95s -> 2.40s (final convergence & settling)
+        const normY = Math.max(0, Math.min(1, (target.y - (-0.368)) / (0.263 - (-0.368))));
+        if (prefersReducedMotion) {
+          p.transDelay = 0;
+          p.transDuration = 0.05;
+        } else if (isSilhouette) {
+          // Silhouette points establish the large-scale human frame first (t ~ 1.1s - 1.45s)
+          p.transDelay = 0.35 + (1.0 - normY) * 0.18 + (i % 7) * 0.02;
+          p.transDuration = 0.82 + (i % 5) * 0.03;
+        } else {
+          // Interior surface points arrive in an ascending spatial wave from chest -> neck -> face (t ~ 1.40s - 1.95s)
+          p.transDelay = 0.50 + normY * 0.42 + (i % 9) * 0.025;
+          p.transDuration = 0.92 + (i % 6) * 0.03;
+        }
 
         p.x = p.transStartX;
         p.y = p.transStartY;
@@ -762,27 +790,35 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
       animationFrameId = requestAnimationFrame(animate);
       if (!isVisible || width === 0 || height === 0) return;
 
+      const isMobile = width < 768;
+      const targetCamZ = isMobile ? 1.75 : 1.48;
+      const targetCamY = isMobile ? 0.04 : 0.0;
+      const targetCamFov = isMobile ? 34 : 30;
+
       // ----------------------------------------------------
-      // A. Active Transformation: ORB_TO_HUMAN
+      // A. Active Transformation: ORB_TO_HUMAN (Cinematic 5-Phase Choreography)
       // ----------------------------------------------------
       if (transitionState === 'ORB_TO_HUMAN') {
         const elapsed = (now - transitionStartTime) * 0.001;
         const progress = Math.min(1.0, elapsed / TRANSITION_DURATION);
 
-        // Smooth cubic easing for camera fly-in / focus pull
-        const camEase = smoothstep(0.0, 1.0, progress);
+        // Camera flight: starts after Phase A (t > 0.35s) and smoothly glides to portrait framing
+        const camProgress = prefersReducedMotion ? 1.0 : Math.max(0, Math.min(1.0, (elapsed - 0.25) / (TRANSITION_DURATION - 0.45)));
+        const camEase = camProgress * camProgress * (3 - 2 * camProgress);
+
         camera.position.set(
           0,
-          0,
-          THREE.MathUtils.lerp(5.2, 1.48, camEase)
+          THREE.MathUtils.lerp(0.0, targetCamY, camEase),
+          THREE.MathUtils.lerp(5.2, targetCamZ, camEase)
         );
-        camera.fov = THREE.MathUtils.lerp(44, 30, camEase);
-        camera.lookAt(0, 0, 0);
+        camera.fov = THREE.MathUtils.lerp(44, targetCamFov, camEase);
+        camera.lookAt(0, targetCamY, 0);
         camera.updateProjectionMatrix();
 
-        pointsMaterial.size = THREE.MathUtils.lerp(0.048, 0.0075, camEase);
+        // Particle material size: transitions gracefully from 0.048 down to 0.028 (retaining crisp 6-8px dots)
+        pointsMaterial.size = THREE.MathUtils.lerp(0.048, 0.028, camEase);
 
-        // Fade relationship lines rapidly within initial 350ms
+        // Relationship lines: fade out gracefully during Phase A (0.0s -> 0.35s)
         const lineFade = Math.max(0, 1.0 - elapsed / 0.35);
         linesMaterial.opacity = 0.52 * lineFade;
 
@@ -790,8 +826,42 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
         const colAttr = pointsGeometry.attributes.color;
         const sizesAttr = pointsGeometry.attributes.pSize;
 
+        // PHASE A: Interaction Response (0.0s -> 0.35s)
+        const isPhaseA = elapsed < 0.35 && !prefersReducedMotion;
+        const phaseAPulse = isPhaseA ? Math.sin((elapsed / 0.35) * Math.PI) : 0;
+        const orbExpansion = 1.0 + 0.04 * phaseAPulse;
+        const orbSpin = (elapsed / 0.35) * 0.32;
+
         for (let i = 0; i < particleCount; i++) {
           const p = particles[i];
+
+          if (isPhaseA) {
+            // Radial breath + rotational energy wave through the particle orb
+            const cosS = Math.cos(orbSpin);
+            const sinS = Math.sin(orbSpin);
+            const relX = p.transStartX - 1.85;
+            const relZ = p.transStartZ;
+
+            p.x = 1.85 + (relX * cosS - relZ * sinS) * orbExpansion;
+            p.y = p.transStartY * orbExpansion;
+            p.z = (relX * sinS + relZ * cosS) * orbExpansion;
+
+            posAttr.setXYZ(i, p.x, p.y, p.z);
+
+            // Brightness wave through green field
+            const distFromCenter = Math.hypot(relX, p.transStartY, relZ) / baseOrbRadius;
+            const wave = Math.sin(Math.max(0, Math.min(1, (elapsed / 0.35) * 1.5 - distFromCenter * 0.5)) * Math.PI);
+            colAttr.setXYZ(
+              i,
+              p.baseR + wave * 0.25,
+              p.baseG + wave * 0.15,
+              p.baseB + wave * 0.05
+            );
+            sizesAttr.setX(i, p.baseSize * (1.0 + phaseAPulse * 0.15));
+            continue;
+          }
+
+          // PHASE B & C: Orbital Flow & Human Formation
           const pTime = Math.max(0, elapsed - p.transDelay);
           const rawP = Math.min(1.0, pTime / p.transDuration);
 
@@ -802,28 +872,60 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
           const b1 = 2 * invU * u;
           const b2 = u * u;
 
-          p.x = b0 * p.transStartX + b1 * p.transMidX + b2 * p.transTargetX;
+          // Controlled vortex swirl during transit (damped to 0 at destination)
+          const swirlAngle = (1.0 - rawP) * (Math.PI * 1.6 + (i % 7) * 0.25);
+          const swirlMag = Math.sin(rawP * Math.PI) * 0.12 * (1.0 - rawP * 0.4);
+          const swirlX = -Math.sin(swirlAngle) * swirlMag;
+          const swirlZ = Math.cos(swirlAngle) * swirlMag;
+
+          p.x = b0 * p.transStartX + b1 * p.transMidX + b2 * p.transTargetX + swirlX;
           p.y = b0 * p.transStartY + b1 * p.transMidY + b2 * p.transTargetY;
-          p.z = b0 * p.transStartZ + b1 * p.transMidZ + b2 * p.transTargetZ;
+          p.z = b0 * p.transStartZ + b1 * p.transMidZ + b2 * p.transTargetZ + swirlZ;
+
+          // PHASE D: Settling & Velocity Damping (1.95s -> 2.40s)
+          if (elapsed >= 1.95) {
+            const settleP = Math.min(1.0, (elapsed - 1.95) / 0.45);
+            const damp = Math.exp(-settleP * 8.0);
+            p.x = THREE.MathUtils.lerp(p.transTargetX, p.x, damp);
+            p.y = THREE.MathUtils.lerp(p.transTargetY, p.y, damp);
+            p.z = THREE.MathUtils.lerp(p.transTargetZ, p.z, damp);
+          }
 
           posAttr.setXYZ(i, p.x, p.y, p.z);
 
-          // Luminous arrival effect
-          const isHead = p.transTargetY >= 0.05;
-          const arrivalPulse = Math.sin(rawP * Math.PI) * 0.35;
+          // Luminous color choreography:
+          // Signature GraphMind lime green (#A3FF12) for frontal facial landmarks, forehead, eyes, jawline & silhouette
+          const isFrontal = p.transTargetZ > 0.05 && p.transTargetY >= 0.0;
+          const isTopCrown = p.transTargetY > 0.18;
+          const isShoulderTip = Math.abs(p.transTargetX) > 0.18;
+          const arrivalPulse = Math.sin(rawP * Math.PI) * 0.28;
 
-          let targetR = 0.16;
-          let targetG = 0.52;
+          let targetR = 0.20;
+          let targetG = 0.62;
           let targetB = 0.10;
 
-          if (p.isFocal || isHead) {
-            targetR = 0.58 + arrivalPulse;
-            targetG = 0.98 + arrivalPulse * 0.02;
+          if (p.isFocal || isFrontal || isTopCrown || isShoulderTip) {
+            targetR = 0.64 + arrivalPulse * 0.15;
+            targetG = 1.0;
             targetB = 0.07;
+          } else if (p.transTargetY >= -0.06) {
+            // Neck and mid-face: luminous emerald green
+            targetR = 0.38 + arrivalPulse * 0.2;
+            targetG = 0.88 + arrivalPulse * 0.1;
+            targetB = 0.08;
           } else {
-            targetR = 0.20 + arrivalPulse * 0.4;
-            targetG = 0.62 + arrivalPulse * 0.3;
+            // Chest and upper arms: natural depth shading
+            targetR = 0.18 + arrivalPulse * 0.2;
+            targetG = 0.58 + arrivalPulse * 0.15;
             targetB = 0.09;
+          }
+
+          // Finishing shimmer wave across completed surface in Phase D
+          if (elapsed >= 1.95) {
+            const shimmerPhase = (elapsed - 1.95) / 0.45;
+            const shimmer = Math.sin(shimmerPhase * Math.PI) * 0.18;
+            targetR += shimmer * 0.2;
+            targetG = Math.min(1.0, targetG + shimmer * 0.1);
           }
 
           const curR = THREE.MathUtils.lerp(p.baseR, targetR, u);
@@ -831,7 +933,8 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
           const curB = THREE.MathUtils.lerp(p.baseB, targetB, u);
           colAttr.setXYZ(i, curR, curG, curB);
 
-          const targetScale = p.isFocal ? 1.6 : 1.1;
+          // Scaled point size preserving intrinsic particle variation
+          const targetScale = p.isFocal ? 1.45 : (isFrontal || isShoulderTip ? 1.25 : 1.0);
           sizesAttr.setX(i, THREE.MathUtils.lerp(p.baseSize, targetScale, u));
         }
 
@@ -850,18 +953,31 @@ export const KnowledgeOrb3D: React.FC<KnowledgeOrb3DProps> = ({
       }
 
       // ----------------------------------------------------
-      // B. Stabilized State: HUMAN_FORMED / PERSONA_READY
+      // B. Stabilized State: HUMAN_FORMED / PERSONA_READY (Phase E: Hold with subtle breathing life)
       // ----------------------------------------------------
       if (transitionState === 'HUMAN_FORMED' || transitionState === 'PERSONA_READY') {
-        camera.position.set(0, 0.0, 1.48);
-        camera.fov = 30;
-        camera.lookAt(0, 0, 0);
+        camera.position.set(0, targetCamY, targetCamZ);
+        camera.fov = targetCamFov;
+        camera.lookAt(0, targetCamY, 0);
         camera.updateProjectionMatrix();
 
-        pointsMaterial.size = 0.0075;
+        pointsMaterial.size = 0.028;
         linesMaterial.opacity = 0;
 
-        // Rock-solid stable: no floating, no drift, stable silhouette
+        const posAttr = pointsGeometry.attributes.position;
+        const timeVal = now * 0.001;
+
+        // Subtle, natural breathing wave (<0.0014 units) keeping the particle humanoid alive and recognizable
+        for (let i = 0; i < particleCount; i++) {
+          const p = particles[i];
+          const breath = Math.sin(timeVal * 1.5 + p.transTargetY * 4.0) * 0.0012;
+          p.x = p.transTargetX;
+          p.y = p.transTargetY + (p.transTargetY < 0.05 ? breath : breath * 0.35);
+          p.z = p.transTargetZ;
+          posAttr.setXYZ(i, p.x, p.y, p.z);
+        }
+        posAttr.needsUpdate = true;
+
         renderer.render(scene, camera);
         return;
       }
