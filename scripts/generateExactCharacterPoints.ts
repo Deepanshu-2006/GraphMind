@@ -102,18 +102,41 @@ loader.parse(glbBuffer.buffer, '', (gltf) => {
     const n = new THREE.Vector3();
     const uv = new THREE.Vector2();
 
+    const morphPositions = geom.morphAttributes?.position;
+
     for (let i = 0; i < posAttr.count; i++) {
       p.fromBufferAttribute(posAttr, i);
+
+      // Evaluate vertex morph target displacement if present on the mesh
+      if (morphPositions && mesh.morphTargetInfluences) {
+        for (let m = 0; m < morphPositions.length; m++) {
+          const inf = mesh.morphTargetInfluences[m];
+          if (inf > 0.001) {
+            p.x += morphPositions[m].getX(i) * inf;
+            p.y += morphPositions[m].getY(i) * inf;
+            p.z += morphPositions[m].getZ(i) * inf;
+          }
+        }
+      }
+
       mesh.applyBoneTransform(i, p);
       p.applyMatrix4(mesh.matrixWorld);
       worldPos.push(p.clone());
 
-      n.fromBufferAttribute(normalAttr, i);
-      n.transformDirection(mesh.matrixWorld);
-      worldNorms.push(n.clone().normalize());
+      if (normalAttr) {
+        n.fromBufferAttribute(normalAttr, i);
+        n.transformDirection(mesh.matrixWorld);
+        worldNorms.push(n.clone().normalize());
+      } else {
+        worldNorms.push(new THREE.Vector3(0, 0, 1));
+      }
 
-      uv.fromBufferAttribute(uvAttr, i);
-      uvs.push(uv.clone());
+      if (uvAttr) {
+        uv.fromBufferAttribute(uvAttr, i);
+        uvs.push(uv.clone());
+      } else {
+        uvs.push(new THREE.Vector2(0.5, 0.5));
+      }
     }
 
     const triangles: TriangleSample[] = [];
@@ -157,14 +180,43 @@ loader.parse(glbBuffer.buffer, '', (gltf) => {
   const rEyeMesh = model.getObjectByName('h_R_eye') as THREE.SkinnedMesh;
   const lGlandMesh = model.getObjectByName('h_L_gland') as THREE.SkinnedMesh;
   const rGlandMesh = model.getObjectByName('h_R_gland') as THREE.SkinnedMesh;
+  const teethUpMesh = model.getObjectByName('h_TeethUp') as THREE.SkinnedMesh;
+  const teethDownMesh = model.getObjectByName('h_TeethDown') as THREE.SkinnedMesh;
+
+  // Scale eye bones by 1.08 (~10-12% eye size enlargement)
+  const leftEyeBone = model.getObjectByName('LeftEye');
+  const rightEyeBone = model.getObjectByName('RightEye');
+  if (leftEyeBone) leftEyeBone.scale.setScalar(1.08);
+  if (rightEyeBone) rightEyeBone.scale.setScalar(1.08);
+
+  // Apply expressive facial morph targets matching Persona solid character
+  if (highResMesh && highResMesh.morphTargetInfluences) {
+    highResMesh.morphTargetInfluences[26] = 0.26; // MouthOpen_h
+    highResMesh.morphTargetInfluences[30] = 0.24; // RsmileOpen_h
+    highResMesh.morphTargetInfluences[31] = 0.24; // LsmileOpen_h
+    highResMesh.morphTargetInfluences[47] = 0.32; // ReyeOpen_h (wider eye aperture)
+    highResMesh.morphTargetInfluences[48] = 0.32; // LeyeOpen_h
+    highResMesh.morphTargetInfluences[13] = 0.08; // RlipUp_h
+    highResMesh.morphTargetInfluences[14] = 0.08; // LlipUp_h
+    highResMesh.morphTargetInfluences[15] = 0.08; // RlipDown_h
+    highResMesh.morphTargetInfluences[16] = 0.08; // LlipDown_h
+  }
+
+  if (teethDownMesh && teethDownMesh.morphTargetInfluences) {
+    teethDownMesh.morphTargetInfluences[29] = 0.26; // t_MouthOpen_h
+  }
+
+  model.updateMatrixWorld(true);
 
   const highResTris = extractMeshTriangles(highResMesh);
   const lEyeTris = extractMeshTriangles(lEyeMesh);
   const rEyeTris = extractMeshTriangles(rEyeMesh);
   const lGlandTris = extractMeshTriangles(lGlandMesh);
   const rGlandTris = extractMeshTriangles(rGlandMesh);
+  const teethUpTris = teethUpMesh ? extractMeshTriangles(teethUpMesh) : [];
+  const teethDownTris = teethDownMesh ? extractMeshTriangles(teethDownMesh) : [];
 
-  console.log(`Extracted triangles: HighRes=${highResTris.length}, LEye=${lEyeTris.length}, REye=${rEyeTris.length}`);
+  console.log(`Extracted triangles: HighRes=${highResTris.length}, LEye=${lEyeTris.length}, REye=${rEyeTris.length}, TeethUp=${teethUpTris.length}, TeethDown=${teethDownTris.length}`);
 
   type SubRegionKey =
     | 'hair'
@@ -184,6 +236,8 @@ loader.parse(glbBuffer.buffer, '', (gltf) => {
     | 'philtrum'
     | 'upper_lip'
     | 'mouth_line'
+    | 'teeth_upper'
+    | 'teeth_lower'
     | 'lower_lip'
     | 'chin'
     | 'jaw'
@@ -214,6 +268,8 @@ loader.parse(glbBuffer.buffer, '', (gltf) => {
     philtrum: [],
     upper_lip: [],
     mouth_line: [],
+    teeth_upper: [],
+    teeth_lower: [],
     lower_lip: [],
     chin: [],
     jaw: [],
@@ -226,6 +282,26 @@ loader.parse(glbBuffer.buffer, '', (gltf) => {
     upper_arm_left: [],
     upper_arm_right: []
   };
+
+  // Separate Teeth meshes sampling (front-visible dental arches)
+  for (const tri of teethUpTris) {
+    const cnz = (tri.nA.z + tri.nB.z + tri.nC.z) / 3;
+    const cz = (tri.pA.z + tri.pB.z + tri.pC.z) / 3;
+    const cy = (tri.pA.y + tri.pB.y + tri.pC.y) / 3;
+    const cx = (tri.pA.x + tri.pB.x + tri.pC.x) / 3;
+    if (cnz > 0.15 && cz > 0.120 && cy >= 0.032 && cy <= 0.058 && Math.abs(cx) <= 0.026) {
+      subRegionTris.teeth_upper.push(tri);
+    }
+  }
+  for (const tri of teethDownTris) {
+    const cnz = (tri.nA.z + tri.nB.z + tri.nC.z) / 3;
+    const cz = (tri.pA.z + tri.pB.z + tri.pC.z) / 3;
+    const cy = (tri.pA.y + tri.pB.y + tri.pC.y) / 3;
+    const cx = (tri.pA.x + tri.pB.x + tri.pC.x) / 3;
+    if (cnz > 0.15 && cz > 0.120 && cy >= 0.026 && cy <= 0.048 && Math.abs(cx) <= 0.026) {
+      subRegionTris.teeth_lower.push(tri);
+    }
+  }
 
   // 1. Separate Left Eye mesh sampling
   for (const tri of lEyeTris) {
@@ -394,7 +470,7 @@ loader.parse(glbBuffer.buffer, '', (gltf) => {
   // Exact budget allocation summing to exactly 5,200
   const budget: Record<SubRegionKey, number> = {
     hair: 500,
-    forehead: 300,
+    forehead: 305,
     left_eyebrow: 80,
     right_eyebrow: 80,
     left_eye_pupil: 30,
@@ -408,15 +484,17 @@ loader.parse(glbBuffer.buffer, '', (gltf) => {
     nose_wings: 120,
     nose_nostrils: 80,
     philtrum: 50,
-    upper_lip: 120,
-    mouth_line: 60,
-    lower_lip: 150,
-    chin: 150,
-    jaw: 200,
-    cheeks: 300,
+    upper_lip: 115,
+    mouth_line: 45,
+    teeth_upper: 40,
+    teeth_lower: 25,
+    lower_lip: 140,
+    chin: 140,
+    jaw: 190,
+    cheeks: 290,
     left_ear: 130,
     right_ear: 130,
-    neck: 260,
+    neck: 250,
     torso_chest: 700,
     torso_shoulders: 550,
     upper_arm_left: 350,
@@ -506,6 +584,7 @@ loader.parse(glbBuffer.buffer, '', (gltf) => {
       key.startsWith('left_eye') ? 'left_eye'
       : key.startsWith('right_eye') ? 'right_eye'
       : key.startsWith('nose') ? 'nose'
+      : key.startsWith('teeth') ? 'teeth'
       : key === 'philtrum' || key === 'upper_lip' || key === 'mouth_line' || key === 'lower_lip' ? 'lips'
       : key.startsWith('upper_arm') ? 'upper_arms'
       : key === 'torso_chest' ? 'upper_chest'

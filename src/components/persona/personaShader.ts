@@ -32,20 +32,26 @@ export function attachPersonaSolidifyShader(
 ): void {
   const stdMat = material as THREE.MeshStandardMaterial;
   stdMat.userData = stdMat.userData || {};
+  if (stdMat.userData.solidifyShaderAttached) return;
+  stdMat.userData.solidifyShaderAttached = true;
   stdMat.userData.solidifyUniforms = uniforms;
 
   // FrontSide rendering prevents looking into hollow interior of cut meshes
   stdMat.side = THREE.FrontSide;
 
-  // Soft natural skin & fabric response
-  if ('roughness' in stdMat && stdMat.roughness !== undefined) {
+  // Soft natural skin & fabric response (unless custom roughness/metalness specified, e.g. for glossy eyes or ivory teeth)
+  if ('roughness' in stdMat && stdMat.roughness !== undefined && !stdMat.userData.customRoughness) {
     stdMat.roughness = Math.max(stdMat.roughness, 0.45);
   }
-  if ('metalness' in stdMat && stdMat.metalness !== undefined) {
+  if ('metalness' in stdMat && stdMat.metalness !== undefined && !stdMat.userData.customMetalness) {
     stdMat.metalness = Math.min(stdMat.metalness, 0.15);
   }
 
+  const existingOnBeforeCompile = stdMat.onBeforeCompile;
   stdMat.onBeforeCompile = (shader) => {
+    if (typeof existingOnBeforeCompile === 'function') {
+      existingOnBeforeCompile(shader);
+    }
     shader.uniforms.uSolidifyY = uniforms.uSolidifyY;
     shader.uniforms.uTransitionBand = uniforms.uTransitionBand;
     shader.uniforms.uGlowColor = uniforms.uGlowColor;

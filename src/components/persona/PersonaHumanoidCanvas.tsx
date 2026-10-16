@@ -205,11 +205,101 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         if (leftArm) leftArm.rotation.set(1.20, 0.0, 0.0);
         if (rightArm) rightArm.rotation.set(1.80, 1.40, -0.60);
 
-        // Cache eye bones and record neutral anatomical rest quaternions
+        // Cache eye bones, record rest quaternions, and enlarge eye scale by 8% (Section 2)
         leftEyeBone = model.getObjectByName('LeftEye') as THREE.Bone | null;
         rightEyeBone = model.getObjectByName('RightEye') as THREE.Bone | null;
-        if (leftEyeBone) leftEyeBone.userData.restQuat = leftEyeBone.quaternion.clone();
-        if (rightEyeBone) rightEyeBone.userData.restQuat = rightEyeBone.quaternion.clone();
+        if (leftEyeBone) {
+          leftEyeBone.userData.restQuat = leftEyeBone.quaternion.clone();
+          leftEyeBone.scale.setScalar(1.08);
+        }
+        if (rightEyeBone) {
+          rightEyeBone.userData.restQuat = rightEyeBone.quaternion.clone();
+          rightEyeBone.scale.setScalar(1.08);
+        }
+
+        // Configure facial expressiveness via anatomical morph targets (Sections 2, 5, 6)
+        const headMesh = model.getObjectByName('H_DDS_HighRes') as THREE.Mesh | null;
+        const teethDown = model.getObjectByName('h_TeethDown') as THREE.Mesh | null;
+        const teethUp = model.getObjectByName('h_TeethUp') as THREE.Mesh | null;
+        const leftEyeMesh = model.getObjectByName('h_L_eye') as THREE.Mesh | null;
+        const rightEyeMesh = model.getObjectByName('h_R_eye') as THREE.Mesh | null;
+
+        if (headMesh && headMesh.morphTargetInfluences) {
+          // Subtly parted friendly, confident smile revealing teeth (Sections 5 & 6)
+          headMesh.morphTargetInfluences[26] = 0.26; // MouthOpen_h
+          headMesh.morphTargetInfluences[30] = 0.24; // RsmileOpen_h
+          headMesh.morphTargetInfluences[31] = 0.24; // LsmileOpen_h
+          // ~10-15% wider eye aperture for readable ocular tracking (Section 2)
+          headMesh.morphTargetInfluences[47] = 0.32; // ReyeOpen_h
+          headMesh.morphTargetInfluences[48] = 0.32; // LeyeOpen_h
+          headMesh.morphTargetInfluences[13] = 0.08; // RlipUp_h
+          headMesh.morphTargetInfluences[14] = 0.08; // LlipUp_h
+          headMesh.morphTargetInfluences[15] = 0.08; // RlipDown_h
+          headMesh.morphTargetInfluences[16] = 0.08; // LlipDown_h
+        }
+
+        if (teethDown && teethDown.morphTargetInfluences) {
+          // Lower dental arch follows jaw naturally
+          teethDown.morphTargetInfluences[29] = 0.26; // t_MouthOpen_h
+        }
+
+        // Custom Teeth Material: Natural ivory color with realistic dental roughness (Section 5)
+        [teethDown, teethUp].forEach((mesh) => {
+          if (mesh && mesh.material) {
+            const origMat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+            const teethMat = origMat.clone();
+            teethMat.userData = teethMat.userData || {};
+            teethMat.userData.customRoughness = true;
+            teethMat.userData.customMetalness = true;
+            teethMat.roughness = 0.30;
+            teethMat.metalness = 0.0;
+            teethMat.color = new THREE.Color('#FAF7F0');
+            teethMat.onBeforeCompile = (shader) => {
+              shader.fragmentShader = shader.fragmentShader.replace(
+                '#include <dithering_fragment>',
+                `#include <dithering_fragment>
+                // Natural ivory tooth enamel: clamp excess green illumination from rear rim light
+                gl_FragColor.g = min(gl_FragColor.g, max(gl_FragColor.r, gl_FragColor.b));
+                `
+              );
+            };
+            mesh.material = teethMat;
+          }
+        });
+
+        // Custom Eyeball Material: High corneal specular glint + distinct iris & pupil definition (Section 3)
+        [leftEyeMesh, rightEyeMesh].forEach((mesh) => {
+          if (mesh && mesh.material) {
+            const origMat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+            const eyeMat = origMat.clone();
+            eyeMat.userData = eyeMat.userData || {};
+            eyeMat.userData.customRoughness = true;
+            eyeMat.userData.customMetalness = true;
+            eyeMat.roughness = 0.10;
+            eyeMat.metalness = 0.0;
+            eyeMat.onBeforeCompile = (shader) => {
+              shader.fragmentShader = shader.fragmentShader.replace(
+                '#include <map_fragment>',
+                `#include <map_fragment>
+                // Enhanced Iris & Pupil Definition (Section 3)
+                float eyeLum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+                if (eyeLum > 0.02 && eyeLum < 0.35) {
+                  // Warm amber-brown iris structure clearly distinct from central pupil
+                  vec3 irisWarmth = vec3(0.38, 0.22, 0.12);
+                  diffuseColor.rgb = mix(diffuseColor.rgb * 1.6 + irisWarmth * 0.45, diffuseColor.rgb, smoothstep(0.02, 0.06, eyeLum) * (1.0 - smoothstep(0.18, 0.35, eyeLum)));
+                } else if (eyeLum <= 0.02) {
+                  // Distinct deep black pupil center
+                  diffuseColor.rgb = vec3(0.015, 0.015, 0.018);
+                } else {
+                  // Sclera: clean natural off-white with delicate ocular tone
+                  diffuseColor.rgb = clamp(diffuseColor.rgb * 1.08, 0.0, 1.0);
+                }
+                `
+              );
+            };
+            mesh.material = eyeMat;
+          }
+        });
 
         model.position.set(0, -1.56, 0);
 
@@ -384,6 +474,12 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         targetG = 0.28;
         targetB = 0.04;
         baseScale = 0.68;
+      } else if (subCat.includes('teeth') || cat.includes('teeth')) {
+        // Natural ivory teeth row visible inside parted mouth (Section 7)
+        targetR = 0.85 * diff;
+        targetG = 0.98 * diff;
+        targetB = 0.70 * diff;
+        baseScale = 0.82;
       } else if (subCat === 'lower_lip') {
         // Full lower vermilion lip highlight
         targetR = 0.45 * diff;
