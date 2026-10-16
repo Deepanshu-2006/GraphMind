@@ -9,6 +9,10 @@ import {
 } from './personaShader';
 import { PERSONA_SURFACE_POINTS, type PrecomputedSurfacePoint } from './personaSurfaceData';
 import { personaTransitionController } from './personaTransition';
+import {
+  PersonaExpressionController,
+  type PersonaExpression
+} from './personaExpressionController';
 
 export type PersonaAnimationState =
   | 'INITIALIZING'
@@ -190,6 +194,21 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     let leftEyeBone: THREE.Bone | null = null;
     let rightEyeBone: THREE.Bone | null = null;
     let headMesh: THREE.Mesh | null = null;
+    let teethDownMesh: THREE.Mesh | null = null;
+
+    // Optional URL query parameters for deterministic testing & development
+    const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const forcedTimeParam = searchParams?.get('t');
+    const forcedElapsed = forcedTimeParam !== null && forcedTimeParam !== undefined ? parseFloat(forcedTimeParam) : null;
+    const forcedExprParam = searchParams?.get('expr') as PersonaExpression | null;
+    const validExprs: PersonaExpression[] = ['neutral', 'happy', 'sad', 'angry', 'surprised', 'thinking', 'worried'];
+
+    // Centralized Facial Expression Controller (Sections 3, 4, 5, 6)
+    const expressionController = new PersonaExpressionController({
+      forcedExpression: forcedExprParam && validExprs.includes(forcedExprParam) ? forcedExprParam : null,
+      reducedMotion: prefersReducedMotion
+    });
+
     const gltfLoader = new GLTFLoader();
     gltfLoader.setMeshoptDecoder(MeshoptDecoder);
 
@@ -220,32 +239,25 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
 
         // Configure facial expressiveness via anatomical morph targets (Sections 2, 5, 6)
         headMesh = model.getObjectByName('H_DDS_HighRes') as THREE.Mesh | null;
-        const teethDown = model.getObjectByName('h_TeethDown') as THREE.Mesh | null;
+        teethDownMesh = model.getObjectByName('h_TeethDown') as THREE.Mesh | null;
         const teethUp = model.getObjectByName('h_TeethUp') as THREE.Mesh | null;
         const leftEyeMesh = model.getObjectByName('h_L_eye') as THREE.Mesh | null;
         const rightEyeMesh = model.getObjectByName('h_R_eye') as THREE.Mesh | null;
 
-        if (headMesh && headMesh.morphTargetInfluences) {
-          // Subtly parted friendly, confident smile revealing teeth (Sections 5 & 6)
-          headMesh.morphTargetInfluences[26] = 0.26; // MouthOpen_h
-          headMesh.morphTargetInfluences[30] = 0.24; // RsmileOpen_h
-          headMesh.morphTargetInfluences[31] = 0.24; // LsmileOpen_h
-          // ~10-15% wider eye aperture for readable ocular tracking (Section 2)
-          headMesh.morphTargetInfluences[47] = 0.32; // ReyeOpen_h
-          headMesh.morphTargetInfluences[48] = 0.32; // LeyeOpen_h
-          headMesh.morphTargetInfluences[13] = 0.08; // RlipUp_h
-          headMesh.morphTargetInfluences[14] = 0.08; // LlipUp_h
-          headMesh.morphTargetInfluences[15] = 0.08; // RlipDown_h
-          headMesh.morphTargetInfluences[16] = 0.08; // LlipDown_h
-        }
+        // Apply initial baseline expression
+        expressionController.applyToMeshes(headMesh, teethDownMesh);
 
-        if (teethDown && teethDown.morphTargetInfluences) {
-          // Lower dental arch follows jaw naturally
-          teethDown.morphTargetInfluences[29] = 0.26; // t_MouthOpen_h
+        if (typeof window !== 'undefined') {
+          (window as any).__personaDebug = {
+            headMesh,
+            teethDownMesh,
+            expressionController,
+            model
+          };
         }
 
         // Custom Teeth Material: Natural ivory color with realistic dental roughness (Section 5)
-        [teethDown, teethUp].forEach((mesh) => {
+        [teethDownMesh, teethUp].forEach((mesh) => {
           if (mesh && mesh.material) {
             const origMat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
             const teethMat = origMat.clone();
@@ -677,11 +689,6 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     const transitionStart = personaTransitionController.startTime || performance.now();
     const REVEAL_DURATION = prefersReducedMotion ? 0.05 : PERSONA_PARTICLE_CONFIG.revealDuration;
 
-    // Optional query parameter for deterministic dev/test frame inspection: /persona?t=3.2
-    const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-    const forcedTimeParam = searchParams?.get('t');
-    const forcedElapsed = forcedTimeParam !== null && forcedTimeParam !== undefined ? parseFloat(forcedTimeParam) : null;
-
     // Development Comparison Mode support (Section 8):
     // A. SOLID MODEL ONLY (?debugMode=solid, or Key '1')
     // B. PARTICLE REPRESENTATION ONLY (?debugMode=particles, or Key '2')
@@ -879,32 +886,28 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       updateEyeGaze(leftEyeBone, gazeTargetPos);
       updateEyeGaze(rightEyeBone, gazeTargetPos);
 
-      // 5. Coordinated Eyelid & Brow Tracking (Levator & Orbicularis Coordination)
-      if (headMesh && headMesh.morphTargetInfluences) {
-        const morphs = headMesh.morphTargetInfluences;
-        const yNorm = gazeState.currentNDC.y;
-        const baseEyeOpen = 0.32;
-
-        // Eyelid follows gaze pitch:
-        // When looking UP: upper eyelids raise slightly (up to +0.10), eyebrows slightly elevate
-        // When looking DOWN: upper eyelids droop naturally (relaxed levator), lower lids engage slightly
-        const lidPitchOffset = yNorm > 0 ? yNorm * 0.10 : yNorm * 0.16;
-        const clickAperture = gazeState.clickEngagement * 0.05;
-
-        const currentOpen = Math.max(0.08, Math.min(0.48, baseEyeOpen + lidPitchOffset + clickAperture)) * (1.0 - blinkFactor);
-        const downLidClose = yNorm < -0.15 ? (-yNorm - 0.15) * 0.26 : 0.0;
-        const currentClose = Math.min(1.0, blinkFactor + downLidClose * (1.0 - blinkFactor));
-        const currentLowLid = yNorm < -0.10 ? (-yNorm - 0.10) * 0.14 : 0.0;
-        const currentBrowUp = (yNorm > 0.25 ? (yNorm - 0.25) * 0.08 : 0.0) + gazeState.clickEngagement * 0.08;
-
-        morphs[45] = currentClose;   // ReyeClose_h
-        morphs[46] = currentClose;   // LeyeClose_h
-        morphs[47] = currentOpen;    // ReyeOpen_h
-        morphs[48] = currentOpen;    // LeyeOpen_h
-        morphs[51] = currentLowLid;  // RlowLid_h
-        morphs[52] = currentLowLid;  // LlowLid_h
-        morphs[58] = currentBrowUp;  // RbrowUp_h
-        morphs[59] = currentBrowUp;  // LbrowUp_h
+      // 5. Update Expression Controller & Coordinate Eyelids, Blinking, and Jaw (Sections 3, 4, 5, 6, 7)
+      const debugOverride = typeof window !== 'undefined' ? (window as any).__personaDebug?.overrideWeights : null;
+      if (debugOverride) {
+        if (headMesh && headMesh.morphTargetInfluences) {
+          headMesh.morphTargetInfluences.fill(0);
+          for (const [k, v] of Object.entries(debugOverride.head || {})) {
+            headMesh.morphTargetInfluences[Number(k)] = v as number;
+          }
+        }
+        if (teethDownMesh && teethDownMesh.morphTargetInfluences) {
+          teethDownMesh.morphTargetInfluences.fill(0);
+          for (const [k, v] of Object.entries(debugOverride.teethDown || {})) {
+            teethDownMesh.morphTargetInfluences[Number(k)] = v as number;
+          }
+        }
+      } else {
+        expressionController.update(dt);
+        expressionController.applyToMeshes(headMesh, teethDownMesh, {
+          blinkFactor,
+          gazeNormY: gazeState.currentNDC.y,
+          clickEngagement: gazeState.clickEngagement
+        });
       }
     };
 
@@ -1021,6 +1024,11 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       if (rightEyeBone && rightEyeBone.userData.restQuat) {
         rightEyeBone.quaternion.copy(rightEyeBone.userData.restQuat);
       }
+      // Keep expression in baseline neutral during wave formation
+      expressionController.applyToMeshes(headMesh, teethDownMesh, {
+        blinkFactor: 0,
+        gazeNormY: 0
+      });
 
       // ----------------------------------------------------
       // STAGE D: Final Convergence (4.15s -> 4.50s)
