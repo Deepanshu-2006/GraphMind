@@ -1,0 +1,245 @@
+/* GraphMind Persona Experience — Full-screen Cinematic Foundation */
+
+.persona-experience-root {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  background-color: var(--bg-app, #0A0A0A);
+  color: var(--text-primary, #F5F5F5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Background Atmosphere Canvas */
+.persona-atmosphere-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Persona Header: Minimal editorial exit bar */
+.persona-header {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 32px;
+  flex-shrink: 0;
+}
+
+/* Subtle, accessible exit control */
+.persona-exit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  padding: 8px 4px;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary, #A1A1A1);
+  cursor: pointer;
+  transition: color var(--transition-fast, 150ms ease);
+}
+
+.persona-exit-btn:hover {
+  color: var(--text-primary, #F5F5F5);
+}
+
+.persona-exit-btn:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: 4px;
+}
+
+.persona-exit-arrow {
+  color: var(--text-muted, #8A8A8A);
+  transition: transform var(--transition-fast, 150ms ease), color var(--transition-fast, 150ms ease);
+}
+
+.persona-exit-btn:hover .persona-exit-arrow {
+  transform: translateX(-3px);
+  color: var(--accent, #A3FF12);
+}
+
+.persona-exit-text {
+  letter-spacing: -0.01em;
+}
+
+.persona-exit-shortcut {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-muted, #8A8A8A);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Subtle System Ready Status Indicator */
+.persona-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--text-muted, #8A8A8A);
+  text-transform: uppercase;
+}
+
+.persona-status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--accent, #A3FF12);
+  box-shadow: 0 0 8px rgba(163, 255, 18, 0.4);
+}
+
+.persona-status-label {
+  font-weight: 500;
+}
+
+/* Main Cinematic Experience Viewport */
+.persona-main-content {
+  position: relative;
+  z-index: 10;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px 56px;
+  text-align: center;
+  max-width: 960px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Reserved Character Stage for Prompt 02 Humanoid */
+.persona-character-stage {
+  flex: 1;
+  width: 100%;
+  min-height: 260px;
+  max-height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  pointer-events: none;
+  margin-bottom: 24px;
+}
+
+.persona-stage-placeholder {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Editorial Typography Block */
+.persona-typography-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 680px;
+  width: 100%;
+}
+
+.persona-identity-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent, #A3FF12);
+  margin-bottom: 18px;
+}
+
+.persona-identity-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: var(--accent, #A3FF12);
+}
+
+.persona-headline {
+  font-family: var(--font-display, 'Inter Tight', sans-serif);
+  font-size: clamp(32px, 5.5vw, 56px);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  color: var(--text-primary, #F5F5F5);
+  margin: 0 0 16px 0;
+}
+
+.persona-supporting {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: clamp(14px, 1.8vw, 16px);
+  color: var(--text-muted, #8A8A8A);
+  line-height: 1.6;
+  max-width: 480px;
+  margin: 0 auto;
+  letter-spacing: -0.01em;
+}
+
+/* Responsive Viewports */
+@media (max-width: 768px) {
+  .persona-header {
+    padding: 20px 24px;
+  }
+
+  .persona-headline {
+    font-size: clamp(28px, 6vw, 42px);
+  }
+
+  .persona-character-stage {
+    min-height: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  .persona-header {
+    padding: 16px 20px;
+  }
+
+  .persona-exit-shortcut {
+    display: none;
+  }
+
+  .persona-headline {
+    font-size: 26px;
+    letter-spacing: -0.025em;
+  }
+
+  .persona-supporting {
+    font-size: 14px;
+  }
+
+  .persona-main-content {
+    padding: 0 20px 40px;
+  }
+}
+
+/* Reduced Motion Preference */
+@media (prefers-reduced-motion: reduce) {
+  .persona-exit-arrow {
+    transition: none !important;
+  }
+
+  .persona-experience-root {
+    transition: none !important;
+  }
+}
