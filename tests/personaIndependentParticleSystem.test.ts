@@ -44,14 +44,14 @@ describe('GRAPHMIND — INDEPENDENT PERSONA PARTICLE SYSTEM ARCHITECTURE', () =>
   });
 
   describe('2. Independent High-Density Persona Particle System', () => {
-    it('defines an independent configuration with 3,600 desktop particles', () => {
-      assert.equal(PERSONA_PARTICLE_CONFIG.desktopCount, 3600, 'Persona desktop particle count must be 3600');
-      assert.equal(PERSONA_PARTICLE_CONFIG.tabletCount, 2200, 'Persona tablet particle count must be 2200');
-      assert.equal(PERSONA_PARTICLE_CONFIG.mobileCount, 1200, 'Persona mobile particle count must be 1200');
+    it('defines an independent configuration with 5,200 desktop particles', () => {
+      assert.equal(PERSONA_PARTICLE_CONFIG.desktopCount, 5200, 'Persona desktop particle count must be 5200');
+      assert.equal(PERSONA_PARTICLE_CONFIG.tabletCount, 3200, 'Persona tablet particle count must be 3200');
+      assert.equal(PERSONA_PARTICLE_CONFIG.mobileCount, 1600, 'Persona mobile particle count must be 1600');
     });
 
     it('calibrates projected point size appropriately for high density without oversized dots', () => {
-      assert.equal(PERSONA_PARTICLE_CONFIG.baseParticleSize, 0.0132, 'Base point size must be calibrated to 0.0132');
+      assert.equal(PERSONA_PARTICLE_CONFIG.baseParticleSize, 0.0125, 'Base point size must be calibrated to 0.0125');
       assert.ok(
         personaCanvasSrc.includes('size: PERSONA_PARTICLE_CONFIG.baseParticleSize'),
         'PointsMaterial must use the calibrated particle size'
@@ -73,8 +73,8 @@ describe('GRAPHMIND — INDEPENDENT PERSONA PARTICLE SYSTEM ARCHITECTURE', () =>
       );
     });
 
-    it('samples 3,600 genuine GLB surface points evaluated from posed character geometry', () => {
-      assert.equal(PERSONA_SURFACE_POINTS.length, 3600, 'Must have 3,600 precomputed GLB surface points');
+    it('samples 5,200 genuine GLB surface points evaluated from posed character geometry', () => {
+      assert.equal(PERSONA_SURFACE_POINTS.length, 5200, 'Must have 5,200 precomputed GLB surface points');
       assert.ok(
         personaCanvasSrc.includes('const target: PrecomputedSurfacePoint = sourcePoints[targetIdx];'),
         'Persona must sample from precomputed GLB surface points'

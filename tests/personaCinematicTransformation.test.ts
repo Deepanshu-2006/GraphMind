@@ -44,9 +44,9 @@ describe('GRAPHMIND — INDEPENDENT PERSONA REVEAL & 3D POINT CLOUD', () => {
   });
 
   describe('2. Dedicated Persona Surface Sampling & High-Density Targets', () => {
-    it('samples 3,600 precision surface points evaluated from posed character geometry', () => {
-      assert.equal(PERSONA_SURFACE_POINTS.length, 3600, 'Must have 3,600 precomputed GLB surface points');
-      assert.equal(PERSONA_PARTICLE_CONFIG.desktopCount, 3600, 'Desktop count must be 3,600');
+    it('samples 5,200 precision surface points evaluated from posed character geometry', () => {
+      assert.equal(PERSONA_SURFACE_POINTS.length, 5200, 'Must have 5,200 precomputed GLB surface points');
+      assert.equal(PERSONA_PARTICLE_CONFIG.desktopCount, 5200, 'Desktop count must be 5,200');
     });
 
     it('maps points across GLB surface via uniform stride', () => {
@@ -92,8 +92,8 @@ describe('GRAPHMIND — INDEPENDENT PERSONA REVEAL & 3D POINT CLOUD', () => {
       );
     });
 
-    it('calibrates base particle size to 0.0132 for dense, fine point cloud without oversized circles', () => {
-      assert.equal(PERSONA_PARTICLE_CONFIG.baseParticleSize, 0.0132);
+    it('calibrates base particle size to 0.0125 for dense, fine point cloud without oversized circles', () => {
+      assert.equal(PERSONA_PARTICLE_CONFIG.baseParticleSize, 0.0125);
       assert.ok(
         personaCanvasSrc.includes('size: PERSONA_PARTICLE_CONFIG.baseParticleSize'),
         'Must apply calibrated base particle size'

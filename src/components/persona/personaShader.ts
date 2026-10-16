@@ -60,7 +60,8 @@ export function attachPersonaSolidifyShader(
       '#include <project_vertex>',
       `#include <project_vertex>
       vec4 worldPositionForSolidify = modelMatrix * vec4(transformed, 1.0);
-      vWorldY = worldPositionForSolidify.y;`
+      // Smooth anatomical curvature contouring the natural torso, chest, jaw, and facial planes
+      vWorldY = worldPositionForSolidify.y + 0.032 * (worldPositionForSolidify.z - 0.05) - 0.020 * abs(worldPositionForSolidify.x);`
     );
 
     // Inject varying and uniforms in fragment shader

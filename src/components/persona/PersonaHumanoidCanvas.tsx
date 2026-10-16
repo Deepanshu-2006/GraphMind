@@ -30,11 +30,11 @@ export interface PersonaHumanoidCanvasProps {
  * Fully decoupled from the hero Knowledge Orb (which maintains its protected 760 particle budget).
  */
 export const PERSONA_PARTICLE_CONFIG = {
-  desktopCount: 3600,
-  tabletCount: 2200,
-  mobileCount: 1200,
-  reducedMotionCount: 600,
-  baseParticleSize: 0.0132, // Crisp, refined projected point size for 3,600 points at camera z=1.48
+  desktopCount: 5200,
+  tabletCount: 3200,
+  mobileCount: 1600,
+  reducedMotionCount: 800,
+  baseParticleSize: 0.0125, // Crisp, refined projected point size for 5,200 points at camera z=1.48
   cameraZ: 1.48,
   cameraY: 0.0,
   cameraFov: 30,
@@ -50,7 +50,7 @@ export const PERSONA_ANIMATION_CONFIG = {
   minY: CHARACTER_Y_BOUNDS.min - 0.05,
   maxY: CHARACTER_Y_BOUNDS.max + 0.05,
   transitionBand: 0.045,
-  particleCount: 3600
+  particleCount: 5200
 };
 
 interface PersonaParticle {
@@ -251,8 +251,8 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     const sourcePoints = PERSONA_SURFACE_POINTS;
     const numSource = sourcePoints.length;
 
-    // Key directional light vector for 3D normal shading
-    const lx = 0.38, ly = 0.58, lz = 0.72;
+    // Key directional light vector for 3D normal shading (front-fill key)
+    const lx = 0.22, ly = 0.35, lz = 0.90;
 
     for (let i = 0; i < particleCount; i++) {
       // Precise target sampling across GLB surface via uniform stride
@@ -262,70 +262,86 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       // 3D Lighting & Normal Grading
       const nDotL = Math.max(0.0, target.nx * lx + target.ny * ly + target.nz * lz);
       const facing = Math.max(0.0, target.nz);
+      const diff = 0.82 + 0.18 * nDotL;
+      const lum = target.lum ?? 0.50;
+      const lumFactor = 0.72 + 0.28 * Math.min(1.0, lum / 0.60);
+      const cat = target.category || 'base_surface';
 
       // Anatomical feature zones
       const isEyeball =
-        target.z > 0.076 &&
-        Math.abs(target.x) >= 0.024 &&
-        Math.abs(target.x) <= 0.052 &&
-        target.y >= 0.072 &&
-        target.y <= 0.11;
+        (target.category && target.category.includes('eye')) ||
+        (target.z > 0.076 &&
+          Math.abs(target.x) >= 0.016 &&
+          Math.abs(target.x) <= 0.052 &&
+          target.y >= 0.072 &&
+          target.y <= 0.16);
 
       const isCheekOrFace =
-        target.z > 0.045 &&
-        target.y >= 0.01 &&
-        target.y <= 0.16 &&
-        Math.abs(target.x) < 0.09;
+        (target.category && (target.category.includes('cheeks') || target.category.includes('nose') || target.category.includes('lips') || target.category.includes('forehead') || target.category.includes('eyebrow'))) ||
+        (target.z > 0.045 &&
+          target.y >= -0.04 &&
+          target.y <= 0.16 &&
+          Math.abs(target.x) < 0.09);
 
       const isTopCrown = target.y > 0.16;
-      const isNeckOrJaw = target.y >= -0.09 && target.y < 0.01;
+      const isNeckOrJaw =
+        (target.category && (target.category.includes('chin') || target.category.includes('jaw'))) ||
+        (target.y >= -0.09 && target.y < 0.01);
       const isChestOrShoulder = target.y < -0.09;
 
-      let targetR = 0.28;
-      let targetG = 0.88;
-      let targetB = 0.10;
+      let targetR = 0.38 * diff * lumFactor;
+      let targetG = 0.92 * diff * lumFactor;
+      let targetB = 0.07;
       let baseScale = 1.0;
 
-      if (isEyeball) {
-        // Delicate, crisp specular reflections for eyes
-        targetR = 0.55;
-        targetG = 1.0;
-        targetB = 0.16;
-        baseScale = 0.82;
-      } else if (isCheekOrFace) {
-        // Luminous emerald/lime facial plane with clear diffuse shading
-        const lightMod = 0.82 + 0.28 * nDotL;
-        targetR = Math.min(0.66, 0.46 * lightMod);
-        targetG = Math.min(1.0, 0.96 * lightMod);
-        targetB = 0.07;
-        baseScale = 1.02;
-      } else if (isTopCrown) {
-        // Crown and hair silhouette
-        const lightMod = 0.80 + 0.25 * nDotL;
-        targetR = 0.40 * lightMod;
-        targetG = 0.92 * lightMod;
+      if (cat.includes('hair') || isTopCrown) {
+        // Crown and authentic hair silhouette
+        targetR = 0.20 * diff * (0.7 + 0.3 * lumFactor);
+        targetG = 0.62 * diff * (0.7 + 0.3 * lumFactor);
         targetB = 0.08;
         baseScale = 1.0;
-      } else if (isNeckOrJaw) {
-        // Slender neck & jawline bridge connecting head to torso
-        const lightMod = 0.76 + 0.28 * nDotL;
-        targetR = 0.34 * lightMod;
-        targetG = 0.90 * lightMod;
+      } else if (cat.includes('eyebrow')) {
+        // Eyebrow arches
+        targetR = 0.22 * (0.65 + 0.35 * lumFactor);
+        targetG = 0.64 * (0.65 + 0.35 * lumFactor);
+        targetB = 0.07;
+        baseScale = 0.95;
+      } else if (cat.includes('eye') || isEyeball) {
+        // Harmonious, restrained eye glint with subtle specular reflection
+        targetR = 0.40 * diff * (0.85 + 0.15 * lumFactor);
+        targetG = 0.94 * diff * (0.85 + 0.15 * lumFactor);
         targetB = 0.09;
+        baseScale = 0.92;
+      } else if (cat.includes('lips')) {
+        // Soft vermilion lip tone (fully closed, no gaping hole)
+        targetR = 0.46 * diff;
+        targetG = 0.88 * diff;
+        targetB = 0.10;
+        baseScale = 0.96;
+      } else if (isCheekOrFace) {
+        // Facial planes with natural diffuse curvature and skin luminance
+        targetR = 0.38 * diff * lumFactor;
+        targetG = 0.92 * diff * lumFactor;
+        targetB = 0.07;
+        baseScale = 1.0;
+      } else if (isNeckOrJaw) {
+        // Slender neck & mandibular contour connecting head to torso
+        targetR = 0.36 * diff * lumFactor;
+        targetG = 0.90 * diff * lumFactor;
+        targetB = 0.08;
         baseScale = 1.0;
       } else if (isChestOrShoulder) {
-        // Broad polo shirt torso & deltoids (consistent luminous presence)
-        const lightMod = 0.80 + 0.26 * nDotL;
-        targetR = 0.32 * lightMod;
-        targetG = 0.90 * lightMod;
+        // Broad polo shirt torso, deltoids, and collar
+        targetR = 0.30 * diff * (0.75 + 0.25 * lumFactor);
+        targetG = 0.82 * diff * (0.75 + 0.25 * lumFactor);
         targetB = 0.09;
         baseScale = 1.0;
       }
 
       // Depth falloff for grazing angles (enhances 3D roundness and volumetric form)
       if (facing < 0.30) {
-        targetR *= 0.78;
-        targetG *= 0.82;
+        targetR *= 0.88;
+        targetG *= 0.90;
       }
 
       // Initial positions for dedicated Persona reveal (soft normal offset near silhouette)
@@ -420,10 +436,13 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       );
       shader.vertexShader = shader.vertexShader.replace(
         'gl_PointSize = size;',
-        'gl_PointSize = size * pSize;'
+        `gl_PointSize = size * pSize;
+        if (pSize <= 0.001) {
+          gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+        }`
       );
     };
-    particleMaterial.customProgramCacheKey = () => 'persona-independent-humanoid-v2';
+    particleMaterial.customProgramCacheKey = () => 'persona-independent-humanoid-v3';
 
     const particleSystem = new THREE.Points(particleGeometry, particleMaterial);
     particleSystem.name = 'persona-independent-particle-humanoid';
@@ -457,30 +476,37 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     const transitionStart = personaTransitionController.startTime || performance.now();
     const REVEAL_DURATION = prefersReducedMotion ? 0.05 : PERSONA_PARTICLE_CONFIG.revealDuration;
 
+    // Optional query parameter for deterministic dev/test frame inspection: /persona?t=3.2
+    const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const forcedTimeParam = searchParams?.get('t');
+    const forcedElapsed = forcedTimeParam !== null && forcedTimeParam !== undefined ? parseFloat(forcedTimeParam) : null;
+
     // Check if initial mount is already in settled/inspection state
     let isInstantSettled = personaTransitionController.state === 'PERSONA_READY' || prefersReducedMotion;
 
     const render = (now: number) => {
       if (isDisposed) return;
 
-      const elapsed = isInstantSettled
-        ? REVEAL_DURATION + 1.0
+      const elapsed = forcedElapsed !== null && !isNaN(forcedElapsed)
+        ? forcedElapsed
+        : isInstantSettled
+        ? 5.0
         : (now - transitionStart) * 0.001;
-
-      const progress = Math.min(1.0, elapsed / REVEAL_DURATION);
 
       // Determine animation state
       let newState: PersonaAnimationState = 'FORMING_HUMANOID';
-      if (prefersReducedMotion) {
-        newState = 'IDLE';
-      } else if (isInstantSettled || progress >= 1.0) {
+      if (prefersReducedMotion || isInstantSettled || elapsed >= 4.50) {
         newState = 'IDLE';
       } else if (elapsed < 0.25) {
         newState = 'INITIALIZING';
       } else if (elapsed < 1.80) {
         newState = 'FORMING_HUMANOID';
-      } else {
+      } else if (elapsed < 2.55) {
         newState = 'HUMANOID_SETTLING';
+      } else if (elapsed < 4.15) {
+        newState = 'PARTIAL_SOLIDIFICATION';
+      } else {
+        newState = 'FULLY_SOLID';
       }
 
       if (newState !== currentStateRef.current) {
@@ -491,15 +517,123 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       const colAttr = particleGeometry.attributes.color;
       const sizesAttr = particleGeometry.attributes.pSize;
 
-      // Ensure solid mesh remains strictly hidden below viewport during all particle stages
-      solidifyUniforms.uSolidifyY.value = cfg.minY - 1.0;
-      // Reserved for future Phase B bottom-up solidification when visually approved:
-      // const currentY = cfg.minY + easeProg * (cfg.maxY - cfg.minY);
+      // ----------------------------------------------------
+      // STAGE E: Persona READY (Final Solid Character Settled)
+      // ----------------------------------------------------
+      if (isInstantSettled || elapsed >= 4.50) {
+        if (loadedSolidModel) {
+          loadedSolidModel.visible = true;
+        }
+        solidifyUniforms.uSolidifyY.value = 10.0;
+        solidifyUniforms.uGlowIntensity.value = 0.0;
+        particleSystem.visible = false;
+
+        if (!isInstantSettled && elapsed >= 4.50) {
+          isInstantSettled = true;
+          personaTransitionController.completeHumanFormed();
+          personaTransitionController.setPersonaReady();
+        }
+
+        renderer.render(scene, camera);
+        animationFrameId = requestAnimationFrame(render);
+        return;
+      }
 
       // ----------------------------------------------------
-      // PHASE D: Stabilized Humanoid (100% surface alignment with living breathing wave)
+      // STAGE D: Final Convergence (4.15s -> 4.50s)
       // ----------------------------------------------------
-      if (isInstantSettled || progress >= 1.0) {
+      if (elapsed >= 4.15) {
+        if (loadedSolidModel) {
+          loadedSolidModel.visible = true;
+        }
+        solidifyUniforms.uSolidifyY.value = cfg.maxY + 0.20;
+        const stageDProg = Math.min(1.0, (elapsed - 4.15) / 0.35);
+        solidifyUniforms.uGlowIntensity.value = 2.2 * (1.0 - stageDProg);
+        particleMaterial.opacity = 0.98 * (1.0 - stageDProg);
+
+        for (let i = 0; i < particleCount; i++) {
+          sizesAttr.setX(i, 0.0);
+          colAttr.setXYZ(i, 0.0, 0.0, 0.0);
+          posAttr.setXYZ(i, 0.0, -10.0, 0.0);
+        }
+
+        posAttr.needsUpdate = true;
+        sizesAttr.needsUpdate = true;
+        colAttr.needsUpdate = true;
+        renderer.render(scene, camera);
+        animationFrameId = requestAnimationFrame(render);
+        return;
+      }
+
+      // ----------------------------------------------------
+      // STAGES B & C: Bottom-Up Reconstruction Wave (2.55s -> 4.15s)
+      // ----------------------------------------------------
+      if (elapsed >= 2.55) {
+        if (loadedSolidModel) {
+          loadedSolidModel.visible = true;
+        }
+
+        const waveElapsed = elapsed - 2.55;
+        const rawWaveProg = Math.min(1.0, waveElapsed / 1.60);
+        // Smooth cubic ease-in-out for cinematic acceleration and deceleration
+        const easeProg = rawWaveProg * rawWaveProg * (3.0 - 2.0 * rawWaveProg);
+        const currentY = cfg.minY + easeProg * (cfg.maxY - cfg.minY);
+
+        solidifyUniforms.uSolidifyY.value = currentY;
+        solidifyUniforms.uGlowIntensity.value = 2.2;
+        solidifyUniforms.uTransitionBand.value = cfg.transitionBand;
+        particleMaterial.opacity = 0.98;
+
+        for (let i = 0; i < particleCount; i++) {
+          const p = particles[i];
+          // Organic anatomical reveal coordinate identical to the vertex shader
+          const pRevealY = p.targetY + 0.032 * (p.targetZ - 0.05) - 0.020 * Math.abs(p.targetX);
+          const distFromWave = pRevealY - currentY;
+
+          if (distFromWave > cfg.transitionBand) {
+            // Unsolidified region above the advancing wave: full particle presence
+            posAttr.setXYZ(i, p.targetX, p.targetY, p.targetZ);
+            sizesAttr.setX(i, p.baseScale);
+            colAttr.setXYZ(i, p.targetR, p.targetG, p.targetB);
+          } else if (distFromWave < -cfg.transitionBand) {
+            // Already solidified region below the wave: dissolved cleanly offscreen
+            posAttr.setXYZ(i, 0.0, -10.0, 0.0);
+            sizesAttr.setX(i, 0.0);
+            colAttr.setXYZ(i, 0.0, 0.0, 0.0);
+          } else {
+            // Transition band: smooth continuous blending and wavefront luminosity
+            posAttr.setXYZ(i, p.targetX, p.targetY, p.targetZ);
+            const bandNorm = (distFromWave + cfg.transitionBand) / (2.0 * cfg.transitionBand);
+            const bandEase = bandNorm * bandNorm * (3.0 - 2.0 * bandNorm);
+            const waveGlow = Math.sin(bandNorm * Math.PI);
+
+            const edgeR = THREE.MathUtils.lerp(0.64, p.targetR, bandNorm);
+            const edgeG = THREE.MathUtils.lerp(1.00, p.targetG, bandNorm);
+            const edgeB = THREE.MathUtils.lerp(0.07, p.targetB, bandNorm);
+
+            colAttr.setXYZ(i, edgeR, edgeG, edgeB);
+            sizesAttr.setX(i, p.baseScale * (0.20 + 0.80 * bandEase) * (1.0 + waveGlow * 0.35));
+          }
+        }
+
+        posAttr.needsUpdate = true;
+        colAttr.needsUpdate = true;
+        sizesAttr.needsUpdate = true;
+
+        renderer.render(scene, camera);
+        animationFrameId = requestAnimationFrame(render);
+        return;
+      }
+
+      // ----------------------------------------------------
+      // STAGE A: Particle Stabilization (2.20s -> 2.55s)
+      // ----------------------------------------------------
+      if (elapsed >= 2.20) {
+        solidifyUniforms.uSolidifyY.value = cfg.minY - 1.0;
+        if (loadedSolidModel) {
+          loadedSolidModel.visible = false;
+        }
+
         const timeVal = now * 0.001;
 
         for (let i = 0; i < particleCount; i++) {
@@ -516,20 +650,19 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         colAttr.needsUpdate = true;
         sizesAttr.needsUpdate = true;
 
-        if (!isInstantSettled && progress >= 1.0) {
-          isInstantSettled = true;
-          personaTransitionController.completeHumanFormed();
-          personaTransitionController.setPersonaReady();
-        }
-
         renderer.render(scene, camera);
         animationFrameId = requestAnimationFrame(render);
         return;
       }
 
       // ----------------------------------------------------
-      // PHASES A, B, C: Independent Persona Reveal
+      // PHASES A, B, C: Independent Persona Reveal (0.00s -> 2.20s)
       // ----------------------------------------------------
+      solidifyUniforms.uSolidifyY.value = cfg.minY - 1.0;
+      if (loadedSolidModel) {
+        loadedSolidModel.visible = false;
+      }
+
       for (let i = 0; i < particleCount; i++) {
         const p = particles[i];
 
