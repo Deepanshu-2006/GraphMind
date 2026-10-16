@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { motion, useReducedMotion, type Variants } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { PersonaAtmosphere } from './PersonaAtmosphere';
+import { PersonaHumanoidCanvas, type PersonaAnimationState } from './PersonaHumanoidCanvas';
 
 export interface PersonaExperienceProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
   const exitButtonRef = useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const shouldReduceMotion = useReducedMotion();
+  const [animationState, setAnimationState] = useState<PersonaAnimationState>('SPHERE');
 
   // Focus management: cache last active element and focus exit button
   useEffect(() => {
@@ -133,6 +135,24 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
     }
   };
 
+  const getStatusLabel = (state: PersonaAnimationState): string => {
+    switch (state) {
+      case 'SPHERE':
+        return 'INITIALIZING';
+      case 'FORMING_HUMANOID':
+        return 'RECONSTRUCTING';
+      case 'HUMANOID_SETTLING':
+        return 'STABILIZING';
+      case 'PARTIAL_SOLIDIFICATION':
+        return 'MATERIALIZING';
+      case 'FULLY_SOLID':
+      case 'IDLE':
+        return 'READY';
+      default:
+        return 'READY';
+    }
+  };
+
   return (
     <motion.div
       ref={containerRef}
@@ -165,15 +185,15 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
           <kbd className="persona-exit-shortcut" aria-hidden="true">Esc</kbd>
         </button>
 
-        <div className="persona-status-indicator" title="System Ready">
+        <div className="persona-status-indicator" title={`System Status: ${getStatusLabel(animationState)}`}>
           <span className="persona-status-dot" aria-hidden="true" />
-          <span className="persona-status-label">READY</span>
+          <span className="persona-status-label">{getStatusLabel(animationState)}</span>
         </div>
       </header>
 
       {/* Main Experience Viewport */}
       <main className="persona-main-content">
-        {/* Reserved 3D Character Stage (Prompt 02 Integration Anchor) */}
+        {/* 3D Humanoid Character Stage (Prompt 02 Central Transformation) */}
         <div
           className="persona-character-stage"
           id="persona-character-stage"
@@ -181,7 +201,7 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
           aria-hidden="true"
         >
           {characterSlot || (
-            <div className="persona-stage-placeholder" data-integration-point="prompt-02-humanoid" />
+            <PersonaHumanoidCanvas onStateChange={setAnimationState} />
           )}
         </div>
 

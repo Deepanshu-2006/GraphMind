@@ -129,19 +129,37 @@
 .persona-character-stage {
   flex: 1;
   width: 100%;
-  min-height: 260px;
-  max-height: 500px;
+  min-height: 320px;
+  max-height: 540px;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   pointer-events: none;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .persona-stage-placeholder {
   width: 100%;
   height: 100%;
+  pointer-events: none;
+}
+
+/* 3D Humanoid Three.js Canvas Container */
+.persona-humanoid-canvas-container {
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.persona-humanoid-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
   pointer-events: none;
 }
 
