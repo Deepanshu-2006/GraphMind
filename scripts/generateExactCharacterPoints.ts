@@ -36,7 +36,7 @@ export interface PrecomputedSurfacePoint {
 }
 
 // Load color texture
-const textureRawPath = '/Users/deepanshukhatri/.gemini/antigravity-ide/brain/8e870d33-0ea5-452d-b701-899647412fc0/scratch/color_texture.raw';
+const textureRawPath = path.resolve(process.cwd(), 'scratch/casual_color.raw');
 const rawBuffer = fs.readFileSync(textureRawPath);
 const TEX_WIDTH = 2048;
 const TEX_HEIGHT = 2048;
@@ -71,7 +71,7 @@ function mulberry32(a: number) {
 }
 const rng = mulberry32(1337);
 
-const glbBuffer = fs.readFileSync('public/models/human_persona.glb');
+const glbBuffer = fs.readFileSync('public/models/human_persona_casual.glb');
 const loader = new GLTFLoader();
 loader.setMeshoptDecoder(MeshoptDecoder);
 

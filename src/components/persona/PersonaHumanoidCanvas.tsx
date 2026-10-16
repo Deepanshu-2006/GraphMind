@@ -212,10 +212,17 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     const gltfLoader = new GLTFLoader();
     gltfLoader.setMeshoptDecoder(MeshoptDecoder);
 
+    const modelParam = searchParams?.get('model');
+    // Reliable rollback option to original grey polo outfit:
+    const ROLLBACK_MODEL_URL = '/models/human_persona.glb';
+    const DEFAULT_MODEL_URL = '/models/human_persona_casual.glb';
+    const modelUrl = modelParam === 'polo' ? ROLLBACK_MODEL_URL : (modelParam ? `/models/${modelParam}` : DEFAULT_MODEL_URL);
+
     gltfLoader.load(
-      '/models/human_persona.glb',
+      modelUrl,
       (gltf) => {
         if (isDisposed) return;
+        console.log('[PersonaHumanoidCanvas] Successfully loaded GLTF model:', modelUrl);
         const model = gltf.scene;
         model.name = 'solid-humanoid-character';
 
