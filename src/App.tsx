@@ -79,6 +79,17 @@ export function AppContent() {
     }
   }, [isPersonaOpen, currentSection]);
 
+  // Synchronize Persona open state with shared transition controller
+  useEffect(() => {
+    return personaTransitionController.subscribe((state) => {
+      if (state === 'ORB_TO_HUMAN' || state === 'PERSONA_READY') {
+        setIsPersonaOpen(true);
+      } else if (state === 'RETURNING_TO_HERO') {
+        setIsPersonaOpen(false);
+      }
+    });
+  }, []);
+
   const getInitialMode = (): WorkspaceMode => {
     const modeParam = new URLSearchParams(window.location.search).get('mode');
     if (modeParam === 'loading' || modeParam === 'crafting' || modeParam === 'empty') {
@@ -542,7 +553,6 @@ export function AppContent() {
           <PersonaExperience
             isOpen={isPersonaOpen}
             onClose={handleClosePersona}
-            characterSlot={<div className="persona-stage-placeholder" />}
           />
         )}
       </AnimatePresence>

@@ -6,7 +6,7 @@
   width: 100vw;
   height: 100vh;
   z-index: 9999;
-  background-color: transparent;
+  background-color: var(--bg-app, #0A0A0A);
   color: var(--text-primary, #F5F5F5);
   display: flex;
   flex-direction: column;
@@ -14,11 +14,14 @@
   user-select: none;
 }
 
-.persona-experience-root.solid-backdrop {
-  background-color: var(--bg-app, #0A0A0A);
+/* Hide underlying workspace chrome and content during active Persona experience */
+.app-shell.persona-active {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.35s;
 }
 
-/* Hide underlying workspace chrome during active Persona experience */
 .app-shell.persona-active .app-sidebar,
 .app-shell.persona-active .app-topbar,
 .app-shell.persona-active .topbar {

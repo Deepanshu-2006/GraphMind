@@ -11,11 +11,13 @@ const __dirname = path.dirname(__filename);
 const orbSrcPath = path.resolve(__dirname, '../src/components/overview/KnowledgeOrb3D.tsx');
 const heroSectionPath = path.resolve(__dirname, '../src/components/overview/HeroSection.tsx');
 const personaTransitionPath = path.resolve(__dirname, '../src/components/persona/personaTransition.ts');
+const personaCanvasPath = path.resolve(__dirname, '../src/components/persona/PersonaHumanoidCanvas.tsx');
 const appSrcPath = path.resolve(__dirname, '../src/App.tsx');
 
 const orbSrc = fs.readFileSync(orbSrcPath, 'utf8');
 const heroSectionSrc = fs.readFileSync(heroSectionPath, 'utf8');
 const personaTransitionSrc = fs.readFileSync(personaTransitionPath, 'utf8');
+const personaCanvasSrc = fs.readFileSync(personaCanvasPath, 'utf8');
 const appSrc = fs.readFileSync(appSrcPath, 'utf8');
 
 describe('GRAPHMIND — HERO ORB PARTICLE COUNT, ENTRY ANIMATION & PERSONA LIFECYCLE', () => {
@@ -46,10 +48,10 @@ describe('GRAPHMIND — HERO ORB PARTICLE COUNT, ENTRY ANIMATION & PERSONA LIFEC
       );
     });
 
-    it('reuses existing particles for transformation using uniform stride across all surface points', () => {
+    it('samples surface points across entire model using uniform stride for the dedicated persona system', () => {
       assert.ok(
-        orbSrc.includes('const targetIdx = Math.floor((i * PERSONA_SURFACE_POINTS.length) / particleCount);'),
-        'Must sample surface points across entire model using uniform stride for existing particles'
+        personaCanvasSrc.includes('const targetIdx = Math.floor((i * numSource) / particleCount);'),
+        'Must sample surface points across entire model using uniform stride for persona particles'
       );
     });
   });

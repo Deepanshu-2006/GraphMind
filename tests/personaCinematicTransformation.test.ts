@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PERSONA_SURFACE_POINTS } from '../src/components/persona/personaSurfaceData';
+import { PERSONA_PARTICLE_CONFIG } from '../src/components/persona/PersonaHumanoidCanvas';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -11,146 +12,136 @@ const __dirname = path.dirname(__filename);
 const orbSrcPath = path.resolve(__dirname, '../src/components/overview/KnowledgeOrb3D.tsx');
 const orbSrc = fs.readFileSync(orbSrcPath, 'utf8');
 
-describe('GRAPHMIND — CINEMATIC 3D ORB-TO-HUMAN TRANSFORMATION', () => {
-  describe('1. Preservation of Particle Count & Authoritative System', () => {
+const personaCanvasPath = path.resolve(__dirname, '../src/components/persona/PersonaHumanoidCanvas.tsx');
+const personaCanvasSrc = fs.readFileSync(personaCanvasPath, 'utf8');
+
+describe('GRAPHMIND — INDEPENDENT PERSONA REVEAL & 3D POINT CLOUD', () => {
+  describe('1. Strict Protection of the Knowledge Orb', () => {
     it('preserves the original 760 desktop particle count and responsive tiers', () => {
       assert.ok(
         orbSrc.includes('return 760; // Optimal density with rock-solid 120fps performance'),
         'Desktop particle count must remain 760'
       );
       assert.ok(
-        !orbSrc.includes('return 2400;'),
-        'Must not hardcode 2400 particle count'
+        !orbSrc.includes('return 2400;') && !orbSrc.includes('return 3600;'),
+        'Must not hardcode inflated particle count in orb'
       );
     });
 
-    it('maps existing particles across 2,400 GLB model surface points via uniform stride', () => {
+    it('does not import or mutate Persona surface targets in Knowledge Orb', () => {
       assert.ok(
-        orbSrc.includes('const targetIdx = Math.floor((i * PERSONA_SURFACE_POINTS.length) / particleCount);'),
+        !orbSrc.includes('import { PERSONA_SURFACE_POINTS }'),
+        'Knowledge Orb must not import PERSONA_SURFACE_POINTS'
+      );
+    });
+
+    it('pauses hero orb when Persona is active to protect performance and prevent particle mutation', () => {
+      assert.ok(
+        orbSrc.includes("if (\n        transitionState === 'ORB_TO_HUMAN' ||\n        transitionState === 'HUMAN_FORMED' ||\n        transitionState === 'PERSONA_READY'\n      ) {\n        return;\n      }"),
+        'Must pause orb simulation while in Persona'
+      );
+    });
+  });
+
+  describe('2. Dedicated Persona Surface Sampling & High-Density Targets', () => {
+    it('samples 3,600 precision surface points evaluated from posed character geometry', () => {
+      assert.equal(PERSONA_SURFACE_POINTS.length, 3600, 'Must have 3,600 precomputed GLB surface points');
+      assert.equal(PERSONA_PARTICLE_CONFIG.desktopCount, 3600, 'Desktop count must be 3,600');
+    });
+
+    it('maps points across GLB surface via uniform stride', () => {
+      assert.ok(
+        personaCanvasSrc.includes('const targetIdx = Math.floor((i * numSource) / particleCount);'),
         'Must sample surface points across entire model using uniform stride'
       );
-      assert.equal(PERSONA_SURFACE_POINTS.length, 2400, 'Must have 2,400 GLB model surface points');
     });
 
-    it('maintains distinct data for scatter, sphere, and human target coordinates', () => {
-      assert.ok(orbSrc.includes('scatterX: number;'), 'Must preserve scatter coordinates');
-      assert.ok(orbSrc.includes('sphereX: number;'), 'Must preserve sphere coordinates');
-      assert.ok(orbSrc.includes('transTargetX: number;'), 'Must preserve human surface target coordinates');
-    });
-  });
-
-  describe('2. Phase A: Interaction Response Choreography', () => {
-    it('implements responsive radial pulse, rotational energy, and brightness wave during initial 0.35s', () => {
+    it('classifies anatomical feature zones (eyes, cheeks, crown, neck, chest)', () => {
       assert.ok(
-        orbSrc.includes('const isPhaseA = elapsed < 0.35 && !prefersReducedMotion;'),
-        'Must designate Phase A for elapsed < 0.35s'
+        personaCanvasSrc.includes('const isEyeball ='),
+        'Must identify eye regions for refined specular glints'
       );
       assert.ok(
-        orbSrc.includes('const phaseAPulse = isPhaseA ? Math.sin((elapsed / 0.35) * Math.PI) : 0;'),
-        'Must compute smooth sinusoidal pulse for Phase A'
+        personaCanvasSrc.includes('const isCheekOrFace ='),
+        'Must identify facial planes for luminous coverage'
       );
       assert.ok(
-        orbSrc.includes('const orbExpansion = 1.0 + 0.04 * phaseAPulse;'),
-        'Must apply restrained radial expansion to the orb'
+        personaCanvasSrc.includes('const isTopCrown = target.y > 0.16;'),
+        'Must identify crown silhouette'
       );
       assert.ok(
-        orbSrc.includes('const orbSpin = (elapsed / 0.35) * 0.32;'),
-        'Must impart rotational energy acceleration'
+        personaCanvasSrc.includes('const isNeckOrJaw ='),
+        'Must identify neck and jaw bridge'
       );
-    });
-
-    it('fades graph relationship lines during Phase A', () => {
       assert.ok(
-        orbSrc.includes('const lineFade = Math.max(0, 1.0 - elapsed / 0.35);'),
-        'Relationship lines must fade gracefully over the initial 0.35s'
+        personaCanvasSrc.includes('const isChestOrShoulder = target.y < -0.09;'),
+        'Must identify upper chest and shoulders'
       );
     });
   });
 
-  describe('3. Phase B: 3D Orbital Flow & Vortex Curl', () => {
-    it('defines curved 3D control points with lateral sweep, vertical arch, and depth', () => {
+  describe('3. Refined Point-Cloud Appearance & 3D Shading', () => {
+    it('uses NormalBlending and depthTest to prevent blown-out white-hot clusters', () => {
       assert.ok(
-        orbSrc.includes('p.transMidX = (p.transStartX + p.transTargetX) * 0.52 - 0.20'),
-        'Must compute curved lateral mid-point arching from hero right to center'
+        personaCanvasSrc.includes('blending: THREE.NormalBlending'),
+        'Must use NormalBlending instead of AdditiveBlending to eliminate hot clusters'
       );
       assert.ok(
-        orbSrc.includes('p.transMidY = Math.max(p.transStartY, p.transTargetY) * 0.65 + 0.36'),
-        'Must lift particles gracefully into the upper spatial quadrant'
-      );
-      assert.ok(
-        orbSrc.includes('p.transMidZ = (p.transStartZ + p.transTargetZ) * 0.5 + 0.42'),
-        'Must sweep particles forward in depth for three-dimensional parallax'
+        personaCanvasSrc.includes('depthTest: true'),
+        'Must enable depthTest'
       );
     });
 
-    it('applies controlled vortex swirl during transit that smoothly damps to zero upon arrival', () => {
+    it('calibrates base particle size to 0.0132 for dense, fine point cloud without oversized circles', () => {
+      assert.equal(PERSONA_PARTICLE_CONFIG.baseParticleSize, 0.0132);
       assert.ok(
-        orbSrc.includes('const swirlMag = Math.sin(rawP * Math.PI) * 0.12 * (1.0 - rawP * 0.4);'),
-        'Vortex swirl magnitude must peak mid-flight and vanish at rawP=1'
-      );
-      assert.ok(
-        orbSrc.includes('p.x = b0 * p.transStartX + b1 * p.transMidX + b2 * p.transTargetX + swirlX;'),
-        'Must apply tangential vortex offset to X coordinate'
-      );
-      assert.ok(
-        orbSrc.includes('p.z = b0 * p.transStartZ + b1 * p.transMidZ + b2 * p.transTargetZ + swirlZ;'),
-        'Must apply tangential vortex offset to Z coordinate'
-      );
-    });
-  });
-
-  describe('4. Phase C: Target-Aware Human Formation & Spatial Waves', () => {
-    it('classifies structural silhouette landmarks vs interior volumetric surface', () => {
-      assert.ok(
-        orbSrc.includes('const isTopHair = target.y > 0.20;'),
-        'Must classify hair crest contour'
-      );
-      assert.ok(
-        orbSrc.includes('const isShoulder = Math.abs(target.x) > 0.18 && target.y < -0.06;'),
-        'Must classify shoulder lateral contour'
-      );
-      assert.ok(
-        orbSrc.includes('const isFaceLandmark = target.z > 0.075 && target.y >= 0.02 && target.y <= 0.20;'),
-        'Must classify prominent frontal facial features'
+        personaCanvasSrc.includes('size: PERSONA_PARTICLE_CONFIG.baseParticleSize'),
+        'Must apply calibrated base particle size'
       );
     });
 
-    it('sequences silhouette arrival first, followed by ascending upward wave for interior fill', () => {
+    it('implements normal-based diffuse lighting and depth falloff for rich 3D form', () => {
       assert.ok(
-        orbSrc.includes('p.transDelay = 0.35 + (1.0 - normY) * 0.18'),
-        'Silhouette points must arrive first to establish the human frame'
+        personaCanvasSrc.includes('const nDotL = Math.max(0.0, target.nx * lx + target.ny * ly + target.nz * lz);'),
+        'Must calculate NdotL diffuse shading'
       );
       assert.ok(
-        orbSrc.includes('p.transDelay = 0.50 + normY * 0.42'),
-        'Interior fill points must ascend upward in a spatial wave from chest to face'
+        personaCanvasSrc.includes('if (facing < 0.30)'),
+        'Must apply depth falloff to grazing angles'
       );
     });
   });
 
-  describe('5. Phase D & E: Final Convergence, Shimmer & Stabilized Hold', () => {
-    it('implements exponential velocity damping and finishing surface shimmer in Phase D', () => {
+  describe('4. Independent Spatial Reveal Wave & Settling', () => {
+    it('emerges from normal offsets near silhouette without traveling from orb', () => {
       assert.ok(
-        orbSrc.includes('const damp = Math.exp(-settleP * 8.0);'),
+        personaCanvasSrc.includes('const startX = target.x + target.nx * normalOffset'),
+        'Starting positions must originate along surface normals'
+      );
+      assert.ok(
+        !personaCanvasSrc.includes('1.85 + r * Math.sin'),
+        'Must NOT originate from orb coordinates on right'
+      );
+    });
+
+    it('sequences ascending spatial wave from chest upward to crown', () => {
+      assert.ok(
+        personaCanvasSrc.includes('delay = 0.25 + normY * 0.65'),
+        'Must sweep upward along Y axis'
+      );
+    });
+
+    it('applies exponential velocity damping during Phase C settling', () => {
+      assert.ok(
+        personaCanvasSrc.includes('const damp = Math.exp(-settleP * 8.0);'),
         'Must damp velocity smoothly as particles settle'
       );
-      assert.ok(
-        orbSrc.includes('const shimmer = Math.sin(shimmerPhase * Math.PI) * 0.18;'),
-        'Must illuminate completed surface with finishing shimmer wave'
-      );
     });
 
-    it('maintains subtle natural breathing motion in Phase E while keeping silhouette rock-solid', () => {
+    it('maintains subtle living breathing motion in settled state', () => {
       assert.ok(
-        orbSrc.includes("if (transitionState === 'HUMAN_FORMED' || transitionState === 'PERSONA_READY')"),
-        'Must handle stabilized state explicitly'
-      );
-      assert.ok(
-        orbSrc.includes('const breath = Math.sin(timeVal * 1.5 + p.transTargetY * 4.0) * 0.0012;'),
-        'Must maintain subtle breathing life (<0.0014 units) without drifting'
-      );
-      assert.ok(
-        orbSrc.includes('pointsMaterial.size = 0.028;'),
-        'Must preserve crisp, visible particle size (0.028) in portrait framing'
+        personaCanvasSrc.includes('const breath = Math.sin(timeVal * 1.5 + p.targetY * 4.0) * 0.0012;'),
+        'Must maintain subtle breathing life (<0.0014 units) in stabilized humanoid'
       );
     });
   });

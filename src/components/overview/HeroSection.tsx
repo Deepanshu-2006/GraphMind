@@ -170,7 +170,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   return (
     <section ref={heroRef} className="overview-hero" aria-label="GraphMind interactive 3d knowledge orb hero">
       {/* Layer 1: The Interactive 3D Knowledge Orb with Continuous Scroll Dissolution */}
-      <KnowledgeOrb3D scrollProgress={smoothScroll} />
+      <div
+        className="overview-hero-orb-wrap"
+        style={{
+          opacity: isInPersona ? 0 : 1,
+          visibility: isInPersona ? 'hidden' : 'visible',
+          pointerEvents: isInPersona ? 'none' : 'auto',
+          transition: 'opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s'
+        }}
+      >
+        <KnowledgeOrb3D scrollProgress={smoothScroll} />
+      </div>
 
       {/* Layer 2: Editorial Spatial Depth & Vignette */}
       <motion.div 

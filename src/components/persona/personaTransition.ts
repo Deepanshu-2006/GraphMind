@@ -108,6 +108,17 @@ class PersonaTransitionController {
   }
 
   /**
+   * Development-only inspection mode (Phase 5):
+   * Instantly displays the particle humanoid at its final target positions
+   * in portrait framing without running the transition animation.
+   */
+  inspectStaticHumanoid(): void {
+    this._state = 'PERSONA_READY';
+    this._startTime = performance.now();
+    this.notify();
+  }
+
+  /**
    * Subscribes a listener to transition state changes.
    * Immediately calls the listener with the current state.
    */
