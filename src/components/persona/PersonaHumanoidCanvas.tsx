@@ -1,14 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import {
   sampleHumanoidSurfacePoints,
-  buildHumanoidMesh,
   type HumanoidParticleData,
   CHARACTER_Y_BOUNDS
 } from './humanoidGeometry';
-import { createPersonaSolidMaterial } from './personaShader';
+import {
+  attachPersonaSolidifyShader,
+  type SolidifyMaterialUniforms
+} from './personaShader';
 
 export type PersonaAnimationState =
+  | 'INITIALIZING'
   | 'SPHERE'
   | 'FORMING_HUMANOID'
   | 'HUMANOID_SETTLING'
@@ -23,14 +28,14 @@ export interface PersonaHumanoidCanvasProps {
 }
 
 export const PERSONA_ANIMATION_CONFIG = {
-  sphereDuration: 0.8, // 0.0s -> 0.8s: Landing-page particle sphere rotating
-  formationDuration: 2.4, // 0.8s -> 3.2s: Phase A: Reorganizing into humanoid
-  settleDuration: 1.0, // 3.2s -> 4.2s: Phase A settle (100% particle humanoid)
-  solidifyDuration: 3.6, // 4.2s -> 7.8s: Phase B: Bottom-up continuous solidification
-  fullySolidDuration: 0.6, // 7.8s -> 8.4s: Complete solid character finishing wave
+  sphereDuration: 1.0, // 0.0s -> 1.0s: Landing-page particle sphere rotating
+  formationDuration: 2.4, // 1.0s -> 3.4s: Phase A: Reorganizing into human head/shoulders
+  settleDuration: 1.0, // 3.4s -> 4.4s: Phase A settle (100% particle humanoid)
+  solidifyDuration: 3.6, // 4.4s -> 8.0s: Phase B: Bottom-up continuous solidification (chest -> head)
+  fullySolidDuration: 0.8, // 8.0s -> 8.8s: Complete solid character finishing wave
   minY: CHARACTER_Y_BOUNDS.min - 0.05,
   maxY: CHARACTER_Y_BOUNDS.max + 0.05,
-  transitionBand: 0.08,
+  transitionBand: 0.045,
   particleCount: 1600
 };
 
@@ -68,8 +73,8 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [currentState, setCurrentState] = useState<PersonaAnimationState>('SPHERE');
-  const currentStateRef = useRef<PersonaAnimationState>('SPHERE');
+  const [currentState, setCurrentState] = useState<PersonaAnimationState>('INITIALIZING');
+  const currentStateRef = useRef<PersonaAnimationState>('INITIALIZING');
 
   useEffect(() => {
     currentStateRef.current = currentState;
@@ -96,49 +101,121 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.15;
+      renderer.toneMappingExposure = 1.05;
     } catch (e) {
       console.warn('[PersonaHumanoidCanvas] WebGL context creation failed:', e);
+      setCurrentState('IDLE');
       return;
     }
 
     const scene = new THREE.Scene();
 
-    // 2. Camera Setup (Frames the entire 2.3-unit character from head to feet)
-    const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 50);
-    camera.position.set(0, 0.0, 3.8);
-    camera.lookAt(0, -0.05, 0);
+    // 2. Camera Setup (Deliberate chest-up portrait framing: head, face, neck, shoulders, upper chest)
+    const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 50);
+    camera.position.set(0, 0.08, 0.98);
+    camera.lookAt(0, 0.08, 0);
 
-    // 3. Lighting System (Sculptural Three-Point Studio Lighting)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
+    // 3. Controlled Studio Lighting Setup (Soft, restrained, premium)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.50);
     scene.add(ambientLight);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    keyLight.position.set(2.4, 3.5, 3.0);
+    // Soft key lighting to reveal facial structure without harsh glare
+    const keyLight = new THREE.DirectionalLight(0xfff8ee, 1.20);
+    keyLight.position.set(1.2, 1.4, 1.6);
     scene.add(keyLight);
 
-    const fillLight = new THREE.DirectionalLight(0x7a889b, 0.55);
-    fillLight.position.set(-2.5, 1.0, 2.0);
+    // Gentle cool slate fill lighting to preserve detail in darker areas
+    const fillLight = new THREE.DirectionalLight(0x94a3b8, 0.60);
+    fillLight.position.set(-1.4, 0.7, 1.3);
     scene.add(fillLight);
 
-    // Backlight / Rim light in GraphMind lime-green (#A3FF12)
-    const rimLight = new THREE.DirectionalLight(0xa3ff12, 1.3);
-    rimLight.position.set(0, -1.0, -3.0);
+    // Delicate eye catchlight to add life and specular clarity to corneas
+    const eyeCatchLight = new THREE.DirectionalLight(0xffffff, 0.22);
+    eyeCatchLight.position.set(0, 0.15, 1.8);
+    scene.add(eyeCatchLight);
+
+    // Subtle GraphMind lime-green rim light (#A3FF12) - restrained edge accent behind shoulders & hair
+    const rimLight = new THREE.DirectionalLight(0xa3ff12, 0.38);
+    rimLight.position.set(0.9, 1.3, -2.2);
     scene.add(rimLight);
+
+    // Neutral soft hair kicker to balance silhouette separation against near-black background
+    const backKicker = new THREE.DirectionalLight(0xf1f5f9, 0.28);
+    backKicker.position.set(-0.9, 1.4, -2.0);
+    scene.add(backKicker);
 
     // 4. Character Core Group
     const characterGroup = new THREE.Group();
     characterGroup.name = 'persona-character-group';
     scene.add(characterGroup);
 
-    // 5. Solid Humanoid Mesh
-    const solidMaterial = createPersonaSolidMaterial();
-    const solidMeshGroup = buildHumanoidMesh(solidMaterial);
-    characterGroup.add(solidMeshGroup);
+    // Shared Solidification Uniforms
+    const solidifyUniforms: SolidifyMaterialUniforms = {
+      uSolidifyY: { value: PERSONA_ANIMATION_CONFIG.minY - 1.0 }, // Initially hidden below viewport
+      uTransitionBand: { value: PERSONA_ANIMATION_CONFIG.transitionBand },
+      uGlowColor: { value: new THREE.Color('#A3FF12') },
+      uGlowIntensity: { value: 2.2 }
+    };
 
-    // 6. Particle Humanoid Surface Sampling
-    const count = prefersReducedMotion ? 600 : PERSONA_ANIMATION_CONFIG.particleCount;
-    const particleData: HumanoidParticleData[] = sampleHumanoidSurfacePoints(count, 1.48);
+    // 5. High-Quality 3D Human Model Loading (GLB with MeshoptDecoder)
+    let loadedSolidModel: THREE.Object3D | null = null;
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.setMeshoptDecoder(MeshoptDecoder);
+
+    gltfLoader.load(
+      '/models/human_persona.glb',
+      (gltf) => {
+        if (isDisposed) return;
+        const model = gltf.scene;
+        model.name = 'solid-humanoid-character';
+
+        // Relax arms naturally beside the torso
+        const leftArm = model.getObjectByName('LeftArm');
+        const rightArm = model.getObjectByName('RightArm');
+        if (leftArm) leftArm.rotation.set(1.20, 0.0, 0.0);
+        if (rightArm) rightArm.rotation.set(1.80, 1.40, -0.60);
+
+        // Position model chest-up: face center positioned with deliberate upper chest cropping
+        model.position.set(0, -1.52, 0);
+
+        // Attach bottom-up solidification shader and refine material PBR parameters
+        model.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mesh = child as THREE.Mesh;
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            if (mesh.material) {
+              const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+              materials.forEach((m) => {
+                if (m instanceof THREE.MeshStandardMaterial) {
+                  if (mesh.name.toLowerCase().includes('eye')) {
+                    // Glassy cornea glossiness
+                    m.roughness = 0.15;
+                    m.metalness = 0.0;
+                  } else {
+                    // Soft natural skin and fabric: diffuse matte finish prevents plastic shine and green light pooling
+                    m.roughness = 0.72;
+                    m.metalness = 0.02;
+                  }
+                }
+                attachPersonaSolidifyShader(m, solidifyUniforms);
+              });
+            }
+          }
+        });
+
+        loadedSolidModel = model;
+        characterGroup.add(model);
+      },
+      undefined,
+      (loadError) => {
+        console.error('[PersonaHumanoidCanvas] GLB human model failed to load:', loadError);
+      }
+    );
+
+    // 6. Particle Humanoid Surface Sampling (framed chest-up)
+    const count = prefersReducedMotion ? 400 : PERSONA_ANIMATION_CONFIG.particleCount;
+    const particleData: HumanoidParticleData[] = sampleHumanoidSurfacePoints(count, 0.28);
 
     const positionsArray = new Float32Array(count * 3);
     const colorsArray = new Float32Array(count * 3);
@@ -169,31 +246,57 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     particleGeometry.setAttribute('position', new THREE.BufferAttribute(positionsArray, 3));
     particleGeometry.setAttribute('color', new THREE.BufferAttribute(colorsArray, 3));
     particleGeometry.setAttribute('size', new THREE.BufferAttribute(sizesArray, 1));
+    particleGeometry.setAttribute('pSize', new THREE.BufferAttribute(sizesArray, 1));
 
     const particleTexture = createParticleDiscTexture();
 
-    // Shader-enhanced particle material for individual particle sizing and smooth alpha fade
     const particleMaterial = new THREE.PointsMaterial({
-      size: 0.038,
+      size: 0.034,
+      sizeAttenuation: true,
       vertexColors: true,
       map: particleTexture,
       transparent: true,
-      opacity: 0.95,
+      opacity: 0.98,
       blending: THREE.AdditiveBlending,
       depthWrite: false
     });
+
+    particleMaterial.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader.replace(
+        'uniform float size;',
+        'uniform float size;\nattribute float pSize;'
+      );
+      shader.vertexShader = shader.vertexShader.replace(
+        'gl_PointSize = size;',
+        'gl_PointSize = size * pSize;'
+      );
+    };
+    particleMaterial.customProgramCacheKey = () => 'persona-particle-humanoid-v4';
 
     const particleSystem = new THREE.Points(particleGeometry, particleMaterial);
     particleSystem.name = 'persona-particle-humanoid';
     characterGroup.add(particleSystem);
 
-    // Resize Handling
+    // Responsive camera and viewport handling
     const handleResize = () => {
       if (!container || !renderer) return;
       const width = container.clientWidth || 600;
       const height = container.clientHeight || 500;
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
+
+      // Adjust camera distance and FOV responsively to maintain deliberate chest-up portrait framing
+      if (width < 768) {
+        // Mobile: Slightly wider angle and adjusted distance to keep full head, hair, and both shoulders visible
+        camera.position.set(0, 0.08, 1.20);
+        camera.fov = 36;
+        camera.lookAt(0, 0.08, 0);
+      } else {
+        // Desktop: Substantial, cinematic chest-up portrait framing with head and shoulders as primary focus
+        camera.position.set(0, 0.08, 0.98);
+        camera.fov = 32;
+        camera.lookAt(0, 0.08, 0);
+      }
       camera.updateProjectionMatrix();
     };
 
@@ -201,12 +304,11 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(container);
 
-    // 7. State Machine & Continuous Physical Animation Loop
+    // 7. State Machine & Animation Loop
     let animationFrameId: number;
-    let startTime = performance.now();
+    const startTime = performance.now();
     let isDisposed = false;
 
-    // Config timing milestones
     const cfg = PERSONA_ANIMATION_CONFIG;
     const tSphereEnd = cfg.sphereDuration;
     const tFormationEnd = tSphereEnd + cfg.formationDuration;
@@ -215,8 +317,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     const tFullySolidEnd = tSolidifyEnd + cfg.fullySolidDuration;
 
     if (prefersReducedMotion) {
-      // For reduced motion, immediately skip to fully solid state
-      solidMaterial.solidifyUniforms.uSolidifyY.value = cfg.maxY + 1.0;
+      solidifyUniforms.uSolidifyY.value = cfg.maxY + 1.0;
       particleMaterial.opacity = 0.0;
       setCurrentState('IDLE');
     }
@@ -225,8 +326,6 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       if (isDisposed) return;
 
       const elapsed = (now - startTime) / 1000;
-
-      // Determine explicit animation state
       let newState: PersonaAnimationState = 'SPHERE';
 
       if (prefersReducedMotion) {
@@ -252,205 +351,168 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       const positions = particleGeometry.attributes.position.array as Float32Array;
       const colors = particleGeometry.attributes.color.array as Float32Array;
 
-      // A. SPHERE STATE (0.0s -> 0.8s)
-      if (newState === 'SPHERE') {
-        const sphereProgress = elapsed / tSphereEnd;
-        solidMaterial.solidifyUniforms.uSolidifyY.value = cfg.minY - 1.0; // Solid mesh completely hidden
-
-        // Gentle spherical rotation
-        characterGroup.rotation.y = elapsed * 0.35;
-        characterGroup.position.set(0, 0, 0);
+      // PHASE A: Particle Sphere -> Humanoid Formation
+      if (elapsed < tSphereEnd) {
+        // Rotating sphere
+        const sphereAngle = elapsed * 0.45;
+        const cosA = Math.cos(sphereAngle);
+        const sinA = Math.sin(sphereAngle);
 
         for (let i = 0; i < count; i++) {
           const p = particleData[i];
           const i3 = i * 3;
-
-          // Subtle pulse on particle sphere
-          const pulse = 1.0 + Math.sin(elapsed * 2.5 + i * 0.1) * 0.03;
-          positions[i3] = p.sphereX * pulse;
-          positions[i3 + 1] = p.sphereY * pulse;
-          positions[i3 + 2] = p.sphereZ * pulse;
+          positions[i3] = p.sphereX * cosA - p.sphereZ * sinA;
+          positions[i3 + 1] = p.sphereY;
+          positions[i3 + 2] = p.sphereX * sinA + p.sphereZ * cosA;
 
           colors[i3] = p.baseR;
           colors[i3 + 1] = p.baseG;
           colors[i3 + 2] = p.baseB;
         }
 
-        particleMaterial.opacity = 0.95;
-      }
-
-      // B. FORMING_HUMANOID (0.8s -> 3.2s) — Phase A Transition
-      else if (newState === 'FORMING_HUMANOID') {
-        const formTime = elapsed - tSphereEnd;
-        solidMaterial.solidifyUniforms.uSolidifyY.value = cfg.minY - 1.0; // Solid mesh remains hidden
-
-        // Slowly ease rotation back to upright front-facing angle
-        characterGroup.rotation.y = THREE.MathUtils.lerp(characterGroup.rotation.y, 0, 0.04);
-        characterGroup.position.set(0, 0, 0);
+        solidifyUniforms.uSolidifyY.value = cfg.minY - 1.0;
+        particleMaterial.opacity = 0.98;
+        characterGroup.position.y = 0;
+      } else if (elapsed < tFormationEnd) {
+        // Traveling along bezier trajectories into the human model's shape
+        const formT = (elapsed - tSphereEnd) / cfg.formationDuration;
 
         for (let i = 0; i < count; i++) {
           const p = particleData[i];
           const i3 = i * 3;
 
-          const rawProg = Math.max(0, Math.min(1, (formTime - p.formationDelay) / p.formationDuration));
-          // Cubic smoothstep easing
-          const easeProg = rawProg * rawProg * (3 - 2 * rawProg);
+          const localT = Math.max(0, Math.min(1, (formT - p.formationDelay) / Math.max(0.01, p.formationDuration)));
+          const easeT = localT < 0.5 ? 4 * localT * localT * localT : 1 - Math.pow(-2 * localT + 2, 3) / 2;
 
-          // Quadratic Bezier curved trajectory from sphere -> curveMid -> humanoid surface
-          const inv = 1 - easeProg;
-          const curX = inv * inv * p.sphereX + 2 * inv * easeProg * p.curveMidX + easeProg * easeProg * p.targetX;
-          const curY = inv * inv * p.sphereY + 2 * inv * easeProg * p.curveMidY + easeProg * easeProg * p.targetY;
-          const curZ = inv * inv * p.sphereZ + 2 * inv * easeProg * p.curveMidZ + easeProg * easeProg * p.targetZ;
+          const u = 1 - easeT;
+          const u2 = u * u;
+          const t2 = easeT * easeT;
 
-          positions[i3] = curX;
-          positions[i3 + 1] = curY;
-          positions[i3 + 2] = curZ;
-
-          // Color shifts as particles approach target
-          colors[i3] = p.baseR;
-          colors[i3 + 1] = p.baseG;
-          colors[i3 + 2] = p.baseB;
-        }
-
-        particleMaterial.opacity = 0.95;
-      }
-
-      // C. HUMANOID_SETTLING (3.2s -> 4.2s) — Phase A Settled (100% particle humanoid)
-      else if (newState === 'HUMANOID_SETTLING') {
-        const settleTime = elapsed - tFormationEnd;
-        solidMaterial.solidifyUniforms.uSolidifyY.value = cfg.minY - 1.0; // Solid mesh still completely hidden
-
-        characterGroup.rotation.y = 0;
-
-        // Subtle gentle breathing motion
-        const breath = Math.sin(settleTime * 2.0) * 0.008;
-        characterGroup.position.y = breath;
-
-        for (let i = 0; i < count; i++) {
-          const p = particleData[i];
-          const i3 = i * 3;
-
-          // Stable settling with micro idle drift along normal
-          const microJitter = Math.sin(settleTime * 3.0 + i * 0.2) * 0.003;
-          positions[i3] = p.targetX + p.normalX * microJitter;
-          positions[i3 + 1] = p.targetY + p.normalY * microJitter;
-          positions[i3 + 2] = p.targetZ + p.normalZ * microJitter;
+          positions[i3] = u2 * p.sphereX + 2 * u * easeT * p.curveMidX + t2 * p.targetX;
+          positions[i3 + 1] = u2 * p.sphereY + 2 * u * easeT * p.curveMidY + t2 * p.targetY;
+          positions[i3 + 2] = u2 * p.sphereZ + 2 * u * easeT * p.curveMidZ + t2 * p.targetZ;
 
           colors[i3] = p.baseR;
           colors[i3 + 1] = p.baseG;
           colors[i3 + 2] = p.baseB;
         }
 
-        particleMaterial.opacity = 0.95;
-      }
+        solidifyUniforms.uSolidifyY.value = cfg.minY - 1.0;
+        particleMaterial.opacity = 0.98;
+        characterGroup.position.y = 0;
+      } else if (elapsed < tSettleEnd) {
+        // Settling into complete 100% human particle silhouette
+        const settleT = (elapsed - tFormationEnd) / cfg.settleDuration;
+        const damp = Math.exp(-settleT * 3.5);
+        const wavePhase = settleT * Math.PI * 4;
 
-      // D. PARTIAL_SOLIDIFICATION (4.2s -> 7.8s) — Phase B Bottom-Up Solidification
-      else if (newState === 'PARTIAL_SOLIDIFICATION') {
-        const solidifyTime = elapsed - tSettleEnd;
-        const progress = Math.max(0, Math.min(1, solidifyTime / cfg.solidifyDuration));
-        // Smooth continuous upward ascension
-        const easeProg = progress * progress * (3 - 2 * progress);
+        for (let i = 0; i < count; i++) {
+          const p = particleData[i];
+          const i3 = i * 3;
+          const subtleWave = Math.sin(wavePhase + p.targetY * 6) * 0.003 * damp;
+
+          positions[i3] = p.targetX;
+          positions[i3 + 1] = p.targetY + subtleWave;
+          positions[i3 + 2] = p.targetZ;
+
+          colors[i3] = p.baseR;
+          colors[i3 + 1] = p.baseG;
+          colors[i3 + 2] = p.baseB;
+        }
+
+        solidifyUniforms.uSolidifyY.value = cfg.minY - 1.0;
+        particleMaterial.opacity = 0.98;
+        characterGroup.position.y = 0;
+      } else if (elapsed < tSolidifyEnd) {
+        // PHASE B: Bottom-up continuous solidification (Chest -> Shoulders -> Neck -> Face -> Hair)
+        const solT = (elapsed - tSettleEnd) / cfg.solidifyDuration;
+        const easeProg = solT < 0.5 ? 2 * solT * solT : 1 - Math.pow(-2 * solT + 2, 2) / 2;
+
         const currentY = cfg.minY + easeProg * (cfg.maxY - cfg.minY);
-
-        solidMaterial.solidifyUniforms.uSolidifyY.value = currentY;
-
-        // Gentle breathing motion shared by both representations
-        const breath = Math.sin(elapsed * 1.5) * 0.01;
-        characterGroup.position.y = breath;
-        characterGroup.rotation.y = Math.sin(elapsed * 0.4) * 0.06;
+        solidifyUniforms.uSolidifyY.value = currentY;
 
         for (let i = 0; i < count; i++) {
           const p = particleData[i];
           const i3 = i * 3;
-
           const pY = p.targetY;
-          const distToCut = currentY - pY;
 
           positions[i3] = p.targetX;
           positions[i3 + 1] = p.targetY;
           positions[i3 + 2] = p.targetZ;
 
-          // State of particle relative to the moving boundary
           if (pY > currentY) {
-            // ABOVE BOUNDARY: 100% active particles in the upper body
+            // Unsolidified region above wavefront: fully visible
             colors[i3] = p.baseR;
             colors[i3 + 1] = p.baseG;
             colors[i3 + 2] = p.baseB;
-          } else if (distToCut < cfg.transitionBand) {
-            // AT ACTIVE BOUNDARY: glowing lime-green wavefront (#A3FF12)
-            const edgeNorm = 1.0 - distToCut / cfg.transitionBand;
-            colors[i3] = 0.64 * edgeNorm + p.baseR * (1 - edgeNorm);
-            colors[i3 + 1] = 1.0 * edgeNorm + p.baseG * (1 - edgeNorm);
-            colors[i3 + 2] = 0.07 * edgeNorm + p.baseB * (1 - edgeNorm);
           } else {
-            // BELOW BOUNDARY: Particle has solidified into the solid mesh
-            // Smoothly dissolve particle opacity/brightness to 0
-            const fade = Math.max(0, 1.0 - (distToCut - cfg.transitionBand) / 0.12);
+            // Solidified region: smooth fade into the solid mesh
+            const distPastCut = currentY - pY;
+            const fade = Math.max(0, 1.0 - distPastCut / (cfg.transitionBand * 2.2));
             colors[i3] = p.baseR * fade;
             colors[i3 + 1] = p.baseG * fade;
             colors[i3 + 2] = p.baseB * fade;
           }
         }
 
-        particleMaterial.opacity = 0.95;
-      }
+        particleMaterial.opacity = 0.98;
+        characterGroup.position.y = 0;
+      } else if (elapsed < tFullySolidEnd) {
+        // Solid character fully formed with finishing rim pulse
+        solidifyUniforms.uSolidifyY.value = cfg.maxY + 0.5;
+        particleMaterial.opacity = Math.max(0, 1.0 - (elapsed - tSolidifyEnd) / cfg.fullySolidDuration);
+        characterGroup.position.y = 0;
+      } else {
+        // IDLE: High-quality solid character with subtle breathing motion
+        solidifyUniforms.uSolidifyY.value = cfg.maxY + 1.0;
+        particleMaterial.opacity = 0.0;
 
-      // E. FULLY_SOLID (7.8s -> 8.4s) & F. IDLE (8.4s+)
-      else {
-        // Head has completed solidification; character is fully solid
-        solidMaterial.solidifyUniforms.uSolidifyY.value = cfg.maxY + 1.0;
-
-        // Subtle idle floating / breathing animation
-        const breath = Math.sin(elapsed * 1.5) * 0.012;
+        const idleTime = elapsed - tFullySolidEnd;
+        const breath = Math.sin(idleTime * 1.4) * 0.004;
+        const subtleSway = Math.sin(idleTime * 0.7) * 0.002;
         characterGroup.position.y = breath;
-        characterGroup.rotation.y = Math.sin(elapsed * 0.3) * 0.08;
-
-        // Fade remaining particle points to quiet ambient dust motes
-        particleMaterial.opacity = THREE.MathUtils.lerp(particleMaterial.opacity, 0.08, 0.05);
-
-        for (let i = 0; i < count; i++) {
-          const p = particleData[i];
-          const i3 = i * 3;
-          // Very gentle ambient float
-          const floatOffset = Math.sin(elapsed * 1.2 + i * 0.15) * 0.006;
-          positions[i3] = p.targetX + p.normalX * floatOffset;
-          positions[i3 + 1] = p.targetY + p.normalY * floatOffset;
-          positions[i3 + 2] = p.targetZ + p.normalZ * floatOffset;
-        }
+        characterGroup.rotation.y = subtleSway;
       }
 
       particleGeometry.attributes.position.needsUpdate = true;
       particleGeometry.attributes.color.needsUpdate = true;
 
-      renderer.render(scene, camera);
+      try {
+        renderer.render(scene, camera);
+      } catch (renderErr) {
+        console.error('[PersonaHumanoidCanvas] WebGL render error:', renderErr);
+      }
       animationFrameId = requestAnimationFrame(render);
     };
 
-    animationFrameId = requestAnimationFrame(render);
+    if (autoPlay) {
+      animationFrameId = requestAnimationFrame(render);
+    }
 
-    // 8. Safe Cleanup of All Resources
     return () => {
       isDisposed = true;
-      if (animationFrameId !== null) {
-        cancelAnimationFrame(animationFrameId);
-      }
+      cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
 
-      // Dispose geometries & materials
+      // Dispose particle resources
       particleGeometry.dispose();
       particleMaterial.dispose();
       particleTexture.dispose();
+      // Dispose loaded GLB model resources if present
+      if (loadedSolidModel) {
+        loadedSolidModel.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const m = child as THREE.Mesh;
+            m.geometry?.dispose();
+            if (m.material) {
+              if (Array.isArray(m.material)) m.material.forEach((mat) => mat.dispose());
+              else m.material.dispose();
+            }
+          }
+        });
+      }
 
-      solidMeshGroup.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          child.geometry.dispose();
-        }
-      });
-      solidMaterial.dispose();
-
-      // Dispose lights & renderer
       renderer.dispose();
-      renderer.forceContextLoss();
     };
   }, [autoPlay]);
 
@@ -458,11 +520,26 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     <div
       ref={containerRef}
       className={`persona-humanoid-canvas-container ${className}`}
-      data-animation-state={currentState}
-      id="persona-humanoid-stage"
-      aria-label="GraphMind Persona 3D Humanoid"
+      style={{
+        position: 'absolute',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        pointerEvents: 'none'
+      }}
     >
-      <canvas ref={canvasRef} className="persona-humanoid-canvas" />
+      <canvas
+        ref={canvasRef}
+        className="persona-humanoid-canvas"
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'block'
+        }}
+      />
     </div>
   );
 };

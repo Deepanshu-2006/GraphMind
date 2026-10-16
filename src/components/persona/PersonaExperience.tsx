@@ -20,7 +20,7 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
   const exitButtonRef = useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const shouldReduceMotion = useReducedMotion();
-  const [animationState, setAnimationState] = useState<PersonaAnimationState>('SPHERE');
+  const [animationState, setAnimationState] = useState<PersonaAnimationState>('INITIALIZING');
 
   // Focus management: cache last active element and focus exit button
   useEffect(() => {
@@ -137,8 +137,10 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
 
   const getStatusLabel = (state: PersonaAnimationState): string => {
     switch (state) {
-      case 'SPHERE':
+      case 'INITIALIZING':
         return 'INITIALIZING';
+      case 'SPHERE':
+        return 'KNOWLEDGE SPHERE';
       case 'FORMING_HUMANOID':
         return 'RECONSTRUCTING';
       case 'HUMANOID_SETTLING':
@@ -146,6 +148,7 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
       case 'PARTIAL_SOLIDIFICATION':
         return 'MATERIALIZING';
       case 'FULLY_SOLID':
+        return 'STABILIZED';
       case 'IDLE':
         return 'READY';
       default:
