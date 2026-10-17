@@ -5,12 +5,19 @@ import {
   type SpeechPlaybackState,
   type SpeechPlaybackStatus
 } from '../../services/speechSynthesisService';
+import {
+  GRAPHMIN_VOICE_CONFIG,
+  PERSONA_TEST_SENTENCES,
+  type PersonaVoiceConfig,
+  type PersonaTestSentenceIndex
+} from './personaVoiceConfig';
 
 export interface UsePersonaSpeechReturn {
   speak: (text: string, options?: SpeechOptions) => Promise<void>;
   stop: () => void;
   pause: () => void;
   resume: () => void;
+  playTestSentence: (index: PersonaTestSentenceIndex) => Promise<void>;
   status: SpeechPlaybackStatus;
   isLoading: boolean;
   isSpeaking: boolean;
@@ -21,6 +28,8 @@ export interface UsePersonaSpeechReturn {
   currentText: string | null;
   error: string | null;
   voices: SpeechSynthesisVoice[];
+  resolvedVoice: SpeechSynthesisVoice | null;
+  voiceConfig: PersonaVoiceConfig;
 }
 
 /**
@@ -58,8 +67,18 @@ export function usePersonaSpeech(): UsePersonaSpeechReturn {
       (window as any).__personaSpeech = {
         speak: (text: string, opts?: SpeechOptions) => speechSynthesisService.speak(text, opts),
         stop: () => speechSynthesisService.stop(),
+        pause: () => speechSynthesisService.pause(),
+        resume: () => speechSynthesisService.resume(),
         getState: () => speechSynthesisService.getState(),
         getVoices: () => speechSynthesisService.getVoices(),
+        getVoiceConfig: () => speechSynthesisService.getVoiceConfig(),
+        getResolvedVoice: () => speechSynthesisService.getResolvedVoice(),
+        playTestSentence: (index: PersonaTestSentenceIndex) => {
+          const sentence = PERSONA_TEST_SENTENCES[index - 1];
+          if (sentence) return speechSynthesisService.speak(sentence);
+          return Promise.reject(new Error(`Invalid sentence index: ${index}`));
+        },
+        testSentences: PERSONA_TEST_SENTENCES,
         isSupported: () => speechSynthesisService.isSupported()
       };
     }
@@ -96,13 +115,22 @@ export function usePersonaSpeech(): UsePersonaSpeechReturn {
     speechSynthesisService.resume();
   }, []);
 
+  const playTestSentence = useCallback(async (index: PersonaTestSentenceIndex) => {
+    const sentence = PERSONA_TEST_SENTENCES[index - 1];
+    if (sentence) {
+      await speak(sentence);
+    }
+  }, [speak]);
+
   const status = playbackState.status;
+  const resolvedVoice = speechSynthesisService.getResolvedVoice();
 
   return {
     speak,
     stop,
     pause,
     resume,
+    playTestSentence,
     status,
     isLoading: status === 'loading',
     isSpeaking: status === 'speaking',
@@ -112,6 +140,8 @@ export function usePersonaSpeech(): UsePersonaSpeechReturn {
     isSupported: status !== 'unsupported',
     currentText: playbackState.text,
     error: playbackState.error,
-    voices
+    voices,
+    resolvedVoice,
+    voiceConfig: GRAPHMIN_VOICE_CONFIG
   };
 }

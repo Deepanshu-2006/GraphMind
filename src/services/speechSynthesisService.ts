@@ -10,6 +10,12 @@
  * - Decoupled observer subscriptions for UI and animation controllers
  */
 
+import {
+  GRAPHMIN_VOICE_CONFIG,
+  prepareTextForSpeech,
+  type PersonaVoiceConfig
+} from '../components/persona/personaVoiceConfig';
+
 export type SpeechPlaybackStatus =
   | 'unsupported'
   | 'idle'
@@ -19,10 +25,10 @@ export type SpeechPlaybackStatus =
   | 'failed';
 
 export interface SpeechOptions {
-  rate?: number;       // Speed: 0.1 to 10 (default 0.95 for calm, articulate cadence)
-  pitch?: number;      // Pitch: 0 to 2 (default 1.0)
-  volume?: number;     // Volume: 0 to 1 (default 1.0)
-  lang?: string;       // BCP 47 language tag (default 'en-US')
+  rate?: number;       // Speed: 0.1 to 10 (defaults to GRAPHMIN_VOICE_CONFIG.speakingRate)
+  pitch?: number;      // Pitch: 0 to 2 (defaults to GRAPHMIN_VOICE_CONFIG.pitch)
+  volume?: number;     // Volume: 0 to 1 (defaults to GRAPHMIN_VOICE_CONFIG.volume)
+  lang?: string;       // BCP 47 language tag (defaults to GRAPHMIN_VOICE_CONFIG.lang)
   voiceName?: string;  // Preferred specific voice name
 }
 
@@ -102,54 +108,140 @@ export class SpeechSynthesisService {
   }
 
   /**
-   * Select the best matching voice without assuming any OS-specific voice is present.
-   * Prioritizes natural/neural English voices, falls back to generic English,
-   * then system default.
+   * Returns the centralized voice configuration for GraphMind Persona.
    */
-  public selectBestVoice(preferredName?: string, targetLang = 'en-US'): SpeechSynthesisVoice | null {
+  public getVoiceConfig(): PersonaVoiceConfig {
+    return GRAPHMIN_VOICE_CONFIG;
+  }
+
+  /**
+   * Returns the currently resolved voice for the Persona character.
+   */
+  public getResolvedVoice(preferredName?: string): SpeechSynthesisVoice | null {
+    return this.selectBestVoice(preferredName);
+  }
+
+  /**
+   * Select the best matching voice without assuming any OS-specific voice is present.
+   * Multi-tiered selection strategy:
+   * 1. Explicit voice name match if provided.
+   * 2. High-priority configured voice list (Asian English male voices first, then calm male voices).
+   * 3. Asian English male regional voices (name/lang contains asian keywords + male keywords, excluding female profiles).
+   * 4. Any Asian English voice (excluding disallowed female profiles).
+   * 5. Articulate calm male voices (name contains male keywords, matching target lang, excluding female profiles).
+   * 6. High-quality natural / neural English voices.
+   * 7. Any English voice in target language (excluding disallowed female profiles).
+   * 8. System default voice.
+   * 9. First available voice fallback.
+   */
+  public selectBestVoice(
+    preferredName?: string,
+    targetLang = GRAPHMIN_VOICE_CONFIG.lang
+  ): SpeechSynthesisVoice | null {
     const list = this.getVoices();
     if (list.length === 0) return null;
 
+    const isDisallowed = (v: SpeechSynthesisVoice): boolean => {
+      const lower = `${v.name} ${v.lang}`.toLowerCase();
+      return GRAPHMIN_VOICE_CONFIG.disallowedVoiceKeywords.some((kw) => lower.includes(kw));
+    };
+
     // 1. Explicit voice name match if requested
     if (preferredName) {
-      const match = list.find(v => v.name.toLowerCase() === preferredName.toLowerCase());
-      if (match) return match;
+      const exactMatch = list.find(
+        (v) => v.name.toLowerCase() === preferredName.toLowerCase()
+      );
+      if (exactMatch) return exactMatch;
+      const partialMatch = list.find((v) =>
+        v.name.toLowerCase().includes(preferredName.toLowerCase())
+      );
+      if (partialMatch) return partialMatch;
     }
 
-    // 2. High-quality natural / enhanced voices in matching language
-    const langPrefix = targetLang.split('-')[0].toLowerCase();
-    const naturalKeywords = ['natural', 'neural', 'enhanced', 'premium', 'google', 'siri'];
+    // 2. High-priority configured voice list matching in order
+    for (const name of GRAPHMIN_VOICE_CONFIG.preferredVoiceNames) {
+      const found = list.find((v) => v.name.toLowerCase() === name.toLowerCase());
+      if (found) return found;
+      const partial = list.find((v) =>
+        v.name.toLowerCase().includes(name.toLowerCase())
+      );
+      if (partial) return partial;
+    }
 
-    const naturalMatch = list.find(v => {
-      const isTargetLang = v.lang.toLowerCase().startsWith(langPrefix);
-      if (!isTargetLang) return false;
-      const lowerName = v.name.toLowerCase();
-      return naturalKeywords.some(kw => lowerName.includes(kw));
+    // 3. Asian English male regional voices (name/lang contains asian keywords + male keywords, not disallowed)
+    const asianMaleMatch = list.find((v) => {
+      if (isDisallowed(v)) return false;
+      const lower = `${v.name} ${v.lang}`.toLowerCase();
+      const hasAsian = GRAPHMIN_VOICE_CONFIG.preferredAsianVoiceKeywords.some((kw) =>
+        lower.includes(kw)
+      );
+      const hasMale =
+        GRAPHMIN_VOICE_CONFIG.preferredMaleKeywords.some((kw) => lower.includes(kw)) ||
+        v.lang.toLowerCase().includes('en-in') ||
+        v.lang.toLowerCase().includes('en-sg') ||
+        v.lang.toLowerCase().includes('en-hk');
+      return hasAsian && hasMale;
     });
-    if (naturalMatch) return naturalMatch;
+    if (asianMaleMatch) return asianMaleMatch;
 
-    // 3. Exact language match (e.g. 'en-US')
-    const exactLangMatch = list.find(v => v.lang.toLowerCase() === targetLang.toLowerCase());
-    if (exactLangMatch) return exactLangMatch;
+    // 4. Any Asian English voice (not disallowed)
+    const asianMatch = list.find((v) => {
+      if (isDisallowed(v)) return false;
+      const lower = `${v.name} ${v.lang}`.toLowerCase();
+      return GRAPHMIN_VOICE_CONFIG.preferredAsianVoiceKeywords.some((kw) => lower.includes(kw));
+    });
+    if (asianMatch) return asianMatch;
 
-    // 4. Any English / target language prefix match
-    const langMatch = list.find(v => v.lang.toLowerCase().startsWith(langPrefix));
-    if (langMatch) return langMatch;
+    // 5. Articulate calm male voices (matching male keywords and not disallowed)
+    const langPrefix = targetLang.split('-')[0].toLowerCase();
+    const calmMaleMatch = list.find((v) => {
+      if (isDisallowed(v)) return false;
+      const lower = `${v.name} ${v.lang}`.toLowerCase();
+      const matchesLang = v.lang.toLowerCase().startsWith(langPrefix);
+      const isMale = GRAPHMIN_VOICE_CONFIG.preferredMaleKeywords.some((kw) => lower.includes(kw));
+      return matchesLang && isMale;
+    });
+    if (calmMaleMatch) return calmMaleMatch;
 
-    // 5. System default voice
-    const defaultVoice = list.find(v => v.default);
+    // 6. High-quality natural / neural English voices (excluding disallowed female profiles)
+    const naturalKeywords = ['natural', 'neural', 'enhanced', 'premium', 'google'];
+    const nonFemaleNatural = list.find((v) => {
+      if (isDisallowed(v)) return false;
+      const lower = `${v.name} ${v.lang}`.toLowerCase();
+      const matchesLang = v.lang.toLowerCase().startsWith(langPrefix);
+      return matchesLang && naturalKeywords.some((kw) => lower.includes(kw));
+    });
+    if (nonFemaleNatural) return nonFemaleNatural;
+
+    // 7. Any English voice in targetLang (excluding disallowed)
+    const nonFemaleTargetLang = list.find((v) => {
+      if (isDisallowed(v)) return false;
+      return v.lang.toLowerCase() === targetLang.toLowerCase();
+    });
+    if (nonFemaleTargetLang) return nonFemaleTargetLang;
+
+    // 8. Any voice matching language prefix (excluding disallowed)
+    const nonFemaleLang = list.find((v) => {
+      if (isDisallowed(v)) return false;
+      return v.lang.toLowerCase().startsWith(langPrefix);
+    });
+    if (nonFemaleLang) return nonFemaleLang;
+
+    // 9. System default voice
+    const defaultVoice = list.find((v) => v.default);
     if (defaultVoice) return defaultVoice;
 
-    // 6. First available voice
+    // 10. First available voice
     return list[0] || null;
   }
 
   /**
    * Start speech playback for a given text string.
    * Automatically stops any currently playing utterance to prevent overlapping requests.
+   * Preprocesses text for spoken delivery without altering original text.
    */
   public speak(text: string, options: SpeechOptions = {}): Promise<void> {
-    const trimmed = (text || '').trim();
+    const rawTrimmed = (text || '').trim();
 
     return new Promise((resolve, reject) => {
       if (!this.isSupported()) {
@@ -159,7 +251,7 @@ export class SpeechSynthesisService {
         return;
       }
 
-      if (!trimmed) {
+      if (!rawTrimmed) {
         this.stop();
         resolve();
         return;
@@ -169,21 +261,37 @@ export class SpeechSynthesisService {
       this.stop();
 
       this.isExplicitlyStopped = false;
-      this.updateState('loading', trimmed, null);
+      // Preserve original text for UI state and observers
+      this.updateState('loading', rawTrimmed, null);
 
       try {
+        // Prepare text for spoken delivery without changing meaning or display text
+        const spokenText = prepareTextForSpeech(rawTrimmed);
+
         const UtteranceClass =
           typeof SpeechSynthesisUtterance !== 'undefined'
             ? SpeechSynthesisUtterance
             : (window as any).SpeechSynthesisUtterance;
-        const utterance = new UtteranceClass(trimmed);
+        const utterance = new UtteranceClass(spokenText || rawTrimmed);
         this.currentUtterance = utterance;
 
-        // Apply playback properties with calm, articulate defaults
-        utterance.rate = typeof options.rate === 'number' ? Math.max(0.1, Math.min(10, options.rate)) : 0.95;
-        utterance.pitch = typeof options.pitch === 'number' ? Math.max(0, Math.min(2, options.pitch)) : 1.0;
-        utterance.volume = typeof options.volume === 'number' ? Math.max(0, Math.min(1, options.volume)) : 1.0;
-        utterance.lang = options.lang || 'en-US';
+        // Apply centralized voice properties: calm, intelligent, composed
+        utterance.rate =
+          typeof options.rate === 'number'
+            ? Math.max(0.1, Math.min(10, options.rate))
+            : GRAPHMIN_VOICE_CONFIG.speakingRate;
+
+        utterance.pitch =
+          typeof options.pitch === 'number'
+            ? Math.max(0, Math.min(2, options.pitch))
+            : GRAPHMIN_VOICE_CONFIG.pitch;
+
+        utterance.volume =
+          typeof options.volume === 'number'
+            ? Math.max(0, Math.min(1, options.volume))
+            : GRAPHMIN_VOICE_CONFIG.volume;
+
+        utterance.lang = options.lang || GRAPHMIN_VOICE_CONFIG.lang;
 
         const voice = this.selectBestVoice(options.voiceName, utterance.lang);
         if (voice) {
@@ -192,13 +300,13 @@ export class SpeechSynthesisService {
 
         utterance.onstart = () => {
           if (this.currentUtterance !== utterance) return;
-          this.updateState('speaking', trimmed, null);
+          this.updateState('speaking', rawTrimmed, null);
         };
 
         utterance.onend = () => {
           if (this.currentUtterance !== utterance) return;
           this.currentUtterance = null;
-          this.updateState('completed', trimmed, null);
+          this.updateState('completed', rawTrimmed, null);
           resolve();
         };
 
@@ -216,7 +324,7 @@ export class SpeechSynthesisService {
           if (this.currentUtterance === utterance) {
             this.currentUtterance = null;
           }
-          this.updateState('failed', trimmed, errorDesc);
+          this.updateState('failed', rawTrimmed, errorDesc);
           reject(new Error(errorDesc));
         };
 
@@ -229,7 +337,7 @@ export class SpeechSynthesisService {
       } catch (err: any) {
         const errorDesc = err?.message || 'Failed to initiate speech synthesis.';
         this.currentUtterance = null;
-        this.updateState('failed', trimmed, errorDesc);
+        this.updateState('failed', rawTrimmed, errorDesc);
         reject(new Error(errorDesc));
       }
     });
