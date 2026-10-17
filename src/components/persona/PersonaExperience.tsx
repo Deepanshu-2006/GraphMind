@@ -18,6 +18,8 @@ export interface PersonaExperienceProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectGraph?: (graphId: string) => void;
+  onSelectAssessment?: (attemptId: string, graphId?: string) => void;
+  onResumeRevision?: (graphId: string) => void;
   /** Integration slot for Prompt 02: 3D Humanoid character */
   characterSlot?: React.ReactNode;
 }
@@ -26,6 +28,8 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
   isOpen,
   onClose,
   onSelectGraph,
+  onSelectAssessment,
+  onResumeRevision,
   characterSlot
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -98,13 +102,46 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
   }, [presentation, onClose]);
 
   const handleSelectGraph = useCallback((graphId: string) => {
+    if (leftTimerRef.current) clearTimeout(leftTimerRef.current);
+    if (rightTimerRef.current) clearTimeout(rightTimerRef.current);
+    presentation.cancel();
     if (onSelectGraph) {
       onSelectGraph(graphId);
-    } else if (graphContext?.switchGraph) {
-      graphContext.switchGraph(graphId);
+    } else {
+      if (graphContext?.switchGraph) {
+        graphContext.switchGraph(graphId);
+      }
+      onClose();
     }
-    handleExit();
-  }, [onSelectGraph, graphContext, handleExit]);
+  }, [onSelectGraph, graphContext, onClose, presentation]);
+
+  const handleSelectAssessment = useCallback((attemptId: string, graphId?: string) => {
+    if (leftTimerRef.current) clearTimeout(leftTimerRef.current);
+    if (rightTimerRef.current) clearTimeout(rightTimerRef.current);
+    presentation.cancel();
+    if (onSelectAssessment) {
+      onSelectAssessment(attemptId, graphId);
+    } else {
+      if (graphId && graphContext?.switchGraph) {
+        graphContext.switchGraph(graphId);
+      }
+      onClose();
+    }
+  }, [onSelectAssessment, graphContext, onClose, presentation]);
+
+  const handleResumeRevision = useCallback((graphId: string) => {
+    if (leftTimerRef.current) clearTimeout(leftTimerRef.current);
+    if (rightTimerRef.current) clearTimeout(rightTimerRef.current);
+    presentation.cancel();
+    if (onResumeRevision) {
+      onResumeRevision(graphId);
+    } else {
+      if (graphContext?.switchGraph) {
+        graphContext.switchGraph(graphId);
+      }
+      onClose();
+    }
+  }, [onResumeRevision, graphContext, onClose, presentation]);
 
   // Synchronize status indicator with the shared persona transition controller
   useEffect(() => {
@@ -304,7 +341,11 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
               <div className="persona-dashboard-right">
                 <AnimatePresence>
                   {isRightPanelVisible && (
-                    <PersonaPerformancePanel onSelectGraph={handleSelectGraph} />
+                    <PersonaPerformancePanel
+                      onSelectGraph={handleSelectGraph}
+                      onSelectAssessment={handleSelectAssessment}
+                      onResumeRevision={handleResumeRevision}
+                    />
                   )}
                 </AnimatePresence>
               </div>

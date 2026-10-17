@@ -46,6 +46,7 @@ export function AppContent() {
     return window.location.pathname.toLowerCase() === '/persona';
   });
   const previousPathRef = useRef<string | null>(null);
+  const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(null);
 
   const handleOpenPersona = useCallback(() => {
     if (isPersonaOpen) return; // Prevent double activation
@@ -78,6 +79,26 @@ export function AppContent() {
       }
     }
   }, [isPersonaOpen, currentSection]);
+
+  // Unified Smart Navigation from Persona directly to relevant GraphMind workspaces
+  const handleNavigateFromPersona = useCallback((section: NavSection, queryParams?: Record<string, string>) => {
+    setIsPersonaOpen(false);
+    personaTransitionController.triggerReturnToHero();
+    setCurrentSection(section);
+
+    if (typeof window !== 'undefined') {
+      const searchStr = queryParams && Object.keys(queryParams).length > 0
+        ? '?' + new URLSearchParams(queryParams).toString()
+        : '';
+      const targetPath = (section === 'overview' ? '/' : `/${section}`) + searchStr;
+
+      if (window.location.pathname.toLowerCase() === '/persona') {
+        window.history.replaceState({}, '', targetPath);
+      } else {
+        window.history.pushState({}, '', targetPath);
+      }
+    }
+  }, []);
 
   // Synchronize Persona open state with shared transition controller
   useEffect(() => {
@@ -510,6 +531,7 @@ export function AppContent() {
               navigateToSection('revision');
             }}
             activeGraph={contextActiveGraph}
+            initialAttemptId={selectedAttemptId}
           />
         )}
 
@@ -553,7 +575,21 @@ export function AppContent() {
           <PersonaExperience
             isOpen={isPersonaOpen}
             onClose={handleClosePersona}
-            onSelectGraph={handleSelectGraph}
+            onSelectGraph={(graphId) => {
+              handleSelectGraph(graphId);
+              handleNavigateFromPersona('graph');
+            }}
+            onSelectAssessment={(attemptId, graphId) => {
+              if (graphId) {
+                handleSelectGraph(graphId);
+              }
+              setSelectedAttemptId(attemptId);
+              handleNavigateFromPersona('study', { attempt: attemptId });
+            }}
+            onResumeRevision={(graphId) => {
+              handleSelectGraph(graphId);
+              handleNavigateFromPersona('revision');
+            }}
           />
         )}
       </AnimatePresence>

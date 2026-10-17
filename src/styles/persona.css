@@ -500,6 +500,45 @@
   letter-spacing: 0.02em;
 }
 
+.persona-revision-resume-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm, 4px);
+  padding: 4px 10px;
+  margin-top: 10px;
+  align-self: flex-start;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary, #A1A1A1);
+  cursor: pointer;
+  transition: color var(--transition-fast, 150ms ease), border-color var(--transition-fast, 150ms ease), background var(--transition-fast, 150ms ease);
+}
+
+.persona-revision-resume-btn:hover {
+  color: var(--text-primary, #F5F5F5);
+  border-color: rgba(163, 255, 18, 0.3);
+  background: rgba(163, 255, 18, 0.04);
+}
+
+.persona-revision-resume-btn:hover .persona-resume-arrow {
+  color: var(--accent, #A3FF12);
+  transform: translateX(2px);
+}
+
+.persona-revision-resume-btn:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: 2px;
+}
+
+.persona-resume-arrow {
+  color: var(--text-muted, #8A8A8A);
+  transition: transform var(--transition-fast, 150ms ease), color var(--transition-fast, 150ms ease);
+}
+
 .persona-concepts-chips-container {
   display: flex;
   flex-wrap: wrap;
@@ -521,12 +560,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   letter-spacing: -0.005em;
-  transition: color 150ms ease, border-color 150ms ease;
-}
-
-.persona-concept-chip:hover {
-  color: var(--text-primary, #F5F5F5);
-  border-color: rgba(255, 255, 255, 0.16);
+  cursor: default;
 }
 
 /* Responsive Viewports */
@@ -670,5 +704,14 @@
 
   .persona-activity-item {
     transition: none !important;
+  }
+
+  .persona-revision-resume-btn {
+    transition: none !important;
+  }
+
+  .persona-resume-arrow {
+    transition: none !important;
+    transform: none !important;
   }
 }

@@ -1,16 +1,21 @@
 import React from 'react';
 import { motion, useReducedMotion, type Variants } from 'framer-motion';
+import { ArrowRight } from 'lucide-react';
 import { usePersonaStats } from './usePersonaStats';
 import { PersonaAnimatedNumber } from './PersonaAnimatedNumber';
 import { formatRelativeTime, formatTabularCount } from './PersonaActivityPanel';
 
 export interface PersonaPerformancePanelProps {
   onSelectGraph?: (graphId: string) => void;
+  onSelectAssessment?: (attemptId: string, graphId?: string) => void;
+  onResumeRevision?: (graphId: string) => void;
   className?: string;
 }
 
 export const PersonaPerformancePanel: React.FC<PersonaPerformancePanelProps> = ({
   onSelectGraph,
+  onSelectAssessment,
+  onResumeRevision,
   className = ''
 }) => {
   const { stats, isLoading, error, refresh } = usePersonaStats();
@@ -150,7 +155,8 @@ export const PersonaPerformancePanel: React.FC<PersonaPerformancePanelProps> = (
             layout={!shouldReduceMotion}
           >
             {recentAssessments.map((attempt) => {
-              const isClickable = Boolean(onSelectGraph && attempt.graphId);
+              const hasAction = Boolean(onSelectAssessment || (onSelectGraph && attempt.graphId));
+              const isClickable = Boolean(hasAction && attempt.id);
               return (
                 <motion.li
                   key={attempt.id}
@@ -162,11 +168,17 @@ export const PersonaPerformancePanel: React.FC<PersonaPerformancePanelProps> = (
                 >
                   <button
                     type="button"
-                    onClick={() => attempt.graphId && onSelectGraph?.(attempt.graphId)}
+                    onClick={() => {
+                      if (onSelectAssessment) {
+                        onSelectAssessment(attempt.id, attempt.graphId);
+                      } else if (attempt.graphId && onSelectGraph) {
+                        onSelectGraph(attempt.graphId);
+                      }
+                    }}
                     disabled={!isClickable}
                     className={`persona-activity-item persona-performance-item ${isClickable ? 'persona-activity-item--interactive' : ''}`}
-                    title={isClickable ? `Open graph: ${attempt.graphName}` : attempt.graphName}
-                    aria-label={`Test score: ${attempt.scorePercentage}% in ${attempt.graphName}, completed ${formatRelativeTime(attempt.completedAt)}`}
+                    title={isClickable ? `Review test results: ${attempt.scorePercentage}% in ${attempt.graphName}` : attempt.graphName}
+                    aria-label={`Review assessment result: ${attempt.scorePercentage}% in ${attempt.graphName}, completed ${formatRelativeTime(attempt.completedAt)}`}
                   >
                     <span className="persona-score-badge" aria-hidden="true">
                       {attempt.scorePercentage}%
@@ -225,6 +237,20 @@ export const PersonaPerformancePanel: React.FC<PersonaPerformancePanelProps> = (
             }}
           />
         </div>
+
+        {/* Resume button for active revision session */}
+        {revisionProgress && onResumeRevision && (
+          <button
+            type="button"
+            onClick={() => onResumeRevision(revisionProgress.graphId)}
+            className="persona-revision-resume-btn"
+            title={`Resume revision session in ${revisionProgress.graphName}`}
+            aria-label={`Resume active revision session in ${revisionProgress.graphName}`}
+          >
+            <span>Resume session</span>
+            <ArrowRight size={11} className="persona-resume-arrow" aria-hidden="true" />
+          </button>
+        )}
       </motion.div>
 
       {/* C. Concepts to Revisit */}

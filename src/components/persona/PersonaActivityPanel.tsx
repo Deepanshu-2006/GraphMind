@@ -242,7 +242,7 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = ({
             layout={!shouldReduceMotion}
           >
             {recentList.map((graph) => {
-              const isClickable = Boolean(onSelectGraph);
+              const isClickable = Boolean(onSelectGraph && graph.graphId);
               return (
                 <motion.li
                   key={graph.graphId}
@@ -254,11 +254,11 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = ({
                 >
                   <button
                     type="button"
-                    onClick={() => onSelectGraph?.(graph.graphId)}
+                    onClick={() => isClickable && onSelectGraph?.(graph.graphId)}
                     disabled={!isClickable}
                     className={`persona-activity-item ${isClickable ? 'persona-activity-item--interactive' : ''}`}
                     title={isClickable ? `Open graph: ${graph.graphName}` : graph.graphName}
-                    aria-label={`Open graph: ${graph.graphName}, updated ${formatRelativeTime(graph.updatedAt || graph.createdAt)}`}
+                    aria-label={`Open knowledge graph: ${graph.graphName}, updated ${formatRelativeTime(graph.updatedAt || graph.createdAt)}`}
                   >
                     <span className="persona-activity-dot" aria-hidden="true" />
                     <span className="persona-activity-name">{graph.graphName}</span>
