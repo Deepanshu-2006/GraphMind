@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { PersonaAtmosphere } from './PersonaAtmosphere';
 import { PersonaHumanoidCanvas, type PersonaAnimationState } from './PersonaHumanoidCanvas';
 import { personaTransitionController } from './personaTransition';
+import { usePersonaSpeech } from './usePersonaSpeech';
 
 export interface PersonaExperienceProps {
   isOpen: boolean;
@@ -22,6 +23,9 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const shouldReduceMotion = useReducedMotion();
   const [animationState, setAnimationState] = useState<PersonaAnimationState>('INITIALIZING');
+
+  // Reusable character voice speech infrastructure
+  usePersonaSpeech();
 
   // Synchronize status indicator with the shared persona transition controller
   useEffect(() => {
