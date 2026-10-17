@@ -8,11 +8,11 @@
  * - Dynamic, cross-platform voice discovery and natural voice prioritization
  * - Safe cancellation, completion, and error lifecycle management
  * - Decoupled observer subscriptions for UI and animation controllers
- */
-
-import {
+ */import {
   GRAPHMIN_VOICE_CONFIG,
   prepareTextForSpeech,
+  segmentIntoSentences,
+  type SentenceSegment,
   type PersonaVoiceConfig
 } from '../components/persona/personaVoiceConfig';
 
@@ -64,6 +64,14 @@ export class SpeechSynthesisService {
   private voicesLoaded = false;
   private onVoicesChangedBound: (() => void) | null = null;
 
+  // Voice session caching & sentence segmentation pause state
+  private cachedResolvedVoice: SpeechSynthesisVoice | null = null;
+  private interSentenceTimer: NodeJS.Timeout | number | null = null;
+  private isPausedDuringInterSentenceGap = false;
+  private continueSegmentPlayback: (() => void) | null = null;
+  private currentSegments: SentenceSegment[] = [];
+  private currentSegmentIndex = 0;
+
   constructor() {
     this.init();
   }
@@ -104,6 +112,7 @@ export class SpeechSynthesisService {
       if (v && v.length > 0) {
         this.voices = v;
         this.voicesLoaded = true;
+        this.cachedResolvedVoice = null;
       }
     } catch {
       this.voices = [];
@@ -136,16 +145,17 @@ export class SpeechSynthesisService {
 
   /**
    * Select the best matching voice without assuming any OS-specific voice is present.
-   * Multi-tiered selection strategy:
+   * Multi-tiered selection strategy with strict language family isolation:
    * 1. Explicit voice name match if provided.
-   * 2. High-priority configured voice list (Asian English male voices first, then calm male voices).
-   * 3. Asian English male regional voices (name/lang contains asian keywords + male keywords, excluding female profiles).
-   * 4. Any Asian English voice (excluding disallowed female profiles).
-   * 5. Articulate calm male voices (name contains male keywords, matching target lang, excluding female profiles).
+   * 2. High-priority configured voice list matching in order within target language pool.
+   * 3. Asian English male regional voices (name/lang contains asian keywords + male keywords).
+   * 4. Any Asian English voice matching target language.
+   * 5. Articulate calm male voices (matching male keywords in target language pool).
    * 6. High-quality natural / neural English voices.
-   * 7. Any English voice in target language (excluding disallowed female profiles).
-   * 8. System default voice.
-   * 9. First available voice fallback.
+   * 7. Any voice matching targetLang exactly.
+   * 8. System default voice (if in target language pool).
+   * 9. First available voice in target language pool.
+   * 10. System default or first available voice fallback.
    */
   public selectBestVoice(
     preferredName?: string,
@@ -154,10 +164,32 @@ export class SpeechSynthesisService {
     const list = this.getVoices();
     if (list.length === 0) return null;
 
+    // Fast return cached voice for default parameters within a session (session determinism)
+    if (!preferredName && targetLang === GRAPHMIN_VOICE_CONFIG.lang && this.cachedResolvedVoice) {
+      if (list.some((v) => v.name === this.cachedResolvedVoice?.name)) {
+        return this.cachedResolvedVoice;
+      }
+    }
+
     const isDisallowed = (v: SpeechSynthesisVoice): boolean => {
       const lower = `${v.name} ${v.lang}`.toLowerCase();
       return GRAPHMIN_VOICE_CONFIG.disallowedVoiceKeywords.some((kw) => lower.includes(kw));
     };
+
+    // Strict language matching rule:
+    // Respect the application's configured language/locale. Never select non-English
+    // voices (e.g. Hindi, German, French) for English text!
+    const langPrefix = targetLang.split('-')[0].toLowerCase();
+    const matchingLangVoices = list.filter((v) =>
+      v.lang.toLowerCase().startsWith(langPrefix)
+    );
+
+    // Prefer candidate voices that match language and are not in the disallowed list
+    const pool = matchingLangVoices.length > 0 ? matchingLangVoices : list;
+    const candidates = pool.filter((v) => !isDisallowed(v));
+    const searchPool = candidates.length > 0 ? candidates : pool;
+
+    let selected: SpeechSynthesisVoice | null = null;
 
     // 1. Explicit voice name match if requested
     if (preferredName) {
@@ -171,87 +203,96 @@ export class SpeechSynthesisService {
       if (partialMatch) return partialMatch;
     }
 
-    // 2. High-priority configured voice list matching in order
+    // 2. High-priority configured voice list matching in order within searchPool
     for (const name of GRAPHMIN_VOICE_CONFIG.preferredVoiceNames) {
-      const found = list.find((v) => v.name.toLowerCase() === name.toLowerCase());
-      if (found) return found;
-      const partial = list.find((v) =>
+      const exact = searchPool.find((v) => v.name.toLowerCase() === name.toLowerCase());
+      if (exact) {
+        selected = exact;
+        break;
+      }
+      const partial = searchPool.find((v) =>
         v.name.toLowerCase().includes(name.toLowerCase())
       );
-      if (partial) return partial;
+      if (partial) {
+        selected = partial;
+        break;
+      }
     }
 
-    // 3. Asian English male regional voices (name/lang contains asian keywords + male keywords, not disallowed)
-    const asianMaleMatch = list.find((v) => {
-      if (isDisallowed(v)) return false;
-      const lower = `${v.name} ${v.lang}`.toLowerCase();
-      const hasAsian = GRAPHMIN_VOICE_CONFIG.preferredAsianVoiceKeywords.some((kw) =>
-        lower.includes(kw)
-      );
-      const hasMale =
-        GRAPHMIN_VOICE_CONFIG.preferredMaleKeywords.some((kw) => lower.includes(kw)) ||
-        v.lang.toLowerCase().includes('en-in') ||
-        v.lang.toLowerCase().includes('en-sg') ||
-        v.lang.toLowerCase().includes('en-hk');
-      return hasAsian && hasMale;
-    });
-    if (asianMaleMatch) return asianMaleMatch;
+    // 3. Asian English male regional voices (name/lang contains asian keywords + male keywords)
+    if (!selected) {
+      selected = searchPool.find((v) => {
+        const lower = `${v.name} ${v.lang}`.toLowerCase();
+        const hasAsian = GRAPHMIN_VOICE_CONFIG.preferredAsianVoiceKeywords.some((kw) =>
+          lower.includes(kw)
+        );
+        const hasMale =
+          GRAPHMIN_VOICE_CONFIG.preferredMaleKeywords.some((kw) => lower.includes(kw)) ||
+          v.lang.toLowerCase().includes('en-in') ||
+          v.lang.toLowerCase().includes('en-sg') ||
+          v.lang.toLowerCase().includes('en-hk');
+        return hasAsian && hasMale;
+      }) || null;
+    }
 
-    // 4. Any Asian English voice (not disallowed)
-    const asianMatch = list.find((v) => {
-      if (isDisallowed(v)) return false;
-      const lower = `${v.name} ${v.lang}`.toLowerCase();
-      return GRAPHMIN_VOICE_CONFIG.preferredAsianVoiceKeywords.some((kw) => lower.includes(kw));
-    });
-    if (asianMatch) return asianMatch;
+    // 4. Any Asian English voice matching language
+    if (!selected) {
+      selected = searchPool.find((v) => {
+        const lower = `${v.name} ${v.lang}`.toLowerCase();
+        return GRAPHMIN_VOICE_CONFIG.preferredAsianVoiceKeywords.some((kw) => lower.includes(kw));
+      }) || null;
+    }
 
-    // 5. Articulate calm male voices (matching male keywords and not disallowed)
-    const langPrefix = targetLang.split('-')[0].toLowerCase();
-    const calmMaleMatch = list.find((v) => {
-      if (isDisallowed(v)) return false;
-      const lower = `${v.name} ${v.lang}`.toLowerCase();
-      const matchesLang = v.lang.toLowerCase().startsWith(langPrefix);
-      const isMale = GRAPHMIN_VOICE_CONFIG.preferredMaleKeywords.some((kw) => lower.includes(kw));
-      return matchesLang && isMale;
-    });
-    if (calmMaleMatch) return calmMaleMatch;
+    // 5. Articulate calm male voices (matching male keywords in searchPool)
+    if (!selected) {
+      selected = searchPool.find((v) => {
+        const lower = `${v.name} ${v.lang}`.toLowerCase();
+        return GRAPHMIN_VOICE_CONFIG.preferredMaleKeywords.some((kw) => lower.includes(kw));
+      }) || null;
+    }
 
-    // 6. High-quality natural / neural English voices (excluding disallowed female profiles)
-    const naturalKeywords = ['natural', 'neural', 'enhanced', 'premium', 'google'];
-    const nonFemaleNatural = list.find((v) => {
-      if (isDisallowed(v)) return false;
-      const lower = `${v.name} ${v.lang}`.toLowerCase();
-      const matchesLang = v.lang.toLowerCase().startsWith(langPrefix);
-      return matchesLang && naturalKeywords.some((kw) => lower.includes(kw));
-    });
-    if (nonFemaleNatural) return nonFemaleNatural;
+    // 6. Natural / neural English voices in searchPool
+    if (!selected) {
+      const naturalKeywords = ['natural', 'neural', 'enhanced', 'premium', 'google'];
+      selected = searchPool.find((v) => {
+        const lower = `${v.name} ${v.lang}`.toLowerCase();
+        return naturalKeywords.some((kw) => lower.includes(kw));
+      }) || null;
+    }
 
-    // 7. Any English voice in targetLang (excluding disallowed)
-    const nonFemaleTargetLang = list.find((v) => {
-      if (isDisallowed(v)) return false;
-      return v.lang.toLowerCase() === targetLang.toLowerCase();
-    });
-    if (nonFemaleTargetLang) return nonFemaleTargetLang;
+    // 7. Exact targetLang match in searchPool
+    if (!selected) {
+      selected = searchPool.find((v) => v.lang.toLowerCase() === targetLang.toLowerCase()) || null;
+    }
 
-    // 8. Any voice matching language prefix (excluding disallowed)
-    const nonFemaleLang = list.find((v) => {
-      if (isDisallowed(v)) return false;
-      return v.lang.toLowerCase().startsWith(langPrefix);
-    });
-    if (nonFemaleLang) return nonFemaleLang;
+    // 8. System default voice if in searchPool
+    if (!selected) {
+      selected = searchPool.find((v) => v.default) || null;
+    }
 
-    // 9. System default voice
-    const defaultVoice = list.find((v) => v.default);
-    if (defaultVoice) return defaultVoice;
+    // 9. First available voice in searchPool
+    if (!selected) {
+      selected = searchPool[0] || null;
+    }
 
-    // 10. First available voice
-    return list[0] || null;
+    // 10. Ultimate fallback to overall list
+    if (!selected) {
+      selected = list[0] || null;
+    }
+
+    if (!preferredName && targetLang === GRAPHMIN_VOICE_CONFIG.lang) {
+      this.cachedResolvedVoice = selected;
+    }
+
+    return selected;
   }
 
   /**
    * Start speech playback for a given text string.
    * Automatically stops any currently playing utterance to prevent overlapping requests.
-   * Preprocesses text for spoken delivery without altering original text.
+   * Segments long multi-sentence messages into sequential sentence utterances with
+   * comfortable ~160ms breathing pauses while forwarding continuous character indices
+   * to preserve lip-sync synchronization.
    */
   public speak(text: string, options: SpeechOptions = {}): Promise<void> {
     const rawTrimmed = (text || '').trim();
@@ -274,121 +315,195 @@ export class SpeechSynthesisService {
       this.stop();
 
       this.isExplicitlyStopped = false;
+      this.isPausedDuringInterSentenceGap = false;
+      this.continueSegmentPlayback = null;
+
       // Preserve original text for UI state and observers
       this.updateState('loading', rawTrimmed, null);
 
       try {
         // Prepare text for spoken delivery without changing meaning or display text
         const spokenText = prepareTextForSpeech(rawTrimmed);
+        const segments = segmentIntoSentences(spokenText);
+
+        if (segments.length === 0) {
+          this.updateState('completed', rawTrimmed, null);
+          resolve();
+          return;
+        }
 
         const UtteranceClass =
           typeof SpeechSynthesisUtterance !== 'undefined'
             ? SpeechSynthesisUtterance
             : (window as any).SpeechSynthesisUtterance;
-        const utterance = new UtteranceClass(spokenText || rawTrimmed);
-        this.currentUtterance = utterance;
 
-        // Apply centralized voice properties: calm, intelligent, composed
-        utterance.rate =
+        const voice = this.selectBestVoice(
+          options.voiceName,
+          options.lang || GRAPHMIN_VOICE_CONFIG.lang
+        );
+
+        const rate =
           typeof options.rate === 'number'
             ? Math.max(0.1, Math.min(10, options.rate))
             : GRAPHMIN_VOICE_CONFIG.speakingRate;
 
-        utterance.pitch =
+        const pitch =
           typeof options.pitch === 'number'
             ? Math.max(0, Math.min(2, options.pitch))
             : GRAPHMIN_VOICE_CONFIG.pitch;
 
-        utterance.volume =
+        const volume =
           typeof options.volume === 'number'
             ? Math.max(0, Math.min(1, options.volume))
             : GRAPHMIN_VOICE_CONFIG.volume;
 
-        utterance.lang = options.lang || GRAPHMIN_VOICE_CONFIG.lang;
+        const lang = options.lang || GRAPHMIN_VOICE_CONFIG.lang;
 
-        const voice = this.selectBestVoice(options.voiceName, utterance.lang);
-        if (voice) {
-          utterance.voice = voice;
-        }
+        this.currentSegments = segments;
+        this.currentSegmentIndex = 0;
 
-        utterance.onstart = () => {
-          if (this.currentUtterance !== utterance) return;
-          this.updateState('speaking', rawTrimmed, null);
-        };
-
-        utterance.onboundary = (event: SpeechSynthesisEvent) => {
-          if (this.currentUtterance !== utterance) return;
-          const charLen = (event as any).charLength || 0;
-          let boundaryWord = '';
-          const fullText = spokenText || rawTrimmed;
-          if (charLen > 0) {
-            boundaryWord = fullText.slice(event.charIndex, event.charIndex + charLen);
-          } else {
-            const remainder = fullText.slice(event.charIndex);
-            const match = remainder.match(/^\S+/);
-            boundaryWord = match ? match[0] : '';
-          }
-
-          const boundaryData: SpeechBoundaryEvent = {
-            name: event.name || 'word',
-            charIndex: event.charIndex,
-            charLength: (event as any).charLength,
-            elapsedTime: event.elapsedTime,
-            word: boundaryWord
-          };
-
-          options.onBoundary?.(boundaryData);
-          this.boundaryListeners.forEach((listener) => {
-            try {
-              listener(boundaryData);
-            } catch {}
-          });
-        };
-
-        utterance.onpause = () => {
-          if (this.currentUtterance !== utterance) return;
-          this.updateState('paused', rawTrimmed, null);
-        };
-
-        utterance.onresume = () => {
-          if (this.currentUtterance !== utterance) return;
-          this.updateState('speaking', rawTrimmed, null);
-        };
-
-        utterance.onend = () => {
-          if (this.currentUtterance !== utterance) return;
-          this.currentUtterance = null;
-          this.updateState('completed', rawTrimmed, null);
-          resolve();
-        };
-
-        utterance.onerror = (event: SpeechSynthesisErrorEvent) => {
-          // If stopped intentionally, do not treat as an error
-          if (this.isExplicitlyStopped || event.error === 'interrupted' || event.error === 'canceled') {
-            if (this.currentUtterance === utterance) {
-              this.currentUtterance = null;
-            }
+        const speakSegment = (index: number) => {
+          if (this.isExplicitlyStopped) {
             resolve();
             return;
           }
 
-          const errorDesc = `Speech playback failed: ${event.error}`;
-          if (this.currentUtterance === utterance) {
+          if (index >= segments.length) {
             this.currentUtterance = null;
+            this.currentSegments = [];
+            this.continueSegmentPlayback = null;
+            this.updateState('completed', rawTrimmed, null);
+            resolve();
+            return;
           }
-          this.updateState('failed', rawTrimmed, errorDesc);
-          reject(new Error(errorDesc));
+
+          this.currentSegmentIndex = index;
+          const segment = segments[index];
+          const utterance = new UtteranceClass(segment.text);
+          this.currentUtterance = utterance;
+
+          utterance.rate = rate;
+          utterance.pitch = pitch;
+          utterance.volume = volume;
+          utterance.lang = lang;
+          if (voice) {
+            utterance.voice = voice;
+          }
+
+          utterance.onstart = () => {
+            if (this.currentUtterance !== utterance) return;
+            if (index === 0) {
+              this.updateState('speaking', rawTrimmed, null);
+            }
+          };
+
+          utterance.onboundary = (event: SpeechSynthesisEvent) => {
+            if (this.currentUtterance !== utterance) return;
+
+            const localCharIndex = event.charIndex || 0;
+            const globalCharIndex = localCharIndex + segment.offset;
+            const charLen = (event as any).charLength || 0;
+            let boundaryWord = '';
+
+            if (charLen > 0) {
+              boundaryWord = spokenText.slice(globalCharIndex, globalCharIndex + charLen);
+            } else {
+              const remainder = spokenText.slice(globalCharIndex);
+              const match = remainder.match(/^\S+/);
+              boundaryWord = match ? match[0] : '';
+            }
+
+            const boundaryData: SpeechBoundaryEvent = {
+              name: event.name || 'word',
+              charIndex: globalCharIndex,
+              charLength: (event as any).charLength,
+              elapsedTime: event.elapsedTime,
+              word: boundaryWord
+            };
+
+            options.onBoundary?.(boundaryData);
+            this.boundaryListeners.forEach((listener) => {
+              try {
+                listener(boundaryData);
+              } catch {}
+            });
+          };
+
+          utterance.onpause = () => {
+            if (this.currentUtterance !== utterance) return;
+            this.updateState('paused', rawTrimmed, null);
+          };
+
+          utterance.onresume = () => {
+            if (this.currentUtterance !== utterance) return;
+            this.updateState('speaking', rawTrimmed, null);
+          };
+
+          utterance.onend = () => {
+            if (this.currentUtterance !== utterance) return;
+            if (this.isExplicitlyStopped) {
+              resolve();
+              return;
+            }
+
+            this.currentUtterance = null;
+
+            // If more sentences remain, schedule next segment after a natural breath pause
+            if (index + 1 < segments.length) {
+              const pauseMs = GRAPHMIN_VOICE_CONFIG.interSentencePauseMs || 160;
+              this.continueSegmentPlayback = () => speakSegment(index + 1);
+              this.interSentenceTimer = setTimeout(() => {
+                this.interSentenceTimer = null;
+                this.continueSegmentPlayback = null;
+                if (!this.isExplicitlyStopped && this.status !== 'paused') {
+                  speakSegment(index + 1);
+                }
+              }, pauseMs);
+            } else {
+              this.currentSegments = [];
+              this.continueSegmentPlayback = null;
+              this.updateState('completed', rawTrimmed, null);
+              resolve();
+            }
+          };
+
+          utterance.onerror = (event: SpeechSynthesisErrorEvent) => {
+            if (
+              this.isExplicitlyStopped ||
+              event.error === 'interrupted' ||
+              event.error === 'canceled'
+            ) {
+              if (this.currentUtterance === utterance) {
+                this.currentUtterance = null;
+              }
+              resolve();
+              return;
+            }
+
+            const errorDesc = `Speech playback failed: ${event.error}`;
+            if (this.currentUtterance === utterance) {
+              this.currentUtterance = null;
+            }
+            this.currentSegments = [];
+            this.continueSegmentPlayback = null;
+            this.updateState('failed', rawTrimmed, errorDesc);
+            reject(new Error(errorDesc));
+          };
+
+          // Resume if synth is in paused state (known browser quirk)
+          if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
+
+          window.speechSynthesis.speak(utterance);
         };
 
-        // Resume if synth is in paused state (known browser quirk)
-        if (window.speechSynthesis.paused) {
-          window.speechSynthesis.resume();
-        }
-
-        window.speechSynthesis.speak(utterance);
+        speakSegment(0);
       } catch (err: any) {
         const errorDesc = err?.message || 'Failed to initiate speech synthesis.';
         this.currentUtterance = null;
+        this.currentSegments = [];
+        this.continueSegmentPlayback = null;
         this.updateState('failed', rawTrimmed, errorDesc);
         reject(new Error(errorDesc));
       }
@@ -403,6 +518,13 @@ export class SpeechSynthesisService {
 
     this.isExplicitlyStopped = true;
 
+    if (this.interSentenceTimer !== null) {
+      clearTimeout(this.interSentenceTimer);
+      this.interSentenceTimer = null;
+    }
+    this.isPausedDuringInterSentenceGap = false;
+    this.continueSegmentPlayback = null;
+
     try {
       if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
         window.speechSynthesis.cancel();
@@ -412,6 +534,9 @@ export class SpeechSynthesisService {
     }
 
     this.currentUtterance = null;
+    this.currentSegments = [];
+    this.currentSegmentIndex = 0;
+
     if (this.status !== 'idle' && this.status !== 'unsupported') {
       this.updateState('idle', null, null);
     }
@@ -421,7 +546,18 @@ export class SpeechSynthesisService {
    * Pause ongoing speech playback.
    */
   public pause(): void {
-    if (this.isSupported() && (window.speechSynthesis.speaking || this.status === 'speaking')) {
+    if (!this.isSupported()) return;
+
+    // Handle pause during inter-sentence breath gap
+    if (this.interSentenceTimer !== null) {
+      clearTimeout(this.interSentenceTimer);
+      this.interSentenceTimer = null;
+      this.isPausedDuringInterSentenceGap = true;
+      this.updateState('paused', this.currentText, null);
+      return;
+    }
+
+    if (window.speechSynthesis.speaking || this.status === 'speaking') {
       try {
         window.speechSynthesis.pause();
         this.updateState('paused', this.currentText, null);
@@ -433,7 +569,21 @@ export class SpeechSynthesisService {
    * Resume paused speech playback.
    */
   public resume(): void {
-    if (this.isSupported() && (window.speechSynthesis.paused || this.status === 'paused')) {
+    if (!this.isSupported()) return;
+
+    // Resume from inter-sentence breath gap
+    if (this.isPausedDuringInterSentenceGap) {
+      this.isPausedDuringInterSentenceGap = false;
+      this.updateState('speaking', this.currentText, null);
+      const cont = this.continueSegmentPlayback;
+      this.continueSegmentPlayback = null;
+      if (cont) {
+        cont();
+      }
+      return;
+    }
+
+    if (window.speechSynthesis.paused || this.status === 'paused') {
       try {
         window.speechSynthesis.resume();
         this.updateState('speaking', this.currentText, null);

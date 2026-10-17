@@ -8,7 +8,7 @@ import {
   type PersonaGreetingStage
 } from './PersonaHumanoidCanvas';
 import { personaTransitionController } from './personaTransition';
-import { usePersonaSpeech } from './usePersonaSpeech';
+import { usePersonaPresentation } from './usePersonaPresentation';
 import { PERSONA_GREETING_TEXT } from './personaVoiceConfig';
 
 export interface PersonaExperienceProps {
@@ -31,28 +31,25 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
   const [greetingCaptionVisible, setGreetingCaptionVisible] = useState(false);
   const hasTriggeredGreetingRef = useRef(false);
 
-  // Reusable character voice speech infrastructure
-  const speech = usePersonaSpeech();
+  // Reusable silent visual presentation infrastructure
+  const presentation = usePersonaPresentation();
 
-  // Coordinated greeting handler: plays speech once when gesture begins, manages subtitle visibility
+  // Coordinated visual greeting handler: manages subtitle visibility and timing
   const handleGreetingChange = useCallback((stage: PersonaGreetingStage) => {
     if (stage === 'greeting') {
       if (!hasTriggeredGreetingRef.current) {
         hasTriggeredGreetingRef.current = true;
         setGreetingCaptionVisible(true);
-        speech.playGreeting().catch(() => {
-          // Playback restriction (e.g. autoplay) handled gracefully without breaking visual greeting
-        });
       }
     } else if (stage === 'complete') {
       setGreetingCaptionVisible(false);
     }
-  }, [speech]);
+  }, []);
 
   const handleExit = useCallback(() => {
-    speech.stop();
+    presentation.cancel();
     onClose();
-  }, [speech, onClose]);
+  }, [presentation, onClose]);
 
   // Synchronize status indicator with the shared persona transition controller
   useEffect(() => {
@@ -232,7 +229,7 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
           )}
         </div>
 
-        {/* Minimal, elegant spoken subtitle capsule */}
+        {/* Minimal, elegant visual subtitle capsule (silent presentation) */}
         {greetingCaptionVisible && (
           <div
             className="persona-speech-caption-container"
@@ -240,7 +237,7 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
             data-speech-caption="true"
           >
             <div className="persona-speech-caption">
-              {PERSONA_GREETING_TEXT}
+              {presentation.revealedText || PERSONA_GREETING_TEXT}
             </div>
           </div>
         )}

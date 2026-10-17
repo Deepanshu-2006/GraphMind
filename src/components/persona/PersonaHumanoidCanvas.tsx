@@ -18,7 +18,8 @@ import {
   type LifeFrameOutput
 } from './personaLifeController';
 import { PersonaLipSyncController } from './personaLipSyncController';
-import { speechSynthesisService } from '../../services/speechSynthesisService';
+import { personaPresentationController } from './personaPresentationController';
+import { PERSONA_GREETING_TEXT } from './personaVoiceConfig';
 
 export type PersonaAnimationState =
   | 'INITIALIZING'
@@ -307,6 +308,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
 
         // Apply initial baseline expression
         expressionController.applyToMeshes(headMesh, teethDownMesh);
+        personaPresentationController.bindLipSync(lipSyncController);
 
         if (typeof window !== 'undefined') {
           (window as any).__personaDebug = {
@@ -1117,31 +1119,25 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
             expressionController.setGreetingLocked(true);
             expressionController.setExpression('happy', 1.0);
 
-            // Stage D: Display the greeting text
+            // Stage D: Display the greeting text and trigger subtle silent mouth articulation
             onGreetingChangeRef.current?.('greeting');
+            lipSyncController.startArticulation(PERSONA_GREETING_TEXT);
 
-            // Stage E: Keep greeting visible for minimum 3.0s, ensuring speech completes gracefully
-            let greetingWaitCount = 0;
+            // Stage E: Keep visual greeting visible for comfortable reading duration (~3.2s)
             const completeGreeting = () => {
               if (isDisposed) return;
-
-              // If speech is still actively speaking, hold greeting until audio completes (max 2.0s extra cap)
-              if (speechSynthesisService.getState().status === 'speaking' && greetingWaitCount < 20) {
-                greetingWaitCount++;
-                greetingCompleteTimeout = setTimeout(completeGreeting, 100);
-                return;
-              }
 
               // Smoothly transition smile back to neutral without popping or snapping
               expressionController.setExpression('neutral', 1.2);
               expressionController.setGreetingLocked(false);
               lifeController.resetGreeting();
+              lipSyncController.stopArticulation();
 
               // Fade greeting text out smoothly
               onGreetingChangeRef.current?.('complete');
             };
 
-            greetingCompleteTimeout = setTimeout(completeGreeting, 3000);
+            greetingCompleteTimeout = setTimeout(completeGreeting, 3200);
           }, 500);
         }
 
@@ -1382,6 +1378,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       if (greetingCompleteTimeout) clearTimeout(greetingCompleteTimeout);
       lifeController.resetGreeting();
       expressionController.setGreetingLocked(false);
+      personaPresentationController.unbindLipSync();
       lipSyncController.dispose();
 
       // Clean disposal of independent Persona resources

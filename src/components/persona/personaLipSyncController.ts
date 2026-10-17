@@ -1,9 +1,15 @@
 import * as THREE from 'three';
-import {
-  type SpeechBoundaryEvent,
-  type SpeechPlaybackState,
-  speechSynthesisService
-} from '../../services/speechSynthesisService';
+
+/**
+ * Approximate boundary event for text-driven articulation.
+ */
+export interface SpeechBoundaryEvent {
+  name: string;
+  charIndex: number;
+  charLength?: number;
+  elapsedTime?: number;
+  word?: string;
+}
 
 /**
  * Phonetic Viseme Categories matching the 12 blend shapes on H_DDS_HighRes and h_TeethDown.
@@ -466,15 +472,12 @@ export class PersonaLipSyncController {
   private headIndexMap: Record<string, number> = {};
   private teethIndexMap: Record<string, number> = {};
 
-  // Speech subscription unbind handles
-  private unsubscribeSpeechState: (() => void) | null = null;
-  private unsubscribeBoundary: (() => void) | null = null;
+  // Silent articulation complete listener
+  public onArticulationComplete: (() => void) | null = null;
 
   constructor(config?: PersonaLipSyncConfig) {
     this.prefersReducedMotion = !!config?.prefersReducedMotion;
-    this.speakingRate = config?.speakingRate || 0.95;
-
-    this.bindSpeechService();
+    this.speakingRate = config?.speakingRate || 0.98;
   }
 
   private createEmptyWeights(): LipSyncWeights {
@@ -511,29 +514,6 @@ export class PersonaLipSyncController {
       bilabialFactor: 0,
       labiodentalFactor: 0
     };
-  }
-
-  /**
-   * Binds to the centralized speech synthesis service.
-   */
-  private bindSpeechService(): void {
-    this.unsubscribeSpeechState = speechSynthesisService.subscribe((state: SpeechPlaybackState) => {
-      if (state.status === 'speaking' && state.text) {
-        if (!this.isSpeaking || this.fullUtteranceText !== state.text) {
-          this.startSpeech(state.text);
-        } else if (this.isPaused) {
-          this.resumeSpeech();
-        }
-      } else if (state.status === 'paused') {
-        this.pauseSpeech();
-      } else if (state.status === 'completed' || state.status === 'idle' || state.status === 'failed') {
-        this.stopSpeech();
-      }
-    });
-
-    this.unsubscribeBoundary = speechSynthesisService.onBoundary((event: SpeechBoundaryEvent) => {
-      this.handleBoundary(event);
-    });
   }
 
   /**
@@ -670,7 +650,18 @@ export class PersonaLipSyncController {
   }
 
   /**
-   * Start speech playback animation.
+   * Starts visual, silent mouth articulation for a given text message.
+   * Autonomous frame and word progression drives mouth shapes without audio.
+   */
+  public startArticulation(text: string, onComplete?: () => void): void {
+    if (onComplete) {
+      this.onArticulationComplete = onComplete;
+    }
+    this.startSpeech(text);
+  }
+
+  /**
+   * Start speech / articulation animation.
    */
   public startSpeech(text: string): void {
     this.isSpeaking = true;
@@ -690,7 +681,7 @@ export class PersonaLipSyncController {
   }
 
   /**
-   * Word boundary event callback from speech synthesis.
+   * Word boundary event callback from speech synthesis or presentation timing.
    */
   public handleBoundary(event: SpeechBoundaryEvent): void {
     if (!this.isSpeaking || this.words.length === 0) return;
@@ -736,6 +727,13 @@ export class PersonaLipSyncController {
   }
 
   /**
+   * Stop silent articulation immediately and return mouth to natural rest position.
+   */
+  public stopArticulation(immediate = true): void {
+    this.stopSpeech(immediate);
+  }
+
+  /**
    * Stop speech and clear all temporary viseme weights immediately.
    */
   public stopSpeech(immediate = true): void {
@@ -751,12 +749,26 @@ export class PersonaLipSyncController {
   }
 
   /**
+   * Pause silent mouth articulation.
+   */
+  public pauseArticulation(): void {
+    this.pauseSpeech();
+  }
+
+  /**
    * Pause ongoing speech animation without jumping or resetting mouth shape abruptly.
    */
   public pauseSpeech(): void {
     if (this.isSpeaking) {
       this.isPaused = true;
     }
+  }
+
+  /**
+   * Resume silent mouth articulation.
+   */
+  public resumeArticulation(): void {
+    this.resumeSpeech();
   }
 
   /**
@@ -767,6 +779,10 @@ export class PersonaLipSyncController {
       this.isPaused = false;
       this.lastBoundaryTime = performance.now();
     }
+  }
+
+  public get isArticulating(): boolean {
+    return this.isSpeaking;
   }
 
   /**
@@ -1028,6 +1044,12 @@ export class PersonaLipSyncController {
           } else {
             // End of utterance reached
             this.resetTargetsToRest();
+            this.isSpeaking = false;
+            if (this.onArticulationComplete) {
+              const cb = this.onArticulationComplete;
+              this.onArticulationComplete = null;
+              cb();
+            }
           }
         }
       }
@@ -1317,14 +1339,8 @@ export class PersonaLipSyncController {
    * Dispose subscriptions and reset state safely.
    */
   public dispose(): void {
-    this.stopSpeech();
-    if (this.unsubscribeSpeechState) {
-      this.unsubscribeSpeechState();
-      this.unsubscribeSpeechState = null;
-    }
-    if (this.unsubscribeBoundary) {
-      this.unsubscribeBoundary();
-      this.unsubscribeBoundary = null;
-    }
+    this.stopArticulation(true);
+    this.words = [];
+    this.onArticulationComplete = null;
   }
 }
