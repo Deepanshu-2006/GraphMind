@@ -407,4 +407,185 @@ describe('GRAPHMIND — PERSONA: REAL-TIME LIP-SYNC & VISEME ENGINE (STEP 9)', (
       }
     });
   });
+
+  // --------------------------------------------------------------------------
+  // 7. Ultra-Realistic Speech Animation, Anatomical Coarticulation & Tests A-F
+  // --------------------------------------------------------------------------
+  describe('7. Ultra-Realistic Anatomical Articulation & Tests A-F', () => {
+    it('Test A: verifies complete lip closure on bilabial sounds (Peter bought a beautiful blue book)', () => {
+      const phrase = 'Peter bought a beautiful blue book.';
+      const words = controller.parseTextToVisemes(phrase);
+      assert.strictEqual(words.length, 6);
+
+      // Verify all words with bilabials contain MPB
+      const bilabialWords = ['peter', 'bought', 'beautiful', 'blue', 'book'];
+      for (const bw of bilabialWords) {
+        const found = words.find((w) => w.cleanWord === bw);
+        assert.ok(found, `Word ${bw} should be found`);
+        assert.ok(found.frames.some((f) => f.viseme === 'MPB'), `Word ${bw} must contain MPB viseme`);
+      }
+
+      // Test anticipatory bilabial damping during speech
+      controller.startSpeech(phrase);
+      controller.update(0.04);
+      const weights = controller.getCurrentWeights();
+      assert.ok(weights.bilabialFactor > 0.05, 'Bilabial factor should activate for Peter');
+    });
+
+    it('Test B: verifies rounded vowel transitions and puckering (Welcome to GraphMind. We hope you enjoy learning.)', () => {
+      const phrase = 'Welcome to GraphMind. We hope you enjoy learning.';
+      const words = controller.parseTextToVisemes(phrase);
+      assert.ok(words.length >= 7);
+
+      // Verify rounded vowels in to, hope, you
+      const toWord = words.find((w) => w.cleanWord === 'to');
+      assert.ok(toWord?.frames.some((f) => f.viseme === 'UW_U'), 'to should have UW_U');
+
+      const youWord = words.find((w) => w.cleanWord === 'you');
+      assert.ok(youWord?.frames.some((f) => f.viseme === 'UW_U'), 'you should have UW_U');
+
+      controller.startSpeech(phrase);
+      // Run controller and verify kiss puckering activates
+      let maxKiss = 0;
+      for (let i = 0; i < 30; i++) {
+        controller.update(0.05);
+        const w = controller.getCurrentWeights();
+        if (w.kiss > maxKiss) maxKiss = w.kiss;
+      }
+      assert.ok(maxKiss > 0.05, `Max kiss puckering ${maxKiss} should be > 0.05 during rounded vowels`);
+    });
+
+    it('Test C: verifies mixed articulation, labiodentals and dental sibilants (Five clever students studied computer science.)', () => {
+      const phrase = 'Five clever students studied computer science.';
+      const words = controller.parseTextToVisemes(phrase);
+      assert.strictEqual(words.length, 6);
+
+      // Five must contain FV
+      const fiveWord = words.find((w) => w.cleanWord === 'five');
+      assert.ok(fiveWord?.frames.some((f) => f.viseme === 'FV'), 'five must have FV');
+
+      // Students must contain S
+      const studentsWord = words.find((w) => w.cleanWord === 'students');
+      assert.ok(studentsWord?.frames.some((f) => f.viseme === 'S'), 'students must have S');
+
+      // Computer must contain KG and MPB
+      const compWord = words.find((w) => w.cleanWord === 'computer');
+      assert.ok(compWord?.frames.some((f) => f.viseme === 'KG'), 'computer must have KG');
+      assert.ok(compWord?.frames.some((f) => f.viseme === 'MPB'), 'computer must have MPB');
+    });
+
+    it('Test D: verifies natural sentence flow, punctuation pauses and contractions (Hey, welcome back! You’ve made great progress. Let’s revise one more concept together.)', () => {
+      const phrase = 'Hey, welcome back! You’ve made great progress. Let’s revise one more concept together.';
+      const words = controller.parseTextToVisemes(phrase);
+      assert.ok(words.length >= 10);
+
+      // Check punctuation pauses on Hey, back!, progress.
+      const heyWord = words.find((w) => w.cleanWord === 'hey');
+      assert.ok(heyWord?.hasPunctuationPause, 'Hey, must have punctuation pause');
+
+      const backWord = words.find((w) => w.cleanWord === 'back');
+      assert.ok(backWord?.hasPunctuationPause, 'back! must have punctuation pause');
+
+      const progressWord = words.find((w) => w.cleanWord === 'progress');
+      assert.ok(progressWord?.hasPunctuationPause, 'progress. must have punctuation pause');
+
+      // Check interdental tongue on together
+      const togWord = words.find((w) => w.cleanWord === 'together');
+      assert.ok(togWord?.frames.some((f) => f.tongue === 'INTERDENTAL'), 'together must have INTERDENTAL tongue');
+    });
+
+    it('Test E: verifies long speech paragraph does not drift or crash', () => {
+      const longParagraph = 'GraphMind helps you master complex computer science concepts through structured knowledge graphs. When you revise regularly, your understanding deepens and retention improves naturally over time.';
+      const words = controller.parseTextToVisemes(longParagraph);
+      assert.ok(words.length > 20, 'Long paragraph should yield > 20 words');
+
+      controller.startSpeech(longParagraph);
+      assert.strictEqual(controller.getState().isSpeaking, true);
+
+      // Simulate 60 FPS update over 200 frames
+      for (let f = 0; f < 200; f++) {
+        controller.update(0.016);
+      }
+      assert.strictEqual(controller.getState().isSpeaking, true);
+      assert.ok(controller.getState().currentWordIndex > 0, 'Speech should advance through words');
+
+      controller.stopSpeech();
+      assert.strictEqual(controller.getState().isSpeaking, false);
+      const weightsAfterStop = controller.getCurrentWeights();
+      assert.strictEqual(weightsAfterStop.mouthOpen, 0);
+    });
+
+    it('verifies lower teeth drop strictly matches jaw drop on head mesh', () => {
+      const headMesh = new THREE.Mesh();
+      headMesh.morphTargetDictionary = {
+        'h_expressions.MouthOpen_h': 26,
+        'h_expressions.JawCompress_h': 21
+      };
+      headMesh.morphTargetInfluences = new Array(65).fill(0);
+
+      const teethMesh = new THREE.Mesh();
+      teethMesh.morphTargetDictionary = {
+        'h_teeth.t_MouthOpen_h': 29,
+        'h_teeth.t_JawCompress_h': 24,
+        'h_teeth.LLL_In_tg_h': 11,
+        'h_teeth.RRR_In_tg_h': 10,
+        'h_teeth.Up_tg_h': 6,
+        'h_teeth.Throat_In_tg_h': 9,
+        'h_teeth.OutMiddle_tg_h': 0
+      };
+      teethMesh.morphTargetInfluences = new Array(31).fill(0);
+
+      controller.startSpeech('all');
+      controller.update(0.08);
+
+      controller.applyToMeshes(headMesh, teethMesh, 0.22);
+
+      const headMouthOpen = headMesh.morphTargetInfluences[26];
+      const teethMouthOpen = teethMesh.morphTargetInfluences[29];
+
+      assert.ok(headMouthOpen > 0.05, 'Mouth open should be active');
+      assert.strictEqual(headMouthOpen, teethMouthOpen, 'Lower teeth must strictly follow head jaw drop');
+    });
+
+    it('verifies discrete tongue shape activations (L, R, UP, BACK, INTERDENTAL)', () => {
+      const teethMesh = new THREE.Mesh();
+      teethMesh.morphTargetDictionary = {
+        'h_teeth.t_MouthOpen_h': 29,
+        'h_teeth.LLL_In_tg_h': 11,
+        'h_teeth.RRR_In_tg_h': 10,
+        'h_teeth.Up_tg_h': 6,
+        'h_teeth.Throat_In_tg_h': 9,
+        'h_teeth.OutMiddle_tg_h': 0
+      };
+      teethMesh.morphTargetInfluences = new Array(31).fill(0);
+
+      // Test L tongue on "learning"
+      controller.startSpeech('learning');
+      controller.update(0.05);
+      controller.applyToMeshes(null, teethMesh, 0.0);
+      assert.ok(teethMesh.morphTargetInfluences[11] > 0.05, 'LLL_In_tg_h should activate on learning');
+
+      // Test R tongue on "revise"
+      controller.startSpeech('revise');
+      controller.update(0.05);
+      controller.applyToMeshes(null, teethMesh, 0.0);
+      assert.ok(teethMesh.morphTargetInfluences[10] > 0.05, 'RRR_In_tg_h should activate on revise');
+    });
+
+    it('verifies anticipatory look-ahead coarticulation begins before frame boundary', () => {
+      // In word "blue": Frame 0 is MPB (duration ~0.34s), Frame 1 is UW_U
+      controller.startSpeech('blue');
+
+      // At t = 0.05 (early in frame 0): pure MPB
+      controller.update(0.05);
+      const earlyWeights = controller.getCurrentWeights();
+      assert.ok(earlyWeights.visemes.MPB > 0.1);
+
+      // Advance to t = 0.22 (progress ~65% through frame 0):
+      // Anticipatory look-ahead should start blending UW_U and kiss puckering!
+      controller.update(0.17);
+      const lateWeights = controller.getCurrentWeights();
+      assert.ok(lateWeights.kiss > 0.02, 'Kiss puckering should anticipate upcoming UW_U before frame 0 completes');
+    });
+  });
 });
