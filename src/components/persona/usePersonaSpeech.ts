@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   speechSynthesisService,
   type SpeechOptions,
@@ -8,21 +8,34 @@ import {
 import {
   GRAPHMIN_VOICE_CONFIG,
   PERSONA_TEST_SENTENCES,
+  PERSONA_GREETING_TEXT,
   type PersonaVoiceConfig,
   type PersonaTestSentenceIndex
 } from './personaVoiceConfig';
 
-export interface UsePersonaSpeechReturn {
+/**
+ * Minimal Persona speaking state model:
+ * - 'idle': Synthesizer is inactive and ready for input.
+ * - 'speaking': Speech is loading or currently being spoken.
+ * - 'completed': Speech playback finished cleanly.
+ * - 'error': Speech playback encountered a platform or synthesis error.
+ */
+export type PersonaSpeakingState = 'idle' | 'speaking' | 'completed' | 'error';
+
+export interface PersonaSpeakingInterface {
   speak: (text: string, options?: SpeechOptions) => Promise<void>;
   stop: () => void;
   pause: () => void;
   resume: () => void;
   playTestSentence: (index: PersonaTestSentenceIndex) => Promise<void>;
+  playGreeting: () => Promise<void>;
+  speakingState: PersonaSpeakingState;
   status: SpeechPlaybackStatus;
   isLoading: boolean;
   isSpeaking: boolean;
   isCompleted: boolean;
   isFailed: boolean;
+  isError: boolean;
   isIdle: boolean;
   isSupported: boolean;
   currentText: string | null;
@@ -31,6 +44,8 @@ export interface UsePersonaSpeechReturn {
   resolvedVoice: SpeechSynthesisVoice | null;
   voiceConfig: PersonaVoiceConfig;
 }
+
+export type UsePersonaSpeechReturn = PersonaSpeakingInterface;
 
 /**
  * usePersonaSpeech
@@ -78,7 +93,9 @@ export function usePersonaSpeech(): UsePersonaSpeechReturn {
           if (sentence) return speechSynthesisService.speak(sentence);
           return Promise.reject(new Error(`Invalid sentence index: ${index}`));
         },
+        playGreeting: () => speechSynthesisService.speak(PERSONA_GREETING_TEXT),
         testSentences: PERSONA_TEST_SENTENCES,
+        greetingText: PERSONA_GREETING_TEXT,
         isSupported: () => speechSynthesisService.isSupported()
       };
     }
@@ -122,8 +139,20 @@ export function usePersonaSpeech(): UsePersonaSpeechReturn {
     }
   }, [speak]);
 
+  const playGreeting = useCallback(async () => {
+    await speak(PERSONA_GREETING_TEXT);
+  }, [speak]);
+
   const status = playbackState.status;
   const resolvedVoice = speechSynthesisService.getResolvedVoice();
+
+  // Minimal Persona speaking state mapping:
+  const speakingState: PersonaSpeakingState = useMemo(() => {
+    if (status === 'speaking' || status === 'loading') return 'speaking';
+    if (status === 'completed') return 'completed';
+    if (status === 'failed') return 'error';
+    return 'idle';
+  }, [status]);
 
   return {
     speak,
@@ -131,12 +160,15 @@ export function usePersonaSpeech(): UsePersonaSpeechReturn {
     pause,
     resume,
     playTestSentence,
+    playGreeting,
+    speakingState,
     status,
     isLoading: status === 'loading',
-    isSpeaking: status === 'speaking',
+    isSpeaking: status === 'speaking' || status === 'loading',
     isCompleted: status === 'completed',
     isFailed: status === 'failed',
-    isIdle: status === 'idle',
+    isError: status === 'failed',
+    isIdle: status === 'idle' || status === 'unsupported',
     isSupported: status !== 'unsupported',
     currentText: playbackState.text,
     error: playbackState.error,

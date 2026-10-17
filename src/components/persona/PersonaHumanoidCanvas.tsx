@@ -17,6 +17,7 @@ import {
   PersonaLifeController,
   type LifeFrameOutput
 } from './personaLifeController';
+import { speechSynthesisService } from '../../services/speechSynthesisService';
 
 export type PersonaAnimationState =
   | 'INITIALIZING'
@@ -1107,9 +1108,17 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
             // Stage D: Display the greeting text
             onGreetingChangeRef.current?.('greeting');
 
-            // Stage E: Keep greeting visible for 3.0 seconds (within 2.5-4.0s), then return to idle
-            greetingCompleteTimeout = setTimeout(() => {
+            // Stage E: Keep greeting visible for minimum 3.0s, ensuring speech completes gracefully
+            let greetingWaitCount = 0;
+            const completeGreeting = () => {
               if (isDisposed) return;
+
+              // If speech is still actively speaking, hold greeting until audio completes (max 2.0s extra cap)
+              if (speechSynthesisService.getState().status === 'speaking' && greetingWaitCount < 20) {
+                greetingWaitCount++;
+                greetingCompleteTimeout = setTimeout(completeGreeting, 100);
+                return;
+              }
 
               // Smoothly transition smile back to neutral without popping or snapping
               expressionController.setExpression('neutral', 1.2);
@@ -1118,7 +1127,9 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
 
               // Fade greeting text out smoothly
               onGreetingChangeRef.current?.('complete');
-            }, 3000);
+            };
+
+            greetingCompleteTimeout = setTimeout(completeGreeting, 3000);
           }, 500);
         }
 

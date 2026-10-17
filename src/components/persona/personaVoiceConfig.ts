@@ -191,4 +191,6 @@ export const PERSONA_TEST_SENTENCES = [
   'You can explore the concepts, discover relationships, and continue learning at your own pace.'
 ] as const;
 
+export const PERSONA_GREETING_TEXT = PERSONA_TEST_SENTENCES[0];
+
 export type PersonaTestSentenceIndex = 1 | 2 | 3;

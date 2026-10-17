@@ -2,9 +2,14 @@ import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { motion, useReducedMotion, type Variants } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { PersonaAtmosphere } from './PersonaAtmosphere';
-import { PersonaHumanoidCanvas, type PersonaAnimationState } from './PersonaHumanoidCanvas';
+import {
+  PersonaHumanoidCanvas,
+  type PersonaAnimationState,
+  type PersonaGreetingStage
+} from './PersonaHumanoidCanvas';
 import { personaTransitionController } from './personaTransition';
 import { usePersonaSpeech } from './usePersonaSpeech';
+import { PERSONA_GREETING_TEXT } from './personaVoiceConfig';
 
 export interface PersonaExperienceProps {
   isOpen: boolean;
@@ -23,9 +28,31 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const shouldReduceMotion = useReducedMotion();
   const [animationState, setAnimationState] = useState<PersonaAnimationState>('INITIALIZING');
+  const [greetingCaptionVisible, setGreetingCaptionVisible] = useState(false);
+  const hasTriggeredGreetingRef = useRef(false);
 
   // Reusable character voice speech infrastructure
-  usePersonaSpeech();
+  const speech = usePersonaSpeech();
+
+  // Coordinated greeting handler: plays speech once when gesture begins, manages subtitle visibility
+  const handleGreetingChange = useCallback((stage: PersonaGreetingStage) => {
+    if (stage === 'greeting') {
+      if (!hasTriggeredGreetingRef.current) {
+        hasTriggeredGreetingRef.current = true;
+        setGreetingCaptionVisible(true);
+        speech.playGreeting().catch(() => {
+          // Playback restriction (e.g. autoplay) handled gracefully without breaking visual greeting
+        });
+      }
+    } else if (stage === 'complete') {
+      setGreetingCaptionVisible(false);
+    }
+  }, [speech]);
+
+  const handleExit = useCallback(() => {
+    speech.stop();
+    onClose();
+  }, [speech, onClose]);
 
   // Synchronize status indicator with the shared persona transition controller
   useEffect(() => {
@@ -67,7 +94,7 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        onClose();
+        handleExit();
         return;
       }
 
@@ -173,7 +200,7 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
           ref={exitButtonRef}
           type="button"
           className="persona-exit-btn"
-          onClick={onClose}
+          onClick={handleExit}
           aria-label="Exit GraphMind Persona and return to workspace"
           id="btn-persona-exit"
         >
@@ -198,9 +225,25 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
           aria-hidden="true"
         >
           {characterSlot || (
-            <PersonaHumanoidCanvas onStateChange={setAnimationState} />
+            <PersonaHumanoidCanvas
+              onStateChange={setAnimationState}
+              onGreetingChange={handleGreetingChange}
+            />
           )}
         </div>
+
+        {/* Minimal, elegant spoken subtitle capsule */}
+        {greetingCaptionVisible && (
+          <div
+            className="persona-speech-caption-container"
+            aria-live="polite"
+            data-speech-caption="true"
+          >
+            <div className="persona-speech-caption">
+              {PERSONA_GREETING_TEXT}
+            </div>
+          </div>
+        )}
       </main>
     </motion.div>
   );
