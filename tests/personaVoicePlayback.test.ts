@@ -274,8 +274,8 @@ describe('GRAPHMIND — PERSONA: VOICE & SPEECH PLAYBACK ARCHITECTURE', () => {
   // =========================================================================
   describe('4. Centralized Voice Configuration & Restrained Defaults', () => {
     it('provides calm, articulate speaking rate and pitch matching Persona identity', () => {
-      assert.strictEqual(GRAPHMIN_VOICE_CONFIG.speakingRate, 0.94);
-      assert.strictEqual(GRAPHMIN_VOICE_CONFIG.pitch, 0.96);
+      assert.strictEqual(GRAPHMIN_VOICE_CONFIG.speakingRate, 0.98);
+      assert.strictEqual(GRAPHMIN_VOICE_CONFIG.pitch, 1.0);
       assert.strictEqual(GRAPHMIN_VOICE_CONFIG.volume, 1.0);
       assert.strictEqual(GRAPHMIN_VOICE_CONFIG.lang, 'en-US');
     });
@@ -394,8 +394,8 @@ describe('GRAPHMIND — PERSONA: VOICE & SPEECH PLAYBACK ARCHITECTURE', () => {
         assert.strictEqual(service.getState().status, 'speaking');
         assert.strictEqual(service.getState().text, sentence);
         assert.ok(lastUtterance !== null);
-        assert.strictEqual(lastUtterance.rate, 0.94);
-        assert.strictEqual(lastUtterance.pitch, 0.96);
+        assert.strictEqual(lastUtterance.rate, 0.98);
+        assert.strictEqual(lastUtterance.pitch, 1.0);
         assert.strictEqual(lastUtterance.volume, 1.0);
         assert.strictEqual(lastUtterance.text, sentence);
 
