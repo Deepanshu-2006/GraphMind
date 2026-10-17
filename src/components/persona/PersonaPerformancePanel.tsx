@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, useReducedMotion, type Variants } from 'framer-motion';
 import { usePersonaStats } from './usePersonaStats';
+import { PersonaAnimatedNumber } from './PersonaAnimatedNumber';
 import { formatRelativeTime, formatTabularCount } from './PersonaActivityPanel';
 
 export interface PersonaPerformancePanelProps {
@@ -15,14 +16,20 @@ export const PersonaPerformancePanel: React.FC<PersonaPerformancePanelProps> = (
   const { stats, isLoading, error, refresh } = usePersonaStats();
   const shouldReduceMotion = useReducedMotion();
 
-  // Animation variants for editorial staggered entrance
+  // Animation variants for editorial staggered entrance with subtle horizontal motion
   const containerVariants: Variants = {
-    hidden: { opacity: 0 },
+    hidden: {
+      opacity: 0,
+      x: shouldReduceMotion ? 0 : 10
+    },
     visible: {
       opacity: 1,
+      x: 0,
       transition: {
+        duration: shouldReduceMotion ? 0 : 0.5,
+        ease: [0.16, 1, 0.3, 1],
         staggerChildren: shouldReduceMotion ? 0 : 0.08,
-        delayChildren: shouldReduceMotion ? 0 : 0.15
+        delayChildren: shouldReduceMotion ? 0 : 0.1
       }
     }
   };
@@ -116,7 +123,16 @@ export const PersonaPerformancePanel: React.FC<PersonaPerformancePanelProps> = (
       <motion.div className="persona-stat-block" variants={itemVariants}>
         <span className="persona-stat-label">ASSESSMENT PERFORMANCE</span>
         <div className="persona-stat-value" data-testid="persona-average-score">
-          {averageScore !== null && averageScore !== undefined ? `${averageScore}%` : '—%'}
+          {averageScore !== null && averageScore !== undefined ? (
+            <PersonaAnimatedNumber
+              value={averageScore}
+              suffix="%"
+              min={0}
+              max={100}
+            />
+          ) : (
+            '—%'
+          )}
         </div>
         <span className="persona-stat-subtext">
           {totalAttempts === 0
@@ -128,11 +144,22 @@ export const PersonaPerformancePanel: React.FC<PersonaPerformancePanelProps> = (
 
         {/* Recent Assessment Attempts List (up to 3, newest first) */}
         {recentAssessments.length > 0 && (
-          <ul className="persona-activity-list persona-performance-scores-list" role="list">
+          <motion.ul
+            className="persona-activity-list persona-performance-scores-list"
+            role="list"
+            layout={!shouldReduceMotion}
+          >
             {recentAssessments.map((attempt) => {
               const isClickable = Boolean(onSelectGraph && attempt.graphId);
               return (
-                <li key={attempt.id} className="persona-activity-item-wrapper">
+                <motion.li
+                  key={attempt.id}
+                  className="persona-activity-item-wrapper"
+                  layout={!shouldReduceMotion}
+                  initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: shouldReduceMotion ? 0 : 0.3, ease: [0.16, 1, 0.3, 1] }}
+                >
                   <button
                     type="button"
                     onClick={() => attempt.graphId && onSelectGraph?.(attempt.graphId)}
@@ -149,10 +176,10 @@ export const PersonaPerformancePanel: React.FC<PersonaPerformancePanelProps> = (
                       {formatRelativeTime(attempt.completedAt)}
                     </time>
                   </button>
-                </li>
+                </motion.li>
               );
             })}
-          </ul>
+          </motion.ul>
         )}
       </motion.div>
 
@@ -162,7 +189,16 @@ export const PersonaPerformancePanel: React.FC<PersonaPerformancePanelProps> = (
           {revisionProgress ? 'ACTIVE REVISION SESSION' : 'REVISION PROGRESS'}
         </span>
         <div className="persona-stat-value" data-testid="persona-revision-progress">
-          {revisionProgress ? `${revisionProgress.progressPercent}%` : '—%'}
+          {revisionProgress ? (
+            <PersonaAnimatedNumber
+              value={revisionProgress.progressPercent}
+              suffix="%"
+              min={0}
+              max={100}
+            />
+          ) : (
+            '—%'
+          )}
         </div>
         <span className="persona-stat-subtext">
           {revisionProgress
@@ -179,9 +215,14 @@ export const PersonaPerformancePanel: React.FC<PersonaPerformancePanelProps> = (
           aria-valuemax={100}
           aria-label="Active revision session progress"
         >
-          <div
+          <motion.div
             className="persona-progress-fill"
-            style={{ width: `${revisionProgress ? revisionProgress.progressPercent : 0}%` }}
+            initial={{ width: 0 }}
+            animate={{ width: `${revisionProgress ? revisionProgress.progressPercent : 0}%` }}
+            transition={{
+              duration: shouldReduceMotion ? 0 : 0.65,
+              ease: [0.16, 1, 0.3, 1]
+            }}
           />
         </div>
       </motion.div>
@@ -190,7 +231,11 @@ export const PersonaPerformancePanel: React.FC<PersonaPerformancePanelProps> = (
       <motion.div className="persona-stat-block persona-stat-block--revisit" variants={itemVariants}>
         <span className="persona-stat-label">CONCEPTS TO REVISIT</span>
         <div className="persona-stat-value" data-testid="persona-concepts-needing-revision">
-          {formatTabularCount(needsRevisionCount)}
+          <PersonaAnimatedNumber
+            value={needsRevisionCount}
+            format={formatTabularCount}
+            min={0}
+          />
         </div>
         <span className="persona-stat-subtext">
           {needsRevisionCount === 0

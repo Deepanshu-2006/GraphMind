@@ -368,7 +368,6 @@
   height: 100%;
   background-color: var(--accent, #A3FF12);
   border-radius: 9999px;
-  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 0 8px rgba(163, 255, 18, 0.35);
 }
 

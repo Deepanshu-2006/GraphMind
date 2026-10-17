@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { motion, useReducedMotion, type Variants } from 'framer-motion';
 import { usePersonaStats } from './usePersonaStats';
+import { PersonaAnimatedNumber } from './PersonaAnimatedNumber';
 import type { RecentGraphActivity } from '../../types/personaStats';
 
 export interface PersonaActivityPanelProps {
@@ -51,14 +52,20 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = ({
   const { stats, isLoading, error, refresh } = usePersonaStats();
   const shouldReduceMotion = useReducedMotion();
 
-  // Animation variants for editorial staggered entrance
+  // Animation variants for editorial staggered entrance with subtle horizontal motion
   const containerVariants: Variants = {
-    hidden: { opacity: 0 },
+    hidden: {
+      opacity: 0,
+      x: shouldReduceMotion ? 0 : -10
+    },
     visible: {
       opacity: 1,
+      x: 0,
       transition: {
+        duration: shouldReduceMotion ? 0 : 0.5,
+        ease: [0.16, 1, 0.3, 1],
         staggerChildren: shouldReduceMotion ? 0 : 0.08,
-        delayChildren: shouldReduceMotion ? 0 : 0.15
+        delayChildren: shouldReduceMotion ? 0 : 0.1
       }
     }
   };
@@ -161,7 +168,11 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = ({
       <motion.div className="persona-stat-block" variants={itemVariants}>
         <span className="persona-stat-label">YOUR GRAPHS</span>
         <div className="persona-stat-value" data-testid="persona-total-graphs">
-          {formatTabularCount(totalGraphs)}
+          <PersonaAnimatedNumber
+            value={totalGraphs}
+            format={formatTabularCount}
+            min={0}
+          />
         </div>
         <span className="persona-stat-subtext">
           {totalGraphs === 0
@@ -176,7 +187,16 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = ({
       <motion.div className="persona-stat-block" variants={itemVariants}>
         <span className="persona-stat-label">LEARNING PROGRESS</span>
         <div className="persona-stat-value" data-testid="persona-demonstrated-percentage">
-          {totalConcepts === 0 ? '—%' : `${demonstratedPercentage}%`}
+          {totalConcepts === 0 ? (
+            '—%'
+          ) : (
+            <PersonaAnimatedNumber
+              value={demonstratedPercentage}
+              suffix="%"
+              min={0}
+              max={100}
+            />
+          )}
         </div>
         <span className="persona-stat-subtext">
           {totalConcepts === 0
@@ -195,9 +215,14 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = ({
           aria-valuemax={100}
           aria-label="Demonstrated understanding progress"
         >
-          <div
+          <motion.div
             className="persona-progress-fill"
-            style={{ width: `${totalConcepts === 0 ? 0 : demonstratedPercentage}%` }}
+            initial={{ width: 0 }}
+            animate={{ width: `${totalConcepts === 0 ? 0 : demonstratedPercentage}%` }}
+            transition={{
+              duration: shouldReduceMotion ? 0 : 0.65,
+              ease: [0.16, 1, 0.3, 1]
+            }}
           />
         </div>
       </motion.div>
@@ -211,11 +236,22 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = ({
             Your graphs will appear here as you create and develop them.
           </p>
         ) : (
-          <ul className="persona-activity-list" role="list">
+          <motion.ul
+            className="persona-activity-list"
+            role="list"
+            layout={!shouldReduceMotion}
+          >
             {recentList.map((graph) => {
               const isClickable = Boolean(onSelectGraph);
               return (
-                <li key={graph.graphId} className="persona-activity-item-wrapper">
+                <motion.li
+                  key={graph.graphId}
+                  className="persona-activity-item-wrapper"
+                  layout={!shouldReduceMotion}
+                  initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: shouldReduceMotion ? 0 : 0.3, ease: [0.16, 1, 0.3, 1] }}
+                >
                   <button
                     type="button"
                     onClick={() => onSelectGraph?.(graph.graphId)}
@@ -233,10 +269,10 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = ({
                       {formatRelativeTime(graph.updatedAt || graph.createdAt)}
                     </time>
                   </button>
-                </li>
+                </motion.li>
               );
             })}
-          </ul>
+          </motion.ul>
         )}
       </motion.div>
     </motion.aside>
