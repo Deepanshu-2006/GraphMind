@@ -228,10 +228,300 @@
   }
 }
 
+/* Dashboard Overlay Layout — 3-Column stage layout keeping character centered */
+.persona-dashboard-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10001;
+  pointer-events: none;
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) 1fr minmax(280px, 340px);
+  padding: 32px 48px 48px 48px;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.persona-dashboard-left {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 340px;
+}
+
+.persona-dashboard-center {
+  pointer-events: none;
+}
+
+.persona-dashboard-right {
+  pointer-events: none;
+}
+
+/* Learning Activity Panel — Floating Editorial Statistics */
+.persona-activity-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  user-select: none;
+  color: var(--text-primary, #F5F5F5);
+}
+
+.persona-activity-header {
+  display: flex;
+  flex-direction: column;
+}
+
+.persona-activity-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8A8A8A);
+}
+
+.persona-activity-tag-bullet {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--accent, #A3FF12);
+  box-shadow: 0 0 6px rgba(163, 255, 18, 0.4);
+}
+
+.persona-activity-tag-bullet--error {
+  background-color: #EF4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+.persona-activity-subtitle {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 12px;
+  color: var(--text-secondary, #A1A1A1);
+  margin: 4px 0 0 0;
+  letter-spacing: -0.005em;
+}
+
+.persona-stat-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.persona-stat-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8A8A8A);
+  margin-bottom: 6px;
+}
+
+.persona-stat-value {
+  font-family: var(--font-display, 'Inter Tight', sans-serif);
+  font-size: 36px;
+  font-weight: 350;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--text-primary, #F5F5F5);
+  font-variant-numeric: tabular-nums;
+}
+
+.persona-stat-subtext {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 12px;
+  color: var(--text-secondary, #A1A1A1);
+  margin-top: 4px;
+}
+
+/* Thin horizontal progress track */
+.persona-progress-track {
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.persona-progress-fill {
+  height: 100%;
+  background-color: var(--accent, #A3FF12);
+  border-radius: 9999px;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 8px rgba(163, 255, 18, 0.35);
+}
+
+/* Recent Activity List */
+.persona-activity-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.persona-activity-item-wrapper {
+  margin: 0;
+  padding: 0;
+}
+
+.persona-activity-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  margin-left: -10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 4px);
+  cursor: default;
+  text-align: left;
+  transition: background var(--transition-fast, 150ms ease), border-color var(--transition-fast, 150ms ease);
+}
+
+.persona-activity-item--interactive {
+  cursor: pointer;
+}
+
+.persona-activity-item--interactive:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.persona-activity-item--interactive:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: 2px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.persona-activity-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--accent, #A3FF12);
+  flex-shrink: 0;
+  opacity: 0.85;
+  box-shadow: 0 0 6px rgba(163, 255, 18, 0.35);
+}
+
+.persona-activity-name {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 450;
+  color: var(--text-primary, #F5F5F5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  letter-spacing: -0.01em;
+}
+
+.persona-activity-item--interactive:hover .persona-activity-name {
+  color: #FFFFFF;
+}
+
+.persona-activity-time {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--text-muted, #8A8A8A);
+  flex-shrink: 0;
+}
+
+.persona-activity-empty-message {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted, #8A8A8A);
+  margin: 6px 0 0 0;
+}
+
+.persona-activity-retry-btn {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 6px 12px;
+  margin-top: 8px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  color: var(--text-primary, #F5F5F5);
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.persona-activity-retry-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.persona-activity-retry-btn:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: 2px;
+}
+
 /* Responsive Viewports */
+@media (max-width: 1024px) {
+  .persona-dashboard-overlay {
+    grid-template-columns: minmax(240px, 280px) 1fr minmax(240px, 280px);
+    padding: 24px 32px 36px 32px;
+  }
+
+  .persona-activity-panel {
+    gap: 24px;
+  }
+
+  .persona-stat-value {
+    font-size: 30px;
+  }
+}
+
 @media (max-width: 768px) {
   .persona-header {
     padding: 20px 24px;
+  }
+
+  .persona-dashboard-overlay {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 16px 20px 24px 20px;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .persona-dashboard-left {
+    pointer-events: auto;
+    max-width: 100%;
+    width: 100%;
+    background: rgba(14, 14, 14, 0.88);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 16px 18px;
+    max-height: 38vh;
+    overflow-y: auto;
+  }
+
+  .persona-dashboard-center,
+  .persona-dashboard-right {
+    display: none;
+  }
+
+  .persona-activity-panel {
+    gap: 16px;
+  }
+
+  .persona-stat-value {
+    font-size: 26px;
   }
 }
 
@@ -266,5 +556,13 @@
 
   .persona-speech-caption-container {
     animation: none !important;
+  }
+
+  .persona-progress-fill {
+    transition: none !important;
+  }
+
+  .persona-activity-item {
+    transition: none !important;
   }
 }
