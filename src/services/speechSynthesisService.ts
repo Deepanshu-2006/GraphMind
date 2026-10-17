@@ -24,12 +24,23 @@ export type SpeechPlaybackStatus =
   | 'completed'
   | 'failed';
 
+export interface SpeechBoundaryEvent {
+  name: string;        // 'word' or 'sentence'
+  charIndex: number;
+  charLength?: number;
+  elapsedTime?: number;
+  word?: string;
+}
+
+export type SpeechBoundaryListener = (event: SpeechBoundaryEvent) => void;
+
 export interface SpeechOptions {
   rate?: number;       // Speed: 0.1 to 10 (defaults to GRAPHMIN_VOICE_CONFIG.speakingRate)
   pitch?: number;      // Pitch: 0 to 2 (defaults to GRAPHMIN_VOICE_CONFIG.pitch)
   volume?: number;     // Volume: 0 to 1 (defaults to GRAPHMIN_VOICE_CONFIG.volume)
   lang?: string;       // BCP 47 language tag (defaults to GRAPHMIN_VOICE_CONFIG.lang)
   voiceName?: string;  // Preferred specific voice name
+  onBoundary?: (event: SpeechBoundaryEvent) => void;
 }
 
 export interface SpeechPlaybackState {
@@ -47,6 +58,7 @@ export class SpeechSynthesisService {
   private currentUtterance: SpeechSynthesisUtterance | null = null;
   private isExplicitlyStopped = false;
   private listeners = new Set<SpeechStateListener>();
+  private boundaryListeners = new Set<SpeechBoundaryListener>();
   private voices: SpeechSynthesisVoice[] = [];
   private voicesLoaded = false;
   private onVoicesChangedBound: (() => void) | null = null;
@@ -303,6 +315,35 @@ export class SpeechSynthesisService {
           this.updateState('speaking', rawTrimmed, null);
         };
 
+        utterance.onboundary = (event: SpeechSynthesisEvent) => {
+          if (this.currentUtterance !== utterance) return;
+          const charLen = (event as any).charLength || 0;
+          let boundaryWord = '';
+          const fullText = spokenText || rawTrimmed;
+          if (charLen > 0) {
+            boundaryWord = fullText.slice(event.charIndex, event.charIndex + charLen);
+          } else {
+            const remainder = fullText.slice(event.charIndex);
+            const match = remainder.match(/^\S+/);
+            boundaryWord = match ? match[0] : '';
+          }
+
+          const boundaryData: SpeechBoundaryEvent = {
+            name: event.name || 'word',
+            charIndex: event.charIndex,
+            charLength: (event as any).charLength,
+            elapsedTime: event.elapsedTime,
+            word: boundaryWord
+          };
+
+          options.onBoundary?.(boundaryData);
+          this.boundaryListeners.forEach((listener) => {
+            try {
+              listener(boundaryData);
+            } catch {}
+          });
+        };
+
         utterance.onend = () => {
           if (this.currentUtterance !== utterance) return;
           this.currentUtterance = null;
@@ -409,6 +450,16 @@ export class SpeechSynthesisService {
     };
   }
 
+  /**
+   * Subscribe to speech word-boundary events for real-time lip-sync and visual markers.
+   */
+  public onBoundary(listener: SpeechBoundaryListener): () => void {
+    this.boundaryListeners.add(listener);
+    return () => {
+      this.boundaryListeners.delete(listener);
+    };
+  }
+
   private updateState(status: SpeechPlaybackStatus, text: string | null, error: string | null): void {
     this.status = status;
     this.currentText = text;
@@ -430,6 +481,7 @@ export class SpeechSynthesisService {
   public dispose(): void {
     this.stop();
     this.listeners.clear();
+    this.boundaryListeners.clear();
     if (
       this.onVoicesChangedBound &&
       typeof window !== 'undefined' &&

@@ -385,6 +385,14 @@ export class PersonaExpressionController {
     return this.phase;
   }
 
+  public getCurrentMouthOpen(): number {
+    return this.currentWeightsHead[26] ?? 0.22;
+  }
+
+  public getCurrentWeightsHead(): readonly number[] {
+    return this.currentWeightsHead;
+  }
+
   /**
    * Returns complete expression state for coordinated gaze, head posture, and timing.
    */

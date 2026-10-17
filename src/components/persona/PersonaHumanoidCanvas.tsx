@@ -17,6 +17,7 @@ import {
   PersonaLifeController,
   type LifeFrameOutput
 } from './personaLifeController';
+import { PersonaLipSyncController } from './personaLipSyncController';
 import { speechSynthesisService } from '../../services/speechSynthesisService';
 
 export type PersonaAnimationState =
@@ -243,6 +244,11 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       forcedGazeY: forcedGazeYParam !== null && !isNaN(parseFloat(forcedGazeYParam)) ? parseFloat(forcedGazeYParam) : null
     });
 
+    const lipSyncController = new PersonaLipSyncController({
+      prefersReducedMotion,
+      speakingRate: 0.95
+    });
+
     const gltfLoader = new GLTFLoader();
     gltfLoader.setMeshoptDecoder(MeshoptDecoder);
 
@@ -308,6 +314,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
             teethDownMesh,
             expressionController,
             lifeController,
+            lipSyncController,
             model,
             bones: {
               head: headBone,
@@ -977,6 +984,11 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
           eyeOpenBonus: lifeOutput.eyeOpenBonus,
           squintBonus: lifeOutput.squintBonus
         });
+
+        // 6. Real-Time Lip-Sync Animation & Blendshape Compositing (Section 2, 5, 6)
+        lipSyncController.update(dt);
+        const baseMouthOpen = expressionController.getCurrentMouthOpen();
+        lipSyncController.applyToMeshes(headMesh, teethDownMesh, baseMouthOpen);
       }
     };
 
@@ -1365,11 +1377,12 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         }
       });
 
-      // Clear greeting sequence timeouts and reset life/expression controllers
+      // Clear greeting sequence timeouts and reset life/expression/lipsync controllers
       if (greetingPauseTimeout) clearTimeout(greetingPauseTimeout);
       if (greetingCompleteTimeout) clearTimeout(greetingCompleteTimeout);
       lifeController.resetGreeting();
       expressionController.setGreetingLocked(false);
+      lipSyncController.dispose();
 
       // Clean disposal of independent Persona resources
       particleGeometry.dispose();
