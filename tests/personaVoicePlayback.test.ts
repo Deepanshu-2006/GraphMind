@@ -6,6 +6,11 @@ import {
   type SpeechPlaybackStatus,
   type SpeechPlaybackState
 } from '../src/services/speechSynthesisService';
+import {
+  GRAPHMIN_VOICE_CONFIG,
+  prepareTextForSpeech,
+  PERSONA_TEST_SENTENCES
+} from '../src/components/persona/personaVoiceConfig';
 
 describe('GRAPHMIND — PERSONA: VOICE & SPEECH PLAYBACK ARCHITECTURE', () => {
   // Mock SpeechSynthesis environment for Node.js test runner
@@ -205,15 +210,16 @@ describe('GRAPHMIND — PERSONA: VOICE & SPEECH PLAYBACK ARCHITECTURE', () => {
       assert.strictEqual(voices[0].name, 'Google US English');
     });
 
-    it('prioritizes enhanced/natural voices when available', () => {
+    it('prioritizes articulate male voices (e.g. Daniel) over default female voices', () => {
       (global as any).window.speechSynthesis.getVoices = () => [
         { name: 'Generic Voice', lang: 'en-US', default: true },
-        { name: 'Samantha (Enhanced)', lang: 'en-US', default: false }
+        { name: 'Samantha (Enhanced)', lang: 'en-US', default: false },
+        { name: 'Daniel', lang: 'en-GB', default: false }
       ];
       const service = new SpeechSynthesisService();
       const best = service.selectBestVoice();
       assert.ok(best !== null);
-      assert.strictEqual(best?.name, 'Samantha (Enhanced)');
+      assert.strictEqual(best?.name, 'Daniel');
     });
 
     it('selects explicit voice by name when requested', () => {
@@ -222,7 +228,7 @@ describe('GRAPHMIND — PERSONA: VOICE & SPEECH PLAYBACK ARCHITECTURE', () => {
       assert.strictEqual(voice?.name, 'Daniel');
     });
 
-    it('falls back gracefully to default voice when no natural voices match language', () => {
+    it('falls back gracefully to default voice when no preferred voices match', () => {
       (global as any).window.speechSynthesis.getVoices = () => [
         { name: 'Generic Voice', lang: 'en-US', default: true }
       ];
@@ -260,6 +266,164 @@ describe('GRAPHMIND — PERSONA: VOICE & SPEECH PLAYBACK ARCHITECTURE', () => {
 
     it('exposes shared singleton instance for app-wide reuse', () => {
       assert.ok(speechSynthesisService instanceof SpeechSynthesisService);
+    });
+  });
+
+  // =========================================================================
+  // 4. CENTRALIZED VOICE CONFIGURATION & DEFAULTS
+  // =========================================================================
+  describe('4. Centralized Voice Configuration & Restrained Defaults', () => {
+    it('provides calm, articulate speaking rate and pitch matching Persona identity', () => {
+      assert.strictEqual(GRAPHMIN_VOICE_CONFIG.speakingRate, 0.94);
+      assert.strictEqual(GRAPHMIN_VOICE_CONFIG.pitch, 0.96);
+      assert.strictEqual(GRAPHMIN_VOICE_CONFIG.volume, 1.0);
+      assert.strictEqual(GRAPHMIN_VOICE_CONFIG.lang, 'en-US');
+    });
+
+    it('exposes prioritized voice list with Asian English male voices at the top', () => {
+      assert.ok(GRAPHMIN_VOICE_CONFIG.preferredVoiceNames.length > 0);
+      assert.strictEqual(GRAPHMIN_VOICE_CONFIG.preferredVoiceNames[0], 'Rishi');
+      assert.ok(GRAPHMIN_VOICE_CONFIG.preferredAsianVoiceKeywords.includes('rishi'));
+      assert.ok(GRAPHMIN_VOICE_CONFIG.preferredAsianVoiceKeywords.includes('ravi'));
+    });
+
+    it('filters out female vocal keywords when seeking masculine persona', () => {
+      assert.ok(GRAPHMIN_VOICE_CONFIG.disallowedVoiceKeywords.includes('female'));
+      assert.ok(GRAPHMIN_VOICE_CONFIG.disallowedVoiceKeywords.includes('woman'));
+      assert.ok(GRAPHMIN_VOICE_CONFIG.disallowedVoiceKeywords.includes('samantha'));
+    });
+  });
+
+  // =========================================================================
+  // 5. TEXT PREPROCESSING & NATURAL SENTENCE PACING
+  // =========================================================================
+  describe('5. Text Preprocessing for Spoken Delivery', () => {
+    it('strips markdown syntax while preserving spoken words', () => {
+      const raw = '### Heading\n**Welcome** to [GraphMind](https://example.com)! Run `npm start`.';
+      const processed = prepareTextForSpeech(raw);
+      assert.strictEqual(processed, 'Heading. Welcome to GraphMind! Run npm start.');
+    });
+
+    it('replaces em-dashes and colons with commas for natural vocal breath pauses', () => {
+      const raw = 'GraphMind — a thinking tool: connect your ideas.';
+      const processed = prepareTextForSpeech(raw);
+      assert.strictEqual(processed, 'GraphMind, a thinking tool, connect your ideas.');
+    });
+
+    it('replaces ellipses with clean sentence pause', () => {
+      const raw = 'Thinking... ready now.';
+      const processed = prepareTextForSpeech(raw);
+      assert.strictEqual(processed, 'Thinking. ready now.');
+    });
+
+    it('preserves uppercase technical acronyms so they are spelled or pronounced cleanly', () => {
+      const raw = 'inspect cpu, ram, gpu and api connections';
+      const processed = prepareTextForSpeech(raw);
+      assert.strictEqual(processed, 'inspect CPU, RAM, GPU and API connections');
+    });
+
+    it('preserves test sentences verbatim without arbitrary rewriting', () => {
+      for (const sentence of PERSONA_TEST_SENTENCES) {
+        assert.strictEqual(prepareTextForSpeech(sentence), sentence);
+      }
+    });
+  });
+
+  // =========================================================================
+  // 6. ASIAN MALE VOICE SELECTION & MULTI-TIER FALLBACK
+  // =========================================================================
+  describe('6. Asian Male Voice Prioritization & Multi-Tier Fallback', () => {
+    it('prioritizes Asian male voice (e.g. Rishi) over generic or female voices', () => {
+      (global as any).window.speechSynthesis.getVoices = () => [
+        { name: 'Samantha (Enhanced)', lang: 'en-US', default: true },
+        { name: 'Rishi', lang: 'en-IN', default: false },
+        { name: 'Alex', lang: 'en-US', default: false }
+      ];
+      const service = new SpeechSynthesisService();
+      const best = service.selectBestVoice();
+      assert.strictEqual(best?.name, 'Rishi');
+    });
+
+    it('prioritizes Microsoft Ravi or Wayne when present', () => {
+      (global as any).window.speechSynthesis.getVoices = () => [
+        { name: 'Microsoft Zira - English (United States)', lang: 'en-US', default: true },
+        { name: 'Microsoft Ravi Online (Natural) - English (India)', lang: 'en-IN', default: false },
+        { name: 'Microsoft David - English (United States)', lang: 'en-US', default: false }
+      ];
+      const service = new SpeechSynthesisService();
+      const best = service.selectBestVoice();
+      assert.strictEqual(best?.name, 'Microsoft Ravi Online (Natural) - English (India)');
+    });
+
+    it('falls back to articulate calm male voices (Google UK English Male, Daniel) if Asian male voice unavailable', () => {
+      (global as any).window.speechSynthesis.getVoices = () => [
+        { name: 'Google US English (Female)', lang: 'en-US', default: true },
+        { name: 'Google UK English Male', lang: 'en-GB', default: false },
+        { name: 'Victoria', lang: 'en-US', default: false }
+      ];
+      const service = new SpeechSynthesisService();
+      const best = service.selectBestVoice();
+      assert.strictEqual(best?.name, 'Google UK English Male');
+    });
+
+    it('filters out disallowed female voices and falls back to default or available voice if no male voices exist', () => {
+      (global as any).window.speechSynthesis.getVoices = () => [
+        { name: 'Samantha', lang: 'en-US', default: false },
+        { name: 'Victoria', lang: 'en-US', default: false },
+        { name: 'System Neutral Voice', lang: 'en-US', default: true }
+      ];
+      const service = new SpeechSynthesisService();
+      const best = service.selectBestVoice();
+      assert.strictEqual(best?.name, 'System Neutral Voice');
+    });
+  });
+
+  // =========================================================================
+  // 7. THREE TEST SENTENCES DEVELOPMENT VERIFICATION
+  // =========================================================================
+  describe('7. Three Test Sentences Voice Quality Verification', () => {
+    it('applies configured speaking rate (0.94) and pitch (0.96) to all three test sentences', async () => {
+      const service = new SpeechSynthesisService();
+
+      for (let i = 0; i < PERSONA_TEST_SENTENCES.length; i++) {
+        const sentence = PERSONA_TEST_SENTENCES[i];
+        const speakPromise = service.speak(sentence);
+
+        await new Promise(r => setTimeout(r, 10));
+
+        assert.strictEqual(service.getState().status, 'speaking');
+        assert.strictEqual(service.getState().text, sentence);
+        assert.ok(lastUtterance !== null);
+        assert.strictEqual(lastUtterance.rate, 0.94);
+        assert.strictEqual(lastUtterance.pitch, 0.96);
+        assert.strictEqual(lastUtterance.volume, 1.0);
+        assert.strictEqual(lastUtterance.text, sentence);
+
+        // End utterance
+        if (lastUtterance.onend) lastUtterance.onend();
+        await speakPromise;
+        assert.strictEqual(service.getState().status, 'completed');
+      }
+    });
+
+    it('interfering consecutive sentence cancels previous without overlapping audio', async () => {
+      const service = new SpeechSynthesisService();
+
+      // Start sentence 1
+      service.speak(PERSONA_TEST_SENTENCES[0]);
+      await new Promise(r => setTimeout(r, 10));
+      assert.strictEqual(service.getState().text, PERSONA_TEST_SENTENCES[0]);
+
+      // Trigger sentence 2 before sentence 1 completes
+      const sentence2Promise = service.speak(PERSONA_TEST_SENTENCES[1]);
+      await new Promise(r => setTimeout(r, 10));
+
+      assert.strictEqual(cancelCallCount, 1);
+      assert.strictEqual(service.getState().text, PERSONA_TEST_SENTENCES[1]);
+
+      if (lastUtterance.onend) lastUtterance.onend();
+      await sentence2Promise;
+      assert.strictEqual(service.getState().status, 'completed');
     });
   });
 });
