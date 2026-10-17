@@ -54,17 +54,18 @@ export interface ScorePresentationConfig {
   reactionExpression: PersonaExpression;
   baselineExpression: PersonaExpression;
   hasNod: boolean;
+  hasHeadShake: boolean;
   description: string;
 }
 
 /**
  * Visual presentation thresholds isolated from grading/business logic (Section 5).
  * User specification:
- * - below 20%: worried
- * - 20 to 40%: sad
- * - 40 to 60%: neutral
- * - 60 to 80%: smile (happy without nod)
- * - 80 to 100%: happy with nod
+ * - below 20%: worried + subtle head shake
+ * - 20 to 40%: sad + subtle head shake
+ * - 40 to 60%: neutral (no shake, no nod)
+ * - 60 to 80%: smile (happy without nod, no shake)
+ * - 80 to 100%: happy with nod (no shake)
  * Missing or loading data: neutral baseline (never treated as 0).
  */
 export const SCORE_PRESENTATION_RANGES: ScorePresentationConfig[] = [
@@ -75,7 +76,8 @@ export const SCORE_PRESENTATION_RANGES: ScorePresentationConfig[] = [
     reactionExpression: 'worried',
     baselineExpression: 'neutral',
     hasNod: false,
-    description: 'Below 20%: worried'
+    hasHeadShake: true,
+    description: 'Below 20%: worried with head shake'
   },
   {
     minScore: 20,
@@ -84,7 +86,8 @@ export const SCORE_PRESENTATION_RANGES: ScorePresentationConfig[] = [
     reactionExpression: 'sad',
     baselineExpression: 'neutral',
     hasNod: false,
-    description: '20 to 40%: sad'
+    hasHeadShake: true,
+    description: '20 to 40%: sad with head shake'
   },
   {
     minScore: 40,
@@ -93,6 +96,7 @@ export const SCORE_PRESENTATION_RANGES: ScorePresentationConfig[] = [
     reactionExpression: 'neutral',
     baselineExpression: 'neutral',
     hasNod: false,
+    hasHeadShake: false,
     description: '40 to 60%: neutral'
   },
   {
@@ -102,6 +106,7 @@ export const SCORE_PRESENTATION_RANGES: ScorePresentationConfig[] = [
     reactionExpression: 'happy',
     baselineExpression: 'neutral',
     hasNod: false,
+    hasHeadShake: false,
     description: '60 to 80%: smile'
   },
   {
@@ -111,6 +116,7 @@ export const SCORE_PRESENTATION_RANGES: ScorePresentationConfig[] = [
     reactionExpression: 'happy',
     baselineExpression: 'neutral',
     hasNod: true,
+    hasHeadShake: false,
     description: '80 to 100%: happy with nod'
   }
 ];
@@ -154,7 +160,7 @@ export const ANALYSIS_STATE_TIMINGS: Record<AnalysisState, StateTimingConfig> = 
   reactToScore: { baseDuration: 3.2, variance: 0.4 },       // 2.8s - 3.6s (held generously so reaction is unmistakably visible!)
   observeLeft: { baseDuration: 1.6, variance: 0.4 },        // 1.2s - 2.0s
   reflect: { baseDuration: 1.6, variance: 0.4 },            // 1.2s - 2.0s
-  returnToIdle: { baseDuration: 1.4, variance: 0.3 }        // 1.1s - 1.7s
+  returnToIdle: { baseDuration: 1.0, variance: 0.1 }        // 0.9s - 1.1s (smooth 800-1200ms transition)
 };
 
 export interface PersonaAnalysisControllerConfig {
@@ -163,6 +169,9 @@ export interface PersonaAnalysisControllerConfig {
   assessmentScore?: number | null;
   prefersReducedMotion?: boolean;
   deterministic?: boolean;
+  maxCycles?: number;
+  onCycleComplete?: (cycleCount: number) => void;
+  onTransitionToIdle?: () => void;
 }
 
 /**
@@ -195,8 +204,13 @@ export class PersonaAnalysisController {
 
   // Cycle tracking and nod frequency throttling (Section 5 & 6)
   private cycleCount = 0;
+  private maxAnalysisCycles = 2;
   private lastNodScore: number | null = null;
   private lastNodTimeMs = 0;
+  private hasTriggeredReactionGesture = false;
+
+  private onCycleComplete?: (cycleCount: number) => void;
+  private onTransitionToIdle?: () => void;
 
   constructor(config: PersonaAnalysisControllerConfig) {
     this.lifeController = config.lifeController;
@@ -204,6 +218,9 @@ export class PersonaAnalysisController {
     this.assessmentScore = config.assessmentScore ?? null;
     this.prefersReducedMotion = config.prefersReducedMotion ?? false;
     this.deterministic = config.deterministic ?? false;
+    this.maxAnalysisCycles = config.maxCycles ?? 2;
+    this.onCycleComplete = config.onCycleComplete;
+    this.onTransitionToIdle = config.onTransitionToIdle;
 
     this.calculateStateDuration('idle');
   }
@@ -231,22 +248,33 @@ export class PersonaAnalysisController {
     this.currentTarget = 'forward';
     this.stateTimer = 0;
     this.lifeController.releaseAnalysisGaze(0.5);
+    this.lifeController.cancelHeadShake();
   }
 
   public dispose(): void {
     this.isDisposed = true;
     this.isActive = false;
     this.expressionController.setAnalysisLocked(false);
+    this.lifeController.cancelHeadShake();
   }
 
   public setAssessmentScore(score: number | null): void {
+    const oldPres = getScorePresentation(this.assessmentScore);
+    const newPres = getScorePresentation(score);
     this.assessmentScore = score;
-    // Safely update baseline without restarting the loop (Section 9)
-    if (this.currentState === 'idle' || this.currentState === 'returnToIdle') {
-      const presentation = getScorePresentation(this.assessmentScore);
-      if (presentation) {
-        this.expressionController.setExpression(presentation.baselineExpression, 1.2);
+
+    // If score changes while in reactToScore and presentation tier changes, cancel shake if old was low and new is not
+    if (this.currentState === 'reactToScore') {
+      if (oldPres?.hasHeadShake && !newPres?.hasHeadShake) {
+        this.lifeController.cancelHeadShake();
       }
+    }
+
+    // Safely update resting baseline expression without restarting the loop
+    if (this.currentState === 'idle' || this.currentState === 'returnToIdle') {
+      const pres = getScorePresentation(score);
+      const baseline = pres ? pres.baselineExpression : 'neutral';
+      this.expressionController.setExpression(baseline, 0.8);
     }
   }
 
@@ -260,6 +288,7 @@ export class PersonaAnalysisController {
       this.stop();
       this.expressionController.setExpression('neutral', 0.5);
       this.lifeController.releaseAnalysisGaze(0.3);
+      this.lifeController.cancelHeadShake();
     }
   }
 
@@ -277,6 +306,18 @@ export class PersonaAnalysisController {
 
   public getCycleCount(): number {
     return this.cycleCount;
+  }
+
+  public getMaxCycles(): number {
+    return this.maxAnalysisCycles;
+  }
+
+  public setMaxCycles(max: number): void {
+    this.maxAnalysisCycles = max;
+  }
+
+  public isAnalysisComplete(): boolean {
+    return this.cycleCount >= this.maxAnalysisCycles;
   }
 
   public isRunning(): boolean {
@@ -302,7 +343,34 @@ export class PersonaAnalysisController {
       return;
     }
 
+    // When the configured analysis cycles (2 cycles) complete, settle permanently in resting idle
+    if (this.currentState === 'idle' && this.cycleCount >= this.maxAnalysisCycles) {
+      return;
+    }
+
     this.stateTimer += dt;
+
+    // Trigger reaction gesture (shake for low score <40%, nod for high score >=80%)
+    // after the facial expression is visibly presented (~0.40s)
+    if (this.currentState === 'reactToScore' && !this.hasTriggeredReactionGesture) {
+      if (this.stateTimer >= 0.40) {
+        this.hasTriggeredReactionGesture = true;
+        const pres = getScorePresentation(this.assessmentScore);
+        if (pres) {
+          if (pres.hasHeadShake) {
+            this.lifeController.triggerHeadShake(1.05, 0.14);
+          } else if (pres.hasNod) {
+            const isScoreChanged = this.lastNodScore !== this.assessmentScore;
+            const isCooldownExpired = (nowMs - this.lastNodTimeMs) > 42000;
+            if (isScoreChanged || isCooldownExpired || this.deterministic) {
+              this.lastNodScore = this.assessmentScore;
+              this.lastNodTimeMs = nowMs;
+              this.lifeController.triggerApprovingNod(1.2);
+            }
+          }
+        }
+      }
+    }
 
     if (this.stateTimer >= this.stateDuration) {
       this.advanceToNextState(nowMs);
@@ -310,6 +378,11 @@ export class PersonaAnalysisController {
   }
 
   private advanceToNextState(nowMs: number): void {
+    // If analysis cycles are complete, do not advance from resting idle
+    if (this.currentState === 'idle' && this.cycleCount >= this.maxAnalysisCycles) {
+      return;
+    }
+
     let nextState: AnalysisState;
 
     switch (this.currentState) {
@@ -323,7 +396,9 @@ export class PersonaAnalysisController {
         nextState = 'reactToScore';
         break;
       case 'reactToScore':
-        nextState = 'observeLeft';
+        // Analyzing expression is strictly for the right section.
+        // After reacting to the score on the right, smoothly return to idle.
+        nextState = 'returnToIdle';
         break;
       case 'observeLeft':
         nextState = 'reflect';
@@ -335,13 +410,18 @@ export class PersonaAnalysisController {
       default:
         nextState = 'idle';
         this.cycleCount++;
+        this.onCycleComplete?.(this.cycleCount);
+        if (this.cycleCount >= this.maxAnalysisCycles) {
+          this.onTransitionToIdle?.();
+        }
         break;
     }
 
     this.transitionTo(nextState, nowMs);
   }
 
-  public transitionTo(state: AnalysisState, nowMs = performance.now()): void {
+  public transitionTo(state: AnalysisState, _nowMs = performance.now()): void {
+    this.isActive = true;
     this.currentState = state;
     this.stateTimer = 0;
     this.calculateStateDuration(state);
@@ -354,10 +434,17 @@ export class PersonaAnalysisController {
         this.currentTarget = 'forward';
         this.lifeController.releaseAnalysisGaze(0.55);
 
-        // Subtle baseline expression influenced by score (Section 5)
+        // Relax temporary analysis facial tension into comfortable resting baseline in expressive idle
         const pres = getScorePresentation(this.assessmentScore);
         const baseline = pres ? pres.baselineExpression : 'neutral';
-        this.expressionController.setExpression(baseline, 1.2);
+        this.expressionController.setExpression(baseline, 1.0);
+        this.expressionController.setAnalysisLocked(false);
+
+        if (this.cycleCount >= this.maxAnalysisCycles) {
+          // Completed exactly two full analysis-and-reaction cycles:
+          // Deactivate the analysis controller loop so it settles permanently into expressive idle
+          this.isActive = false;
+        }
         break;
       }
 
@@ -389,6 +476,7 @@ export class PersonaAnalysisController {
         // Direct gaze towards viewer/camera so reaction expression is clearly visible front-and-center
         this.currentTarget = 'forward';
         this.lifeController.setAnalysisGaze(0.04 + randX, 0.02 + randY, 0.45);
+        this.hasTriggeredReactionGesture = false;
 
         const pres = getScorePresentation(this.assessmentScore);
         if (!pres) {
@@ -397,17 +485,6 @@ export class PersonaAnalysisController {
         } else {
           // Swift, clear transition into the score reaction expression
           this.expressionController.setExpression(pres.reactionExpression, 0.45);
-
-          // Approving nod for high score: throttle to avoid mechanical repetition (Section 5)
-          if (pres.hasNod) {
-            const isScoreChanged = this.lastNodScore !== this.assessmentScore;
-            const isCooldownExpired = (nowMs - this.lastNodTimeMs) > 42000;
-            if (isScoreChanged || isCooldownExpired || this.deterministic) {
-              this.lastNodScore = this.assessmentScore;
-              this.lastNodTimeMs = nowMs;
-              this.lifeController.triggerApprovingNod(1.2);
-            }
-          }
         }
         break;
       }
@@ -417,7 +494,8 @@ export class PersonaAnalysisController {
         const target = SEMANTIC_GAZE_TARGETS.learning;
 
         this.lifeController.setAnalysisGaze(target.x + randX, target.y + randY, 0.55);
-        this.expressionController.setExpression('attentive', 0.90);
+        // Left learning section: calm, natural neutral glance without analyzing expression
+        this.expressionController.setExpression('neutral', 0.8);
 
         // Natural saccadic blink during wide sweep across center (~40% chance)
         if (!this.deterministic && Math.random() < 0.40) {
@@ -431,14 +509,26 @@ export class PersonaAnalysisController {
         const target = SEMANTIC_GAZE_TARGETS.reflection;
 
         this.lifeController.setAnalysisGaze(target.x + randX * 0.5, target.y + randY * 0.5, 0.50);
-        this.expressionController.setExpression('thinking', 1.0);
+        // Reflection following left glance: maintain relaxed neutral expression, no analyzing expression
+        this.expressionController.setExpression('neutral', 0.8);
         break;
       }
 
       case 'returnToIdle': {
         this.currentTarget = 'forward';
-        this.lifeController.releaseAnalysisGaze(0.55);
-        this.expressionController.setExpression('neutral', 1.1);
+        const transitionDuration = this.deterministic ? 1.0 : this.stateDuration;
+
+        // 1. Return gaze towards natural forward-facing position smoothly over ~1000ms (800-1200ms)
+        this.lifeController.releaseAnalysisGaze(transitionDuration);
+
+        // 2. Smoothly reduce any temporary head movement
+        this.lifeController.cancelHeadShake();
+
+        // 3. Relax temporary analysis-related facial tension into comfortable resting baseline over ~1000ms
+        const pres = getScorePresentation(this.assessmentScore);
+        const baseline = pres ? pres.baselineExpression : 'neutral';
+        this.expressionController.setExpression(baseline, transitionDuration);
+        this.expressionController.setAnalysisLocked(false);
 
         // Natural settle blink
         if (!this.deterministic && Math.random() < 0.30) {

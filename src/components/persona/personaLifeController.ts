@@ -113,6 +113,13 @@ export class PersonaLifeController {
   private approvingNodElapsed = 0;
   private approvingNodDuration = 1.2;
 
+  // Side-to-Side Head Shake for Low Assessment Reaction (< 40%)
+  private isHeadShakeActive = false;
+  private headShakeElapsed = 0;
+  private headShakeDuration = 1.05;
+  private headShakeAmplitude = 0.14;
+  private lastEvaluatedHeadEuler = { pitch: 0, yaw: 0, roll: 0 };
+
   // Intentional Presentation Glances (holds gaze on panels during entrance reveals)
   private isIntentionalGlance = false;
 
@@ -228,6 +235,31 @@ export class PersonaLifeController {
 
   public isApprovingNodInProgress(): boolean {
     return this.isApprovingNodActive;
+  }
+
+  /**
+   * Triggers a distinct side-to-side head shake (used during < 40% worried and sad reactions).
+   */
+  public triggerHeadShake(duration = 1.05, amplitude = 0.14): void {
+    if (this.prefersReducedMotion) return;
+    this.isHeadShakeActive = true;
+    this.headShakeElapsed = 0;
+    this.headShakeDuration = duration;
+    this.headShakeAmplitude = amplitude;
+    this.isApprovingNodActive = false;
+  }
+
+  public isHeadShakeInProgress(): boolean {
+    return this.isHeadShakeActive;
+  }
+
+  public cancelHeadShake(): void {
+    this.isHeadShakeActive = false;
+    this.headShakeElapsed = 0;
+  }
+
+  public getHeadEuler(): { pitch: number; yaw: number; roll: number } {
+    return { ...this.lastEvaluatedHeadEuler };
   }
 
   /**
@@ -709,32 +741,64 @@ export class PersonaLifeController {
         this.isApprovingNodActive = false;
       } else {
         const p = this.approvingNodElapsed / this.approvingNodDuration;
-        // Natural approving nod: gentle dip down ~0.020 rad, then smooth return
+        // Natural approving nod: clear dip down ~0.055 rad, then smooth return
         if (p < 0.45) {
           const t = p / 0.45;
-          approvingNodPitch = 0.020 * Math.sin(t * Math.PI * 0.5);
+          approvingNodPitch = 0.055 * Math.sin(t * Math.PI * 0.5);
         } else {
           const t = (p - 0.45) / 0.55;
-          approvingNodPitch = 0.020 * Math.cos(t * Math.PI * 0.5);
+          approvingNodPitch = 0.055 * Math.cos(t * Math.PI * 0.5);
         }
       }
     }
 
-    // Blend head & neck orientations smoothly with exponential damping
-    const desiredTotalYaw = targetHeadYaw + headDriftYaw;
-    const desiredTotalPitch = targetHeadPitch + headDriftPitch + exprHeadTiltPitch + greetingNodPitch + approvingNodPitch;
-    const desiredTotalRoll = headDriftRoll + exprHeadTiltRoll;
+    // H. Side-to-Side Head Shake for Low Assessment Reaction (< 40%)
+    let headShakeYaw = 0;
+    let headShakeRoll = 0;
+    if (this.isHeadShakeActive) {
+      this.headShakeElapsed += dt;
+      if (this.headShakeElapsed >= this.headShakeDuration) {
+        this.isHeadShakeActive = false;
+      } else {
+        const p = this.headShakeElapsed / this.headShakeDuration;
+        // Natural human head shake: smooth sine oscillation with smooth acceleration & deceleration envelope
+        // Centre -> distinctly right -> distinctly left -> softly settle back to centre
+        const envelope = Math.sin(p * Math.PI); // Ease-in from 0 and ease-out to 0
+        const rawWave = Math.sin(p * Math.PI * 3.0); // 3 smooth directional swings with clear peak at p=0.5
+        headShakeYaw = this.headShakeAmplitude * rawWave * envelope;
+        // Subtle natural roll coupling (human head tilts minimally during yaw shake)
+        headShakeRoll = -headShakeYaw * 0.18;
+      }
+    }
+
+    // Blend smooth baseline head & neck orientations with exponential damping
+    const desiredBaselineYaw = targetHeadYaw + (this.isHeadShakeActive ? 0 : headDriftYaw);
+    const desiredBaselinePitch = targetHeadPitch + headDriftPitch + exprHeadTiltPitch + greetingNodPitch;
+    const desiredBaselineRoll = exprHeadTiltRoll + (this.isHeadShakeActive ? 0 : headDriftRoll);
 
     const headDampSpeed = 4.0;
     const headFactor = 1.0 - Math.exp(-headDampSpeed * dt);
 
-    this.currentHeadEuler.yaw += (desiredTotalYaw * 0.65 - this.currentHeadEuler.yaw) * headFactor;
-    this.currentHeadEuler.pitch += (desiredTotalPitch * 0.65 - this.currentHeadEuler.pitch) * headFactor;
-    this.currentHeadEuler.roll += (desiredTotalRoll * 0.65 - this.currentHeadEuler.roll) * headFactor;
+    this.currentHeadEuler.yaw += (desiredBaselineYaw * 0.65 - this.currentHeadEuler.yaw) * headFactor;
+    this.currentHeadEuler.pitch += (desiredBaselinePitch * 0.65 - this.currentHeadEuler.pitch) * headFactor;
+    this.currentHeadEuler.roll += (desiredBaselineRoll * 0.65 - this.currentHeadEuler.roll) * headFactor;
 
-    this.currentNeckEuler.yaw += (desiredTotalYaw * 0.35 - this.currentNeckEuler.yaw) * headFactor;
-    this.currentNeckEuler.pitch += (desiredTotalPitch * 0.35 - this.currentNeckEuler.pitch) * headFactor;
-    this.currentNeckEuler.roll += (desiredTotalRoll * 0.35 - this.currentNeckEuler.roll) * headFactor;
+    this.currentNeckEuler.yaw += (desiredBaselineYaw * 0.35 - this.currentNeckEuler.yaw) * headFactor;
+    this.currentNeckEuler.pitch += (desiredBaselinePitch * 0.35 - this.currentNeckEuler.pitch) * headFactor;
+    this.currentNeckEuler.roll += (desiredBaselineRoll * 0.35 - this.currentNeckEuler.roll) * headFactor;
+
+    // Compose final bone orientations: smooth baseline + active ballistic gesture offsets (nod & shake)
+    const finalHeadEuler = {
+      pitch: this.currentHeadEuler.pitch + approvingNodPitch * 0.70,
+      yaw: this.currentHeadEuler.yaw + headShakeYaw * 0.70,
+      roll: this.currentHeadEuler.roll + headShakeRoll * 0.70
+    };
+    const finalNeckEuler = {
+      pitch: this.currentNeckEuler.pitch + approvingNodPitch * 0.30,
+      yaw: this.currentNeckEuler.yaw + headShakeYaw * 0.30,
+      roll: this.currentNeckEuler.roll + headShakeRoll * 0.30
+    };
+    this.lastEvaluatedHeadEuler = { ...finalHeadEuler };
 
     // 7. EMOTION-AWARE MORPH BONUSES (Section 2 & 8)
     const effectiveBonusWeight = Math.max(emotionWeight, anticipationWeight * 0.60);
@@ -748,8 +812,8 @@ export class PersonaLifeController {
       blinkFactor,
       eyeOpenBonus,
       squintBonus,
-      headEuler: { ...this.currentHeadEuler },
-      neckEuler: { ...this.currentNeckEuler },
+      headEuler: finalHeadEuler,
+      neckEuler: finalNeckEuler,
       spine2Euler: { pitch: spinePitch, yaw: 0, roll: 0 },
       spine2PositionOffset: { x: 0, y: spinePosY, z: 0 },
       shoulderLift: shoulderLift + this.postureShoulderOffset
