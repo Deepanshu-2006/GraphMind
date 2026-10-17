@@ -151,7 +151,7 @@ describe('GRAPHMIND — PERSONA: REAL-TIME LIP-SYNC & VISEME ENGINE (STEP 9)', (
     it('accurately parses and schedules all Persona test sentences without errors', () => {
       for (const sentence of PERSONA_TEST_SENTENCES) {
         const words = controller.parseTextToVisemes(sentence);
-        assert.ok(words.length >= 4, `Sentence "${sentence}" should produce words`);
+        assert.ok(words.length >= 3, `Sentence "${sentence}" should produce words`);
         for (const w of words) {
           assert.ok(w.frames.length > 0, `Word "${w.word}" should produce viseme frames`);
           assert.ok(w.estimatedDuration >= 0.20, `Word duration should be realistic`);
@@ -351,6 +351,60 @@ describe('GRAPHMIND — PERSONA: REAL-TIME LIP-SYNC & VISEME ENGINE (STEP 9)', (
 
       normalController.dispose();
       reducedController.dispose();
+    });
+
+    it('handles pause and resume without jumping or corrupting animation state', () => {
+      controller.startSpeech('Practice makes progress.');
+      controller.update(0.10);
+      assert.strictEqual(controller.getState().isSpeaking, true);
+      assert.strictEqual(controller.getState().isPaused, false);
+
+      const weightsBeforePause = controller.getCurrentWeights().mouthOpen;
+
+      // Pause speech
+      controller.pauseSpeech();
+      assert.strictEqual(controller.getState().isPaused, true);
+      assert.strictEqual(controller.getState().isSpeaking, true);
+
+      // Updating while paused should not advance timeline
+      controller.update(0.20);
+      assert.strictEqual(controller.getState().isPaused, true);
+
+      // Resume speech
+      controller.resumeSpeech();
+      assert.strictEqual(controller.getState().isPaused, false);
+      assert.strictEqual(controller.getState().isSpeaking, true);
+
+      // Continues smoothly
+      controller.update(0.05);
+      const weightsAfterResume = controller.getCurrentWeights().mouthOpen;
+      assert.ok(Math.abs(weightsAfterResume - weightsBeforePause) < 0.25, 'Resume should transition smoothly');
+    });
+
+    it('verifies all 4 required phrases from the roadmap prompt', () => {
+      const requiredPhrases = [
+        'Hey, welcome to GraphMind.',
+        'Please revise your Operating Systems concepts.',
+        'Practice makes progress.',
+        'GraphMind helps you understand what you learn.'
+      ];
+
+      for (const phrase of requiredPhrases) {
+        const words = controller.parseTextToVisemes(phrase);
+        assert.ok(words.length >= 3, `Phrase "${phrase}" should parse into at least 3 words`);
+        for (const w of words) {
+          assert.ok(w.frames.length > 0, `Word "${w.word}" in phrase "${phrase}" must have viseme frames`);
+          assert.ok(w.estimatedDuration >= 0.20, `Word "${w.word}" duration must be >= 0.20s`);
+        }
+
+        // Test running controller through phrase
+        controller.startSpeech(phrase);
+        assert.strictEqual(controller.getState().isSpeaking, true);
+        controller.update(0.05);
+        assert.ok(controller.getCurrentWeights().mouthOpen >= 0);
+        controller.stopSpeech();
+        assert.strictEqual(controller.getState().isSpeaking, false);
+      }
     });
   });
 });

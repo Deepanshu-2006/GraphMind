@@ -33,6 +33,7 @@ export interface PersonaSpeakingInterface {
   status: SpeechPlaybackStatus;
   isLoading: boolean;
   isSpeaking: boolean;
+  isPaused: boolean;
   isCompleted: boolean;
   isFailed: boolean;
   isError: boolean;
@@ -165,6 +166,7 @@ export function usePersonaSpeech(): UsePersonaSpeechReturn {
     status,
     isLoading: status === 'loading',
     isSpeaking: status === 'speaking' || status === 'loading',
+    isPaused: status === 'paused',
     isCompleted: status === 'completed',
     isFailed: status === 'failed',
     isError: status === 'failed',

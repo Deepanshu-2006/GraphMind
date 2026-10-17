@@ -187,10 +187,11 @@ export function prepareTextForSpeech(rawText: string): string {
  */
 export const PERSONA_TEST_SENTENCES = [
   'Hey, welcome to GraphMind.',
-  'Let’s turn your notes into meaningful connections.',
-  'You can explore the concepts, discover relationships, and continue learning at your own pace.'
+  'Please revise your Operating Systems concepts.',
+  'Practice makes progress.',
+  'GraphMind helps you understand what you learn.'
 ] as const;
 
 export const PERSONA_GREETING_TEXT = PERSONA_TEST_SENTENCES[0];
 
-export type PersonaTestSentenceIndex = 1 | 2 | 3;
+export type PersonaTestSentenceIndex = 1 | 2 | 3 | 4;

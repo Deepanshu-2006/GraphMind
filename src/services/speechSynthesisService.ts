@@ -21,6 +21,7 @@ export type SpeechPlaybackStatus =
   | 'idle'
   | 'loading'
   | 'speaking'
+  | 'paused'
   | 'completed'
   | 'failed';
 
@@ -344,6 +345,16 @@ export class SpeechSynthesisService {
           });
         };
 
+        utterance.onpause = () => {
+          if (this.currentUtterance !== utterance) return;
+          this.updateState('paused', rawTrimmed, null);
+        };
+
+        utterance.onresume = () => {
+          if (this.currentUtterance !== utterance) return;
+          this.updateState('speaking', rawTrimmed, null);
+        };
+
         utterance.onend = () => {
           if (this.currentUtterance !== utterance) return;
           this.currentUtterance = null;
@@ -410,9 +421,10 @@ export class SpeechSynthesisService {
    * Pause ongoing speech playback.
    */
   public pause(): void {
-    if (this.isSupported() && window.speechSynthesis.speaking) {
+    if (this.isSupported() && (window.speechSynthesis.speaking || this.status === 'speaking')) {
       try {
         window.speechSynthesis.pause();
+        this.updateState('paused', this.currentText, null);
       } catch {}
     }
   }
@@ -421,9 +433,10 @@ export class SpeechSynthesisService {
    * Resume paused speech playback.
    */
   public resume(): void {
-    if (this.isSupported() && window.speechSynthesis.paused) {
+    if (this.isSupported() && (window.speechSynthesis.paused || this.status === 'paused')) {
       try {
         window.speechSynthesis.resume();
+        this.updateState('speaking', this.currentText, null);
       } catch {}
     }
   }

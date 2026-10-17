@@ -109,6 +109,28 @@ const G2V_RULES: G2VRule[] = [
   { pattern: /^mp/i, visemes: [{ viseme: 'MPB', weight: 0.65 }] },
   { pattern: /^mb/i, visemes: [{ viseme: 'MPB', weight: 0.65 }] },
 
+  // Consonant Blends with Tongue Articulation (L, R)
+  { pattern: /^pl/i, visemes: [{ viseme: 'MPB', weight: 0.65 }, { viseme: 'TD_I', weight: 0.42, tongue: 'L' }] },
+  { pattern: /^pr/i, visemes: [{ viseme: 'MPB', weight: 0.65 }, { viseme: 'Ax_E', weight: 0.40, tongue: 'R' }] },
+  { pattern: /^bl/i, visemes: [{ viseme: 'MPB', weight: 0.65 }, { viseme: 'TD_I', weight: 0.42, tongue: 'L' }] },
+  { pattern: /^br/i, visemes: [{ viseme: 'MPB', weight: 0.65 }, { viseme: 'Ax_E', weight: 0.40, tongue: 'R' }] },
+  { pattern: /^cl/i, visemes: [{ viseme: 'KG', weight: 0.48 }, { viseme: 'TD_I', weight: 0.42, tongue: 'L' }] },
+  { pattern: /^cr/i, visemes: [{ viseme: 'KG', weight: 0.48 }, { viseme: 'Ax_E', weight: 0.40, tongue: 'R' }] },
+  { pattern: /^gl/i, visemes: [{ viseme: 'KG', weight: 0.48 }, { viseme: 'TD_I', weight: 0.42, tongue: 'L' }] },
+  { pattern: /^gr/i, visemes: [{ viseme: 'KG', weight: 0.48 }, { viseme: 'Ax_E', weight: 0.40, tongue: 'R' }] },
+  { pattern: /^fl/i, visemes: [{ viseme: 'FV', weight: 0.55 }, { viseme: 'TD_I', weight: 0.42, tongue: 'L' }] },
+  { pattern: /^fr/i, visemes: [{ viseme: 'FV', weight: 0.55 }, { viseme: 'Ax_E', weight: 0.40, tongue: 'R' }] },
+  { pattern: /^sl/i, visemes: [{ viseme: 'S', weight: 0.46 }, { viseme: 'TD_I', weight: 0.42, tongue: 'L' }] },
+  { pattern: /^st/i, visemes: [{ viseme: 'S', weight: 0.46 }, { viseme: 'TD_I', weight: 0.44 }] },
+  { pattern: /^sp/i, visemes: [{ viseme: 'S', weight: 0.46 }, { viseme: 'MPB', weight: 0.60 }] },
+  { pattern: /^sm/i, visemes: [{ viseme: 'S', weight: 0.46 }, { viseme: 'MPB', weight: 0.60 }] },
+  { pattern: /^sn/i, visemes: [{ viseme: 'S', weight: 0.46 }, { viseme: 'TD_I', weight: 0.44 }] },
+  { pattern: /^sk/i, visemes: [{ viseme: 'S', weight: 0.46 }, { viseme: 'KG', weight: 0.46 }] },
+
+  // Context-Sensitive Consonants (Soft C and Soft G)
+  { pattern: /^c[eiy]/i, visemes: [{ viseme: 'S', weight: 0.46 }] },
+  { pattern: /^g[eiy]/i, visemes: [{ viseme: 'SH_CH', weight: 0.50 }] },
+
   // Single Consonants & Vowels
   { pattern: /^a/i, visemes: [{ viseme: 'AE_AA', weight: 0.52 }] },
   { pattern: /^b/i, visemes: [{ viseme: 'MPB', weight: 0.65 }] },
@@ -155,6 +177,7 @@ export class PersonaLipSyncController {
 
   // Active Utterance State
   private isSpeaking = false;
+  private isPaused = false;
   private fullUtteranceText = '';
   private words: WordVisemeSequence[] = [];
   private currentWordIndex = -1;
@@ -165,6 +188,10 @@ export class PersonaLipSyncController {
   // Real boundary tracking & fallback pacing
   private lastBoundaryTime = 0;
   private boundaryReceived = false;
+
+  public hasReceivedBoundary(): boolean {
+    return this.boundaryReceived;
+  }
 
   // Current Evaluated Morph Weights (Smoothly lerped)
   private currentWeights: LipSyncWeights = this.createEmptyWeights();
@@ -223,7 +250,11 @@ export class PersonaLipSyncController {
       if (state.status === 'speaking' && state.text) {
         if (!this.isSpeaking || this.fullUtteranceText !== state.text) {
           this.startSpeech(state.text);
+        } else if (this.isPaused) {
+          this.resumeSpeech();
         }
+      } else if (state.status === 'paused') {
+        this.pauseSpeech();
       } else if (state.status === 'completed' || state.status === 'idle' || state.status === 'failed') {
         if (this.isSpeaking) {
           this.stopSpeech();
@@ -311,6 +342,94 @@ export class PersonaLipSyncController {
         { viseme: 'MPB', weight: 0.65 },
         { viseme: 'AE_AA', weight: 0.48 },
         { viseme: 'TD_I', weight: 0.44 }
+      ],
+      graphmind: [
+        { viseme: 'KG', weight: 0.46, tongue: 'R' },
+        { viseme: 'AE_AA', weight: 0.52 },
+        { viseme: 'FV', weight: 0.55 },
+        { viseme: 'MPB', weight: 0.65 },
+        { viseme: 'AE_AA', weight: 0.48 },
+        { viseme: 'TD_I', weight: 0.44 }
+      ],
+      please: [
+        { viseme: 'MPB', weight: 0.65 },
+        { viseme: 'TD_I', weight: 0.42, tongue: 'L' },
+        { viseme: 'Ax_E', weight: 0.45 },
+        { viseme: 'S', weight: 0.46 }
+      ],
+      revise: [
+        { viseme: 'Ax_E', weight: 0.42, tongue: 'R' },
+        { viseme: 'FV', weight: 0.55 },
+        { viseme: 'AE_AA', weight: 0.48 },
+        { viseme: 'S', weight: 0.46 }
+      ],
+      operating: [
+        { viseme: 'AO_A', weight: 0.48 },
+        { viseme: 'MPB', weight: 0.65 },
+        { viseme: 'Ax_E', weight: 0.42, tongue: 'R' },
+        { viseme: 'TD_I', weight: 0.44 },
+        { viseme: 'KG', weight: 0.45 }
+      ],
+      systems: [
+        { viseme: 'S', weight: 0.46 },
+        { viseme: 'TD_I', weight: 0.42 },
+        { viseme: 'S', weight: 0.44 },
+        { viseme: 'TD_I', weight: 0.42 },
+        { viseme: 'MPB', weight: 0.65 },
+        { viseme: 'S', weight: 0.44 }
+      ],
+      concepts: [
+        { viseme: 'KG', weight: 0.48 },
+        { viseme: 'AO_A', weight: 0.45 },
+        { viseme: 'TD_I', weight: 0.42 },
+        { viseme: 'S', weight: 0.46 },
+        { viseme: 'Ax_E', weight: 0.42 },
+        { viseme: 'MPB', weight: 0.65 },
+        { viseme: 'TD_I', weight: 0.42 },
+        { viseme: 'S', weight: 0.44 }
+      ],
+      practice: [
+        { viseme: 'MPB', weight: 0.65 },
+        { viseme: 'Ax_E', weight: 0.42, tongue: 'R' },
+        { viseme: 'AE_AA', weight: 0.52 },
+        { viseme: 'KG', weight: 0.46 },
+        { viseme: 'TD_I', weight: 0.42 },
+        { viseme: 'S', weight: 0.46 }
+      ],
+      makes: [
+        { viseme: 'MPB', weight: 0.65 },
+        { viseme: 'Ax_E', weight: 0.48 },
+        { viseme: 'KG', weight: 0.46 },
+        { viseme: 'S', weight: 0.46 }
+      ],
+      progress: [
+        { viseme: 'MPB', weight: 0.65 },
+        { viseme: 'Ax_E', weight: 0.42, tongue: 'R' },
+        { viseme: 'AO_A', weight: 0.46 },
+        { viseme: 'KG', weight: 0.46 },
+        { viseme: 'Ax_E', weight: 0.42, tongue: 'R' },
+        { viseme: 'S', weight: 0.46 }
+      ],
+      helps: [
+        { viseme: 'H_EST', weight: 0.42 },
+        { viseme: 'Ax_E', weight: 0.44 },
+        { viseme: 'TD_I', weight: 0.38, tongue: 'L' },
+        { viseme: 'MPB', weight: 0.65 },
+        { viseme: 'S', weight: 0.44 }
+      ],
+      understand: [
+        { viseme: 'AE_AA', weight: 0.48 },
+        { viseme: 'TD_I', weight: 0.42 },
+        { viseme: 'Ax_E', weight: 0.42, tongue: 'R' },
+        { viseme: 'S', weight: 0.44 },
+        { viseme: 'TD_I', weight: 0.42 },
+        { viseme: 'AE_AA', weight: 0.48 },
+        { viseme: 'TD_I', weight: 0.42 }
+      ],
+      learn: [
+        { viseme: 'TD_I', weight: 0.45, tongue: 'L' },
+        { viseme: 'Ax_E', weight: 0.48, tongue: 'R' },
+        { viseme: 'TD_I', weight: 0.42 }
       ]
     };
 
@@ -447,6 +566,7 @@ export class PersonaLipSyncController {
    */
   public stopSpeech(): void {
     this.isSpeaking = false;
+    this.isPaused = false;
     this.currentWordIndex = -1;
     this.currentFrameIndex = -1;
     this.wordElapsedTime = 0;
@@ -454,9 +574,29 @@ export class PersonaLipSyncController {
   }
 
   /**
+   * Pause ongoing speech animation without jumping or resetting mouth shape abruptly.
+   */
+  public pauseSpeech(): void {
+    if (this.isSpeaking) {
+      this.isPaused = true;
+    }
+  }
+
+  /**
+   * Resume speech animation seamlessly from the held frame.
+   */
+  public resumeSpeech(): void {
+    if (this.isSpeaking && this.isPaused) {
+      this.isPaused = false;
+      this.lastBoundaryTime = performance.now();
+    }
+  }
+
+  /**
    * Reset targets immediately to neutral rest.
    */
   public resetTargetsToRest(): void {
+    this.isPaused = false;
     for (const k in this.targetWeights.visemes) {
       this.targetWeights.visemes[k as VisemeName] = 0;
     }
@@ -543,7 +683,9 @@ export class PersonaLipSyncController {
    * Advances the lip-sync controller animation by delta time dt.
    */
   public update(dt: number): void {
-    if (this.isSpeaking && this.words.length > 0 && this.currentWordIndex >= 0) {
+    if (!this.isSpeaking) {
+      this.resetTargetsToRest();
+    } else if (!this.isPaused && this.words.length > 0 && this.currentWordIndex >= 0) {
       this.wordElapsedTime += dt;
 
       const activeWord = this.words[this.currentWordIndex];
@@ -580,8 +722,6 @@ export class PersonaLipSyncController {
           }
         }
       }
-    } else {
-      this.resetTargetsToRest();
     }
 
     // Co-articulation smoothing: lerp current weights toward target weights
@@ -781,6 +921,7 @@ export class PersonaLipSyncController {
   public getState() {
     return {
       isSpeaking: this.isSpeaking,
+      isPaused: this.isPaused,
       currentWordIndex: this.currentWordIndex,
       currentWord: this.words[this.currentWordIndex]?.word || null,
       totalWords: this.words.length,
