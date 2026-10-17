@@ -189,9 +189,22 @@ export const PERSONA_TEST_SENTENCES = [
   'Hey, welcome to GraphMind.',
   'Please revise your Operating Systems concepts.',
   'Practice makes progress.',
-  'GraphMind helps you understand what you learn.'
+  'GraphMind helps you understand what you learn.',
+  'Peter bought a beautiful blue book.',
+  'Welcome to GraphMind. We hope you enjoy learning.',
+  'Five clever students studied computer science.',
+  'Hey, welcome back! You’ve made great progress. Let’s revise one more concept together.',
+  'GraphMind helps you master complex computer science concepts through structured knowledge graphs. When you revise regularly, your understanding deepens and retention improves naturally over time.'
 ] as const;
 
 export const PERSONA_GREETING_TEXT = PERSONA_TEST_SENTENCES[0];
 
-export type PersonaTestSentenceIndex = 1 | 2 | 3 | 4;
+export type PersonaTestSentenceIndex = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+
+export const ULTRA_REALISTIC_TEST_SENTENCES = {
+  testA_lipClosure: 'Peter bought a beautiful blue book.',
+  testB_roundedVowels: 'Welcome to GraphMind. We hope you enjoy learning.',
+  testC_mixedArticulation: 'Five clever students studied computer science.',
+  testD_naturalSentence: 'Hey, welcome back! You’ve made great progress. Let’s revise one more concept together.',
+  testE_longSpeech: 'GraphMind helps you master complex computer science concepts through structured knowledge graphs. When you revise regularly, your understanding deepens and retention improves naturally over time.'
+} as const;
