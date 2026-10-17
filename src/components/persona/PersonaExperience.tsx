@@ -11,6 +11,7 @@ import { personaTransitionController } from './personaTransition';
 import { usePersonaPresentation } from './usePersonaPresentation';
 import { PERSONA_GREETING_TEXT } from './personaVoiceConfig';
 import { PersonaActivityPanel } from './PersonaActivityPanel';
+import { PersonaPerformancePanel } from './PersonaPerformancePanel';
 import { useOptionalGraph } from '../../context/GraphContext';
 
 export interface PersonaExperienceProps {
@@ -279,7 +280,9 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
                 <PersonaActivityPanel onSelectGraph={handleSelectGraph} />
               </div>
               <div className="persona-dashboard-center" aria-hidden="true" />
-              <div className="persona-dashboard-right" aria-hidden="true" />
+              <div className="persona-dashboard-right">
+                <PersonaPerformancePanel onSelectGraph={handleSelectGraph} />
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

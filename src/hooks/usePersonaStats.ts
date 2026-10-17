@@ -87,6 +87,20 @@ export function calculatePersonaStats(options: CalculatePersonaStatsOptions = {}
   let totalConcepts = 0;
   let demonstratedConcepts = 0;
   const uniqueConceptsNeedingReview = new Set<string>();
+  const conceptsNeedingRevisionExamples: string[] = [];
+
+  const recordConceptNeedingReview = (metaId: string, conceptId: string, nodes: Array<{ id: string; name: string }>) => {
+    const key = `${metaId}:${conceptId}`;
+    if (!uniqueConceptsNeedingReview.has(key)) {
+      uniqueConceptsNeedingReview.add(key);
+      if (conceptsNeedingRevisionExamples.length < 2) {
+        const found = nodes.find(n => n.id === conceptId);
+        if (found?.name && !conceptsNeedingRevisionExamples.includes(found.name)) {
+          conceptsNeedingRevisionExamples.push(found.name);
+        }
+      }
+    }
+  };
 
   // Check active revision session (prefer active graph, fallback to first active session found)
   let foundActiveRevision: PersonaRevisionProgress | null = null;
@@ -128,20 +142,20 @@ export function calculatePersonaStats(options: CalculatePersonaStatsOptions = {}
 
       // Collect concepts needing review from mastery
       for (const cId of mastery.needsReviewConceptIds) {
-        uniqueConceptsNeedingReview.add(`${meta.id}:${cId}`);
+        recordConceptNeedingReview(meta.id, cId, nodes);
       }
     }
 
     // Collect concepts needing review from practice states
     const needsReviewFromPractice = getConceptsByKnowledgeState(meta.id, 'needs-review');
     for (const cId of needsReviewFromPractice) {
-      uniqueConceptsNeedingReview.add(`${meta.id}:${cId}`);
+      recordConceptNeedingReview(meta.id, cId, nodes);
     }
 
     // Collect concepts flagged in session
     if (session?.markedForReviewIds) {
       for (const cId of session.markedForReviewIds) {
-        uniqueConceptsNeedingReview.add(`${meta.id}:${cId}`);
+        recordConceptNeedingReview(meta.id, cId, nodes);
       }
     }
   }
@@ -194,7 +208,8 @@ export function calculatePersonaStats(options: CalculatePersonaStatsOptions = {}
     recentAssessments,
     averageScore,
     activeRevisionProgress: foundActiveRevision,
-    conceptsNeedingRevisionCount: uniqueConceptsNeedingReview.size
+    conceptsNeedingRevisionCount: uniqueConceptsNeedingReview.size,
+    conceptsNeedingRevisionExamples
   };
 
   return {

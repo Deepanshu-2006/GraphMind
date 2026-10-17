@@ -252,11 +252,14 @@
 }
 
 .persona-dashboard-right {
-  pointer-events: none;
+  pointer-events: auto;
+  width: 100%;
+  max-width: 340px;
 }
 
-/* Learning Activity Panel — Floating Editorial Statistics */
-.persona-activity-panel {
+/* Learning Activity & Performance Panels — Floating Editorial Statistics */
+.persona-activity-panel,
+.persona-performance-panel {
   display: flex;
   flex-direction: column;
   gap: 32px;
@@ -466,6 +469,50 @@
   outline-offset: 2px;
 }
 
+/* Performance Specific Indicators */
+.persona-score-badge {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent, #A3FF12);
+  background: rgba(163, 255, 18, 0.08);
+  border: 1px solid rgba(163, 255, 18, 0.2);
+  border-radius: var(--radius-sm, 4px);
+  padding: 1px 6px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.persona-concepts-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.persona-concept-chip {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 450;
+  color: var(--text-secondary, #A1A1A1);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  padding: 3px 10px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: -0.005em;
+  transition: color 150ms ease, border-color 150ms ease;
+}
+
+.persona-concept-chip:hover {
+  color: var(--text-primary, #F5F5F5);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
 /* Responsive Viewports */
 @media (max-width: 1024px) {
   .persona-dashboard-overlay {
@@ -473,7 +520,8 @@
     padding: 24px 32px 36px 32px;
   }
 
-  .persona-activity-panel {
+  .persona-activity-panel,
+  .persona-performance-panel {
     gap: 24px;
   }
 
@@ -495,15 +543,15 @@
     padding: 16px 20px 24px 20px;
     height: 100%;
     pointer-events: none;
+    gap: 12px;
   }
 
-  .persona-dashboard-left {
+  .persona-dashboard-left,
+  .persona-dashboard-right {
     pointer-events: auto;
     max-width: 100%;
     width: 100%;
-    background: rgba(14, 14, 14, 0.88);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: rgba(14, 14, 14, 0.95);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
     padding: 16px 18px;
@@ -511,12 +559,12 @@
     overflow-y: auto;
   }
 
-  .persona-dashboard-center,
-  .persona-dashboard-right {
+  .persona-dashboard-center {
     display: none;
   }
 
-  .persona-activity-panel {
+  .persona-activity-panel,
+  .persona-performance-panel {
     gap: 16px;
   }
 

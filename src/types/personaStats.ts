@@ -77,6 +77,8 @@ export interface PersonaPerformanceStats {
   activeRevisionProgress: PersonaRevisionProgress | null;
   /** Total number of unique concepts requiring revision across user graphs */
   conceptsNeedingRevisionCount: number;
+  /** Up to 2 example concept names currently needing revision */
+  conceptsNeedingRevisionExamples: string[];
 }
 
 export interface PersonaStatsData {
