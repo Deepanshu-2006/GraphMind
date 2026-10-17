@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
-import { motion, useReducedMotion, type Variants } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { PersonaAtmosphere } from './PersonaAtmosphere';
 import {
@@ -10,10 +10,13 @@ import {
 import { personaTransitionController } from './personaTransition';
 import { usePersonaPresentation } from './usePersonaPresentation';
 import { PERSONA_GREETING_TEXT } from './personaVoiceConfig';
+import { PersonaActivityPanel } from './PersonaActivityPanel';
+import { useOptionalGraph } from '../../context/GraphContext';
 
 export interface PersonaExperienceProps {
   isOpen: boolean;
   onClose: () => void;
+  onSelectGraph?: (graphId: string) => void;
   /** Integration slot for Prompt 02: 3D Humanoid character */
   characterSlot?: React.ReactNode;
 }
@@ -21,6 +24,7 @@ export interface PersonaExperienceProps {
 export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
   isOpen,
   onClose,
+  onSelectGraph,
   characterSlot
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -29,10 +33,12 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
   const shouldReduceMotion = useReducedMotion();
   const [animationState, setAnimationState] = useState<PersonaAnimationState>('INITIALIZING');
   const [greetingCaptionVisible, setGreetingCaptionVisible] = useState(false);
+  const [hasGreetingCompleted, setHasGreetingCompleted] = useState(false);
   const hasTriggeredGreetingRef = useRef(false);
 
   // Reusable silent visual presentation infrastructure
   const presentation = usePersonaPresentation();
+  const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Coordinated visual greeting handler: manages subtitle visibility and timing
   const handleGreetingChange = useCallback((stage: PersonaGreetingStage) => {
@@ -42,14 +48,44 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
         setGreetingCaptionVisible(true);
       }
     } else if (stage === 'complete') {
+      // 1. Greeting text fades out
       setGreetingCaptionVisible(false);
+
+      // 2. Character begins turning head and eyes left to introduce the stats.
+      // Render stats 350ms later right as character's gaze lands on the left area.
+      if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+      revealTimerRef.current = setTimeout(() => {
+        setHasGreetingCompleted(true);
+      }, 350);
     }
   }, []);
 
+  // If characterSlot is provided externally (e.g. test harness without 3D canvas), reveal stats
+  useEffect(() => {
+    if (characterSlot) {
+      setHasGreetingCompleted(true);
+    }
+    return () => {
+      if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+    };
+  }, [characterSlot]);
+
+  const graphContext = useOptionalGraph();
+
   const handleExit = useCallback(() => {
+    if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
     presentation.cancel();
     onClose();
   }, [presentation, onClose]);
+
+  const handleSelectGraph = useCallback((graphId: string) => {
+    if (onSelectGraph) {
+      onSelectGraph(graphId);
+    } else if (graphContext?.switchGraph) {
+      graphContext.switchGraph(graphId);
+    }
+    handleExit();
+  }, [onSelectGraph, graphContext, handleExit]);
 
   // Synchronize status indicator with the shared persona transition controller
   useEffect(() => {
@@ -228,6 +264,25 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
             />
           )}
         </div>
+
+        {/* Dashboard 3-Column Overlay — Left: Learning Activity, Center: Clear for Character, Right: Reserved */}
+        <AnimatePresence>
+          {hasGreetingCompleted && (
+            <motion.div
+              className="persona-dashboard-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: shouldReduceMotion ? 0 : 0.6, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <div className="persona-dashboard-left">
+                <PersonaActivityPanel onSelectGraph={handleSelectGraph} />
+              </div>
+              <div className="persona-dashboard-center" aria-hidden="true" />
+              <div className="persona-dashboard-right" aria-hidden="true" />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Minimal, elegant visual subtitle capsule (silent presentation) */}
         {greetingCaptionVisible && (

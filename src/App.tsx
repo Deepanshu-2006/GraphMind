@@ -553,6 +553,7 @@ export function AppContent() {
           <PersonaExperience
             isOpen={isPersonaOpen}
             onClose={handleClosePersona}
+            onSelectGraph={handleSelectGraph}
           />
         )}
       </AnimatePresence>

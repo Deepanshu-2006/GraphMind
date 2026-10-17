@@ -20,6 +20,8 @@ export interface PersonaActivityStats {
   totalGraphs: number;
   /** Most recently updated graph and activity, or null if no graphs exist */
   recentGraph: RecentGraphActivity | null;
+  /** Up to 3 most recently updated graphs, newest first */
+  recentGraphs: RecentGraphActivity[];
   /** Total concepts aggregated across all user knowledge graphs */
   totalConcepts: number;
   /** Count of concepts with demonstrated understanding across user graphs */

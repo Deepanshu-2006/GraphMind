@@ -203,6 +203,26 @@ export class PersonaLifeController {
     this.greetingElapsed = 0;
   }
 
+  /**
+   * Triggers an intentional glance towards a specific target coordinate in NDC
+   * (e.g. towards the learning statistics panel on the left), holding gaze and head
+   * orientation towards the target before naturally returning to viewer.
+   */
+  public glanceTowards(targetX: number, targetY: number, duration = 2.4): void {
+    if (this.prefersReducedMotion || this.isForcedGaze()) return;
+
+    this.gazeMode = 'GLANCE_AWAY';
+    this.gazeTimer = 0;
+    this.gazeTargetDuration = duration;
+    this.startIdleGaze = { ...this.currentIdleGaze };
+    this.targetIdleGaze = {
+      x: Math.max(-0.85, Math.min(0.85, targetX)),
+      y: Math.max(-0.65, Math.min(0.65, targetY))
+    };
+    this.transitionProgress = 0;
+    this.transitionDuration = 0.45;
+  }
+
   // ---------------------------------------------------------------------------
   // TIMERS & TRANSITIONS
   // ---------------------------------------------------------------------------

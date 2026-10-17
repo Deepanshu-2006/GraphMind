@@ -45,8 +45,10 @@ export function calculatePersonaStats(options: CalculatePersonaStatsOptions = {}
   const graphs: KnowledgeGraphMeta[] = options.graphs || loadGraphs();
   const totalGraphs = graphs.length;
 
-  // 2. Identify most recently updated graph
+  // 2. Identify most recently updated graphs
   let recentGraph: RecentGraphActivity | null = null;
+  const recentGraphs: RecentGraphActivity[] = [];
+
   if (graphs.length > 0) {
     const sortedGraphs = [...graphs].sort((a, b) => {
       const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
@@ -66,6 +68,19 @@ export function calculatePersonaStats(options: CalculatePersonaStatsOptions = {}
       createdAt: latest.createdAt,
       totalConcepts: latestData?.nodes?.length || 0
     };
+
+    for (const g of sortedGraphs.slice(0, 3)) {
+      const gData = g.id === options.activeGraphId && options.activeGraph
+        ? options.activeGraph
+        : loadGraphData(g.id);
+      recentGraphs.push({
+        graphId: g.id,
+        graphName: g.name,
+        updatedAt: g.updatedAt,
+        createdAt: g.createdAt,
+        totalConcepts: gData?.nodes?.length || 0
+      });
+    }
   }
 
   // 3. Aggregate Concepts, Demonstrated Mastery, and Revision Needs across all user graphs
@@ -138,6 +153,7 @@ export function calculatePersonaStats(options: CalculatePersonaStatsOptions = {}
   const activityStats: PersonaActivityStats = {
     totalGraphs,
     recentGraph,
+    recentGraphs,
     totalConcepts,
     demonstratedConcepts,
     demonstratedPercentage

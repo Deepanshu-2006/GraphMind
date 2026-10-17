@@ -1135,6 +1135,9 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
 
               // Fade greeting text out smoothly
               onGreetingChangeRef.current?.('complete');
+
+              // Gracefully glance towards the newly revealed learning statistics panel on the left
+              lifeController.glanceTowards(-0.52, 0.06, 2.8);
             };
 
             greetingCompleteTimeout = setTimeout(completeGreeting, 3200);
