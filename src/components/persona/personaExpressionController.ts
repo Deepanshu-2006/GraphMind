@@ -1,13 +1,23 @@
 import * as THREE from 'three';
+import {
+  type PersonaExpression,
+  type ExpressionPhase,
+  type EmotionBehaviorProfile,
+  type ExpressionStateInfo,
+  EMOTION_BEHAVIOR_PROFILES,
+  getEmotionProfile,
+  pickNextNaturalEmotion
+} from './personaEmotionProfiles';
 
-export type PersonaExpression =
-  | 'neutral'
-  | 'happy'
-  | 'sad'
-  | 'angry'
-  | 'surprised'
-  | 'thinking'
-  | 'worried';
+export {
+  type PersonaExpression,
+  type ExpressionPhase,
+  type EmotionBehaviorProfile,
+  type ExpressionStateInfo,
+  EMOTION_BEHAVIOR_PROFILES,
+  getEmotionProfile,
+  pickNextNaturalEmotion
+};
 
 export interface FacialMorphWeights {
   head: Record<number, number>;
@@ -15,7 +25,7 @@ export interface FacialMorphWeights {
 }
 
 /**
- * Predefined anatomical morph target weights for the 7 Persona expressions.
+ * Predefined anatomical morph target weights for all Persona expressions.
  * Head indices map to H_DDS_HighRes (65 morph targets).
  * TeethDown indices map to h_TeethDown (31 morph targets).
  */
@@ -60,6 +70,48 @@ export const PERSONA_EXPRESSION_PRESETS: Record<PersonaExpression, FacialMorphWe
     },
     teethDown: {
       29: 0.28  // t_MouthOpen_h
+    }
+  },
+
+  curious: {
+    head: {
+      26: 0.08, // MouthOpen_h
+      17: 0.18, // RlipSide_h
+      28: 0.14, // RsmileClose_h
+      29: 0.04, // LsmileClose_h
+      47: 0.36, // ReyeOpen_h
+      48: 0.28, // LeyeOpen_h
+      49: 0.08, // Rsquint_h
+      50: 0.18, // Lsquint_h
+      58: 0.44, // RbrowUp_h (inquisitive right brow lift)
+      57: 0.34, // RRbrowUp_h
+      63: 0.20, // LbrowDown_h (subtle thoughtful left brow drop)
+      64: 0.14, // LLbrowDown_h
+      39: 0.12  // Chin_h
+    },
+    teethDown: {
+      29: 0.08  // t_MouthOpen_h
+    }
+  },
+
+  thinking: {
+    head: {
+      26: 0.08, // MouthOpen_h
+      17: 0.18, // RlipSide_h
+      28: 0.14, // RsmileClose_h
+      29: 0.04, // LsmileClose_h
+      47: 0.36, // ReyeOpen_h
+      48: 0.28, // LeyeOpen_h
+      49: 0.08, // Rsquint_h
+      50: 0.18, // Lsquint_h
+      58: 0.44, // RbrowUp_h
+      57: 0.34, // RRbrowUp_h
+      63: 0.20, // LbrowDown_h
+      64: 0.14, // LLbrowDown_h
+      39: 0.12  // Chin_h
+    },
+    teethDown: {
+      29: 0.08  // t_MouthOpen_h
     }
   },
 
@@ -133,27 +185,6 @@ export const PERSONA_EXPRESSION_PRESETS: Record<PersonaExpression, FacialMorphWe
     }
   },
 
-  thinking: {
-    head: {
-      26: 0.08, // MouthOpen_h
-      17: 0.18, // RlipSide_h
-      28: 0.14, // RsmileClose_h
-      29: 0.04, // LsmileClose_h
-      47: 0.32, // ReyeOpen_h
-      48: 0.22, // LeyeOpen_h
-      49: 0.08, // Rsquint_h
-      50: 0.22, // Lsquint_h
-      58: 0.42, // RbrowUp_h (inquisitive right brow lift)
-      57: 0.32, // RRbrowUp_h
-      63: 0.22, // LbrowDown_h (subtle thoughtful left brow drop)
-      64: 0.16, // LLbrowDown_h
-      39: 0.12  // Chin_h
-    },
-    teethDown: {
-      29: 0.08  // t_MouthOpen_h
-    }
-  },
-
   worried: {
     head: {
       8: 0.62,  // S_h (bared teeth grimace with horizontal lip retraction)
@@ -192,7 +223,7 @@ export const PERSONA_EXPRESSION_PRESETS: Record<PersonaExpression, FacialMorphWe
 };
 
 /**
- * Natural emotional progression sequence returning to neutral between states.
+ * Standard progression sequence for backwards compatibility with tests.
  */
 export const AUTOMATIC_EXPRESSION_SEQUENCE: PersonaExpression[] = [
   'neutral',
@@ -202,7 +233,7 @@ export const AUTOMATIC_EXPRESSION_SEQUENCE: PersonaExpression[] = [
   'neutral',
   'surprised',
   'neutral',
-  'worried', // Mandatory frightened / anxious expression from reference
+  'worried',
   'neutral',
   'sad',
   'neutral',
@@ -217,6 +248,8 @@ export interface ExpressionControllerConfig {
 export class PersonaExpressionController {
   private currentExpr: PersonaExpression = 'neutral';
   private targetExpr: PersonaExpression = 'neutral';
+  private lastNonNeutralExpr: PersonaExpression = 'neutral';
+
   private fromWeightsHead: number[] = new Array(65).fill(0);
   private toWeightsHead: number[] = new Array(65).fill(0);
   private currentWeightsHead: number[] = new Array(65).fill(0);
@@ -225,12 +258,21 @@ export class PersonaExpressionController {
   private toWeightsTeeth: number[] = new Array(31).fill(0);
   private currentWeightsTeeth: number[] = new Array(31).fill(0);
 
+  // Transition Phase State Machine
+  private phase: ExpressionPhase = 'HOLDING';
+  private phaseTimer = 0;
+  private anticipationDuration = 0;
   private transitionProgress = 1.0;
   private transitionDuration = 1.0;
+  private settlingDuration = 0;
   private holdTimer = 0;
-  private holdDuration = 3.5;
-  private isHolding = true;
-  private sequenceIndex = 0;
+  private holdDuration = 4.0;
+
+  // Emotion-Specific Head Posture for Current Occurrence
+  private activeTiltRoll = 0;
+  private activeTiltPitch = 0;
+
+  // Config & Flags
   private forcedExpression: PersonaExpression | null = null;
   private reducedMotion = false;
 
@@ -246,11 +288,13 @@ export class PersonaExpressionController {
     this.currentWeightsTeeth = [...this.toWeightsTeeth];
     this.fromWeightsHead = [...this.toWeightsHead];
     this.fromWeightsTeeth = [...this.toWeightsTeeth];
+
+    this.phase = 'HOLDING';
     this.holdDuration = this.getHoldDuration(initial);
   }
 
   private copyPresetToTarget(expr: PersonaExpression) {
-    const preset = PERSONA_EXPRESSION_PRESETS[expr];
+    const preset = PERSONA_EXPRESSION_PRESETS[expr] || PERSONA_EXPRESSION_PRESETS.neutral;
     this.toWeightsHead.fill(0);
     this.toWeightsTeeth.fill(0);
 
@@ -268,86 +312,216 @@ export class PersonaExpressionController {
     }
   }
 
-  private getHoldDuration(expr: PersonaExpression): number {
-    if (expr === 'neutral') {
-      return 2.0 + Math.random() * 0.8; // 2.0s - 2.8s resting interval
-    }
-    if (expr === 'worried') {
-      return 3.2 + Math.random() * 0.8; // 3.2s - 4.0s hold for dramatic impact
-    }
-    return 3.5 + Math.random() * 1.0; // 3.5s - 4.5s for normal expressions
+  public getHoldDuration(expr: PersonaExpression): number {
+    const profile = getEmotionProfile(expr);
+    const range = profile.holdDurationMax - profile.holdDurationMin;
+    return profile.holdDurationMin + Math.random() * Math.max(0, range);
   }
 
-  private getTransitionDuration(toExpr: PersonaExpression): number {
-    if (toExpr === 'neutral') {
-      return 0.95 + Math.random() * 0.25; // 0.95s - 1.20s smooth return
-    }
-    if (toExpr === 'worried') {
-      return 1.15 + Math.random() * 0.20; // 1.15s - 1.35s progressive build
-    }
-    return 1.05 + Math.random() * 0.25; // 1.05s - 1.30s entrance
+  public getTransitionDuration(toExpr: PersonaExpression): number {
+    const profile = getEmotionProfile(toExpr);
+    const range = profile.transitionDurationMax - profile.transitionDurationMin;
+    return profile.transitionDurationMin + Math.random() * Math.max(0, range);
   }
 
-  public setExpression(expr: PersonaExpression, duration = 1.0) {
-    if (expr === this.targetExpr && this.transitionProgress >= 1.0) return;
+  /**
+   * Set target expression with optional explicit transition duration.
+   * Gracefully blends from wherever the face currently is without snapping.
+   */
+  public setExpression(expr: PersonaExpression, duration?: number) {
+    // Alias thinking to curious or vice-versa
+    const normalizedExpr: PersonaExpression = expr === 'curious' ? 'thinking' : expr;
+    const currentNormalized = this.targetExpr === 'curious' ? 'thinking' : this.targetExpr;
+
+    if (normalizedExpr === currentNormalized && this.phase === 'HOLDING') return;
 
     this.fromWeightsHead = [...this.currentWeightsHead];
     this.fromWeightsTeeth = [...this.currentWeightsTeeth];
     this.currentExpr = this.targetExpr;
-    this.targetExpr = expr;
-    this.copyPresetToTarget(expr);
+    this.targetExpr = normalizedExpr;
+    this.copyPresetToTarget(normalizedExpr);
 
-    this.transitionProgress = 0.0;
-    this.transitionDuration = Math.max(0.1, duration);
-    this.isHolding = false;
+    const profile = getEmotionProfile(normalizedExpr);
+    const hasExplicitDuration = duration !== undefined;
+    this.transitionDuration = Math.max(0.1, duration ?? this.getTransitionDuration(normalizedExpr));
+
+    // Anticipation applies during natural transitions without explicit override duration
+    this.anticipationDuration = (hasExplicitDuration || normalizedExpr === 'neutral' || this.reducedMotion || this.forcedExpression)
+      ? 0.0
+      : profile.anticipationDuration;
+    this.settlingDuration = hasExplicitDuration ? 0.0 : profile.settlingDuration;
+
+    // Evaluate head tilt probability for this specific occurrence (Section 2 & 7)
+    const rollTilt = Math.random() < profile.headTiltChance;
+    this.activeTiltRoll = rollTilt ? profile.headTiltRoll : 0;
+    this.activeTiltPitch = rollTilt ? profile.headTiltPitch : 0;
+
+    // Start with anticipation if applicable, otherwise transition directly
+    if (this.anticipationDuration > 0.05) {
+      this.phase = 'ANTICIPATING';
+      this.phaseTimer = 0;
+      this.transitionProgress = 0.0;
+    } else {
+      this.phase = 'TRANSITIONING';
+      this.phaseTimer = 0;
+      this.transitionProgress = 0.0;
+    }
   }
 
   public getCurrentExpression(): PersonaExpression {
     return this.targetExpr;
   }
 
+  public getPhase(): ExpressionPhase {
+    return this.phase;
+  }
+
+  /**
+   * Returns complete expression state for coordinated gaze, head posture, and timing.
+   */
+  public getStateInfo(): ExpressionStateInfo {
+    const profile = getEmotionProfile(this.targetExpr);
+    let expressionWeight = 0;
+    let anticipationWeight = 0;
+    let settlingWeight = 0;
+
+    if (this.phase === 'ANTICIPATING') {
+      anticipationWeight = this.anticipationDuration > 0
+        ? Math.min(1.0, this.phaseTimer / this.anticipationDuration)
+        : 0;
+      expressionWeight = anticipationWeight * 0.12;
+    } else if (this.phase === 'TRANSITIONING') {
+      const p = Math.max(0, Math.min(1, this.transitionProgress));
+      expressionWeight = p * p * (3 - 2 * p);
+    } else if (this.phase === 'SETTLING') {
+      expressionWeight = 1.0;
+      settlingWeight = this.settlingDuration > 0
+        ? 1.0 - Math.min(1.0, this.phaseTimer / this.settlingDuration)
+        : 0;
+    } else {
+      expressionWeight = 1.0;
+    }
+
+    return {
+      currentExpr: this.currentExpr,
+      targetExpr: this.targetExpr,
+      activeExpr: this.targetExpr,
+      phase: this.phase,
+      phaseProgress: this.phase === 'ANTICIPATING'
+        ? (this.anticipationDuration > 0 ? this.phaseTimer / this.anticipationDuration : 1)
+        : this.phase === 'TRANSITIONING'
+        ? this.transitionProgress
+        : this.phase === 'SETTLING'
+        ? (this.settlingDuration > 0 ? this.phaseTimer / this.settlingDuration : 1)
+        : 1,
+      transitionProgress: this.transitionProgress,
+      expressionWeight,
+      anticipationWeight,
+      settlingWeight,
+      isNeutral: this.targetExpr === 'neutral' && this.phase === 'HOLDING',
+      headTiltRoll: this.activeTiltRoll,
+      headTiltPitch: this.activeTiltPitch,
+      profile
+    };
+  }
+
   public update(dt: number) {
     if (this.reducedMotion) {
       this.currentWeightsHead = [...this.toWeightsHead];
       this.currentWeightsTeeth = [...this.toWeightsTeeth];
+      this.phase = 'HOLDING';
       return;
     }
 
     if (this.forcedExpression) {
       if (this.targetExpr !== this.forcedExpression) {
-        this.setExpression(this.forcedExpression, 0.5);
+        this.setExpression(this.forcedExpression, 0.4);
       }
     }
 
-    if (!this.isHolding) {
+    // 1. Advance Phase State Machine
+    if (this.phase === 'ANTICIPATING') {
+      this.phaseTimer += dt;
+      if (this.phaseTimer >= this.anticipationDuration) {
+        this.phase = 'TRANSITIONING';
+        this.phaseTimer = 0;
+        this.transitionProgress = 0.0;
+      }
+    } else if (this.phase === 'TRANSITIONING') {
       this.transitionProgress += dt / this.transitionDuration;
       if (this.transitionProgress >= 1.0) {
         this.transitionProgress = 1.0;
-        this.isHolding = true;
+        this.currentExpr = this.targetExpr;
+
+        if (this.targetExpr === 'neutral' || this.settlingDuration <= 0.05) {
+          this.phase = 'HOLDING';
+          this.holdTimer = 0;
+          this.holdDuration = this.getHoldDuration(this.targetExpr);
+        } else {
+          this.phase = 'SETTLING';
+          this.phaseTimer = 0;
+        }
+      }
+    } else if (this.phase === 'SETTLING') {
+      this.phaseTimer += dt;
+      if (this.phaseTimer >= this.settlingDuration) {
+        this.phase = 'HOLDING';
         this.holdTimer = 0;
         this.holdDuration = this.getHoldDuration(this.targetExpr);
-        this.currentExpr = this.targetExpr;
       }
-    } else if (!this.forcedExpression) {
+    } else if (this.phase === 'HOLDING' && !this.forcedExpression) {
       this.holdTimer += dt;
       if (this.holdTimer >= this.holdDuration) {
-        // Advance automatic sequence
-        this.sequenceIndex = (this.sequenceIndex + 1) % AUTOMATIC_EXPRESSION_SEQUENCE.length;
-        const nextExpr = AUTOMATIC_EXPRESSION_SEQUENCE[this.sequenceIndex];
-        const transDur = this.getTransitionDuration(nextExpr);
-        this.setExpression(nextExpr, transDur);
+        if (this.targetExpr !== 'neutral') {
+          // Emotion complete: return naturally to neutral resting state (Section 3 & 4)
+          this.lastNonNeutralExpr = this.targetExpr;
+          const transDur = this.getTransitionDuration('neutral');
+          this.setExpression('neutral', transDur);
+        } else {
+          // Neutral resting interval complete: pick next natural non-repeating emotion (Section 4 & 9)
+          const next = pickNextNaturalEmotion(this.lastNonNeutralExpr);
+          const transDur = this.getTransitionDuration(next);
+          this.setExpression(next, transDur);
+        }
       }
     }
 
-    // Smooth cubic hermite interpolation (smoothstep)
-    const p = Math.max(0, Math.min(1, this.transitionProgress));
-    const smoothT = p * p * (3 - 2 * p);
+    // 2. Interpolate Morph Target Weights
+    if (this.phase === 'ANTICIPATING') {
+      // Subtle lead-in: eyebrow and slight eyelid adjustment before mouth movement
+      const leadT = Math.min(1.0, this.phaseTimer / Math.max(0.01, this.anticipationDuration));
+      const smoothLead = leadT * leadT * (3 - 2 * leadT) * 0.18; // Restrained 18% anticipatory lead
 
-    for (let i = 0; i < 65; i++) {
-      this.currentWeightsHead[i] = THREE.MathUtils.lerp(this.fromWeightsHead[i], this.toWeightsHead[i], smoothT);
-    }
-    for (let i = 0; i < 31; i++) {
-      this.currentWeightsTeeth[i] = THREE.MathUtils.lerp(this.fromWeightsTeeth[i], this.toWeightsTeeth[i], smoothT);
+      for (let i = 0; i < 65; i++) {
+        // Only allow brow and lid indices to lead slightly during anticipation
+        if (i === 57 || i === 58 || i === 59 || i === 60 || i === 62 || i === 63) {
+          this.currentWeightsHead[i] = THREE.MathUtils.lerp(this.fromWeightsHead[i], this.toWeightsHead[i], smoothLead);
+        } else {
+          this.currentWeightsHead[i] = this.fromWeightsHead[i];
+        }
+      }
+      for (let i = 0; i < 31; i++) {
+        this.currentWeightsTeeth[i] = this.fromWeightsTeeth[i];
+      }
+    } else if (this.phase === 'TRANSITIONING') {
+      // Smooth cubic Hermite interpolation (smoothstep)
+      const p = Math.max(0, Math.min(1, this.transitionProgress));
+      const smoothT = p * p * (3 - 2 * p);
+
+      for (let i = 0; i < 65; i++) {
+        this.currentWeightsHead[i] = THREE.MathUtils.lerp(this.fromWeightsHead[i], this.toWeightsHead[i], smoothT);
+      }
+      for (let i = 0; i < 31; i++) {
+        this.currentWeightsTeeth[i] = THREE.MathUtils.lerp(this.fromWeightsTeeth[i], this.toWeightsTeeth[i], smoothT);
+      }
+    } else {
+      // SETTLING and HOLDING: exactly at target weights
+      for (let i = 0; i < 65; i++) {
+        this.currentWeightsHead[i] = this.toWeightsHead[i];
+      }
+      for (let i = 0; i < 31; i++) {
+        this.currentWeightsTeeth[i] = this.toWeightsTeeth[i];
+      }
     }
   }
 

@@ -1,5 +1,10 @@
 import * as THREE from 'three';
-import { type PersonaExpression } from './personaExpressionController';
+import {
+  type PersonaExpression,
+  type ExpressionStateInfo,
+  type EmotionBehaviorProfile,
+  getEmotionProfile
+} from './personaEmotionProfiles';
 
 export type GazeMode = 'ENGAGED' | 'GLANCE_AWAY' | 'RETURN_TO_VIEWER';
 
@@ -41,10 +46,10 @@ export interface LifeFrameOutput {
  * Coordinates:
  * 1. Natural gaze behavior (ENGAGED, GLANCE_AWAY, RETURN_TO_VIEWER).
  * 2. Absolute cursor priority with smooth re-engagement and viewport departure handling.
- * 3. Gentle upper-body breathing through shoulders and chest (Spine2).
+ * 3. Gentle upper-body breathing through shoulders and chest (Spine2) with organic rate drift.
  * 4. Micro-movements and subtle head orientation complementing gaze.
  * 5. Infrequent, understated posture micro-adjustments.
- * 6. Expression-aware gaze, eyelid, and head posture modulation.
+ * 6. Emotion-aware gaze, eyelid, and head posture modulation with human pacing stillness.
  */
 export class PersonaLifeController {
   // Gaze State Machine
@@ -78,7 +83,6 @@ export class PersonaLifeController {
 
   // Breathing Cycle
   private breathPhase = 0;
-  private breathCycleDuration = 4.0; // Base 4-second respiratory cycle (~15 bpm) with organic drift
 
   // Head Orientation (Smoothed)
   private currentHeadEuler = { pitch: 0, yaw: 0, roll: 0 };
@@ -92,7 +96,7 @@ export class PersonaLifeController {
   private postureDuration = 2.2;
   private postureShoulderOffset = 0;
 
-  // Human Pacing & Calm Stillness (Objective 7)
+  // Human Pacing & Calm Stillness (Objective 7 / Section 9)
   private pacingTimer = 0;
   private nextStillnessTime = 18.0;
   private isStillnessActive = false;
@@ -165,30 +169,26 @@ export class PersonaLifeController {
   // TIMERS & TRANSITIONS
   // ---------------------------------------------------------------------------
 
-  private resetEngagedTimer(expr: PersonaExpression) {
+  private resetEngagedTimer(expr: PersonaExpression | EmotionBehaviorProfile) {
     this.gazeMode = 'ENGAGED';
     this.gazeTimer = 0;
 
-    // Expression-aware engagement interval
-    if (expr === 'happy') {
-      this.gazeTargetDuration = 8.0 + Math.random() * 4.5; // Stays warmly engaged longer
-    } else if (expr === 'angry') {
-      this.gazeTargetDuration = 24.0 + Math.random() * 10.0; // Focused, steady gaze with suppressed wandering
-    } else if (expr === 'sad') {
-      this.gazeTargetDuration = 4.5 + Math.random() * 3.5; // Breaks eye contact sooner
-    } else if (expr === 'thinking') {
-      this.gazeTargetDuration = 5.0 + Math.random() * 3.0; // Contemplative shifts
+    const profile = typeof expr === 'string' ? getEmotionProfile(expr) : expr;
+
+    if (profile.suppressAutonomousGaze) {
+      // Focused / serious expressions (e.g. angry, surprised): steady gaze, look-away suppressed
+      this.gazeTargetDuration = 24.0 + Math.random() * 12.0;
     } else {
-      this.gazeTargetDuration = 6.0 + Math.random() * 5.5; // Standard 6-11.5s interval
+      const range = profile.gazeEngagementMax - profile.gazeEngagementMin;
+      this.gazeTargetDuration = profile.gazeEngagementMin + Math.random() * Math.max(0.5, range);
     }
   }
 
   private pickGlanceAwayTarget(expr: PersonaExpression): GazeLookAwayTarget {
-    // Random duration for looking away: 0.9s to 1.8s
     let duration = 0.9 + Math.random() * 0.9;
 
     if (expr === 'sad') {
-      // Downward reflective gaze
+      // Downward reflective glance (Section 2 & 6)
       return {
         x: (Math.random() - 0.5) * 0.16,
         y: -0.16 - Math.random() * 0.12,
@@ -196,8 +196,8 @@ export class PersonaLifeController {
       };
     }
 
-    if (expr === 'thinking') {
-      // Contemplative gaze (often up-right or down-left)
+    if (expr === 'thinking' || expr === 'curious') {
+      // Contemplative cognitive glance (often up-right or down-left)
       const isUpRight = Math.random() < 0.60;
       if (isUpRight) {
         return {
@@ -215,11 +215,11 @@ export class PersonaLifeController {
     }
 
     if (expr === 'angry') {
-      // Very restrained shift if any
+      // Highly restrained micro-shift if any
       return {
-        x: (Math.random() - 0.5) * 0.08,
-        y: (Math.random() - 0.5) * 0.06,
-        duration: 0.6 + Math.random() * 0.4
+        x: (Math.random() - 0.5) * 0.06,
+        y: (Math.random() - 0.5) * 0.04,
+        duration: 0.5 + Math.random() * 0.3
       };
     }
 
@@ -245,7 +245,7 @@ export class PersonaLifeController {
       x = 0.18 + Math.random() * 0.08;
       y = (Math.random() - 0.5) * 0.06;
     } else {
-      // Gentle downward gaze
+      // Gentle downward glance
       x = (Math.random() - 0.5) * 0.06;
       y = -0.18 - Math.random() * 0.08;
     }
@@ -260,9 +260,17 @@ export class PersonaLifeController {
   public update(
     dt: number,
     nowMs: number,
-    currentExpression: PersonaExpression = 'neutral'
+    currentExpression: PersonaExpression | ExpressionStateInfo = 'neutral'
   ): LifeFrameOutput {
     const timeSec = nowMs * 0.001;
+
+    // Resolve expression profile, active emotion, and transition weights
+    const isStateInfo = typeof currentExpression === 'object';
+    const stateInfo: ExpressionStateInfo | null = isStateInfo ? (currentExpression as ExpressionStateInfo) : null;
+    const activeExpr: PersonaExpression = stateInfo ? stateInfo.activeExpr : (currentExpression as PersonaExpression);
+    const profile = stateInfo ? stateInfo.profile : getEmotionProfile(activeExpr);
+    const emotionWeight = stateInfo ? stateInfo.expressionWeight : (activeExpr === 'neutral' ? 0.0 : 1.0);
+    const anticipationWeight = stateInfo ? stateInfo.anticipationWeight : 0.0;
 
     // Handle Reduced Motion Mode: stable, stationary, neutral
     if (this.prefersReducedMotion) {
@@ -281,7 +289,7 @@ export class PersonaLifeController {
       };
     }
 
-    // 1. BLINK LIFECYCLE (Single & Double Blinking - Objective 4)
+    // 1. BLINK LIFECYCLE (Single & Double Blinking - Objective 4 & Section 8)
     let blinkFactor = 0;
     if (this.blinkActive) {
       this.blinkElapsed += dt;
@@ -291,9 +299,9 @@ export class PersonaLifeController {
         this.blinkElapsed = 0;
 
         if (this.isDoubleBlinkPending) {
-          // Immediately schedule the second flutter blink of the double blink
+          // Schedule second flutter blink
           this.isDoubleBlinkPending = false;
-          this.nextBlinkTime = nowMs + 80 + Math.random() * 40; // 80-120ms inter-blink flutter gap
+          this.nextBlinkTime = nowMs + 80 + Math.random() * 40;
         } else {
           // 18% natural probability that the next blink will trigger a double blink
           const willDouble = Math.random() < 0.18;
@@ -314,7 +322,6 @@ export class PersonaLifeController {
         blinkFactor = 1.0 - t * t * (3 - 2 * t);
       }
     } else if (!this.isForcedGaze() && nowMs >= this.nextBlinkTime) {
-      // Slightly shorter duration for second flutter blink
       const duration = this.isDoubleBlinkPending ? (0.13 + Math.random() * 0.02) : (0.16 + Math.random() * 0.03);
       this.triggerBlink(duration);
     }
@@ -323,22 +330,23 @@ export class PersonaLifeController {
       this.clickEngagement = Math.max(0, this.clickEngagement - dt * 2.5);
     }
 
-    // 2. CURSOR ACTIVITY & PRIORITY
+    // 2. CURSOR ACTIVITY & PRIORITY (Section 2 & 6)
     const timeSincePointerMove = nowMs - this.lastPointerMoveTime;
     const isCursorActive = this.hasPointer && timeSincePointerMove < 1800;
 
-    // Smoothly blend cursor influence weight
     const targetCursorWeight = isCursorActive ? 1.0 : 0.0;
     const cursorBlendSpeed = isCursorActive ? 8.0 : 2.5;
     this.cursorWeight += (targetCursorWeight - this.cursorWeight) * (1.0 - Math.exp(-cursorBlendSpeed * dt));
 
-    // 3. AUTONOMOUS GAZE STATE MACHINE (Look Away & Return)
+    // 3. AUTONOMOUS GAZE STATE MACHINE (Section 2 & 6)
     if (!this.isForcedGaze()) {
-      // If cursor is actively in control, suspend glance-away and stay engaged
-      if (this.cursorWeight > 0.65 && this.gazeMode === 'GLANCE_AWAY') {
+      // If cursor is actively in control or emotion suppresses look-away, return/stay engaged
+      const shouldSuppressGlance = (this.cursorWeight > 0.65) || (profile.suppressAutonomousGaze && emotionWeight > 0.5);
+
+      if (shouldSuppressGlance && this.gazeMode === 'GLANCE_AWAY') {
         this.gazeMode = 'RETURN_TO_VIEWER';
         this.transitionProgress = 0;
-        this.transitionDuration = 0.4;
+        this.transitionDuration = 0.35;
         this.startIdleGaze = { ...this.currentIdleGaze };
         this.targetIdleGaze = { x: 0, y: 0 };
       }
@@ -346,16 +354,16 @@ export class PersonaLifeController {
       this.gazeTimer += dt;
 
       if (this.gazeMode === 'ENGAGED') {
-        if (this.gazeTimer >= this.gazeTargetDuration && this.cursorWeight < 0.25) {
+        if (!shouldSuppressGlance && this.gazeTimer >= this.gazeTargetDuration && this.cursorWeight < 0.25) {
           // Transition to GLANCE_AWAY
-          const glance = this.pickGlanceAwayTarget(currentExpression);
+          const glance = this.pickGlanceAwayTarget(activeExpr);
           this.gazeMode = 'GLANCE_AWAY';
           this.gazeTimer = 0;
           this.gazeTargetDuration = glance.duration;
           this.startIdleGaze = { ...this.currentIdleGaze };
           this.targetIdleGaze = { x: glance.x, y: glance.y };
           this.transitionProgress = 0;
-          this.transitionDuration = 0.35 + Math.random() * 0.15; // Smooth 350-500ms look-away transition
+          this.transitionDuration = 0.35 + Math.random() * 0.15;
         }
       } else if (this.gazeMode === 'GLANCE_AWAY') {
         if (this.gazeTimer >= this.gazeTargetDuration) {
@@ -365,7 +373,7 @@ export class PersonaLifeController {
           this.startIdleGaze = { ...this.currentIdleGaze };
           this.targetIdleGaze = { x: 0, y: 0 };
           this.transitionProgress = 0;
-          this.transitionDuration = 0.50 + Math.random() * 0.20; // Smooth 500-700ms return transition
+          this.transitionDuration = 0.50 + Math.random() * 0.20;
 
           // Natural saccadic reflex blink on return to viewer (~30% chance)
           if (!this.blinkActive && Math.random() < 0.30) {
@@ -374,7 +382,7 @@ export class PersonaLifeController {
         }
       } else if (this.gazeMode === 'RETURN_TO_VIEWER') {
         if (this.transitionProgress >= 1.0) {
-          this.resetEngagedTimer(currentExpression);
+          this.resetEngagedTimer(profile);
         }
       }
 
@@ -382,7 +390,6 @@ export class PersonaLifeController {
       if (this.transitionProgress < 1.0) {
         this.transitionProgress += dt / Math.max(0.01, this.transitionDuration);
         const p = Math.min(1.0, this.transitionProgress);
-        // Smooth hermite curve (smoothstep)
         const smoothP = p * p * (3 - 2 * p);
         this.currentIdleGaze.x = THREE.MathUtils.lerp(this.startIdleGaze.x, this.targetIdleGaze.x, smoothP);
         this.currentIdleGaze.y = THREE.MathUtils.lerp(this.startIdleGaze.y, this.targetIdleGaze.y, smoothP);
@@ -392,20 +399,16 @@ export class PersonaLifeController {
       }
     }
 
-    // 4. COMBINE CURSOR TARGET & AUTONOMOUS IDLE GAZE
-    // Organic ocular micro-fixation tremor (subtle alive drift)
-    const microTremorX = Math.sin(timeSec * 1.9) * 0.003 + Math.cos(timeSec * 3.8) * 0.0015;
-    const microTremorY = Math.cos(timeSec * 1.5) * 0.0022 + Math.sin(timeSec * 3.1) * 0.0012;
+    // 4. COMBINE CURSOR TARGET & EMOTION-AWARE IDLE GAZE (Section 2, 5 & 6)
+    // Organic ocular micro-fixation tremor scaled by emotion focus
+    const tremorScale = profile.gazeMicroTremorScale;
+    const microTremorX = (Math.sin(timeSec * 1.9) * 0.003 + Math.cos(timeSec * 3.8) * 0.0015) * tremorScale;
+    const microTremorY = (Math.cos(timeSec * 1.5) * 0.0022 + Math.sin(timeSec * 3.1) * 0.0012) * tremorScale;
 
-    // Expression gaze bias
-    let exprBiasX = 0;
-    let exprBiasY = 0;
-    if (currentExpression === 'sad') {
-      exprBiasY = -0.10; // Slightly lowered gaze during sad
-    } else if (currentExpression === 'thinking') {
-      exprBiasX = 0.04;
-      exprBiasY = 0.03;
-    }
+    // Emotion gaze offsets (e.g. sad downward gaze leads during anticipation)
+    const activeGazeWeight = Math.max(emotionWeight, anticipationWeight * 0.85);
+    const exprBiasX = profile.gazeYawOffset * activeGazeWeight;
+    const exprBiasY = profile.gazePitchOffset * activeGazeWeight;
 
     let targetGazeX = 0;
     let targetGazeY = 0;
@@ -414,7 +417,6 @@ export class PersonaLifeController {
       targetGazeX = this.forcedGazeX ?? 0;
       targetGazeY = this.forcedGazeY ?? 0;
     } else {
-      // Blend between pointer target and idle look-away target based on cursorWeight
       const cursorTargetX = this.pointerNDC.x;
       const cursorTargetY = this.pointerNDC.y;
       const idleTargetX = this.currentIdleGaze.x + exprBiasX + microTremorX;
@@ -436,43 +438,37 @@ export class PersonaLifeController {
     this.currentNDC.x += (targetGazeX - this.currentNDC.x) * gazeFactor;
     this.currentNDC.y += (targetGazeY - this.currentNDC.y) * gazeFactor;
 
-    // 5. GENTLE ANATOMICAL BREATHING (Objective 1)
-    // Smooth asymmetric cycle: 42% inhale, 58% exhale
-    // Organic breathing rate & amplitude drift over time (non-repetitive breathing)
+    // 5. GENTLE ANATOMICAL BREATHING (Section 8)
+    // Continuous asymmetric cycle: 42% inhale, 58% exhale with organic drift
     const organicPeriod = 4.0 + Math.sin(timeSec * 0.12) * 0.35 + Math.cos(timeSec * 0.05) * 0.20;
-    const organicAmp = 1.0 + Math.sin(timeSec * 0.08) * 0.12;
+    const organicAmp = (1.0 + Math.sin(timeSec * 0.08) * 0.12) * profile.breathingAmplitudeScale;
 
     this.breathPhase = (this.breathPhase + dt / organicPeriod) % 1.0;
     let breathVal = 0;
     if (this.breathPhase < 0.42) {
-      // Inhalation (smooth expansion)
       const t = this.breathPhase / 0.42;
       breathVal = 0.5 * (1.0 - Math.cos(t * Math.PI));
     } else {
-      // Exhalation (relaxed settling)
       const t = (this.breathPhase - 0.42) / 0.58;
       breathVal = 0.5 * (1.0 + Math.cos(t * Math.PI));
     }
 
-    // Breathing upper chest & shoulder movements
-    // Spine2 pitch: -0.0075 rad (chest expands slightly upward and back)
+    // Spine2 pitch and upper shoulder lift
     const spinePitch = -0.0075 * breathVal * organicAmp;
     const spinePosY = 0.0008 * breathVal * organicAmp;
-    // Shoulders lift slightly (+0.28 bone local Y units)
     const shoulderLift = 0.28 * breathVal * organicAmp;
 
-    // 6. SUBTLE HEAD MOVEMENT & POSTURE ADJUSTMENT (Objectives 2, 5, 7)
+    // 6. SUBTLE HEAD MOVEMENT & POSTURE ADJUSTMENT (Section 2, 7 & 9)
     // A. Head orienting coupled to gaze (eyes lead, head follows with ~15% amplitude)
-    const targetHeadYaw = this.currentNDC.x * 0.08; // Max ~1.15 degrees
-    const targetHeadPitch = -this.currentNDC.y * 0.045 - spinePitch * 0.45; // Counteract chest pitch to stabilize gaze
+    const targetHeadYaw = this.currentNDC.x * 0.08;
+    const targetHeadPitch = -this.currentNDC.y * 0.045 - spinePitch * 0.45;
 
-    // B. Human Pacing Stillness Modulation (Objective 7)
-    // Periodic moments of pure calm where head settling into comfortable resting posture
+    // B. Human Pacing Stillness Modulation (Objective 7 / Section 9)
     this.pacingTimer += dt;
     if (!this.isStillnessActive && this.pacingTimer >= this.nextStillnessTime) {
       this.isStillnessActive = true;
       this.stillnessProgress = 0;
-      this.stillnessDuration = 3.5 + Math.random() * 2.0; // 3.5s - 5.5s calm stillness
+      this.stillnessDuration = 3.5 + Math.random() * 2.0;
       this.nextStillnessTime = 20.0 + Math.random() * 14.0;
       this.pacingTimer = 0;
     }
@@ -483,7 +479,6 @@ export class PersonaLifeController {
       if (this.stillnessProgress >= 1.0) {
         this.isStillnessActive = false;
       } else {
-        // Trapezoidal envelope: ease into stillness, hold calmly, ease out
         const sp = this.stillnessProgress;
         let sWeight = 1.0;
         if (sp < 0.25) {
@@ -497,27 +492,20 @@ export class PersonaLifeController {
       }
     }
 
-    // C. Autonomous low-frequency organic head drift (scaled by human pacing stillness)
-    const headDriftYaw = (Math.sin(timeSec * 0.45) * 0.006 + Math.cos(timeSec * 0.95) * 0.003) * stillnessFactor;
-    const headDriftPitch = (Math.cos(timeSec * 0.35) * 0.004 + Math.sin(timeSec * 0.82) * 0.002) * stillnessFactor;
-    const headDriftRoll = (Math.sin(timeSec * 0.28) * 0.004) * stillnessFactor;
+    // C. Autonomous low-frequency organic head drift scaled by emotion restraint (Section 2 & 7)
+    const driftIntensity = profile.headDriftScale * stillnessFactor;
+    const headDriftYaw = (Math.sin(timeSec * 0.45) * 0.006 + Math.cos(timeSec * 0.95) * 0.003) * driftIntensity;
+    const headDriftPitch = (Math.cos(timeSec * 0.35) * 0.004 + Math.sin(timeSec * 0.82) * 0.002) * driftIntensity;
+    const headDriftRoll = (Math.sin(timeSec * 0.28) * 0.004) * driftIntensity;
 
-    // C. Expression-specific head posture
-    let exprHeadTiltRoll = 0;
-    let exprHeadTiltPitch = 0;
-    if (currentExpression === 'thinking') {
-      exprHeadTiltRoll = -0.022; // Inquisitive head tilt
-      exprHeadTiltPitch = 0.012;
-    } else if (currentExpression === 'sad') {
-      exprHeadTiltPitch = 0.018; // Slight downward reflective head droop
-    } else if (currentExpression === 'happy') {
-      exprHeadTiltRoll = 0.010; // Warm, friendly tilt
-      exprHeadTiltPitch = -0.006;
-    } else if (currentExpression === 'surprised') {
-      exprHeadTiltPitch = -0.016; // Alert slight head lift
-    }
+    // D. Emotion-Specific Head Tilt & Posture Offsets (Section 2 & 7)
+    // Uses evaluated tilt for current instance (respecting conditional tilt probability)
+    const tiltRollVal = stateInfo ? stateInfo.headTiltRoll : profile.headTiltRoll;
+    const tiltPitchVal = stateInfo ? stateInfo.headTiltPitch : profile.headTiltPitch;
+    const exprHeadTiltRoll = tiltRollVal * emotionWeight;
+    const exprHeadTiltPitch = tiltPitchVal * emotionWeight;
 
-    // D. Rare posture settling adjustments (every 16-28s)
+    // E. Rare posture settling adjustments (every 16-28s)
     this.postureTimer += dt;
     if (!this.postureAdjusting && this.postureTimer >= this.nextPostureTime) {
       this.postureAdjusting = true;
@@ -533,14 +521,13 @@ export class PersonaLifeController {
         this.postureAdjusting = false;
         this.postureShoulderOffset = 0;
       } else {
-        // Subtle bell-curve settling dip and relax
         const p = this.postureProgress;
         const bell = Math.sin(p * Math.PI);
         this.postureShoulderOffset = -0.12 * bell;
       }
     }
 
-    // Blend head & neck orientations smoothly
+    // Blend head & neck orientations smoothly with exponential damping
     const desiredTotalYaw = targetHeadYaw + headDriftYaw;
     const desiredTotalPitch = targetHeadPitch + headDriftPitch + exprHeadTiltPitch;
     const desiredTotalRoll = headDriftRoll + exprHeadTiltRoll;
@@ -556,24 +543,10 @@ export class PersonaLifeController {
     this.currentNeckEuler.pitch += (desiredTotalPitch * 0.35 - this.currentNeckEuler.pitch) * headFactor;
     this.currentNeckEuler.roll += (desiredTotalRoll * 0.35 - this.currentNeckEuler.roll) * headFactor;
 
-    // 7. EXPRESSION-AWARE MORPH BONUSES
-    let eyeOpenBonus = 0;
-    let squintBonus = 0;
-    if (currentExpression === 'happy') {
-      squintBonus = 0.12; // Duchenne smile softness
-      eyeOpenBonus = -0.03;
-    } else if (currentExpression === 'thinking') {
-      eyeOpenBonus = 0.05; // Attentive, inquisitive gaze
-    } else if (currentExpression === 'surprised') {
-      eyeOpenBonus = 0.16; // Widened alert gaze
-    } else if (currentExpression === 'sad') {
-      eyeOpenBonus = -0.05; // Softer, lower eyelids
-    } else if (currentExpression === 'angry') {
-      squintBonus = 0.08; // Focused furrow
-      eyeOpenBonus = -0.06;
-    } else if (currentExpression === 'worried') {
-      eyeOpenBonus = 0.12; // Apprehensive openness
-    }
+    // 7. EMOTION-AWARE MORPH BONUSES (Section 2 & 8)
+    const effectiveBonusWeight = Math.max(emotionWeight, anticipationWeight * 0.60);
+    const eyeOpenBonus = profile.eyeOpenBonus * effectiveBonusWeight;
+    const squintBonus = profile.squintBonus * emotionWeight;
 
     return {
       gazeNDC: { ...this.currentNDC },

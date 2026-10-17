@@ -210,7 +210,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     const forcedTimeParam = searchParams?.get('t');
     const forcedElapsed = forcedTimeParam !== null && forcedTimeParam !== undefined ? parseFloat(forcedTimeParam) : null;
     const forcedExprParam = searchParams?.get('expr') as PersonaExpression | null;
-    const validExprs: PersonaExpression[] = ['neutral', 'happy', 'sad', 'angry', 'surprised', 'thinking', 'worried'];
+    const validExprs: PersonaExpression[] = ['neutral', 'happy', 'sad', 'angry', 'surprised', 'thinking', 'curious', 'worried'];
 
     // Centralized Facial Expression Controller (Sections 3, 4, 5, 6)
     const expressionController = new PersonaExpressionController({
@@ -875,11 +875,14 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         clickEngagement = Math.max(0, clickEngagement - dt * 2.5);
       }
 
-      // 1. Advance Life Controller (coordinated gaze, breathing, head tilt, posture, blinking)
-      const currentExpr = expressionController.getCurrentExpression();
-      const lifeOutput = lifeController.update(dt, nowMs, currentExpr);
+      // 1. Advance Expression Controller State Machine & Timing (Section 3, 4, 5)
+      expressionController.update(dt);
+      const exprState = expressionController.getStateInfo();
 
-      // 2. Map 3D Gaze Target (Z = 1.48 at camera focal plane)
+      // 2. Advance Life Controller with full emotion context (gaze, breathing, head posture, blinking)
+      const lifeOutput = lifeController.update(dt, nowMs, exprState);
+
+      // 3. Map 3D Gaze Target (Z = 1.48 at camera focal plane)
       // Horizontal span: 0.52 world units (~21 deg, rich widescreen tracking)
       // Vertical span: 0.26 world units (~11 deg, natural gaze arc)
       gazeTargetPos.set(
@@ -891,7 +894,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       updateEyeGaze(leftEyeBone, gazeTargetPos);
       updateEyeGaze(rightEyeBone, gazeTargetPos);
 
-      // 3. Gentle Upper Body Breathing & Micro-Posture
+      // 4. Gentle Upper Body Breathing & Micro-Posture
       if (!prefersReducedMotion) {
         // Upper Spine / Chest (Spine2)
         applyWorldRotationOffset(
@@ -931,7 +934,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         );
       }
 
-      // 5. Update Expression Controller & Coordinate Eyelids, Blinking, and Jaw (Sections 3, 4, 5, 6, 7)
+      // 5. Apply Coordinated Morphs to Meshes (Sections 3, 4, 5, 6, 7)
       const debugOverride = typeof window !== 'undefined' ? (window as any).__personaDebug?.overrideWeights : null;
       if (debugOverride) {
         if (headMesh && headMesh.morphTargetInfluences) {
@@ -947,7 +950,6 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
           }
         }
       } else {
-        expressionController.update(dt);
         expressionController.applyToMeshes(headMesh, teethDownMesh, {
           blinkFactor: lifeOutput.blinkFactor,
           gazeNormY: lifeOutput.gazeNDC.y,
