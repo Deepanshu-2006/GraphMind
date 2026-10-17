@@ -17,6 +17,7 @@ import {
   PersonaLifeController
 } from './personaLifeController';
 import { PersonaLipSyncController } from './personaLipSyncController';
+import { PersonaAnalysisController } from './personaAnalysisController';
 import { personaPresentationController } from './personaPresentationController';
 import { PERSONA_GREETING_TEXT } from './personaVoiceConfig';
 
@@ -37,6 +38,7 @@ export interface PersonaHumanoidCanvasProps {
   onGreetingChange?: (stage: PersonaGreetingStage) => void;
   className?: string;
   autoPlay?: boolean;
+  assessmentScore?: number | null;
 }
 
 /**
@@ -118,7 +120,8 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
   onSolidificationComplete,
   onGreetingChange,
   className = '',
-  autoPlay = true
+  autoPlay = true,
+  assessmentScore = null
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -127,11 +130,18 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
 
   const onSolidificationCompleteRef = useRef(onSolidificationComplete);
   const onGreetingChangeRef = useRef(onGreetingChange);
+  const assessmentScoreRef = useRef<number | null>(assessmentScore ?? null);
+  const analysisControllerRef = useRef<PersonaAnalysisController | null>(null);
 
   useEffect(() => {
     onSolidificationCompleteRef.current = onSolidificationComplete;
     onGreetingChangeRef.current = onGreetingChange;
   }, [onSolidificationComplete, onGreetingChange]);
+
+  useEffect(() => {
+    assessmentScoreRef.current = assessmentScore ?? null;
+    analysisControllerRef.current?.setAssessmentScore(assessmentScore ?? null);
+  }, [assessmentScore]);
 
   useEffect(() => {
     currentStateRef.current = currentState;
@@ -249,6 +259,15 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       speakingRate: 0.95
     });
 
+    // Centralized Continuous Analysis Behavior Controller (Sections 2, 3, 4, 5, 6)
+    const analysisController = new PersonaAnalysisController({
+      lifeController,
+      expressionController,
+      assessmentScore: assessmentScoreRef.current,
+      prefersReducedMotion
+    });
+    analysisControllerRef.current = analysisController;
+
     const gltfLoader = new GLTFLoader();
     gltfLoader.setMeshoptDecoder(MeshoptDecoder);
 
@@ -316,6 +335,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
             expressionController,
             lifeController,
             lipSyncController,
+            analysisController,
             model,
             bones: {
               head: headBone,
@@ -773,6 +793,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     let greetingPauseTimeout: ReturnType<typeof setTimeout> | null = null;
     let greetingCompleteTimeout: ReturnType<typeof setTimeout> | null = null;
     let glanceRightTimeout: ReturnType<typeof setTimeout> | null = null;
+    let continuousAnalysisTimeout: ReturnType<typeof setTimeout> | null = null;
 
     // ----------------------------------------------------
     // Natural 3D Eye Tracking & Ocular Life Dynamics
@@ -881,11 +902,14 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         clickEngagement = Math.max(0, clickEngagement - dt * 2.5);
       }
 
-      // 1. Advance Expression Controller State Machine & Timing (Section 3, 4, 5)
+      // 1. Advance Continuous Analysis Behavior State Machine (Sections 2, 3, 4, 5, 6)
+      analysisController.update(dt, nowMs);
+
+      // 2. Advance Expression Controller State Machine & Timing (Section 3, 4, 5)
       expressionController.update(dt);
       const exprState = expressionController.getStateInfo();
 
-      // 2. Advance Life Controller with full emotion context (gaze, breathing, head posture, blinking)
+      // 3. Advance Life Controller with full emotion context (gaze, breathing, head posture, blinking)
       const lifeOutput = lifeController.update(dt, nowMs, exprState);
 
       // 3. Map 3D Gaze Target (Z = 1.48 at camera focal plane)
@@ -1126,6 +1150,13 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
 
                 // Signal that the character is now directing attention to the right
                 onGreetingChangeRef.current?.('glance-right');
+
+                // After right performance panel completes entrance sequence (~2.8s),
+                // smoothly hand off to the continuous analysis and reaction loop
+                continuousAnalysisTimeout = setTimeout(() => {
+                  if (isDisposed) return;
+                  analysisController.start('analysePerformance');
+                }, 2800);
               }, 3150);
             };
 
@@ -1365,10 +1396,12 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         }
       });
 
-      // Clear greeting sequence timeouts and reset life/expression/lipsync controllers
+      // Clear greeting sequence timeouts and reset life/expression/lipsync/analysis controllers
       if (greetingPauseTimeout) clearTimeout(greetingPauseTimeout);
       if (greetingCompleteTimeout) clearTimeout(greetingCompleteTimeout);
       if (glanceRightTimeout) clearTimeout(glanceRightTimeout);
+      if (continuousAnalysisTimeout) clearTimeout(continuousAnalysisTimeout);
+      analysisController.dispose();
       lifeController.resetGreeting();
       expressionController.setGreetingLocked(false);
       personaPresentationController.unbindLipSync();

@@ -108,6 +108,11 @@ export class PersonaLifeController {
   private greetingElapsed = 0;
   private greetingNodDuration = 1.4;
 
+  // Approving Nod for High Assessment Performance
+  private isApprovingNodActive = false;
+  private approvingNodElapsed = 0;
+  private approvingNodDuration = 1.2;
+
   // Intentional Presentation Glances (holds gaze on panels during entrance reveals)
   private isIntentionalGlance = false;
 
@@ -212,6 +217,55 @@ export class PersonaLifeController {
   }
 
   /**
+   * Triggers a subtle approving nod (used during 90-100% score reaction).
+   */
+  public triggerApprovingNod(duration = 1.2): void {
+    if (this.prefersReducedMotion) return;
+    this.isApprovingNodActive = true;
+    this.approvingNodElapsed = 0;
+    this.approvingNodDuration = duration;
+  }
+
+  public isApprovingNodInProgress(): boolean {
+    return this.isApprovingNodActive;
+  }
+
+  /**
+   * Sets intentional continuous gaze towards an analysis target (e.g. right assessment stats or left learning panel).
+   * Holds the target stably until the analysis state machine transitions to the next target.
+   */
+  public setAnalysisGaze(targetX: number, targetY: number, transitionDuration = 0.50): void {
+    if (this.prefersReducedMotion || this.isForcedGaze()) return;
+
+    this.isIntentionalGlance = true;
+    this.gazeMode = 'GLANCE_AWAY';
+    this.gazeTimer = 0;
+    this.gazeTargetDuration = 999999; // Held by continuous behavior controller
+    this.startIdleGaze = { ...this.currentIdleGaze };
+    this.targetIdleGaze = {
+      x: Math.max(-0.85, Math.min(0.85, targetX)),
+      y: Math.max(-0.65, Math.min(0.65, targetY))
+    };
+    this.transitionProgress = 0;
+    this.transitionDuration = Math.max(0.05, transitionDuration);
+  }
+
+  /**
+   * Smoothly releases continuous analysis gaze back towards natural forward viewer engagement.
+   */
+  public releaseAnalysisGaze(transitionDuration = 0.50): void {
+    if (this.prefersReducedMotion || this.isForcedGaze()) return;
+
+    this.isIntentionalGlance = false;
+    this.gazeMode = 'RETURN_TO_VIEWER';
+    this.gazeTimer = 0;
+    this.startIdleGaze = { ...this.currentIdleGaze };
+    this.targetIdleGaze = { x: 0, y: 0 };
+    this.transitionProgress = 0;
+    this.transitionDuration = Math.max(0.05, transitionDuration);
+  }
+
+  /**
    * Triggers an intentional glance towards a specific target coordinate in NDC
    * (e.g. towards the learning statistics panel on the left), holding gaze and head
    * orientation towards the target before naturally returning to viewer.
@@ -260,6 +314,22 @@ export class PersonaLifeController {
         x: (Math.random() - 0.5) * 0.16,
         y: -0.16 - Math.random() * 0.12,
         duration: 1.2 + Math.random() * 0.8
+      };
+    }
+
+    if (expr === 'attentive') {
+      return {
+        x: (Math.random() - 0.5) * 0.12,
+        y: (Math.random() - 0.5) * 0.08,
+        duration: 0.8 + Math.random() * 0.6
+      };
+    }
+
+    if (expr === 'supportive') {
+      return {
+        x: (Math.random() - 0.5) * 0.14,
+        y: -0.08 - Math.random() * 0.06,
+        duration: 1.0 + Math.random() * 0.6
       };
     }
 
@@ -631,9 +701,28 @@ export class PersonaLifeController {
       }
     }
 
+    // G. Approving Nod Modulation for High Performance Reaction
+    let approvingNodPitch = 0;
+    if (this.isApprovingNodActive) {
+      this.approvingNodElapsed += dt;
+      if (this.approvingNodElapsed >= this.approvingNodDuration) {
+        this.isApprovingNodActive = false;
+      } else {
+        const p = this.approvingNodElapsed / this.approvingNodDuration;
+        // Natural approving nod: gentle dip down ~0.020 rad, then smooth return
+        if (p < 0.45) {
+          const t = p / 0.45;
+          approvingNodPitch = 0.020 * Math.sin(t * Math.PI * 0.5);
+        } else {
+          const t = (p - 0.45) / 0.55;
+          approvingNodPitch = 0.020 * Math.cos(t * Math.PI * 0.5);
+        }
+      }
+    }
+
     // Blend head & neck orientations smoothly with exponential damping
     const desiredTotalYaw = targetHeadYaw + headDriftYaw;
-    const desiredTotalPitch = targetHeadPitch + headDriftPitch + exprHeadTiltPitch + greetingNodPitch;
+    const desiredTotalPitch = targetHeadPitch + headDriftPitch + exprHeadTiltPitch + greetingNodPitch + approvingNodPitch;
     const desiredTotalRoll = headDriftRoll + exprHeadTiltRoll;
 
     const headDampSpeed = 4.0;

@@ -187,37 +187,79 @@ export const PERSONA_EXPRESSION_PRESETS: Record<PersonaExpression, FacialMorphWe
 
   worried: {
     head: {
-      8: 0.62,  // S_h (bared teeth grimace with horizontal lip retraction)
-      13: 0.56, // RlipUp_h (upper lip retracted high, baring upper teeth row)
-      14: 0.56, // LlipUp_h
-      15: 0.58, // RlipDown_h (lower lip pulled down, baring lower teeth row)
-      16: 0.58, // LlipDown_h
-      17: 0.36, // RlipSide_h (stretches mouth corners wide horizontally)
-      18: 0.36, // LlipSide_h
-      32: 0.48, // RmouthSad_h (pulls mouth corners down into anxious grimace)
-      33: 0.48, // LmouthSad_h
-      21: 0.35, // JawCompress_h (keeps teeth firmly clenched/gritted together)
+      8: 0.68,  // S_h (clenched dental grimace with horizontal lip pull)
+      13: 0.60, // RlipUp_h (upper lip retracted high, baring upper teeth)
+      14: 0.60, // LlipUp_h
+      15: 0.62, // RlipDown_h (lower lip pulled down, baring lower teeth)
+      16: 0.62, // LlipDown_h
+      17: 0.42, // RlipSide_h (stretches mouth corners wide horizontally)
+      18: 0.42, // LlipSide_h
+      32: 0.38, // RmouthSad_h (subtle anxious corner dip, balanced with wide teeth stretch)
+      33: 0.38, // LmouthSad_h
+      21: 0.38, // JawCompress_h (keeps teeth firmly clenched/gritted together)
       26: 0.08, // MouthOpen_h (slight separation so lips part over clenched teeth)
-      39: 0.32, // Chin_h (chin tension under strained lower lip)
-      47: 0.65, // ReyeOpen_h (wide anxious, apprehensive eyes)
-      48: 0.65, // LeyeOpen_h
-      53: 0.26, // Rsad_h (apprehensive brow curve)
-      54: 0.26, // Lsad_h
-      58: 0.78, // RbrowUp_h (high inner brow lift with intense worry/cringe)
-      59: 0.78, // LbrowUp_h
-      57: 0.50, // RRbrowUp_h (mid-outer brow arch)
-      60: 0.50, // LLbrowUp_h
-      61: 0.18, // RRbrowDown_h (outer brow tension)
-      64: 0.18, // LLbrowDown_h
+      39: 0.35, // Chin_h (chin tension under strained lower lip)
+      47: 0.68, // ReyeOpen_h (wide anxious, apprehensive eyes)
+      48: 0.68, // LeyeOpen_h
+      53: 0.22, // Rsad_h
+      54: 0.22, // Lsad_h
+      58: 0.82, // RbrowUp_h (high inner brow lift with intense worry/cringe)
+      59: 0.82, // LbrowUp_h
+      57: 0.54, // RRbrowUp_h (mid-outer brow arch)
+      60: 0.54, // LLbrowUp_h
+      61: 0.16, // RRbrowDown_h
+      64: 0.16, // LLbrowDown_h
       41: 0.28, // RneckTension_h
       42: 0.28, // LneckTension_h
       43: 0.18, // Rnostril_h
       44: 0.18  // Lnostril_h
     },
     teethDown: {
-      24: 0.35, // t_JawCompress_h (clenched dental bite)
-      20: 0.45, // t_S_h (phonetic alignment for clenched teeth)
+      24: 0.38, // t_JawCompress_h (clenched dental bite)
+      20: 0.50, // t_S_h (phonetic alignment for clenched teeth)
       29: 0.06  // t_MouthOpen_h (minimal jaw opening to keep teeth touching)
+    }
+  },
+
+  attentive: {
+    head: {
+      26: 0.16, // MouthOpen_h (relaxed neutral mouth)
+      30: 0.18, // RsmileOpen_h
+      31: 0.18, // LsmileOpen_h
+      47: 0.40, // ReyeOpen_h (slightly more alert/attentive eye aperture)
+      48: 0.40, // LeyeOpen_h
+      57: 0.18, // RRbrowUp_h (subtle symmetric brow interest)
+      58: 0.20, // RbrowUp_h
+      59: 0.20, // LbrowUp_h
+      60: 0.18, // LLbrowUp_h
+      13: 0.06, // RlipUp_h
+      14: 0.06
+    },
+    teethDown: {
+      29: 0.16  // t_MouthOpen_h
+    }
+  },
+
+  supportive: {
+    head: {
+      26: 0.14, // MouthOpen_h (relaxed mouth, no grimace or sadness)
+      28: 0.16, // RsmileClose_h (gentle warm corner)
+      29: 0.16, // LsmileClose_h
+      30: 0.18, // RsmileOpen_h (slight warm resting curve)
+      31: 0.18, // LsmileOpen_h
+      19: 0.10, // RlipCorner_h
+      20: 0.10, // LlipCorner_h
+      47: 0.28, // ReyeOpen_h (soft, warm eyes)
+      48: 0.28, // LeyeOpen_h
+      51: 0.12, // RlowLid_h (gentle lower lid warmth)
+      52: 0.12, // LlowLid_h
+      58: 0.22, // RbrowUp_h (gentle inner brow lift - thoughtful/caring)
+      59: 0.22, // LbrowUp_h
+      57: 0.14, // RRbrowUp_h
+      60: 0.14  // LLbrowUp_h
+    },
+    teethDown: {
+      29: 0.14  // t_MouthOpen_h
     }
   }
 };
@@ -276,6 +318,7 @@ export class PersonaExpressionController {
   private forcedExpression: PersonaExpression | null = null;
   private reducedMotion = false;
   private greetingLocked = false;
+  private analysisLocked = false;
 
   public setGreetingLocked(locked: boolean): void {
     this.greetingLocked = locked;
@@ -283,6 +326,14 @@ export class PersonaExpressionController {
 
   public isGreetingLocked(): boolean {
     return this.greetingLocked;
+  }
+
+  public setAnalysisLocked(locked: boolean): void {
+    this.analysisLocked = locked;
+  }
+
+  public isAnalysisLocked(): boolean {
+    return this.analysisLocked;
   }
 
   constructor(config?: ExpressionControllerConfig) {
@@ -486,7 +537,7 @@ export class PersonaExpressionController {
         this.holdTimer = 0;
         this.holdDuration = this.getHoldDuration(this.targetExpr);
       }
-    } else if (this.phase === 'HOLDING' && !this.forcedExpression && !this.greetingLocked) {
+    } else if (this.phase === 'HOLDING' && !this.forcedExpression && !this.greetingLocked && !this.analysisLocked) {
       this.holdTimer += dt;
       if (this.holdTimer >= this.holdDuration) {
         if (this.targetExpr !== 'neutral') {

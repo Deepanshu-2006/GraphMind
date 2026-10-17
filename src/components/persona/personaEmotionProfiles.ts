@@ -19,7 +19,9 @@ export type PersonaExpression =
   | 'surprised'
   | 'thinking'
   | 'curious'
-  | 'worried';
+  | 'worried'
+  | 'attentive'
+  | 'supportive';
 
 export type ExpressionPhase =
   | 'HOLDING'
@@ -289,6 +291,62 @@ export const EMOTION_BEHAVIOR_PROFILES: Record<PersonaExpression, EmotionBehavio
 
     breathingAmplitudeScale: 1.02,
     selectionWeight: 7           // Occasional
+  },
+
+  attentive: {
+    expression: 'attentive',
+    holdDurationMin: 2.5,
+    holdDurationMax: 4.5,
+    transitionDurationMin: 0.80,
+    transitionDurationMax: 1.10,
+    anticipationDuration: 0.18,
+    settlingDuration: 0.28,
+
+    gazeEngagementMin: 7.0,
+    gazeEngagementMax: 11.0,
+    suppressAutonomousGaze: false,
+    gazePitchOffset: 0.02,
+    gazeYawOffset: 0.0,
+    gazeMicroTremorScale: 0.85,
+
+    eyeOpenBonus: 0.08,
+    squintBonus: 0.0,
+
+    headTiltRoll: -0.012,
+    headTiltPitch: -0.005,
+    headTiltChance: 0.40,
+    headDriftScale: 0.85,
+
+    breathingAmplitudeScale: 1.0,
+    selectionWeight: 0
+  },
+
+  supportive: {
+    expression: 'supportive',
+    holdDurationMin: 2.5,
+    holdDurationMax: 4.5,
+    transitionDurationMin: 0.90,
+    transitionDurationMax: 1.20,
+    anticipationDuration: 0.22,
+    settlingDuration: 0.35,
+
+    gazeEngagementMin: 6.0,
+    gazeEngagementMax: 9.0,
+    suppressAutonomousGaze: false,
+    gazePitchOffset: -0.04,
+    gazeYawOffset: 0.0,
+    gazeMicroTremorScale: 0.90,
+
+    eyeOpenBonus: -0.02,
+    squintBonus: 0.08,
+
+    headTiltRoll: 0.015,
+    headTiltPitch: 0.008,
+    headTiltChance: 0.55,
+    headDriftScale: 0.80,
+
+    breathingAmplitudeScale: 0.98,
+    selectionWeight: 0
   }
 };
 

@@ -12,6 +12,7 @@ import { usePersonaPresentation } from './usePersonaPresentation';
 import { PERSONA_GREETING_TEXT } from './personaVoiceConfig';
 import { PersonaActivityPanel } from './PersonaActivityPanel';
 import { PersonaPerformancePanel } from './PersonaPerformancePanel';
+import { usePersonaStats } from './usePersonaStats';
 import { useOptionalGraph } from '../../context/GraphContext';
 
 export interface PersonaExperienceProps {
@@ -93,6 +94,8 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
   }, [characterSlot]);
 
   const graphContext = useOptionalGraph();
+  const { stats } = usePersonaStats();
+  const averageScore = stats?.performance?.averageScore ?? null;
 
   const handleExit = useCallback(() => {
     if (leftTimerRef.current) clearTimeout(leftTimerRef.current);
@@ -319,6 +322,7 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
             <PersonaHumanoidCanvas
               onStateChange={setAnimationState}
               onGreetingChange={handleGreetingChange}
+              assessmentScore={averageScore}
             />
           )}
         </div>

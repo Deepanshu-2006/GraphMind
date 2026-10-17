@@ -1226,6 +1226,12 @@ export class PersonaLipSyncController {
     }
     const speechActiveBlend = Math.min(1.0, (w.mouthOpen + w.bilabialFactor + totalVisemeWeight) * 2.5);
 
+    // If speech is not actively executing, DO NOT mutate or zero out facial expression blendshapes!
+    // This preserves clenched-teeth grimaces (worried), smiles, jaw compression, lip retractions, and chin tension.
+    if (!this.isSpeaking && speechActiveBlend <= 0.001) {
+      return;
+    }
+
     // Smoothly scale base smile jaw opening during active speech so phonetic jaw opening takes precedence
     const effectiveBaseSmile = THREE.MathUtils.lerp(
       expressionBaseMouthOpen,
