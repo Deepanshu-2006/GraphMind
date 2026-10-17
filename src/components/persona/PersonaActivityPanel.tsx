@@ -535,7 +535,6 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = React.m
             variants={listContainerVariants}
             initial="hidden"
             animate="visible"
-            layout={!shouldReduceMotion}
           >
             {recentList.map((graph) => {
               const isClickable = Boolean(onSelectGraph && graph.graphId);
@@ -544,7 +543,6 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = React.m
                   key={graph.graphId}
                   className="persona-activity-item-wrapper"
                   variants={listItemVariants}
-                  layout={!shouldReduceMotion}
                 >
                   <button
                     type="button"
