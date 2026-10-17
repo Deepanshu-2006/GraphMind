@@ -34,12 +34,14 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
   const shouldReduceMotion = useReducedMotion();
   const [animationState, setAnimationState] = useState<PersonaAnimationState>('INITIALIZING');
   const [greetingCaptionVisible, setGreetingCaptionVisible] = useState(false);
-  const [hasGreetingCompleted, setHasGreetingCompleted] = useState(false);
+  const [isLeftPanelVisible, setIsLeftPanelVisible] = useState(false);
+  const [isRightPanelVisible, setIsRightPanelVisible] = useState(false);
   const hasTriggeredGreetingRef = useRef(false);
 
   // Reusable silent visual presentation infrastructure
   const presentation = usePersonaPresentation();
-  const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const leftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Coordinated visual greeting handler: manages subtitle visibility and timing
   const handleGreetingChange = useCallback((stage: PersonaGreetingStage) => {
@@ -52,29 +54,45 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
       // 1. Greeting text fades out
       setGreetingCaptionVisible(false);
 
-      // 2. Character begins turning head and eyes left to introduce the stats.
-      // Render stats 350ms later right as character's gaze lands on the left area.
-      if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
-      revealTimerRef.current = setTimeout(() => {
-        setHasGreetingCompleted(true);
-      }, 350);
+      // 2. Character begins turning head and eyes left to introduce the left stats.
+      // Render left stats 350ms later right as character's gaze lands on the left area.
+      if (leftTimerRef.current) clearTimeout(leftTimerRef.current);
+      leftTimerRef.current = setTimeout(() => {
+        setIsLeftPanelVisible(true);
+      }, shouldReduceMotion ? 0 : 350);
+
+      // 3. Safety fallback: ensure right panel appears even if canvas event is delayed
+      if (rightTimerRef.current) clearTimeout(rightTimerRef.current);
+      rightTimerRef.current = setTimeout(() => {
+        setIsRightPanelVisible(true);
+      }, shouldReduceMotion ? 100 : 2200);
+    } else if (stage === 'glance-right') {
+      // 4. Character has introduced left stats and now turns head and eyes right.
+      // Render right performance panel 350ms later right as character's gaze lands on the right area.
+      if (rightTimerRef.current) clearTimeout(rightTimerRef.current);
+      rightTimerRef.current = setTimeout(() => {
+        setIsRightPanelVisible(true);
+      }, shouldReduceMotion ? 0 : 350);
     }
-  }, []);
+  }, [shouldReduceMotion]);
 
   // If characterSlot is provided externally (e.g. test harness without 3D canvas), reveal stats
   useEffect(() => {
     if (characterSlot) {
-      setHasGreetingCompleted(true);
+      setIsLeftPanelVisible(true);
+      setIsRightPanelVisible(true);
     }
     return () => {
-      if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+      if (leftTimerRef.current) clearTimeout(leftTimerRef.current);
+      if (rightTimerRef.current) clearTimeout(rightTimerRef.current);
     };
   }, [characterSlot]);
 
   const graphContext = useOptionalGraph();
 
   const handleExit = useCallback(() => {
-    if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+    if (leftTimerRef.current) clearTimeout(leftTimerRef.current);
+    if (rightTimerRef.current) clearTimeout(rightTimerRef.current);
     presentation.cancel();
     onClose();
   }, [presentation, onClose]);
@@ -266,11 +284,14 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
           )}
         </div>
 
-        {/* Dashboard 3-Column Overlay — Left: Learning Activity, Center: Clear for Character, Right: Reserved */}
+        {/* Dashboard 3-Column Overlay — Left: Learning Activity, Center: Clear for Character, Right: Learning Performance */}
         <AnimatePresence>
-          {hasGreetingCompleted && (
+          {isLeftPanelVisible && (
             <motion.div
               className="persona-dashboard-overlay"
+              id="persona-dashboard-overlay"
+              role="region"
+              aria-label="Learning Statistics Dashboard"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -281,7 +302,11 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
               </div>
               <div className="persona-dashboard-center" aria-hidden="true" />
               <div className="persona-dashboard-right">
-                <PersonaPerformancePanel onSelectGraph={handleSelectGraph} />
+                <AnimatePresence>
+                  {isRightPanelVisible && (
+                    <PersonaPerformancePanel onSelectGraph={handleSelectGraph} />
+                  )}
+                </AnimatePresence>
               </div>
             </motion.div>
           )}

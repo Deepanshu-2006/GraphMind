@@ -30,7 +30,7 @@ export type PersonaAnimationState =
   | 'FULLY_SOLID'
   | 'IDLE';
 
-export type PersonaGreetingStage = 'idle' | 'pause' | 'greeting' | 'complete';
+export type PersonaGreetingStage = 'idle' | 'pause' | 'greeting' | 'complete' | 'glance-right';
 
 export interface PersonaHumanoidCanvasProps {
   onStateChange?: (state: PersonaAnimationState) => void;
@@ -796,6 +796,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     let hasInitiatedGreeting = false;
     let greetingPauseTimeout: ReturnType<typeof setTimeout> | null = null;
     let greetingCompleteTimeout: ReturnType<typeof setTimeout> | null = null;
+    let glanceRightTimeout: ReturnType<typeof setTimeout> | null = null;
 
     // ----------------------------------------------------
     // Natural 3D Eye Tracking & Ocular Life Dynamics
@@ -1137,7 +1138,18 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
               onGreetingChangeRef.current?.('complete');
 
               // Gracefully glance towards the newly revealed learning statistics panel on the left
-              lifeController.glanceTowards(-0.52, 0.06, 2.8);
+              lifeController.glanceTowards(-0.52, 0.06, 1.8);
+
+              // After observing the left side, smoothly shift eyes and head to the right side
+              glanceRightTimeout = setTimeout(() => {
+                if (isDisposed) return;
+
+                // Gracefully glance towards the right side performance panel
+                lifeController.glanceTowards(0.52, 0.06, 2.4);
+
+                // Signal that the character is now directing attention to the right
+                onGreetingChangeRef.current?.('glance-right');
+              }, 1800);
             };
 
             greetingCompleteTimeout = setTimeout(completeGreeting, 3200);
@@ -1379,6 +1391,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       // Clear greeting sequence timeouts and reset life/expression/lipsync controllers
       if (greetingPauseTimeout) clearTimeout(greetingPauseTimeout);
       if (greetingCompleteTimeout) clearTimeout(greetingCompleteTimeout);
+      if (glanceRightTimeout) clearTimeout(glanceRightTimeout);
       lifeController.resetGreeting();
       expressionController.setGreetingLocked(false);
       personaPresentationController.unbindLipSync();

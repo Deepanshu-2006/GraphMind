@@ -236,7 +236,7 @@
   pointer-events: none;
   display: grid;
   grid-template-columns: minmax(280px, 340px) 1fr minmax(280px, 340px);
-  padding: 32px 48px 48px 48px;
+  padding: calc(64px + 20px) 48px 48px 48px;
   align-items: center;
   box-sizing: border-box;
 }
@@ -255,6 +255,23 @@
   pointer-events: auto;
   width: 100%;
   max-width: 340px;
+}
+
+/* Unobtrusive panel scrollbar styling */
+.persona-dashboard-left::-webkit-scrollbar,
+.persona-dashboard-right::-webkit-scrollbar {
+  width: 4px;
+}
+
+.persona-dashboard-left::-webkit-scrollbar-track,
+.persona-dashboard-right::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.persona-dashboard-left::-webkit-scrollbar-thumb,
+.persona-dashboard-right::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
 }
 
 /* Learning Activity & Performance Panels — Floating Editorial Statistics */
@@ -514,10 +531,12 @@
 }
 
 /* Responsive Viewports */
-@media (max-width: 1024px) {
+
+/* Standard Laptop (1024px to 1279px) */
+@media (max-width: 1279px) and (min-width: 1024px) {
   .persona-dashboard-overlay {
-    grid-template-columns: minmax(240px, 280px) 1fr minmax(240px, 280px);
-    padding: 24px 32px 36px 32px;
+    grid-template-columns: minmax(250px, 300px) 1fr minmax(250px, 300px);
+    padding: calc(64px + 12px) 32px 36px 32px;
   }
 
   .persona-activity-panel,
@@ -526,13 +545,53 @@
   }
 
   .persona-stat-value {
-    font-size: 30px;
+    font-size: 32px;
   }
 }
 
-@media (max-width: 768px) {
+/* Tablet (768px to 1023px) — Balanced 2-column dock below character */
+@media (max-width: 1023px) and (min-width: 768px) {
+  .persona-dashboard-overlay {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    justify-content: center;
+    align-items: flex-end;
+    padding: 24px 32px 36px 32px;
+    gap: 20px;
+    height: 100%;
+  }
+
+  .persona-dashboard-center {
+    display: none;
+  }
+
+  .persona-dashboard-left,
+  .persona-dashboard-right {
+    pointer-events: auto;
+    width: 100%;
+    max-width: 100%;
+    background: rgba(14, 14, 14, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 18px 20px;
+    max-height: 42vh;
+    overflow-y: auto;
+  }
+
+  .persona-activity-panel,
+  .persona-performance-panel {
+    gap: 20px;
+  }
+
+  .persona-stat-value {
+    font-size: 28px;
+  }
+}
+
+/* Mobile (<768px) — Single-column vertical organization */
+@media (max-width: 767px) {
   .persona-header {
-    padding: 20px 24px;
+    padding: 16px 20px;
   }
 
   .persona-dashboard-overlay {
@@ -540,7 +599,7 @@
     flex-direction: column;
     justify-content: flex-end;
     align-items: center;
-    padding: 16px 20px 24px 20px;
+    padding: 16px 16px 24px 16px;
     height: 100%;
     pointer-events: none;
     gap: 12px;
@@ -555,7 +614,7 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
     padding: 16px 18px;
-    max-height: 38vh;
+    max-height: 36vh;
     overflow-y: auto;
   }
 
@@ -569,7 +628,7 @@
   }
 
   .persona-stat-value {
-    font-size: 26px;
+    font-size: 24px;
   }
 }
 
