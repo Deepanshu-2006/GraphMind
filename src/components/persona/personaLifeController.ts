@@ -71,13 +71,14 @@ export class PersonaLifeController {
   private blinkElapsed = 0;
   private blinkDuration = 0.16;
   private nextBlinkTime = 0;
+  private isDoubleBlinkPending = false;
 
   // Interactive Click Engagement
   private clickEngagement = 0;
 
   // Breathing Cycle
   private breathPhase = 0;
-  private breathCycleDuration = 4.0; // Slow, relaxed 4-second respiratory cycle (~15 bpm)
+  private breathCycleDuration = 4.0; // Base 4-second respiratory cycle (~15 bpm) with organic drift
 
   // Head Orientation (Smoothed)
   private currentHeadEuler = { pitch: 0, yaw: 0, roll: 0 };
@@ -90,6 +91,13 @@ export class PersonaLifeController {
   private postureProgress = 0;
   private postureDuration = 2.2;
   private postureShoulderOffset = 0;
+
+  // Human Pacing & Calm Stillness (Objective 7)
+  private pacingTimer = 0;
+  private nextStillnessTime = 18.0;
+  private isStillnessActive = false;
+  private stillnessProgress = 0;
+  private stillnessDuration = 4.2;
 
   // Config & Flags
   private prefersReducedMotion = false;
@@ -113,6 +121,7 @@ export class PersonaLifeController {
     this.resetEngagedTimer('neutral');
     this.nextBlinkTime = 3000 + Math.random() * 2500;
     this.nextPostureTime = 14.0 + Math.random() * 12.0;
+    this.nextStillnessTime = 16.0 + Math.random() * 10.0;
   }
 
   // ---------------------------------------------------------------------------
@@ -272,7 +281,7 @@ export class PersonaLifeController {
       };
     }
 
-    // 1. BLINK LIFECYCLE
+    // 1. BLINK LIFECYCLE (Single & Double Blinking - Objective 4)
     let blinkFactor = 0;
     if (this.blinkActive) {
       this.blinkElapsed += dt;
@@ -280,7 +289,21 @@ export class PersonaLifeController {
       if (p >= 1.0) {
         this.blinkActive = false;
         this.blinkElapsed = 0;
-        this.nextBlinkTime = nowMs + 3200 + Math.random() * 2600;
+
+        if (this.isDoubleBlinkPending) {
+          // Immediately schedule the second flutter blink of the double blink
+          this.isDoubleBlinkPending = false;
+          this.nextBlinkTime = nowMs + 80 + Math.random() * 40; // 80-120ms inter-blink flutter gap
+        } else {
+          // 18% natural probability that the next blink will trigger a double blink
+          const willDouble = Math.random() < 0.18;
+          if (willDouble) {
+            this.isDoubleBlinkPending = true;
+            this.nextBlinkTime = nowMs + 2600 + Math.random() * 2600;
+          } else {
+            this.nextBlinkTime = nowMs + 3000 + Math.random() * 2800;
+          }
+        }
       } else if (p < 0.38) {
         const t = p / 0.38;
         blinkFactor = t * t * (3 - 2 * t);
@@ -291,7 +314,9 @@ export class PersonaLifeController {
         blinkFactor = 1.0 - t * t * (3 - 2 * t);
       }
     } else if (!this.isForcedGaze() && nowMs >= this.nextBlinkTime) {
-      this.triggerBlink(0.16 + Math.random() * 0.04);
+      // Slightly shorter duration for second flutter blink
+      const duration = this.isDoubleBlinkPending ? (0.13 + Math.random() * 0.02) : (0.16 + Math.random() * 0.03);
+      this.triggerBlink(duration);
     }
 
     if (this.clickEngagement > 0) {
@@ -341,6 +366,11 @@ export class PersonaLifeController {
           this.targetIdleGaze = { x: 0, y: 0 };
           this.transitionProgress = 0;
           this.transitionDuration = 0.50 + Math.random() * 0.20; // Smooth 500-700ms return transition
+
+          // Natural saccadic reflex blink on return to viewer (~30% chance)
+          if (!this.blinkActive && Math.random() < 0.30) {
+            this.triggerBlink(0.14);
+          }
         }
       } else if (this.gazeMode === 'RETURN_TO_VIEWER') {
         if (this.transitionProgress >= 1.0) {
@@ -406,9 +436,13 @@ export class PersonaLifeController {
     this.currentNDC.x += (targetGazeX - this.currentNDC.x) * gazeFactor;
     this.currentNDC.y += (targetGazeY - this.currentNDC.y) * gazeFactor;
 
-    // 5. GENTLE ANATOMICAL BREATHING
+    // 5. GENTLE ANATOMICAL BREATHING (Objective 1)
     // Smooth asymmetric cycle: 42% inhale, 58% exhale
-    this.breathPhase = (this.breathPhase + dt / this.breathCycleDuration) % 1.0;
+    // Organic breathing rate & amplitude drift over time (non-repetitive breathing)
+    const organicPeriod = 4.0 + Math.sin(timeSec * 0.12) * 0.35 + Math.cos(timeSec * 0.05) * 0.20;
+    const organicAmp = 1.0 + Math.sin(timeSec * 0.08) * 0.12;
+
+    this.breathPhase = (this.breathPhase + dt / organicPeriod) % 1.0;
     let breathVal = 0;
     if (this.breathPhase < 0.42) {
       // Inhalation (smooth expansion)
@@ -422,20 +456,51 @@ export class PersonaLifeController {
 
     // Breathing upper chest & shoulder movements
     // Spine2 pitch: -0.0075 rad (chest expands slightly upward and back)
-    const spinePitch = -0.0075 * breathVal;
-    const spinePosY = 0.0008 * breathVal;
+    const spinePitch = -0.0075 * breathVal * organicAmp;
+    const spinePosY = 0.0008 * breathVal * organicAmp;
     // Shoulders lift slightly (+0.28 bone local Y units)
-    const shoulderLift = 0.28 * breathVal;
+    const shoulderLift = 0.28 * breathVal * organicAmp;
 
-    // 6. SUBTLE HEAD MOVEMENT & POSTURE ADJUSTMENT
+    // 6. SUBTLE HEAD MOVEMENT & POSTURE ADJUSTMENT (Objectives 2, 5, 7)
     // A. Head orienting coupled to gaze (eyes lead, head follows with ~15% amplitude)
     const targetHeadYaw = this.currentNDC.x * 0.08; // Max ~1.15 degrees
     const targetHeadPitch = -this.currentNDC.y * 0.045 - spinePitch * 0.45; // Counteract chest pitch to stabilize gaze
 
-    // B. Autonomous low-frequency organic head drift
-    const headDriftYaw = Math.sin(timeSec * 0.45) * 0.006 + Math.cos(timeSec * 0.95) * 0.003;
-    const headDriftPitch = Math.cos(timeSec * 0.35) * 0.004 + Math.sin(timeSec * 0.82) * 0.002;
-    const headDriftRoll = Math.sin(timeSec * 0.28) * 0.004;
+    // B. Human Pacing Stillness Modulation (Objective 7)
+    // Periodic moments of pure calm where head settling into comfortable resting posture
+    this.pacingTimer += dt;
+    if (!this.isStillnessActive && this.pacingTimer >= this.nextStillnessTime) {
+      this.isStillnessActive = true;
+      this.stillnessProgress = 0;
+      this.stillnessDuration = 3.5 + Math.random() * 2.0; // 3.5s - 5.5s calm stillness
+      this.nextStillnessTime = 20.0 + Math.random() * 14.0;
+      this.pacingTimer = 0;
+    }
+
+    let stillnessFactor = 1.0;
+    if (this.isStillnessActive) {
+      this.stillnessProgress += dt / this.stillnessDuration;
+      if (this.stillnessProgress >= 1.0) {
+        this.isStillnessActive = false;
+      } else {
+        // Trapezoidal envelope: ease into stillness, hold calmly, ease out
+        const sp = this.stillnessProgress;
+        let sWeight = 1.0;
+        if (sp < 0.25) {
+          sWeight = 1.0 - (sp / 0.25);
+        } else if (sp > 0.75) {
+          sWeight = (sp - 0.75) / 0.25;
+        } else {
+          sWeight = 0.0;
+        }
+        stillnessFactor = 0.08 + 0.92 * sWeight;
+      }
+    }
+
+    // C. Autonomous low-frequency organic head drift (scaled by human pacing stillness)
+    const headDriftYaw = (Math.sin(timeSec * 0.45) * 0.006 + Math.cos(timeSec * 0.95) * 0.003) * stillnessFactor;
+    const headDriftPitch = (Math.cos(timeSec * 0.35) * 0.004 + Math.sin(timeSec * 0.82) * 0.002) * stillnessFactor;
+    const headDriftRoll = (Math.sin(timeSec * 0.28) * 0.004) * stillnessFactor;
 
     // C. Expression-specific head posture
     let exprHeadTiltRoll = 0;

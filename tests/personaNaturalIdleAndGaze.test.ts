@@ -301,5 +301,93 @@ describe('GRAPHMIND — PERSONA: NATURAL IDLE ANIMATION, GAZE BEHAVIOR & EXPRESS
         'Unmount must restore rest position on bones'
       );
     });
+
+    it('verifies document visibility change listener and background tab pause', () => {
+      assert.ok(
+        canvasSrc.includes('document.addEventListener(\'visibilitychange\', handleVisibilityChange)'),
+        'Canvas must register visibilitychange listener'
+      );
+      assert.ok(
+        canvasSrc.includes('document.removeEventListener(\'visibilitychange\', handleVisibilityChange)'),
+        'Canvas must clean up visibilitychange listener on unmount'
+      );
+      assert.ok(
+        canvasSrc.includes('document.hidden'),
+        'Canvas must throttle or pause rendering when document.hidden is true'
+      );
+    });
+  });
+
+  describe('7. Cinematic Lifelike Polish (Double Blinks, Breathing Drift, Human Pacing)', () => {
+    it('produces natural, non-periodic blinking with variable intervals and short smooth duration', () => {
+      const controller = new PersonaLifeController();
+      let simTime = 0;
+      const dt = 0.02; // 50 fps simulation
+      let blinkCount = 0;
+      let maxBlinkFactor = 0;
+
+      while (simTime < 40.0) {
+        simTime += dt;
+        const out = controller.update(dt, simTime * 1000, 'neutral');
+        if (out.blinkFactor > 0.01) {
+          if (out.blinkFactor > maxBlinkFactor) maxBlinkFactor = out.blinkFactor;
+        }
+        if (out.blinkFactor > 0.8) {
+          blinkCount++;
+        }
+      }
+
+      assert.ok(blinkCount >= 5, `Should produce multiple natural blinks across 40s, got ${blinkCount}`);
+      assert.ok(maxBlinkFactor >= 0.95, `Blinks should reach full closure (>0.95), got ${maxBlinkFactor}`);
+    });
+
+    it('drifts breathing rate and amplitude organically over time (Objective 1)', () => {
+      const controller = new PersonaLifeController();
+      // Test two breathing peaks at different simulation times (e.g. at ~2s and ~16s)
+      // Shoulder lift peak values will vary slightly due to organic amplitude drift
+      const peaks: number[] = [];
+      let prevLift = 0;
+      let wasRising = true;
+      let simTime = 0;
+      const dt = 0.05;
+
+      while (simTime < 30.0) {
+        simTime += dt;
+        const out = controller.update(dt, simTime * 1000, 'neutral');
+        const curLift = out.shoulderLift;
+        if (wasRising && curLift < prevLift && prevLift > 0.20) {
+          peaks.push(prevLift);
+        }
+        wasRising = curLift >= prevLift;
+        prevLift = curLift;
+      }
+
+      assert.ok(peaks.length >= 4, `Should detect at least 4 respiratory inhalation peaks, got ${peaks.length}`);
+      // The peak amplitudes should not be identical (demonstrating organic drift)
+      const maxPeak = Math.max(...peaks);
+      const minPeak = Math.min(...peaks);
+      assert.ok(maxPeak - minPeak > 0.005, `Respiratory peaks should vary organically, diff=${maxPeak - minPeak}`);
+    });
+
+    it('implements calm stillness pacing periods where head micro-drift settles into resting posture (Objective 7)', () => {
+      const controller = new PersonaLifeController();
+      let simTime = 0;
+      const dt = 0.1;
+      let detectedStillnessCount = 0;
+
+      while (simTime < 60.0) {
+        simTime += dt;
+        const out = controller.update(dt, simTime * 1000, 'neutral');
+        // During stillness, head roll drift is attenuated to near zero (< 0.001 rad)
+        if (Math.abs(out.headEuler.roll) < 0.0008) {
+          detectedStillnessCount++;
+        }
+      }
+
+      assert.ok(
+        detectedStillnessCount >= 5,
+        `Should enter restful stillness pauses with subdued head micro-drift, detected ${detectedStillnessCount} frames`
+      );
+    });
   });
 });

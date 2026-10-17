@@ -807,9 +807,18 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       lifeController.onPointerLeave();
     };
 
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && !document.hidden) {
+        lastFrameTime = performance.now();
+      }
+    };
+
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
     window.addEventListener('pointerleave', handlePointerLeave, { passive: true });
     window.addEventListener('pointerdown', handlePointerDown, { passive: true });
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
 
     const vRestForward = new THREE.Vector3(0, 0, 1);
     const eyeWorldPos = new THREE.Vector3();
@@ -953,6 +962,13 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
 
     const render = (now: number) => {
       if (isDisposed) return;
+
+      // Pause or throttle rendering when page is hidden in background tab (Objective 6)
+      if (typeof document !== 'undefined' && document.hidden) {
+        lastFrameTime = now;
+        animationFrameId = requestAnimationFrame(render);
+        return;
+      }
 
       const dt = Math.min(0.1, (now - lastFrameTime) * 0.001);
       lastFrameTime = now;
@@ -1269,6 +1285,9 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerleave', handlePointerLeave);
       window.removeEventListener('pointerdown', handlePointerDown);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
 
       [headBone, neckBone, spine2Bone, rightShoulderBone, leftShoulderBone, leftEyeBone, rightEyeBone].forEach((bone) => {
         if (bone && bone.userData.restQuat) {
