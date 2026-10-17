@@ -275,6 +275,15 @@ export class PersonaExpressionController {
   // Config & Flags
   private forcedExpression: PersonaExpression | null = null;
   private reducedMotion = false;
+  private greetingLocked = false;
+
+  public setGreetingLocked(locked: boolean): void {
+    this.greetingLocked = locked;
+  }
+
+  public isGreetingLocked(): boolean {
+    return this.greetingLocked;
+  }
 
   constructor(config?: ExpressionControllerConfig) {
     this.forcedExpression = config?.forcedExpression || null;
@@ -469,7 +478,7 @@ export class PersonaExpressionController {
         this.holdTimer = 0;
         this.holdDuration = this.getHoldDuration(this.targetExpr);
       }
-    } else if (this.phase === 'HOLDING' && !this.forcedExpression) {
+    } else if (this.phase === 'HOLDING' && !this.forcedExpression && !this.greetingLocked) {
       this.holdTimer += dt;
       if (this.holdTimer >= this.holdDuration) {
         if (this.targetExpr !== 'neutral') {

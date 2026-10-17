@@ -27,8 +27,12 @@ export type PersonaAnimationState =
   | 'FULLY_SOLID'
   | 'IDLE';
 
+export type PersonaGreetingStage = 'idle' | 'pause' | 'greeting' | 'complete';
+
 export interface PersonaHumanoidCanvasProps {
   onStateChange?: (state: PersonaAnimationState) => void;
+  onSolidificationComplete?: () => void;
+  onGreetingChange?: (stage: PersonaGreetingStage) => void;
   className?: string;
   autoPlay?: boolean;
 }
@@ -109,6 +113,8 @@ function createParticleDiscTexture(): THREE.Texture {
 
 export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
   onStateChange,
+  onSolidificationComplete,
+  onGreetingChange,
   className = '',
   autoPlay = true
 }) => {
@@ -116,6 +122,14 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [currentState, setCurrentState] = useState<PersonaAnimationState>('INITIALIZING');
   const currentStateRef = useRef<PersonaAnimationState>('INITIALIZING');
+
+  const onSolidificationCompleteRef = useRef(onSolidificationComplete);
+  const onGreetingChangeRef = useRef(onGreetingChange);
+
+  useEffect(() => {
+    onSolidificationCompleteRef.current = onSolidificationComplete;
+    onGreetingChangeRef.current = onGreetingChange;
+  }, [onSolidificationComplete, onGreetingChange]);
 
   useEffect(() => {
     currentStateRef.current = currentState;
@@ -768,6 +782,11 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     // Check if initial mount is already in settled/inspection state
     let isInstantSettled = personaTransitionController.state === 'PERSONA_READY' || prefersReducedMotion;
 
+    // Initial Greeting Sequence Timing (Prompt 20 / Stages B, C, D, E)
+    let hasInitiatedGreeting = false;
+    let greetingPauseTimeout: ReturnType<typeof setTimeout> | null = null;
+    let greetingCompleteTimeout: ReturnType<typeof setTimeout> | null = null;
+
     // ----------------------------------------------------
     // Natural 3D Eye Tracking & Ocular Life Dynamics
     // ----------------------------------------------------
@@ -1068,6 +1087,41 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
           personaTransitionController.setPersonaReady();
         }
 
+        // ----------------------------------------------------
+        // INITIAL GREETING SEQUENCE (Plays once upon solidification)
+        // ----------------------------------------------------
+        if (!hasInitiatedGreeting) {
+          hasInitiatedGreeting = true;
+          onSolidificationCompleteRef.current?.();
+
+          // Stage B: Brief pause of approximately 400-700 ms (500ms)
+          onGreetingChangeRef.current?.('pause');
+          greetingPauseTimeout = setTimeout(() => {
+            if (isDisposed) return;
+
+            // Stage C: Gently raise/adjust head towards viewer, eyes settle on viewer, subtle warm smile, greeting nod
+            lifeController.startGreetingNod();
+            expressionController.setGreetingLocked(true);
+            expressionController.setExpression('happy', 1.0);
+
+            // Stage D: Display the greeting text
+            onGreetingChangeRef.current?.('greeting');
+
+            // Stage E: Keep greeting visible for 3.0 seconds (within 2.5-4.0s), then return to idle
+            greetingCompleteTimeout = setTimeout(() => {
+              if (isDisposed) return;
+
+              // Smoothly transition smile back to neutral without popping or snapping
+              expressionController.setExpression('neutral', 1.2);
+              expressionController.setGreetingLocked(false);
+              lifeController.resetGreeting();
+
+              // Fade greeting text out smoothly
+              onGreetingChangeRef.current?.('complete');
+            }, 3000);
+          }, 500);
+        }
+
         renderer.render(scene, camera);
         animationFrameId = requestAnimationFrame(render);
         return;
@@ -1299,6 +1353,12 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
           bone.position.copy(bone.userData.restPos);
         }
       });
+
+      // Clear greeting sequence timeouts and reset life/expression controllers
+      if (greetingPauseTimeout) clearTimeout(greetingPauseTimeout);
+      if (greetingCompleteTimeout) clearTimeout(greetingCompleteTimeout);
+      lifeController.resetGreeting();
+      expressionController.setGreetingLocked(false);
 
       // Clean disposal of independent Persona resources
       particleGeometry.dispose();

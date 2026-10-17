@@ -103,6 +103,11 @@ export class PersonaLifeController {
   private stillnessProgress = 0;
   private stillnessDuration = 4.2;
 
+  // Initial Solidification Greeting Sequence (Prompt 20 / Stage C & E)
+  private isGreetingSequenceActive = false;
+  private greetingElapsed = 0;
+  private greetingNodDuration = 1.4;
+
   // Config & Flags
   private prefersReducedMotion = false;
   private forcedGazeX: number | null = null;
@@ -163,6 +168,39 @@ export class PersonaLifeController {
 
   public isForcedGaze(): boolean {
     return this.forcedGazeX !== null || this.forcedGazeY !== null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // GREETING SEQUENCE (Prompt 20 / Stage C & E)
+  // ---------------------------------------------------------------------------
+
+  private isGreetingGazePrioritized = false;
+
+  public startGreetingNod(): void {
+    if (this.prefersReducedMotion) {
+      this.isGreetingGazePrioritized = true;
+      return;
+    }
+    this.isGreetingSequenceActive = true;
+    this.isGreetingGazePrioritized = true;
+    this.greetingElapsed = 0;
+    this.gazeMode = 'ENGAGED';
+    this.gazeTimer = 0;
+    this.gazeTargetDuration = 8.0;
+    this.currentIdleGaze.x = 0;
+    this.currentIdleGaze.y = 0;
+    this.targetIdleGaze.x = 0;
+    this.targetIdleGaze.y = 0;
+  }
+
+  public isGreetingActive(): boolean {
+    return this.isGreetingSequenceActive || this.isGreetingGazePrioritized;
+  }
+
+  public resetGreeting(): void {
+    this.isGreetingSequenceActive = false;
+    this.isGreetingGazePrioritized = false;
+    this.greetingElapsed = 0;
   }
 
   // ---------------------------------------------------------------------------
@@ -341,7 +379,7 @@ export class PersonaLifeController {
     // 3. AUTONOMOUS GAZE STATE MACHINE (Section 2 & 6)
     if (!this.isForcedGaze()) {
       // If cursor is actively in control or emotion suppresses look-away, return/stay engaged
-      const shouldSuppressGlance = (this.cursorWeight > 0.65) || (profile.suppressAutonomousGaze && emotionWeight > 0.5);
+      const shouldSuppressGlance = (this.cursorWeight > 0.65) || (profile.suppressAutonomousGaze && emotionWeight > 0.5) || this.isGreetingSequenceActive;
 
       if (shouldSuppressGlance && this.gazeMode === 'GLANCE_AWAY') {
         this.gazeMode = 'RETURN_TO_VIEWER';
@@ -422,8 +460,14 @@ export class PersonaLifeController {
       const idleTargetX = this.currentIdleGaze.x + exprBiasX + microTremorX;
       const idleTargetY = this.currentIdleGaze.y + exprBiasY + microTremorY;
 
-      targetGazeX = THREE.MathUtils.lerp(idleTargetX, cursorTargetX, this.cursorWeight);
-      targetGazeY = THREE.MathUtils.lerp(idleTargetY, cursorTargetY, this.cursorWeight);
+      // During greeting sequence, eyes prioritize settling on viewer center unless cursor is actively moved
+      if (this.isGreetingGazePrioritized && this.cursorWeight < 0.6) {
+        targetGazeX = 0;
+        targetGazeY = 0;
+      } else {
+        targetGazeX = THREE.MathUtils.lerp(idleTargetX, cursorTargetX, this.cursorWeight);
+        targetGazeY = THREE.MathUtils.lerp(idleTargetY, cursorTargetY, this.cursorWeight);
+      }
     }
 
     // Smooth critically-damped arrival at target gaze (saccadic profile)
@@ -527,9 +571,34 @@ export class PersonaLifeController {
       }
     }
 
+    // F. Greeting Nod Modulation (Prompt 20 / Stage C)
+    let greetingNodPitch = 0;
+    if (this.isGreetingSequenceActive) {
+      this.greetingElapsed += dt;
+      if (this.greetingElapsed >= this.greetingNodDuration) {
+        this.isGreetingSequenceActive = false;
+      } else {
+        const p = this.greetingElapsed / this.greetingNodDuration;
+        // Restrained natural nod profile:
+        // Phase 1 (0..0.22): gentle orienting toward viewer (-0.008 rad lift)
+        // Phase 2 (0.22..0.65): subtle polite greeting nod dip (+0.024 rad dip)
+        // Phase 3 (0.65..1.0): smooth return to resting baseline (0.0 rad)
+        if (p < 0.22) {
+          const t = p / 0.22;
+          greetingNodPitch = -0.008 * Math.sin(t * Math.PI * 0.5);
+        } else if (p < 0.65) {
+          const t = (p - 0.22) / 0.43;
+          greetingNodPitch = -0.008 + 0.032 * Math.sin(t * Math.PI);
+        } else {
+          const t = (p - 0.65) / 0.35;
+          greetingNodPitch = 0.024 * (1.0 - Math.sin(t * Math.PI * 0.5));
+        }
+      }
+    }
+
     // Blend head & neck orientations smoothly with exponential damping
     const desiredTotalYaw = targetHeadYaw + headDriftYaw;
-    const desiredTotalPitch = targetHeadPitch + headDriftPitch + exprHeadTiltPitch;
+    const desiredTotalPitch = targetHeadPitch + headDriftPitch + exprHeadTiltPitch + greetingNodPitch;
     const desiredTotalRoll = headDriftRoll + exprHeadTiltRoll;
 
     const headDampSpeed = 4.0;
