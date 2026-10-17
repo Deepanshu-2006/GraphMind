@@ -358,11 +358,15 @@ export class PersonaExpressionController {
       blinkFactor?: number;
       gazeNormY?: number;
       clickEngagement?: number;
+      eyeOpenBonus?: number;
+      squintBonus?: number;
     }
   ) {
     const blinkFactor = options?.blinkFactor ?? 0;
     const gazeNormY = options?.gazeNormY ?? 0;
     const clickEngagement = options?.clickEngagement ?? 0;
+    const eyeOpenBonus = options?.eyeOpenBonus ?? 0;
+    const squintBonus = options?.squintBonus ?? 0;
 
     // Apply lower teeth morphs
     if (teethDownMesh && teethDownMesh.morphTargetInfluences) {
@@ -376,15 +380,15 @@ export class PersonaExpressionController {
     if (headMesh && headMesh.morphTargetInfluences) {
       const hMorphs = headMesh.morphTargetInfluences;
       for (let i = 0; i < 65 && i < hMorphs.length; i++) {
-        // Skip eye aperture/closure which are blended dynamically with blink & gaze
-        if (i === 45 || i === 46 || i === 47 || i === 48 || i === 51 || i === 52 || i === 58 || i === 59) {
+        // Skip eye aperture/closure/squint which are blended dynamically with blink & gaze
+        if (i === 45 || i === 46 || i === 47 || i === 48 || i === 49 || i === 50 || i === 51 || i === 52 || i === 58 || i === 59) {
           continue;
         }
         hMorphs[i] = this.currentWeightsHead[i];
       }
 
       // Base eye aperture from the current evaluated expression
-      const baseEyeOpen = this.currentWeightsHead[47] || 0.32;
+      const baseEyeOpen = (this.currentWeightsHead[47] || 0.32) + eyeOpenBonus;
       const baseBrowUpR = this.currentWeightsHead[58] || 0.0;
       const baseBrowUpL = this.currentWeightsHead[59] || 0.0;
 
@@ -396,14 +400,18 @@ export class PersonaExpressionController {
       const downLidClose = gazeNormY < -0.15 ? (-gazeNormY - 0.15) * 0.26 : 0.0;
       const dynamicClose = Math.min(1.0, blinkFactor + downLidClose * (1.0 - blinkFactor));
       const dynamicLowLid = (this.currentWeightsHead[51] || 0.0) + (gazeNormY < -0.10 ? (-gazeNormY - 0.10) * 0.14 : 0.0);
+      const dynamicSquintR = Math.min(1.0, (this.currentWeightsHead[49] || 0.0) + squintBonus);
+      const dynamicSquintL = Math.min(1.0, (this.currentWeightsHead[50] || 0.0) + squintBonus);
 
       const dynamicBrowUpR = baseBrowUpR + (gazeNormY > 0.25 ? (gazeNormY - 0.25) * 0.08 : 0.0) + clickEngagement * 0.08;
       const dynamicBrowUpL = baseBrowUpL + (gazeNormY > 0.25 ? (gazeNormY - 0.25) * 0.08 : 0.0) + clickEngagement * 0.08;
 
-      hMorphs[45] = dynamicClose;  // ReyeClose_h
-      hMorphs[46] = dynamicClose;  // LeyeClose_h
-      hMorphs[47] = dynamicOpen;   // ReyeOpen_h
-      hMorphs[48] = dynamicOpen;   // LeyeOpen_h
+      hMorphs[45] = dynamicClose;   // ReyeClose_h
+      hMorphs[46] = dynamicClose;   // LeyeClose_h
+      hMorphs[47] = dynamicOpen;    // ReyeOpen_h
+      hMorphs[48] = dynamicOpen;    // LeyeOpen_h
+      hMorphs[49] = dynamicSquintR; // Rsquint_h
+      hMorphs[50] = dynamicSquintL; // Lsquint_h
       hMorphs[51] = Math.min(1.0, dynamicLowLid); // RlowLid_h
       hMorphs[52] = Math.min(1.0, dynamicLowLid); // LlowLid_h
       hMorphs[58] = Math.min(1.0, dynamicBrowUpR); // RbrowUp_h

@@ -13,6 +13,10 @@ import {
   PersonaExpressionController,
   type PersonaExpression
 } from './personaExpressionController';
+import {
+  PersonaLifeController,
+  type LifeFrameOutput
+} from './personaLifeController';
 
 export type PersonaAnimationState =
   | 'INITIALIZING'
@@ -193,6 +197,11 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     let loadedSolidModel: THREE.Object3D | null = null;
     let leftEyeBone: THREE.Bone | null = null;
     let rightEyeBone: THREE.Bone | null = null;
+    let headBone: THREE.Bone | null = null;
+    let neckBone: THREE.Bone | null = null;
+    let spine2Bone: THREE.Bone | null = null;
+    let rightShoulderBone: THREE.Bone | null = null;
+    let leftShoulderBone: THREE.Bone | null = null;
     let headMesh: THREE.Mesh | null = null;
     let teethDownMesh: THREE.Mesh | null = null;
 
@@ -207,6 +216,16 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     const expressionController = new PersonaExpressionController({
       forcedExpression: forcedExprParam && validExprs.includes(forcedExprParam) ? forcedExprParam : null,
       reducedMotion: prefersReducedMotion
+    });
+
+    const forcedGazeXParam = searchParams?.get('gazeX');
+    const forcedGazeYParam = searchParams?.get('gazeY');
+
+    // Centralized Natural Life Controller (Idle Gaze, Breathing, Head Orientation, Posture)
+    const lifeController = new PersonaLifeController({
+      prefersReducedMotion,
+      forcedGazeX: forcedGazeXParam !== null && !isNaN(parseFloat(forcedGazeXParam)) ? parseFloat(forcedGazeXParam) : null,
+      forcedGazeY: forcedGazeYParam !== null && !isNaN(parseFloat(forcedGazeYParam)) ? parseFloat(forcedGazeYParam) : null
     });
 
     const gltfLoader = new GLTFLoader();
@@ -244,6 +263,20 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
           rightEyeBone.scale.setScalar(1.08);
         }
 
+        // Cache head, neck, spine2, and shoulder bones with rest quaternions & positions
+        headBone = model.getObjectByName('Head') as THREE.Bone | null;
+        neckBone = model.getObjectByName('Neck') as THREE.Bone | null;
+        spine2Bone = model.getObjectByName('Spine2') as THREE.Bone | null;
+        rightShoulderBone = model.getObjectByName('RightShoulder') as THREE.Bone | null;
+        leftShoulderBone = model.getObjectByName('LeftShoulder') as THREE.Bone | null;
+
+        [headBone, neckBone, spine2Bone, rightShoulderBone, leftShoulderBone].forEach((bone) => {
+          if (bone) {
+            bone.userData.restQuat = bone.quaternion.clone();
+            bone.userData.restPos = bone.position.clone();
+          }
+        });
+
         // Configure facial expressiveness via anatomical morph targets (Sections 2, 5, 6)
         headMesh = model.getObjectByName('H_DDS_HighRes') as THREE.Mesh | null;
         teethDownMesh = model.getObjectByName('h_TeethDown') as THREE.Mesh | null;
@@ -259,7 +292,17 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
             headMesh,
             teethDownMesh,
             expressionController,
-            model
+            lifeController,
+            model,
+            bones: {
+              head: headBone,
+              neck: neckBone,
+              spine2: spine2Bone,
+              rightShoulder: rightShoulderBone,
+              leftShoulder: leftShoulderBone,
+              leftEye: leftEyeBone,
+              rightEye: rightEyeBone
+            }
           };
         }
 
@@ -728,40 +771,12 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     // ----------------------------------------------------
     // Natural 3D Eye Tracking & Ocular Life Dynamics
     // ----------------------------------------------------
-    const forcedGazeX = searchParams?.get('gazeX');
-    const forcedGazeY = searchParams?.get('gazeY');
-    const isForcedGaze = forcedGazeX !== null || forcedGazeY !== null;
-
-    const gazeState = {
-      targetNDC: {
-        x: forcedGazeX !== null && !isNaN(parseFloat(forcedGazeX)) ? parseFloat(forcedGazeX) : 0,
-        y: forcedGazeY !== null && !isNaN(parseFloat(forcedGazeY)) ? parseFloat(forcedGazeY) : 0
-      },
-      currentNDC: {
-        x: forcedGazeX !== null && !isNaN(parseFloat(forcedGazeX)) ? parseFloat(forcedGazeX) : 0,
-        y: forcedGazeY !== null && !isNaN(parseFloat(forcedGazeY)) ? parseFloat(forcedGazeY) : 0
-      },
-      hasPointer: isForcedGaze,
-      lastMoveTime: performance.now(),
-      clickEngagement: 0,
-      blink: {
-        active: false,
-        elapsed: 0,
-        duration: 0.16,
-        nextBlinkTime: performance.now() + 3200 + Math.random() * 2500
-      }
-    };
-
-    const triggerBlink = (duration = 0.16) => {
-      if (isForcedGaze || prefersReducedMotion || gazeState.blink.active) return;
-      gazeState.blink.active = true;
-      gazeState.blink.elapsed = 0;
-      gazeState.blink.duration = duration;
-    };
-
     let prevPointerNDC = { x: 0, y: 0 };
+    let lastPointerMoveTime = performance.now();
+    let clickEngagement = 0;
+
     const handlePointerMove = (e: PointerEvent) => {
-      if (prefersReducedMotion || isForcedGaze) return;
+      if (prefersReducedMotion) return;
       const x = (e.clientX / (window.innerWidth || 1200)) * 2 - 1;
       const y = -((e.clientY / (window.innerHeight || 900)) * 2 - 1);
       const clampedX = Math.max(-1, Math.min(1, x));
@@ -772,31 +787,24 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       const dy = clampedY - prevPointerNDC.y;
       const saccadeDist = Math.sqrt(dx * dx + dy * dy);
       const now = performance.now();
-      if (saccadeDist > 0.65 && now - gazeState.lastMoveTime < 180 && !gazeState.blink.active) {
-        triggerBlink(0.14);
+      if (saccadeDist > 0.65 && now - lastPointerMoveTime < 180) {
+        lifeController.triggerBlink(0.14);
       }
       prevPointerNDC.x = clampedX;
       prevPointerNDC.y = clampedY;
-      gazeState.lastMoveTime = now;
+      lastPointerMoveTime = now;
 
-      gazeState.targetNDC.x = clampedX;
-      gazeState.targetNDC.y = clampedY;
-      gazeState.hasPointer = true;
+      lifeController.onPointerMove(clampedX, clampedY, now);
     };
 
     const handlePointerDown = () => {
-      if (prefersReducedMotion || isForcedGaze) return;
-      gazeState.clickEngagement = 1.0;
-      if (!gazeState.blink.active && Math.random() < 0.60) {
-        triggerBlink(0.15);
-      }
+      if (prefersReducedMotion) return;
+      clickEngagement = 1.0;
+      lifeController.onPointerDown();
     };
 
     const handlePointerLeave = () => {
-      if (isForcedGaze) return;
-      gazeState.hasPointer = false;
-      gazeState.targetNDC.x = 0;
-      gazeState.targetNDC.y = 0;
+      lifeController.onPointerLeave();
     };
 
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
@@ -810,6 +818,31 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     const deltaGazeQuat = new THREE.Quaternion();
     const localDeltaQuat = new THREE.Quaternion();
     const gazeTargetPos = new THREE.Vector3();
+
+    const _tempParentQuat = new THREE.Quaternion();
+    const _tempLocalDelta = new THREE.Quaternion();
+    const _tempEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+    const _tempDeltaQuat = new THREE.Quaternion();
+
+    /**
+     * Apply a conjugate world-space delta rotation to any rig bone.
+     * Prevents gimbal lock and works independently of local bone bind axes.
+     */
+    const applyWorldRotationOffset = (
+      bone: THREE.Bone | null,
+      pitch: number, // pitch (nod) around world X
+      yaw: number,   // yaw (turn) around world Y
+      roll: number   // roll (tilt) around world Z
+    ) => {
+      if (!bone || !bone.parent || !bone.userData.restQuat) return;
+      _tempEuler.set(pitch, yaw, roll, 'YXZ');
+      _tempDeltaQuat.setFromEuler(_tempEuler);
+
+      bone.parent.getWorldQuaternion(_tempParentQuat);
+      _tempLocalDelta.copy(_tempParentQuat).invert().multiply(_tempDeltaQuat).multiply(_tempParentQuat);
+      bone.quaternion.copy(_tempLocalDelta).multiply(bone.userData.restQuat);
+      bone.updateMatrixWorld(true);
+    };
 
     const updateEyeGaze = (eyeBone: THREE.Bone | null, targetPos: THREE.Vector3) => {
       if (!eyeBone || !eyeBone.parent || !eyeBone.userData.restQuat) return;
@@ -827,71 +860,67 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     };
 
     const updateEyeTracking = (dt: number, nowMs: number) => {
-      if (prefersReducedMotion || !leftEyeBone || !rightEyeBone) return;
+      if (!leftEyeBone || !rightEyeBone) return;
 
-      // 1. Spontaneous & Saccadic Blink Lifecycle
-      let blinkFactor = 0;
-      if (gazeState.blink.active) {
-        gazeState.blink.elapsed += dt;
-        const p = gazeState.blink.elapsed / gazeState.blink.duration;
-        if (p >= 1.0) {
-          gazeState.blink.active = false;
-          gazeState.blink.elapsed = 0;
-          gazeState.blink.nextBlinkTime = nowMs + 3200 + Math.random() * 2600;
-        } else if (p < 0.38) {
-          const t = p / 0.38;
-          blinkFactor = t * t * (3 - 2 * t);
-        } else if (p < 0.48) {
-          blinkFactor = 1.0;
-        } else {
-          const t = (p - 0.48) / 0.52;
-          blinkFactor = 1.0 - t * t * (3 - 2 * t);
-        }
-      } else if (!isForcedGaze && nowMs >= gazeState.blink.nextBlinkTime) {
-        triggerBlink(0.16 + Math.random() * 0.04);
+      if (clickEngagement > 0) {
+        clickEngagement = Math.max(0, clickEngagement - dt * 2.5);
       }
 
-      // Decay interactive click engagement
-      if (gazeState.clickEngagement > 0) {
-        gazeState.clickEngagement = Math.max(0, gazeState.clickEngagement - dt * 2.5);
-      }
+      // 1. Advance Life Controller (coordinated gaze, breathing, head tilt, posture, blinking)
+      const currentExpr = expressionController.getCurrentExpression();
+      const lifeOutput = lifeController.update(dt, nowMs, currentExpr);
 
-      // 2. Subtle Organic Micro-Fixations (Ocular Tremor / Life)
-      let effectiveTargetX = gazeState.targetNDC.x;
-      let effectiveTargetY = gazeState.targetNDC.y;
-      if (!isForcedGaze && gazeState.hasPointer) {
-        const timeSec = nowMs * 0.001;
-        const microDriftX = Math.sin(timeSec * 1.8) * 0.0035 + Math.cos(timeSec * 3.7) * 0.0018;
-        const microDriftY = Math.cos(timeSec * 1.4) * 0.0025 + Math.sin(timeSec * 2.9) * 0.0012;
-        effectiveTargetX += microDriftX;
-        effectiveTargetY += microDriftY;
-      }
-
-      // 3. Dynamic Saccadic Velocity Profile:
-      // High agility during fast cursor sweeps, critically-damped arrival at target, calm return
-      const dx = effectiveTargetX - gazeState.currentNDC.x;
-      const dy = effectiveTargetY - gazeState.currentNDC.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      const baseSpeed = gazeState.hasPointer ? 16.0 : 8.5;
-      const saccadeBoost = Math.min(12.0, dist * 18.0);
-      const lerpSpeed = baseSpeed + saccadeBoost;
-      const factor = 1.0 - Math.exp(-lerpSpeed * Math.max(0.001, dt));
-
-      gazeState.currentNDC.x += (effectiveTargetX - gazeState.currentNDC.x) * factor;
-      gazeState.currentNDC.y += (effectiveTargetY - gazeState.currentNDC.y) * factor;
-
-      // 4. Natural 3D Gaze Target Mapping (Z = 1.48 at camera focal plane)
+      // 2. Map 3D Gaze Target (Z = 1.48 at camera focal plane)
       // Horizontal span: 0.52 world units (~21 deg, rich widescreen tracking)
       // Vertical span: 0.26 world units (~11 deg, natural gaze arc)
       gazeTargetPos.set(
-        gazeState.currentNDC.x * 0.52,
-        0.121 + gazeState.currentNDC.y * 0.26,
+        lifeOutput.gazeNDC.x * 0.52,
+        0.121 + lifeOutput.gazeNDC.y * 0.26,
         1.48
       );
 
       updateEyeGaze(leftEyeBone, gazeTargetPos);
       updateEyeGaze(rightEyeBone, gazeTargetPos);
+
+      // 3. Gentle Upper Body Breathing & Micro-Posture
+      if (!prefersReducedMotion) {
+        // Upper Spine / Chest (Spine2)
+        applyWorldRotationOffset(
+          spine2Bone,
+          lifeOutput.spine2Euler.pitch,
+          lifeOutput.spine2Euler.yaw,
+          lifeOutput.spine2Euler.roll
+        );
+        if (spine2Bone && spine2Bone.userData.restPos) {
+          spine2Bone.position.set(
+            spine2Bone.userData.restPos.x + lifeOutput.spine2PositionOffset.x,
+            spine2Bone.userData.restPos.y + lifeOutput.spine2PositionOffset.y,
+            spine2Bone.userData.restPos.z + lifeOutput.spine2PositionOffset.z
+          );
+        }
+
+        // Shoulders: subtle vertical breathing lift & micro-posture
+        if (rightShoulderBone && rightShoulderBone.userData.restPos) {
+          rightShoulderBone.position.y = rightShoulderBone.userData.restPos.y + lifeOutput.shoulderLift;
+        }
+        if (leftShoulderBone && leftShoulderBone.userData.restPos) {
+          leftShoulderBone.position.y = leftShoulderBone.userData.restPos.y + lifeOutput.shoulderLift;
+        }
+
+        // Neck & Head: subtle orienting, organic micro-drift, and expression-specific tilt
+        applyWorldRotationOffset(
+          neckBone,
+          lifeOutput.neckEuler.pitch,
+          lifeOutput.neckEuler.yaw,
+          lifeOutput.neckEuler.roll
+        );
+        applyWorldRotationOffset(
+          headBone,
+          lifeOutput.headEuler.pitch,
+          lifeOutput.headEuler.yaw,
+          lifeOutput.headEuler.roll
+        );
+      }
 
       // 5. Update Expression Controller & Coordinate Eyelids, Blinking, and Jaw (Sections 3, 4, 5, 6, 7)
       const debugOverride = typeof window !== 'undefined' ? (window as any).__personaDebug?.overrideWeights : null;
@@ -911,9 +940,11 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       } else {
         expressionController.update(dt);
         expressionController.applyToMeshes(headMesh, teethDownMesh, {
-          blinkFactor,
-          gazeNormY: gazeState.currentNDC.y,
-          clickEngagement: gazeState.clickEngagement
+          blinkFactor: lifeOutput.blinkFactor,
+          gazeNormY: lifeOutput.gazeNDC.y,
+          clickEngagement,
+          eyeOpenBonus: lifeOutput.eyeOpenBonus,
+          squintBonus: lifeOutput.squintBonus
         });
       }
     };
@@ -1024,13 +1055,15 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         return;
       }
 
-      // During active reconstruction wave, eyes remain anchored in neutral forward rest pose (Section 5)
-      if (leftEyeBone && leftEyeBone.userData.restQuat) {
-        leftEyeBone.quaternion.copy(leftEyeBone.userData.restQuat);
-      }
-      if (rightEyeBone && rightEyeBone.userData.restQuat) {
-        rightEyeBone.quaternion.copy(rightEyeBone.userData.restQuat);
-      }
+      // During active reconstruction wave, eyes and upper body remain anchored in neutral forward rest pose
+      [headBone, neckBone, spine2Bone, rightShoulderBone, leftShoulderBone, leftEyeBone, rightEyeBone].forEach((bone) => {
+        if (bone && bone.userData.restQuat) {
+          bone.quaternion.copy(bone.userData.restQuat);
+        }
+        if (bone && bone.userData.restPos) {
+          bone.position.copy(bone.userData.restPos);
+        }
+      });
       // Keep expression in baseline neutral during wave formation
       expressionController.applyToMeshes(headMesh, teethDownMesh, {
         blinkFactor: 0,
@@ -1237,12 +1270,14 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       window.removeEventListener('pointerleave', handlePointerLeave);
       window.removeEventListener('pointerdown', handlePointerDown);
 
-      if (leftEyeBone && leftEyeBone.userData.restQuat) {
-        leftEyeBone.quaternion.copy(leftEyeBone.userData.restQuat);
-      }
-      if (rightEyeBone && rightEyeBone.userData.restQuat) {
-        rightEyeBone.quaternion.copy(rightEyeBone.userData.restQuat);
-      }
+      [headBone, neckBone, spine2Bone, rightShoulderBone, leftShoulderBone, leftEyeBone, rightEyeBone].forEach((bone) => {
+        if (bone && bone.userData.restQuat) {
+          bone.quaternion.copy(bone.userData.restQuat);
+        }
+        if (bone && bone.userData.restPos) {
+          bone.position.copy(bone.userData.restPos);
+        }
+      });
 
       // Clean disposal of independent Persona resources
       particleGeometry.dispose();
