@@ -1349,6 +1349,6 @@ body.graph-fullscreen-active .workspace-viewport {
   }
 
   .profile-avatar {
-    display: none;
+    display: flex;
   }
 }

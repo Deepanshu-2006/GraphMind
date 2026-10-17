@@ -14,8 +14,7 @@ import {
   type PersonaExpression
 } from './personaExpressionController';
 import {
-  PersonaLifeController,
-  type LifeFrameOutput
+  PersonaLifeController
 } from './personaLifeController';
 import { PersonaLipSyncController } from './personaLipSyncController';
 import { personaPresentationController } from './personaPresentationController';
@@ -241,8 +240,8 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     // Centralized Natural Life Controller (Idle Gaze, Breathing, Head Orientation, Posture)
     const lifeController = new PersonaLifeController({
       prefersReducedMotion,
-      forcedGazeX: forcedGazeXParam !== null && !isNaN(parseFloat(forcedGazeXParam)) ? parseFloat(forcedGazeXParam) : null,
-      forcedGazeY: forcedGazeYParam !== null && !isNaN(parseFloat(forcedGazeYParam)) ? parseFloat(forcedGazeYParam) : null
+      forcedGazeX: forcedGazeXParam && !isNaN(parseFloat(forcedGazeXParam)) ? parseFloat(forcedGazeXParam) : null,
+      forcedGazeY: forcedGazeYParam && !isNaN(parseFloat(forcedGazeYParam)) ? parseFloat(forcedGazeYParam) : null
     });
 
     const lipSyncController = new PersonaLipSyncController({
@@ -334,14 +333,14 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         [teethDownMesh, teethUp].forEach((mesh) => {
           if (mesh && mesh.material) {
             const origMat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
-            const teethMat = origMat.clone();
+            const teethMat = origMat.clone() as THREE.MeshStandardMaterial;
             teethMat.userData = teethMat.userData || {};
             teethMat.userData.customRoughness = true;
             teethMat.userData.customMetalness = true;
             teethMat.roughness = 0.30;
             teethMat.metalness = 0.0;
             teethMat.color = new THREE.Color('#FAF7F0');
-            teethMat.onBeforeCompile = (shader) => {
+            teethMat.onBeforeCompile = (shader, _renderer) => {
               shader.fragmentShader = shader.fragmentShader.replace(
                 '#include <dithering_fragment>',
                 `#include <dithering_fragment>
@@ -358,13 +357,13 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         [leftEyeMesh, rightEyeMesh].forEach((mesh) => {
           if (mesh && mesh.material) {
             const origMat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
-            const eyeMat = origMat.clone();
+            const eyeMat = origMat.clone() as THREE.MeshStandardMaterial;
             eyeMat.userData = eyeMat.userData || {};
             eyeMat.userData.customRoughness = true;
             eyeMat.userData.customMetalness = true;
             eyeMat.roughness = 0.10;
             eyeMat.metalness = 0.0;
-            eyeMat.onBeforeCompile = (shader) => {
+            eyeMat.onBeforeCompile = (shader, _renderer) => {
               shader.fragmentShader = shader.fragmentShader.replace(
                 '#include <map_fragment>',
                 `#include <map_fragment>
@@ -455,28 +454,6 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       const lum = target.lum ?? 0.50;
       const cat = target.category || 'base_surface';
       const subCat = target.subCategory || cat;
-
-      // Anatomical feature zones
-      const isEyeball =
-        (target.category && target.category.includes('eye')) ||
-        (target.z > 0.076 &&
-          Math.abs(target.x) >= 0.016 &&
-          Math.abs(target.x) <= 0.052 &&
-          target.y >= 0.072 &&
-          target.y <= 0.16);
-
-      const isCheekOrFace =
-        (target.category && (target.category.includes('cheeks') || target.category.includes('nose') || target.category.includes('lips') || target.category.includes('forehead') || target.category.includes('eyebrow'))) ||
-        (target.z > 0.045 &&
-          target.y >= -0.04 &&
-          target.y <= 0.16 &&
-          Math.abs(target.x) < 0.09);
-
-      const isTopCrown = target.y > 0.16;
-      const isNeckOrJaw =
-        (target.category && (target.category.includes('chin') || target.category.includes('jaw'))) ||
-        (target.y >= -0.09 && target.y < 0.01);
-      const isChestOrShoulder = target.y < -0.09;
 
       let targetR = 0.36 * diff;
       let targetG = 0.90 * diff;
@@ -761,7 +738,6 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
 
     // Animation & Transition Timing
     const transitionStart = personaTransitionController.startTime || performance.now();
-    const REVEAL_DURATION = prefersReducedMotion ? 0.05 : PERSONA_PARTICLE_CONFIG.revealDuration;
 
     // Development Comparison Mode support (Section 8):
     // A. SOLID MODEL ONLY (?debugMode=solid, or Key '1')
@@ -1137,19 +1113,20 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
               // Fade greeting text out smoothly
               onGreetingChangeRef.current?.('complete');
 
-              // Gracefully glance towards the newly revealed learning statistics panel on the left
-              lifeController.glanceTowards(-0.52, 0.06, 1.8);
+              // Gracefully glance towards the newly revealed learning statistics panel on the left.
+              // Eyes and head remain on the left until all left content has finished rendering (~2.7s animation + 350ms delay = ~3.05s)
+              lifeController.glanceTowards(-0.52, 0.06, 3.2);
 
-              // After observing the left side, smoothly shift eyes and head to the right side
+              // After observing all left content finish rendering, smoothly shift eyes and head to the right side
               glanceRightTimeout = setTimeout(() => {
                 if (isDisposed) return;
 
                 // Gracefully glance towards the right side performance panel
-                lifeController.glanceTowards(0.52, 0.06, 2.4);
+                lifeController.glanceTowards(0.52, 0.06, 2.8);
 
                 // Signal that the character is now directing attention to the right
                 onGreetingChangeRef.current?.('glance-right');
-              }, 1800);
+              }, 3150);
             };
 
             greetingCompleteTimeout = setTimeout(completeGreeting, 3200);

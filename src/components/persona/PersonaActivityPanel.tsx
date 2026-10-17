@@ -45,31 +45,39 @@ export function formatTabularCount(count: number): string {
   return count < 10 ? `0${count}` : `${count}`;
 }
 
-export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = ({
+/**
+ * PersonaActivityPanel
+ *
+ * Left-side learning activity overview within GraphMind Persona.
+ * Features a refined Swiss-editorial typography hierarchy and a coordinated 5-phase
+ * entrance animation sequence.
+ */
+export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = React.memo(({
   onSelectGraph,
   className = ''
 }) => {
   const { stats, isLoading, error, refresh } = usePersonaStats();
   const shouldReduceMotion = useReducedMotion();
 
-  // Animation variants for editorial staggered entrance with subtle horizontal motion
+  // Phase 1: Coordinated panel container entrance from bottom (+12px -> 0px)
   const containerVariants: Variants = {
     hidden: {
       opacity: 0,
-      x: shouldReduceMotion ? 0 : -10
+      y: shouldReduceMotion ? 0 : 12
     },
     visible: {
       opacity: 1,
-      x: 0,
+      y: 0,
       transition: {
-        duration: shouldReduceMotion ? 0 : 0.5,
+        duration: shouldReduceMotion ? 0 : 0.6,
         ease: [0.16, 1, 0.3, 1],
-        staggerChildren: shouldReduceMotion ? 0 : 0.08,
-        delayChildren: shouldReduceMotion ? 0 : 0.1
+        staggerChildren: shouldReduceMotion ? 0 : 0.09,
+        delayChildren: shouldReduceMotion ? 0 : 0.06
       }
     }
   };
 
+  // Phase 2: Editorial group container entrance
   const itemVariants: Variants = {
     hidden: {
       opacity: 0,
@@ -79,7 +87,256 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = ({
       opacity: 1,
       y: 0,
       transition: {
-        duration: shouldReduceMotion ? 0 : 0.4,
+        duration: shouldReduceMotion ? 0 : 0.45,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    }
+  };
+
+  // Phase A: Eyebrow green indicator dot & uppercase label (0–500ms)
+  const eyebrowDotVariants: Variants = {
+    hidden: {
+      opacity: 0,
+      scale: shouldReduceMotion ? 1 : 0.65
+    },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.35,
+        delay: shouldReduceMotion ? 0 : 0.05,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    }
+  };
+
+  const eyebrowTextVariants: Variants = {
+    hidden: {
+      opacity: 0,
+      y: shouldReduceMotion ? 0 : 6
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.35,
+        delay: shouldReduceMotion ? 0 : 0.14,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    }
+  };
+
+  // Phase B: Supporting headline reveal (180–550ms)
+  const headlineVariants: Variants = {
+    hidden: {
+      opacity: 0,
+      y: shouldReduceMotion ? 0 : 10
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.40,
+        delay: shouldReduceMotion ? 0 : 0.22,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    }
+  };
+
+  // Phase C: Graph count label, clipped vertical reveal, and description (400–1,250ms)
+  const metric1LabelVariants: Variants = {
+    hidden: {
+      opacity: 0,
+      y: shouldReduceMotion ? 0 : 6
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.35,
+        delay: shouldReduceMotion ? 0 : 0.42,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    }
+  };
+
+  const metric1ValueVariants: Variants = {
+    hidden: {
+      opacity: 0,
+      y: shouldReduceMotion ? 0 : '100%'
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.65,
+        delay: shouldReduceMotion ? 0 : 0.48,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    }
+  };
+
+  const metric1SubtextVariants: Variants = {
+    hidden: {
+      opacity: 0,
+      y: shouldReduceMotion ? 0 : 6
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.38,
+        delay: shouldReduceMotion ? 0 : 0.78,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    }
+  };
+
+  // Phase D: Learning progress label, clipped percentage reveal, track, and description (1,000–2,100ms)
+  const metric2LabelVariants: Variants = {
+    hidden: {
+      opacity: 0,
+      y: shouldReduceMotion ? 0 : 6
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.35,
+        delay: shouldReduceMotion ? 0 : 0.98,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    }
+  };
+
+  const metric2ValueVariants: Variants = {
+    hidden: {
+      opacity: 0,
+      y: shouldReduceMotion ? 0 : '100%'
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.68,
+        delay: shouldReduceMotion ? 0 : 1.06,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    }
+  };
+
+  const metric2SubtextVariants: Variants = {
+    hidden: {
+      opacity: 0,
+      y: shouldReduceMotion ? 0 : 6
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.38,
+        delay: shouldReduceMotion ? 0 : 1.30,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    }
+  };
+
+  const progressTrackVariants: Variants = {
+    hidden: {
+      opacity: 0
+    },
+    visible: {
+      opacity: 1,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.45,
+        delay: shouldReduceMotion ? 0 : 1.15,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    }
+  };
+
+  // Phase E: Recent activity heading and staggered rows (1,850–2,700ms)
+  const recentHeadingVariants: Variants = {
+    hidden: {
+      opacity: 0,
+      y: shouldReduceMotion ? 0 : 6
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.35,
+        delay: shouldReduceMotion ? 0 : 1.82,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    }
+  };
+
+  const listContainerVariants: Variants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        delayChildren: shouldReduceMotion ? 0 : 1.95,
+        staggerChildren: shouldReduceMotion ? 0 : 0.12
+      }
+    }
+  };
+
+  const listItemVariants: Variants = {
+    hidden: {
+      opacity: 0,
+      y: shouldReduceMotion ? 0 : 6
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.35,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    }
+  };
+
+  const rowDotVariants: Variants = {
+    hidden: {
+      opacity: 0,
+      scale: shouldReduceMotion ? 1 : 0.6
+    },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.28,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    }
+  };
+
+  const rowNameVariants: Variants = {
+    hidden: {
+      opacity: 0,
+      y: shouldReduceMotion ? 0 : 4
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.32,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    }
+  };
+
+  const rowTimeVariants: Variants = {
+    hidden: {
+      opacity: 0
+    },
+    visible: {
+      opacity: 1,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.32,
+        delay: shouldReduceMotion ? 0 : 0.08,
         ease: [0.16, 1, 0.3, 1]
       }
     }
@@ -145,6 +402,7 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = ({
   const totalConcepts = activity?.totalConcepts || 0;
   const demonstratedConcepts = activity?.demonstratedConcepts || 0;
   const demonstratedPercentage = activity?.demonstratedPercentage || 0;
+  const progressRatio = totalConcepts === 0 ? 0 : Math.max(0, Math.min(100, demonstratedPercentage)) / 100;
 
   return (
     <motion.aside
@@ -155,90 +413,128 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = ({
       animate="visible"
       id="persona-activity-panel"
     >
-      {/* A. Section Heading */}
-      <motion.div className="persona-activity-header" variants={itemVariants}>
+      {/* Group A — Introduction (Level 1: Section Identity & Level 2: Supporting Headline) */}
+      <motion.div className="persona-activity-group persona-activity-group--intro persona-activity-header" variants={itemVariants}>
         <div className="persona-activity-tag">
-          <span className="persona-activity-tag-bullet" aria-hidden="true" />
-          <span>YOUR LEARNING</span>
-        </div>
-        <p className="persona-activity-subtitle">Your activity across GraphMind</p>
-      </motion.div>
-
-      {/* B. Knowledge Graph Count */}
-      <motion.div className="persona-stat-block" variants={itemVariants}>
-        <span className="persona-stat-label">YOUR GRAPHS</span>
-        <div className="persona-stat-value" data-testid="persona-total-graphs">
-          <PersonaAnimatedNumber
-            value={totalGraphs}
-            format={formatTabularCount}
-            min={0}
+          <motion.span
+            className="persona-activity-tag-bullet"
+            aria-hidden="true"
+            variants={eyebrowDotVariants}
           />
+          <motion.span variants={eyebrowTextVariants}>YOUR LEARNING</motion.span>
         </div>
-        <span className="persona-stat-subtext">
-          {totalGraphs === 0
-            ? 'No knowledge graphs created yet'
-            : totalGraphs === 1
-            ? 'Knowledge graph created'
-            : 'Knowledge graphs created'}
-        </span>
+        <motion.p className="persona-activity-subtitle" variants={headlineVariants}>
+          Your activity across GraphMind
+        </motion.p>
       </motion.div>
 
-      {/* C. Demonstrated Learning Progress */}
-      <motion.div className="persona-stat-block" variants={itemVariants}>
-        <span className="persona-stat-label">LEARNING PROGRESS</span>
-        <div className="persona-stat-value" data-testid="persona-demonstrated-percentage">
-          {totalConcepts === 0 ? (
-            '—%'
-          ) : (
-            <PersonaAnimatedNumber
-              value={demonstratedPercentage}
-              suffix="%"
-              min={0}
-              max={100}
-            />
-          )}
+      {/* Group B — Learning Metrics (Level 4: Metric Labels, Level 3: Primary Statistics, Level 5: Supporting Descriptions) */}
+      <motion.div className="persona-activity-group persona-activity-group--metrics" variants={itemVariants}>
+        {/* Metric 1: Knowledge Graphs (Phase C) */}
+        <div className="persona-stat-block">
+          <motion.span className="persona-stat-label" variants={metric1LabelVariants}>
+            YOUR GRAPHS
+          </motion.span>
+          <div className="persona-stat-value persona-stat-value-clip" data-testid="persona-total-graphs">
+            <motion.div className="persona-stat-value-inner" variants={metric1ValueVariants}>
+              <PersonaAnimatedNumber
+                value={totalGraphs}
+                format={formatTabularCount}
+                duration={850}
+                delay={shouldReduceMotion ? 0 : 460}
+                min={0}
+              />
+            </motion.div>
+          </div>
+          <motion.span className="persona-stat-subtext" variants={metric1SubtextVariants}>
+            {totalGraphs === 0
+              ? 'No knowledge graphs created yet'
+              : totalGraphs === 1
+              ? 'Knowledge graph created'
+              : 'Knowledge graphs created'}
+          </motion.span>
         </div>
-        <span className="persona-stat-subtext">
-          {totalConcepts === 0
-            ? 'Progress will appear as you study concepts'
-            : demonstratedConcepts === 0
-            ? 'Concepts studied — review in progress'
-            : `${demonstratedConcepts} of ${totalConcepts} concepts understood`}
-        </span>
 
-        {/* Thin horizontal progress indicator bar */}
-        <div
-          className="persona-progress-track"
-          role="progressbar"
-          aria-valuenow={totalConcepts === 0 ? 0 : demonstratedPercentage}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label="Demonstrated understanding progress"
-        >
+        {/* Metric 2: Demonstrated Learning Progress (Phase D) */}
+        <div className="persona-stat-block">
+          <motion.span className="persona-stat-label" variants={metric2LabelVariants}>
+            LEARNING PROGRESS
+          </motion.span>
+          <div className="persona-stat-value persona-stat-value-clip" data-testid="persona-demonstrated-percentage">
+            <motion.div className="persona-stat-value-inner" variants={metric2ValueVariants}>
+              {totalConcepts === 0 ? (
+                '—%'
+              ) : (
+                <PersonaAnimatedNumber
+                  value={demonstratedPercentage}
+                  suffix="%"
+                  duration={950}
+                  delay={shouldReduceMotion ? 0 : 1080}
+                  min={0}
+                  max={100}
+                />
+              )}
+            </motion.div>
+          </div>
+          <motion.span className="persona-stat-subtext" variants={metric2SubtextVariants}>
+            {totalConcepts === 0
+              ? 'Progress will appear as you study concepts'
+              : demonstratedConcepts === 0
+              ? 'Concepts studied — review in progress'
+              : `${demonstratedConcepts} of ${totalConcepts} concepts understood`}
+          </motion.span>
+
+          {/* Thin horizontal progress indicator bar (Starts at zero, scales to exact %) */}
           <motion.div
-            className="persona-progress-fill"
-            initial={{ width: 0 }}
-            animate={{ width: `${totalConcepts === 0 ? 0 : demonstratedPercentage}%` }}
-            transition={{
-              duration: shouldReduceMotion ? 0 : 0.65,
-              ease: [0.16, 1, 0.3, 1]
-            }}
-          />
+            className="persona-progress-track"
+            role="progressbar"
+            aria-valuenow={totalConcepts === 0 ? 0 : Math.round(demonstratedPercentage)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Demonstrated understanding progress"
+            variants={progressTrackVariants}
+          >
+            <motion.div
+              className="persona-progress-fill"
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: progressRatio }}
+              style={{ transformOrigin: 'left' }}
+              transition={{
+                duration: shouldReduceMotion ? 0 : 1.0,
+                delay: shouldReduceMotion ? 0 : 1.20,
+                ease: [0.16, 1, 0.3, 1]
+              }}
+            />
+          </motion.div>
         </div>
       </motion.div>
 
-      {/* D. Recent Graph Activity */}
-      <motion.div className="persona-stat-block persona-stat-block--activity" variants={itemVariants}>
-        <span className="persona-stat-label">RECENT ACTIVITY</span>
+      {/* Group C — Recent Activity (Phase E) */}
+      <motion.div className="persona-activity-group persona-activity-group--recent persona-stat-block persona-stat-block--activity" variants={itemVariants}>
+        <motion.span className="persona-stat-label" variants={recentHeadingVariants}>
+          RECENT ACTIVITY
+        </motion.span>
 
         {recentList.length === 0 ? (
-          <p className="persona-activity-empty-message">
+          <motion.p
+            className="persona-activity-empty-message"
+            initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: shouldReduceMotion ? 0 : 0.38,
+              delay: shouldReduceMotion ? 0 : 1.95,
+              ease: [0.16, 1, 0.3, 1]
+            }}
+          >
             Your graphs will appear here as you create and develop them.
-          </p>
+          </motion.p>
         ) : (
           <motion.ul
             className="persona-activity-list"
             role="list"
+            variants={listContainerVariants}
+            initial="hidden"
+            animate="visible"
             layout={!shouldReduceMotion}
           >
             {recentList.map((graph) => {
@@ -247,10 +543,8 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = ({
                 <motion.li
                   key={graph.graphId}
                   className="persona-activity-item-wrapper"
+                  variants={listItemVariants}
                   layout={!shouldReduceMotion}
-                  initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: shouldReduceMotion ? 0 : 0.3, ease: [0.16, 1, 0.3, 1] }}
                 >
                   <button
                     type="button"
@@ -260,14 +554,15 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = ({
                     title={isClickable ? `Open graph: ${graph.graphName}` : graph.graphName}
                     aria-label={`Open knowledge graph: ${graph.graphName}, updated ${formatRelativeTime(graph.updatedAt || graph.createdAt)}`}
                   >
-                    <span className="persona-activity-dot" aria-hidden="true" />
-                    <span className="persona-activity-name">{graph.graphName}</span>
-                    <time
+                    <motion.span className="persona-activity-dot" aria-hidden="true" variants={rowDotVariants} />
+                    <motion.span className="persona-activity-name" variants={rowNameVariants}>{graph.graphName}</motion.span>
+                    <motion.time
                       className="persona-activity-time"
                       dateTime={graph.updatedAt || graph.createdAt}
+                      variants={rowTimeVariants}
                     >
                       {formatRelativeTime(graph.updatedAt || graph.createdAt)}
-                    </time>
+                    </motion.time>
                   </button>
                 </motion.li>
               );
@@ -277,4 +572,6 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = ({
       </motion.div>
     </motion.aside>
   );
-};
+});
+
+PersonaActivityPanel.displayName = 'PersonaActivityPanel';

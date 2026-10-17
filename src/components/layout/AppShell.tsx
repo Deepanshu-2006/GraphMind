@@ -61,6 +61,7 @@ export const AppShell: React.FC<AppShellProps> = ({
     <div
       className={`app-shell ${isGraphFullscreen ? 'graph-fullscreen-active' : ''} ${isPersonaOpen ? 'persona-active' : ''}`}
       aria-hidden={isPersonaOpen}
+      // @ts-expect-error React 19 type definition expects boolean, DOM inert supports string
       inert={isPersonaOpen ? '' : undefined}
     >
       {/* Mobile backdrop */}
@@ -81,6 +82,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         onCloseMobile={() => setMobileMenuOpen(false)}
         project={project}
         activeGraphMeta={activeGraphMeta}
+        onOpenPersona={onOpenPersona}
       />
 
       {/* Main Content Area */}

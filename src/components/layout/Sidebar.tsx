@@ -4,7 +4,8 @@ import {
   Network, 
   BookOpen, 
   Files,
-  Settings
+  Settings,
+  User
 } from 'lucide-react';
 import { GraphMindLogo } from '../common/GraphMindLogo';
 import type { NavSection, ProjectWorkspace } from '../../types';
@@ -17,6 +18,7 @@ interface SidebarProps {
   onCloseMobile: () => void;
   project?: ProjectWorkspace;
   activeGraphMeta?: KnowledgeGraphMeta | null;
+  onOpenPersona?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -25,7 +27,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onCloseMobile,
   project,
-  activeGraphMeta
+  activeGraphMeta,
+  onOpenPersona
 }) => {
   const mainNavItems = [
     { id: 'overview' as NavSection, label: 'Overview', icon: Compass },
@@ -94,6 +97,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
 
           <div className="sidebar-footer">
+            {onOpenPersona && (
+              <button
+                type="button"
+                className="sidebar-nav-item"
+                onClick={() => {
+                  onOpenPersona();
+                  onCloseMobile();
+                }}
+                id="btn-sidebar-persona-profile"
+                title="Open Persona Profile (DK)"
+                aria-label="Open Persona Profile"
+              >
+                <User className="nav-icon" size={15} strokeWidth={1.5} />
+                <span className="nav-label">Profile</span>
+              </button>
+            )}
             <button
               type="button"
               className={`sidebar-nav-item ${currentSection === 'settings' ? 'active' : ''}`}

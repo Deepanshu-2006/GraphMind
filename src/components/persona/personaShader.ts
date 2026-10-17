@@ -48,9 +48,9 @@ export function attachPersonaSolidifyShader(
   }
 
   const existingOnBeforeCompile = stdMat.onBeforeCompile;
-  stdMat.onBeforeCompile = (shader) => {
+  stdMat.onBeforeCompile = (shader, renderer) => {
     if (typeof existingOnBeforeCompile === 'function') {
-      existingOnBeforeCompile(shader);
+      existingOnBeforeCompile(shader, renderer);
     }
     shader.uniforms.uSolidifyY = uniforms.uSolidifyY;
     shader.uniforms.uTransitionBand = uniforms.uTransitionBand;

@@ -108,6 +108,9 @@ export class PersonaLifeController {
   private greetingElapsed = 0;
   private greetingNodDuration = 1.4;
 
+  // Intentional Presentation Glances (holds gaze on panels during entrance reveals)
+  private isIntentionalGlance = false;
+
   // Config & Flags
   private prefersReducedMotion = false;
   private forcedGazeX: number | null = null;
@@ -200,7 +203,12 @@ export class PersonaLifeController {
   public resetGreeting(): void {
     this.isGreetingSequenceActive = false;
     this.isGreetingGazePrioritized = false;
+    this.isIntentionalGlance = false;
     this.greetingElapsed = 0;
+  }
+
+  public isIntentionalGlanceActive(): boolean {
+    return this.isIntentionalGlance;
   }
 
   /**
@@ -211,6 +219,7 @@ export class PersonaLifeController {
   public glanceTowards(targetX: number, targetY: number, duration = 2.4): void {
     if (this.prefersReducedMotion || this.isForcedGaze()) return;
 
+    this.isIntentionalGlance = true;
     this.gazeMode = 'GLANCE_AWAY';
     this.gazeTimer = 0;
     this.gazeTargetDuration = duration;
@@ -399,7 +408,8 @@ export class PersonaLifeController {
     // 3. AUTONOMOUS GAZE STATE MACHINE (Section 2 & 6)
     if (!this.isForcedGaze()) {
       // If cursor is actively in control or emotion suppresses look-away, return/stay engaged
-      const shouldSuppressGlance = (this.cursorWeight > 0.65) || (profile.suppressAutonomousGaze && emotionWeight > 0.5) || this.isGreetingSequenceActive;
+      // Intentional glances (e.g. left/right panel introductions) remain held for their allocated duration
+      const shouldSuppressGlance = (!this.isIntentionalGlance && this.cursorWeight > 0.65) || (profile.suppressAutonomousGaze && emotionWeight > 0.5) || this.isGreetingSequenceActive;
 
       if (shouldSuppressGlance && this.gazeMode === 'GLANCE_AWAY') {
         this.gazeMode = 'RETURN_TO_VIEWER';
@@ -425,6 +435,7 @@ export class PersonaLifeController {
         }
       } else if (this.gazeMode === 'GLANCE_AWAY') {
         if (this.gazeTimer >= this.gazeTargetDuration) {
+          this.isIntentionalGlance = false;
           // Transition to RETURN_TO_VIEWER
           this.gazeMode = 'RETURN_TO_VIEWER';
           this.gazeTimer = 0;
@@ -484,6 +495,10 @@ export class PersonaLifeController {
       if (this.isGreetingGazePrioritized && this.cursorWeight < 0.6) {
         targetGazeX = 0;
         targetGazeY = 0;
+      } else if (this.isIntentionalGlance && this.cursorWeight < 0.8) {
+        // Hold intentional gaze firmly on panel during entrance presentation sequence
+        targetGazeX = idleTargetX;
+        targetGazeY = idleTargetY;
       } else {
         targetGazeX = THREE.MathUtils.lerp(idleTargetX, cursorTargetX, this.cursorWeight);
         targetGazeY = THREE.MathUtils.lerp(idleTargetY, cursorTargetY, this.cursorWeight);

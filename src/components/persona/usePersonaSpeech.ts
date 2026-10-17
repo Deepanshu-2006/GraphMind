@@ -9,8 +9,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   personaPresentationController,
-  type PresentationState,
-  type PresentationStatus
+  type PresentationState
 } from './personaPresentationController';
 import {
   GRAPHMIN_VOICE_CONFIG,

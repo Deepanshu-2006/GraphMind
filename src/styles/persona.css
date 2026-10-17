@@ -52,12 +52,16 @@
 }
 
 /* Subtle, accessible exit control */
-.persona-exit-btn {
+.persona-exit-btn,
+#btn-persona-exit {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   background: transparent;
-  border: none;
+  border: none !important;
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
   padding: 8px 4px;
   font-family: var(--font-body, 'Inter', sans-serif);
   font-size: 13px;
@@ -67,13 +71,17 @@
   transition: color var(--transition-fast, 150ms ease);
 }
 
-.persona-exit-btn:hover {
+.persona-exit-btn:hover,
+.persona-exit-btn:focus,
+.persona-exit-btn:focus-visible,
+#btn-persona-exit:hover,
+#btn-persona-exit:focus,
+#btn-persona-exit:focus-visible {
   color: var(--text-primary, #F5F5F5);
-}
-
-.persona-exit-btn:focus-visible {
-  outline: 1px solid var(--accent, #A3FF12);
-  outline-offset: 4px;
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 .persona-exit-arrow {
@@ -81,7 +89,8 @@
   transition: transform var(--transition-fast, 150ms ease), color var(--transition-fast, 150ms ease);
 }
 
-.persona-exit-btn:hover .persona-exit-arrow {
+.persona-exit-btn:hover .persona-exit-arrow,
+.persona-exit-btn:focus-visible .persona-exit-arrow {
   transform: translateX(-3px);
   color: var(--accent, #A3FF12);
 }
@@ -485,6 +494,236 @@
   outline-offset: 2px;
 }
 
+/* =========================================================================
+   LEFT-SIDE LEARNING ACTIVITY PANEL — REFINED EDITORIAL TYPOGRAPHY & MOTIONS
+   ========================================================================= */
+
+.persona-activity-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 34px;
+  user-select: none;
+  color: var(--text-primary, #F5F5F5);
+}
+
+.persona-activity-panel .persona-activity-group {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Group A — Introduction */
+.persona-activity-panel .persona-activity-group--intro,
+.persona-activity-panel .persona-activity-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Level 1: Section identity / Eyebrow */
+.persona-activity-panel .persona-activity-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.48);
+  line-height: 1;
+}
+
+.persona-activity-panel .persona-activity-tag-bullet {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--accent, #A3FF12);
+  box-shadow: 0 0 6px rgba(163, 255, 18, 0.4);
+  flex-shrink: 0;
+}
+
+.persona-activity-panel .persona-activity-tag-bullet--error {
+  background-color: #EF4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+/* Level 2: Supporting headline */
+.persona-activity-panel .persona-activity-subtitle {
+  font-family: var(--font-display, 'Inter Tight', var(--font-body, 'Inter', sans-serif));
+  font-size: 15px;
+  font-size: 18px;
+  font-weight: 450;
+  line-height: 1.4;
+  color: rgba(245, 245, 245, 0.88);
+  margin: 0;
+  letter-spacing: -0.015em;
+}
+
+/* Group B — Learning metrics */
+.persona-activity-panel .persona-activity-group--metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+.persona-activity-panel .persona-stat-block {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Level 4: Metric labels */
+.persona-activity-panel .persona-stat-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.46);
+  margin-bottom: 8px;
+}
+
+/* Level 3: Primary statistics */
+.persona-activity-panel .persona-stat-value {
+  font-family: var(--font-display, 'Inter Tight', sans-serif);
+  font-size: 42px;
+  font-size: 44px;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  line-height: 1.0;
+  color: var(--text-primary, #F5F5F5);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Clipped vertical reveal container for primary statistics */
+.persona-activity-panel .persona-stat-value-clip {
+  overflow: hidden;
+  display: block;
+  line-height: 1.0;
+  padding-bottom: 4px;
+  margin-bottom: -4px;
+}
+
+.persona-activity-panel .persona-stat-value-inner {
+  display: block;
+  will-change: transform, opacity;
+}
+
+/* Level 5: Supporting descriptions */
+.persona-activity-panel .persona-stat-subtext {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.64);
+  margin-top: 8px;
+}
+
+/* Horizontal Progress Line */
+.persona-activity-panel .persona-progress-track {
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  overflow: hidden;
+  margin-top: 12px;
+  position: relative;
+}
+
+.persona-activity-panel .persona-progress-fill {
+  height: 100%;
+  width: 100%;
+  background-color: var(--accent, #A3FF12);
+  border-radius: 9999px;
+  box-shadow: 0 0 8px rgba(163, 255, 18, 0.35);
+  transform-origin: left;
+  will-change: transform;
+}
+
+/* Group C — Recent activity */
+.persona-activity-panel .persona-activity-group--recent {
+  display: flex;
+  flex-direction: column;
+}
+
+.persona-activity-panel .persona-activity-list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.persona-activity-panel .persona-activity-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 10px;
+  margin-left: -10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 4px);
+  cursor: default;
+  text-align: left;
+  transition: background var(--transition-fast, 150ms ease), border-color var(--transition-fast, 150ms ease);
+}
+
+.persona-activity-panel .persona-activity-item--interactive {
+  cursor: pointer;
+}
+
+.persona-activity-panel .persona-activity-item--interactive:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.persona-activity-panel .persona-activity-item--interactive:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: 2px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.persona-activity-panel .persona-activity-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--accent, #A3FF12);
+  flex-shrink: 0;
+  opacity: 0.85;
+  box-shadow: 0 0 6px rgba(163, 255, 18, 0.35);
+}
+
+.persona-activity-panel .persona-activity-name {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13.5px;
+  font-weight: 450;
+  color: rgba(245, 245, 245, 0.90);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  letter-spacing: -0.01em;
+}
+
+.persona-activity-panel .persona-activity-item--interactive:hover .persona-activity-name {
+  color: #FFFFFF;
+}
+
+.persona-activity-panel .persona-activity-time {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.42);
+  flex-shrink: 0;
+  margin-left: auto;
+  text-align: right;
+}
+
 /* Performance Specific Indicators */
 .persona-score-badge {
   font-family: var(--font-mono, monospace);
@@ -616,6 +855,14 @@
     gap: 20px;
   }
 
+  .persona-activity-panel .persona-activity-group--metrics {
+    gap: 16px;
+  }
+
+  .persona-activity-panel .persona-activity-subtitle {
+    font-size: 16px;
+  }
+
   .persona-stat-value {
     font-size: 28px;
   }
@@ -658,6 +905,14 @@
   .persona-activity-panel,
   .persona-performance-panel {
     gap: 16px;
+  }
+
+  .persona-activity-panel .persona-activity-group--metrics {
+    gap: 14px;
+  }
+
+  .persona-activity-panel .persona-activity-subtitle {
+    font-size: 15px;
   }
 
   .persona-stat-value {

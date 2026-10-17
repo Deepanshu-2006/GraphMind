@@ -41,6 +41,22 @@ class PersonaTransitionController {
   }
 
   /**
+   * Universal entry point to open Persona from anywhere in the application
+   * (e.g. from any workspace view, TopBar avatar, direct navigation, or shortcuts).
+   * Bypasses the hero orb idle restriction so profile can open from Overview,
+   * Knowledge Graph, Study Space, Sources, Revision, or Settings.
+   */
+  openPersona(): boolean {
+    if (this._state === 'ORB_TO_HUMAN' || this._state === 'HUMAN_FORMED' || this._state === 'PERSONA_READY') {
+      return false; // Already in Persona
+    }
+    this._state = 'ORB_TO_HUMAN';
+    this._startTime = performance.now();
+    this.notify();
+    return true;
+  }
+
+  /**
    * Marks particle transformation as complete when human silhouette is formed.
    */
   completeHumanFormed(): void {
@@ -64,7 +80,7 @@ class PersonaTransitionController {
    * Triggers exit from Persona and begins preparation for return to hero.
    */
   triggerReturnToHero(): boolean {
-    if (this._state !== 'PERSONA_READY' && this._state !== 'HUMAN_FORMED') {
+    if (this._state !== 'PERSONA_READY' && this._state !== 'HUMAN_FORMED' && this._state !== 'ORB_TO_HUMAN') {
       return false;
     }
     this._state = 'RETURNING_TO_HERO';
@@ -98,7 +114,7 @@ class PersonaTransitionController {
    * Resets transition state back to HERO_IDLE when returning to workspace.
    */
   resetToHero(): void {
-    if (this._state === 'PERSONA_READY' || this._state === 'HUMAN_FORMED') {
+    if (this._state === 'PERSONA_READY' || this._state === 'HUMAN_FORMED' || this._state === 'ORB_TO_HUMAN') {
       this.triggerReturnToHero();
     } else {
       this._state = 'HERO_IDLE';

@@ -50,8 +50,7 @@ export function AppContent() {
 
   const handleOpenPersona = useCallback(() => {
     if (isPersonaOpen) return; // Prevent double activation
-    const started = personaTransitionController.triggerOrbToHuman();
-    if (!started) return;
+    personaTransitionController.openPersona();
     if (typeof window !== 'undefined') {
       previousPathRef.current = window.location.pathname + window.location.search;
       setIsPersonaOpen(true);
@@ -102,6 +101,9 @@ export function AppContent() {
 
   // Synchronize Persona open state with shared transition controller
   useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.pathname.toLowerCase() === '/persona') {
+      personaTransitionController.openPersona();
+    }
     return personaTransitionController.subscribe((state) => {
       if (state === 'ORB_TO_HUMAN' || state === 'PERSONA_READY') {
         setIsPersonaOpen(true);
@@ -213,10 +215,15 @@ export function AppContent() {
       if (!isPersonaRoute) {
         setIsPersonaOpen(false);
         setCurrentSection(getInitialSection());
-        if (personaTransitionController.state === 'PERSONA_READY' || personaTransitionController.state === 'HUMAN_FORMED') {
+        if (
+          personaTransitionController.state === 'PERSONA_READY' ||
+          personaTransitionController.state === 'HUMAN_FORMED' ||
+          personaTransitionController.state === 'ORB_TO_HUMAN'
+        ) {
           personaTransitionController.triggerReturnToHero();
         }
       } else {
+        personaTransitionController.openPersona();
         setIsPersonaOpen(true);
       }
     };

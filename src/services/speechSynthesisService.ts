@@ -66,7 +66,7 @@ export class SpeechSynthesisService {
 
   // Voice session caching & sentence segmentation pause state
   private cachedResolvedVoice: SpeechSynthesisVoice | null = null;
-  private interSentenceTimer: NodeJS.Timeout | number | null = null;
+  private interSentenceTimer: ReturnType<typeof setTimeout> | null = null;
   private isPausedDuringInterSentenceGap = false;
   private continueSegmentPlayback: (() => void) | null = null;
   private currentSegments: SentenceSegment[] = [];
@@ -141,6 +141,14 @@ export class SpeechSynthesisService {
    */
   public getResolvedVoice(preferredName?: string): SpeechSynthesisVoice | null {
     return this.selectBestVoice(preferredName);
+  }
+
+  public getCurrentSegments(): SentenceSegment[] {
+    return this.currentSegments;
+  }
+
+  public getCurrentSegmentIndex(): number {
+    return this.currentSegmentIndex;
   }
 
   /**

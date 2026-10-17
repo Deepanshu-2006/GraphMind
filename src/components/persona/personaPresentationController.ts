@@ -82,7 +82,7 @@ export class PersonaPresentationController {
   private listeners = new Set<PresentationListener>();
 
   // Timer & lifecycle management
-  private timerId: NodeJS.Timeout | number | null = null;
+  private timerId: ReturnType<typeof setTimeout> | null = null;
   private activeResolve: (() => void) | null = null;
   private isPaused = false;
   private pauseRemainingMs = 0;

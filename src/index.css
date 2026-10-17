@@ -112,30 +112,36 @@ button, input, select, textarea {
 }
 
 /* Visible Keyboard Focus States (Prompt 10, Accessibility) */
-:focus-visible:not(.topbar-inline-title-input):not(.topbar-search-input):not(.topbar-search-control) {
+:focus-visible:not(.topbar-inline-title-input):not(.topbar-search-input):not(.topbar-search-control):not(.persona-exit-btn):not(#btn-persona-exit) {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-button:focus-visible,
+button:focus-visible:not(.persona-exit-btn):not(#btn-persona-exit),
 a:focus-visible,
 input:not(.topbar-inline-title-input):not(.topbar-search-input):focus-visible,
 select:focus-visible,
 textarea:focus-visible,
-[tabindex="0"]:not(.topbar-search-control):focus-visible,
-[role="button"]:focus-visible {
+[tabindex="0"]:not(.topbar-search-control):not(.persona-exit-btn):not(#btn-persona-exit):focus-visible,
+[role="button"]:not(.persona-exit-btn):not(#btn-persona-exit):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* Explicitly strip browser focus outlines from search instrument */
+/* Explicitly strip browser focus outlines from search instrument and persona exit control */
 .topbar-search-control,
 .topbar-search-control:focus,
 .topbar-search-control:focus-visible,
 .topbar-search-control:focus-within,
 .topbar-search-input,
 .topbar-search-input:focus,
-.topbar-search-input:focus-visible {
+.topbar-search-input:focus-visible,
+.persona-exit-btn,
+.persona-exit-btn:focus,
+.persona-exit-btn:focus-visible,
+#btn-persona-exit,
+#btn-persona-exit:focus,
+#btn-persona-exit:focus-visible {
   outline: none !important;
   outline-offset: 0 !important;
   box-shadow: none !important;

@@ -65,11 +65,11 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
         setIsLeftPanelVisible(true);
       }, shouldReduceMotion ? 0 : 350);
 
-      // 3. Safety fallback: ensure right panel appears even if canvas event is delayed
+      // 3. Safety fallback: ensure right panel appears after left panel is completely rendered (~3.05s) even if canvas event is delayed
       if (rightTimerRef.current) clearTimeout(rightTimerRef.current);
       rightTimerRef.current = setTimeout(() => {
         setIsRightPanelVisible(true);
-      }, shouldReduceMotion ? 100 : 2200);
+      }, shouldReduceMotion ? 0 : 3600);
     } else if (stage === 'glance-right') {
       // 4. Character has introduced left stats and now turns head and eyes right.
       // Render right performance panel 350ms later right as character's gaze lands on the right area.
@@ -156,20 +156,22 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
     });
   }, []);
 
-  // Focus management: cache last active element and focus exit button
+  // Always clean up panel timers on unmount to prevent state updates on unmounted component
+  useEffect(() => {
+    return () => {
+      if (leftTimerRef.current) clearTimeout(leftTimerRef.current);
+      if (rightTimerRef.current) clearTimeout(rightTimerRef.current);
+    };
+  }, []);
+
+  // Focus management: cache last active element and restore on unmount
   useEffect(() => {
     if (isOpen) {
       if (typeof document !== 'undefined') {
         previousFocusRef.current = document.activeElement as HTMLElement | null;
       }
 
-      // Defer focus slightly for smooth mounting transition
-      const timer = setTimeout(() => {
-        exitButtonRef.current?.focus();
-      }, 50);
-
       return () => {
-        clearTimeout(timer);
         if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
           previousFocusRef.current.focus();
         }
@@ -210,7 +212,7 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
         }
       }
     },
-    [onClose]
+    [handleExit]
   );
 
   // Prevent background scroll while Persona is mounted

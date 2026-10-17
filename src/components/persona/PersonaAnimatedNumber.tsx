@@ -4,8 +4,10 @@ import { useReducedMotion } from 'framer-motion';
 export interface PersonaAnimatedNumberProps {
   /** The target numerical value to animate to */
   value: number;
-  /** Animation duration in milliseconds (bounded between 500ms and 800ms) */
+  /** Animation duration in milliseconds (bounded between 500ms and 1200ms) */
   duration?: number;
+  /** Optional delay before counting starts in milliseconds */
+  delay?: number;
   /** Custom formatter function (e.g. formatTabularCount or percentage) */
   format?: (val: number) => string;
   /** Optional lower boundary (e.g. 0 for percentages) */
@@ -84,6 +86,7 @@ export function calculateInterpolatedValue(
 export const PersonaAnimatedNumber: React.FC<PersonaAnimatedNumberProps> = ({
   value,
   duration = 650,
+  delay = 0,
   format,
   min,
   max,
@@ -96,8 +99,8 @@ export const PersonaAnimatedNumber: React.FC<PersonaAnimatedNumberProps> = ({
   const safeValue = typeof value === 'number' && !isNaN(value) ? value : 0;
   const boundedTarget = Math.round(clampValue(safeValue, min, max));
 
-  const [displayValue, setDisplayValue] = useState<number>(boundedTarget);
-  const currentDisplayRef = useRef<number>(boundedTarget);
+  const [displayValue, setDisplayValue] = useState<number>(shouldReduceMotion ? boundedTarget : 0);
+  const currentDisplayRef = useRef<number>(shouldReduceMotion ? boundedTarget : 0);
   const prevTargetRef = useRef<number>(boundedTarget);
   const startValueRef = useRef<number>(0);
   const startTimeRef = useRef<number | null>(null);
@@ -128,12 +131,20 @@ export const PersonaAnimatedNumber: React.FC<PersonaAnimatedNumberProps> = ({
     startTimeRef.current = null;
     let rafId: number;
 
-    const animDuration = Math.max(500, Math.min(800, duration));
+    const animDuration = Math.max(500, Math.min(1200, duration));
 
     const step = (timestamp: number) => {
       if (!startTimeRef.current) startTimeRef.current = timestamp;
       const elapsed = timestamp - startTimeRef.current;
-      const progress = Math.min(1.0, elapsed / animDuration);
+
+      // Hold at initial value during delay
+      if (delay > 0 && elapsed < delay) {
+        rafId = requestAnimationFrame(step);
+        return;
+      }
+
+      const animElapsed = delay > 0 ? elapsed - delay : elapsed;
+      const progress = Math.min(1.0, animElapsed / animDuration);
 
       const current = calculateInterpolatedValue(
         startValueRef.current,
@@ -161,13 +172,17 @@ export const PersonaAnimatedNumber: React.FC<PersonaAnimatedNumberProps> = ({
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [boundedTarget, duration, min, max, shouldReduceMotion]);
+  }, [boundedTarget, duration, delay, min, max, shouldReduceMotion]);
 
   const formatted = format ? format(displayValue) : `${prefix}${displayValue}${suffix}`;
 
   return (
-    <span className={className} data-testid={testId}>
-      {formatted}
+    <span
+      className={className}
+      data-testid={testId}
+      aria-label={`${prefix}${boundedTarget}${suffix}`}
+    >
+      <span aria-hidden="true">{formatted}</span>
     </span>
   );
 };

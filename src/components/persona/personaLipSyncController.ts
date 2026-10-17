@@ -462,6 +462,10 @@ export class PersonaLipSyncController {
     return this.boundaryReceived;
   }
 
+  public getCurrentFrameIndex(): number {
+    return this.currentFrameIndex;
+  }
+
   // Current Evaluated Morph Weights (Smoothly lerped)
   private currentWeights: LipSyncWeights = this.createEmptyWeights();
   private targetWeights: LipSyncWeights = this.createEmptyWeights();
