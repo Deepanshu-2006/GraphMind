@@ -123,6 +123,9 @@ describe('GRAPHMIND — PERSONA STATISTICS DATA LAYER (usePersonaStats)', () => 
       assert.strictEqual(stats.activity.recentGraph?.graphId, 'graph-networks');
       assert.strictEqual(stats.activity.recentGraph?.graphName, 'Computer Networks');
       assert.strictEqual(stats.activity.recentGraph?.totalConcepts, 2);
+      assert.strictEqual(stats.activity.recentGraphs.length, 2);
+      assert.strictEqual(stats.activity.recentGraphs[0].graphId, 'graph-networks');
+      assert.strictEqual(stats.activity.recentGraphs[1].graphId, 'graph-os');
     });
   });
 

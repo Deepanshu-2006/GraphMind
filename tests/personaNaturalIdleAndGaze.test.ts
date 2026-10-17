@@ -389,5 +389,51 @@ describe('GRAPHMIND — PERSONA: NATURAL IDLE ANIMATION, GAZE BEHAVIOR & EXPRESS
         `Should enter restful stillness pauses with subdued head micro-drift, detected ${detectedStillnessCount} frames`
       );
     });
+
+    it('orients eyes and head towards stats on the left when glanceTowards is triggered and returns to viewer', () => {
+      const controller = new PersonaLifeController();
+      let simTime = 1.0;
+      const dt = 1 / 60;
+
+      // Run initial settling frames
+      for (let i = 0; i < 30; i++) {
+        simTime += dt;
+        controller.update(dt, simTime * 1000, 'neutral');
+      }
+
+      // Trigger glance towards stats on viewer's left (targetX = -0.52, targetY = 0.06)
+      controller.glanceTowards(-0.52, 0.06, 2.0);
+
+      // Advance frames into the glance
+      let reachedLeftGaze = false;
+      let leftHeadYawObserved = false;
+
+      for (let i = 0; i < 60; i++) {
+        simTime += dt;
+        const out = controller.update(dt, simTime * 1000, 'neutral');
+
+        if (out.gazeNDC.x < -0.35) {
+          reachedLeftGaze = true;
+        }
+        if (out.headEuler.yaw < -0.018) {
+          leftHeadYawObserved = true;
+        }
+      }
+
+      assert.strictEqual(reachedLeftGaze, true, 'Gaze should orient towards left stats panel (x < -0.35)');
+      assert.strictEqual(leftHeadYawObserved, true, 'Head yaw should orient towards left stats panel (yaw < -0.018)');
+
+      // Advance past duration (2.0s = 120 frames) to verify return to viewer
+      for (let i = 0; i < 150; i++) {
+        simTime += dt;
+        controller.update(dt, simTime * 1000, 'neutral');
+      }
+
+      const returnOutput = controller.update(dt, simTime * 1000, 'neutral');
+      assert.ok(
+        Math.abs(returnOutput.gazeNDC.x) < 0.15,
+        `Gaze should return to center viewer engagement after glance duration, got ${returnOutput.gazeNDC.x}`
+      );
+    });
   });
 });
