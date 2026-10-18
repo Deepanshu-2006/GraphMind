@@ -198,6 +198,31 @@ describe('GRAPHMIND — PERSONA: CONTINUOUS ANALYSIS & REACTION LOOP', () => {
       assert.equal(controller.getCurrentTarget(), 'forward');
       assert.equal(lifeController.isIntentionalGlanceActive(), false, 'Releases intentional gaze when returning to idle');
     });
+
+    it('ensures character eyes are directed to the right side during first reaction cycle when starting analysePerformance', () => {
+      const lifeController = new PersonaLifeController();
+      const expressionController = new PersonaExpressionController();
+      const controller = new PersonaAnalysisController({
+        lifeController,
+        expressionController,
+        assessmentScore: 75,
+        deterministic: true
+      });
+
+      // Start directly with analysePerformance (as on welcoming back)
+      controller.start('analysePerformance', 1000);
+      assert.equal(controller.getCurrentState(), 'analysePerformance');
+      assert.ok(
+        controller.getCurrentTarget() === 'assessment' || controller.getCurrentTarget() === 'revision',
+        `Current target during analysePerformance must be on the right side, got ${controller.getCurrentTarget()}`
+      );
+      assert.ok(lifeController.isIntentionalGlanceActive(), 'Must activate intentional analysis gaze');
+      assert.equal(expressionController.getCurrentExpression(), 'thinking');
+
+      // Verify gaze coordinates point to the right panel (x >= 0.50)
+      const coord = SEMANTIC_GAZE_TARGETS[controller.getCurrentTarget()];
+      assert.ok(coord.x >= 0.50, `Gaze X coordinate must be >= 0.50 on the right side, got ${coord.x}`);
+    });
   });
 
   describe('3. Score-Dependent Facial Expressions & Presentation Ranges', () => {
