@@ -328,22 +328,59 @@ describe('GRAPHMIND — PERSONA: CONTEXTUAL SCORE-BASED ANALYSIS MESSAGES', () =
       assert.ok(canvasSrc.includes('onAnalysisMessageChangeRef.current?.(msg, cycle)'));
     });
 
-    it('verifies PersonaExperience receives onAnalysisMessageChange and renders accessible message element', () => {
+    it('verifies PersonaExperience receives onAnalysisMessageChange and renders accessible standalone subtitle element', () => {
       assert.ok(expSrc.includes('onAnalysisMessageChange={setAnalysisMessage}'), 'PersonaExperience must pass setAnalysisMessage to canvas');
       assert.ok(expSrc.includes('persona-analysis-message-container'), 'Must render persona-analysis-message-container');
       assert.ok(expSrc.includes('persona-analysis-message'), 'Must render persona-analysis-message');
-      assert.ok(expSrc.includes('persona-analysis-message-dot'), 'Must render lime-green accent dot');
       assert.ok(expSrc.includes('persona-analysis-message-text'), 'Must render text content');
+      assert.ok(!expSrc.includes('persona-analysis-message-dot'), 'Must NOT render green status dot in cinematic subtitle');
       assert.ok(expSrc.includes('aria-live="polite"'), 'Must have polite accessibility live region for screen readers');
       assert.ok(expSrc.includes('data-analysis-message="true"'), 'Must have data attribute for automated verification');
     });
 
-    it('verifies persona.css styles the analysis message container and text capsule with elegance', () => {
+    it('verifies PersonaExperience uses subtle, cinematic upward entrance (6-8px) and gentle fade-out', () => {
+      assert.ok(
+        expSrc.includes("initial={{ opacity: 0, x: '-50%', y: 7 }}") || (expSrc.includes('opacity: 0') && expSrc.includes('y: 7')),
+        'Must fade in with subtle 7px upward settling motion'
+      );
+      assert.ok(
+        expSrc.includes("exit={{ opacity: 0, x: '-50%', y: -4 }}") || (expSrc.includes('opacity: 0') && expSrc.includes('y: -4')),
+        'Must fade out gently without abrupt disappearing'
+      );
+      assert.ok(
+        expSrc.includes('key={activeMessage}') || expSrc.includes('key={analysisMessage}'),
+        'Must key on message content so changes transition smoothly'
+      );
+      assert.ok(expSrc.includes('persona-message-area'), 'Must render dedicated persona-message-area');
+      assert.ok(expSrc.includes('PERSONA_GREETING_TEXT'), 'Must display welcome message in dedicated message area');
+    });
+
+    it('verifies persona.css styles the standalone cinematic subtitle without floating cards or notification boxes', () => {
+      assert.ok(cssSrc.includes('.persona-message-area'), 'Must define .persona-message-area');
       assert.ok(cssSrc.includes('.persona-analysis-message-container'), 'Must define .persona-analysis-message-container');
       assert.ok(cssSrc.includes('.persona-analysis-message {'), 'Must define .persona-analysis-message');
-      assert.ok(cssSrc.includes('.persona-analysis-message-dot'), 'Must define .persona-analysis-message-dot');
-      assert.ok(cssSrc.includes('#00E575'), 'Must use restrained lime-green accent #00E575');
-      assert.ok(cssSrc.includes('backdrop-filter: blur'), 'Must use subtle frosted backdrop blur');
+      assert.ok(cssSrc.includes('background: transparent'), 'Must have no background card or pill');
+      assert.ok(cssSrc.includes('border: none'), 'Must have no rectangular border');
+      assert.ok(cssSrc.includes('box-shadow: none'), 'Must have no card shadow');
+      assert.ok(cssSrc.includes('color: var(--accent') || cssSrc.includes('#A3FF12') || cssSrc.includes('color: #FBBF24') || cssSrc.includes('color: #FFFFFF'), 'Must use high-contrast text color');
+      assert.ok(cssSrc.includes('white-space: normal'), 'Must allow natural multi-line wrapping');
+      assert.ok(cssSrc.includes('text-wrap: balance'), 'Must balance text across lines gracefully');
+      assert.ok(!cssSrc.includes('background: #141414;'), 'Must remove black pill background');
+      assert.ok(!cssSrc.includes('.persona-speech-caption {\n  font-family: var(--font-display, \'Inter Tight\', sans-serif);\n  font-size: 17px;'), 'Must remove legacy pill caption rule');
+    });
+
+    it('verifies persona.css positions message in lower-center beneath character with body clearance', () => {
+      // Character stage clearance: lifts bust so body/T-shirt does not overlap subtitle
+      assert.ok(cssSrc.includes('padding: 0 0 clamp(64px, 8.5vh, 88px) 0;'), 'Must have bottom padding clearance to frame character above subtitle');
+      
+      // Subtitle container placement: centered beneath character
+      assert.ok(cssSrc.includes('bottom: clamp(24px, 3.5vh, 38px);'), 'Must be positioned near lower-center with comfortable viewport separation');
+      assert.ok(cssSrc.includes('left: 50%;'), 'Must be horizontally centered beneath character');
+      assert.ok(cssSrc.includes('transform: translateX(-50%);'), 'Must be mathematically centered');
+      
+      // Mobile (<768px): clean separation below character
+      assert.ok(cssSrc.includes('@media (max-width: 767px)'), 'Must define mobile breakpoint');
+      assert.ok(cssSrc.includes('max-width: min(90vw, 360px);'), 'Must balance mobile subtitle width');
     });
   });
 });

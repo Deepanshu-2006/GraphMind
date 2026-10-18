@@ -40,6 +40,12 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
   const [animationState, setAnimationState] = useState<PersonaAnimationState>('INITIALIZING');
   const [greetingCaptionVisible, setGreetingCaptionVisible] = useState(false);
   const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
+
+  // Dedicated unified messaging system: quiet welcome introduction followed by contextual analysis messages.
+  // The two triggers never collide, and AnimatePresence coordinates clean transitions between states.
+  const activeMessage = greetingCaptionVisible
+    ? PERSONA_GREETING_TEXT
+    : analysisMessage;
   const [isLeftPanelVisible, setIsLeftPanelVisible] = useState(false);
   const [isRightPanelVisible, setIsRightPanelVisible] = useState(false);
   const hasTriggeredGreetingRef = useRef(false);
@@ -362,38 +368,30 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
           )}
         </AnimatePresence>
 
-        {/* Minimal, elegant visual subtitle capsule (silent presentation) */}
-        {greetingCaptionVisible && (
-          <div
-            className="persona-speech-caption-container"
-            aria-live="polite"
-            data-speech-caption="true"
-          >
-            <div className="persona-speech-caption">
-              {presentation.revealedText || PERSONA_GREETING_TEXT}
-            </div>
-          </div>
-        )}
-
-        {/* Contextual Score-Based Analysis Reaction Message */}
-        <AnimatePresence>
-          {analysisMessage && (
+        {/* Dedicated Persona Message Area (Unified Quiet Introduction & Contextual Subtitle System) */}
+        <AnimatePresence mode="wait">
+          {activeMessage && (
             <motion.div
-              className="persona-analysis-message-container"
-              id="persona-analysis-message-container"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
+              key={activeMessage}
+              className="persona-message-area persona-analysis-message-container persona-speech-caption-container"
+              id="persona-message-area"
+              role="status"
+              aria-live="polite"
+              data-persona-message="true"
+              data-speech-caption="true"
+              data-analysis-message="true"
+              initial={{ opacity: 0, x: '-50%', y: 7 }}
+              animate={{ opacity: 1, x: '-50%', y: 0 }}
+              exit={{ opacity: 0, x: '-50%', y: -4 }}
               transition={{
-                duration: shouldReduceMotion ? 0 : 0.4,
+                duration: shouldReduceMotion ? 0 : 0.42,
                 ease: [0.16, 1, 0.3, 1]
               }}
-              aria-live="polite"
-              data-analysis-message="true"
             >
-              <div className="persona-analysis-message" id="persona-analysis-message">
-                <span className="persona-analysis-message-dot" aria-hidden="true" />
-                <span className="persona-analysis-message-text">{analysisMessage}</span>
+              <div className="persona-message-content persona-analysis-message" id="persona-analysis-message">
+                <span className="persona-message-text persona-analysis-message-text persona-speech-caption">
+                  {activeMessage}
+                </span>
               </div>
             </motion.div>
           )}
