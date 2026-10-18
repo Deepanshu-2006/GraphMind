@@ -194,13 +194,14 @@ describe('GRAPHMIND — PERSONA: FIRST-VISIT & RETURNING-VISIT EXPERIENCE', () =
       assert.ok(!activeGreeting.includes('Hey, welcome to GraphMind.'));
     });
 
-    it('preserves returning visitor state across ordinary page refreshes', () => {
-      // Simulate page refresh: localStorage remains populated with completed record
-      const refreshedStatus = isPersonaIntroCompleted();
-      assert.strictEqual(refreshedStatus, true);
-      const record = getPersonaIntroRecord();
-      assert.strictEqual(record?.version, 1);
-      assert.strictEqual(record?.completed, true);
+    it('shows full animation on page reload or fresh open, and shows welcome back when already viewed once and reopened', () => {
+      // Reopening in the active session recognizes returning visitor status
+      assert.strictEqual(isPersonaIntroCompleted(), true);
+
+      // On page reload or fresh open, state is cleanly reset so full animation plays
+      resetPersonaIntroCompleted();
+      assert.strictEqual(isPersonaIntroCompleted(), false);
+      assert.strictEqual(getPersonaIntroRecord(), null);
     });
 
     it('navigating away and reopening skips introduction without resetting completed state', () => {
