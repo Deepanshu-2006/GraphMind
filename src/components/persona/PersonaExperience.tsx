@@ -39,6 +39,7 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
   const shouldReduceMotion = useReducedMotion();
   const [animationState, setAnimationState] = useState<PersonaAnimationState>('INITIALIZING');
   const [greetingCaptionVisible, setGreetingCaptionVisible] = useState(false);
+  const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
   const [isLeftPanelVisible, setIsLeftPanelVisible] = useState(false);
   const [isRightPanelVisible, setIsRightPanelVisible] = useState(false);
   const hasTriggeredGreetingRef = useRef(false);
@@ -101,6 +102,7 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
     if (leftTimerRef.current) clearTimeout(leftTimerRef.current);
     if (rightTimerRef.current) clearTimeout(rightTimerRef.current);
     presentation.cancel();
+    setAnalysisMessage(null);
     onClose();
   }, [presentation, onClose]);
 
@@ -322,6 +324,7 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
             <PersonaHumanoidCanvas
               onStateChange={setAnimationState}
               onGreetingChange={handleGreetingChange}
+              onAnalysisMessageChange={setAnalysisMessage}
               assessmentScore={averageScore}
             />
           )}
@@ -371,6 +374,30 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
             </div>
           </div>
         )}
+
+        {/* Contextual Score-Based Analysis Reaction Message */}
+        <AnimatePresence>
+          {analysisMessage && (
+            <motion.div
+              className="persona-analysis-message-container"
+              id="persona-analysis-message-container"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{
+                duration: shouldReduceMotion ? 0 : 0.4,
+                ease: [0.16, 1, 0.3, 1]
+              }}
+              aria-live="polite"
+              data-analysis-message="true"
+            >
+              <div className="persona-analysis-message" id="persona-analysis-message">
+                <span className="persona-analysis-message-dot" aria-hidden="true" />
+                <span className="persona-analysis-message-text">{analysisMessage}</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </motion.div>
   );

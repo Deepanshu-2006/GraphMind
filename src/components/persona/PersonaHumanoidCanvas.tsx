@@ -36,6 +36,7 @@ export interface PersonaHumanoidCanvasProps {
   onStateChange?: (state: PersonaAnimationState) => void;
   onSolidificationComplete?: () => void;
   onGreetingChange?: (stage: PersonaGreetingStage) => void;
+  onAnalysisMessageChange?: (message: string | null, cycle: 1 | 2) => void;
   className?: string;
   autoPlay?: boolean;
   assessmentScore?: number | null;
@@ -119,6 +120,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
   onStateChange,
   onSolidificationComplete,
   onGreetingChange,
+  onAnalysisMessageChange,
   className = '',
   autoPlay = true,
   assessmentScore = null
@@ -130,13 +132,15 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
 
   const onSolidificationCompleteRef = useRef(onSolidificationComplete);
   const onGreetingChangeRef = useRef(onGreetingChange);
+  const onAnalysisMessageChangeRef = useRef(onAnalysisMessageChange);
   const assessmentScoreRef = useRef<number | null>(assessmentScore ?? null);
   const analysisControllerRef = useRef<PersonaAnalysisController | null>(null);
 
   useEffect(() => {
     onSolidificationCompleteRef.current = onSolidificationComplete;
     onGreetingChangeRef.current = onGreetingChange;
-  }, [onSolidificationComplete, onGreetingChange]);
+    onAnalysisMessageChangeRef.current = onAnalysisMessageChange;
+  }, [onSolidificationComplete, onGreetingChange, onAnalysisMessageChange]);
 
   useEffect(() => {
     assessmentScoreRef.current = assessmentScore ?? null;
@@ -264,7 +268,10 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       lifeController,
       expressionController,
       assessmentScore: assessmentScoreRef.current,
-      prefersReducedMotion
+      prefersReducedMotion,
+      onMessageChange: (msg, cycle) => {
+        onAnalysisMessageChangeRef.current?.(msg, cycle);
+      }
     });
     analysisControllerRef.current = analysisController;
 

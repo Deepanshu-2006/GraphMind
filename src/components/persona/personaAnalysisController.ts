@@ -47,6 +47,29 @@ export type ScorePresentationTier =
   | 'smile'
   | 'celebratory';
 
+export const SCORE_ANALYSIS_MESSAGES: Record<ScorePresentationTier, { cycle1: string; cycle2: string }> = {
+  worried: {
+    cycle1: 'Oh no… this needs a little more work.',
+    cycle2: 'Hmm… we’re not quite there yet. Let’s try again.'
+  },
+  sad: {
+    cycle1: 'Ah… that didn’t go quite as planned.',
+    cycle2: 'I’m a little concerned. Let’s revisit these concepts.'
+  },
+  neutral: {
+    cycle1: 'Hmm, we’re making some progress.',
+    cycle2: 'There’s still room to understand a little more.'
+  },
+  smile: {
+    cycle1: 'Hey, that’s some nice progress!',
+    cycle2: 'You’re getting the hang of this. Keep going!'
+  },
+  celebratory: {
+    cycle1: 'Whoa, look at you! That’s impressive.',
+    cycle2: 'Now that’s what I’m talking about. Well done!'
+  }
+};
+
 export interface ScorePresentationConfig {
   minScore: number;
   maxScore: number;
@@ -56,6 +79,10 @@ export interface ScorePresentationConfig {
   hasNod: boolean;
   hasHeadShake: boolean;
   description: string;
+  messages: {
+    cycle1: string;
+    cycle2: string;
+  };
 }
 
 /**
@@ -77,7 +104,8 @@ export const SCORE_PRESENTATION_RANGES: ScorePresentationConfig[] = [
     baselineExpression: 'neutral',
     hasNod: false,
     hasHeadShake: true,
-    description: 'Below 20%: worried with head shake'
+    description: 'Below 20%: worried with head shake',
+    messages: SCORE_ANALYSIS_MESSAGES.worried
   },
   {
     minScore: 20,
@@ -87,7 +115,8 @@ export const SCORE_PRESENTATION_RANGES: ScorePresentationConfig[] = [
     baselineExpression: 'neutral',
     hasNod: false,
     hasHeadShake: true,
-    description: '20 to 40%: sad with head shake'
+    description: '20 to 40%: sad with head shake',
+    messages: SCORE_ANALYSIS_MESSAGES.sad
   },
   {
     minScore: 40,
@@ -97,7 +126,8 @@ export const SCORE_PRESENTATION_RANGES: ScorePresentationConfig[] = [
     baselineExpression: 'neutral',
     hasNod: false,
     hasHeadShake: false,
-    description: '40 to 60%: neutral'
+    description: '40 to 60%: neutral',
+    messages: SCORE_ANALYSIS_MESSAGES.neutral
   },
   {
     minScore: 60,
@@ -107,7 +137,8 @@ export const SCORE_PRESENTATION_RANGES: ScorePresentationConfig[] = [
     baselineExpression: 'neutral',
     hasNod: false,
     hasHeadShake: false,
-    description: '60 to 80%: smile'
+    description: '60 to 80%: smile',
+    messages: SCORE_ANALYSIS_MESSAGES.smile
   },
   {
     minScore: 80,
@@ -117,7 +148,8 @@ export const SCORE_PRESENTATION_RANGES: ScorePresentationConfig[] = [
     baselineExpression: 'neutral',
     hasNod: true,
     hasHeadShake: false,
-    description: '80 to 100%: happy with nod'
+    description: '80 to 100%: happy with nod',
+    messages: SCORE_ANALYSIS_MESSAGES.celebratory
   }
 ];
 
@@ -143,6 +175,19 @@ export function getScorePresentation(score: number | null | undefined): ScorePre
     return SCORE_PRESENTATION_RANGES[3]; // 60 to 80%: smile (happy without nod)
   }
   return SCORE_PRESENTATION_RANGES[4]; // 80 to 100%: happy with nod
+}
+
+/**
+ * Returns contextual analysis message for a given score and cycle (1 or 2).
+ * Returns null if score is missing or invalid.
+ */
+export function getScoreAnalysisMessage(
+  score: number | null | undefined,
+  cycle: 1 | 2
+): string | null {
+  const pres = getScorePresentation(score);
+  if (!pres) return null;
+  return cycle === 1 ? pres.messages.cycle1 : pres.messages.cycle2;
 }
 
 export interface StateTimingConfig {
@@ -172,6 +217,7 @@ export interface PersonaAnalysisControllerConfig {
   maxCycles?: number;
   onCycleComplete?: (cycleCount: number) => void;
   onTransitionToIdle?: () => void;
+  onMessageChange?: (message: string | null, cycle: 1 | 2) => void;
 }
 
 /**
@@ -209,8 +255,13 @@ export class PersonaAnalysisController {
   private lastNodTimeMs = 0;
   private hasTriggeredReactionGesture = false;
 
+  // Contextual score-based analysis message state
+  private currentMessage: string | null = null;
+  private currentMessageCycle: 1 | 2 = 1;
+
   private onCycleComplete?: (cycleCount: number) => void;
   private onTransitionToIdle?: () => void;
+  private onMessageChange?: (message: string | null, cycle: 1 | 2) => void;
 
   constructor(config: PersonaAnalysisControllerConfig) {
     this.lifeController = config.lifeController;
@@ -221,8 +272,25 @@ export class PersonaAnalysisController {
     this.maxAnalysisCycles = config.maxCycles ?? 2;
     this.onCycleComplete = config.onCycleComplete;
     this.onTransitionToIdle = config.onTransitionToIdle;
+    this.onMessageChange = config.onMessageChange;
 
     this.calculateStateDuration('idle');
+  }
+
+  private setMessage(msg: string | null, cycle: 1 | 2 = this.currentMessageCycle): void {
+    this.currentMessageCycle = cycle;
+    if (this.currentMessage !== msg) {
+      this.currentMessage = msg;
+      this.onMessageChange?.(msg, cycle);
+    }
+  }
+
+  public getCurrentMessage(): string | null {
+    return this.currentMessage;
+  }
+
+  public getCurrentMessageCycle(): 1 | 2 {
+    return this.currentMessageCycle;
   }
 
   public start(initialState: AnalysisState = 'idle', nowMs = performance.now()): void {
@@ -249,6 +317,7 @@ export class PersonaAnalysisController {
     this.stateTimer = 0;
     this.lifeController.releaseAnalysisGaze(0.5);
     this.lifeController.cancelHeadShake();
+    this.setMessage(null);
   }
 
   public dispose(): void {
@@ -256,6 +325,7 @@ export class PersonaAnalysisController {
     this.isActive = false;
     this.expressionController.setAnalysisLocked(false);
     this.lifeController.cancelHeadShake();
+    this.setMessage(null);
   }
 
   public setAssessmentScore(score: number | null): void {
@@ -267,6 +337,15 @@ export class PersonaAnalysisController {
     if (this.currentState === 'reactToScore') {
       if (oldPres?.hasHeadShake && !newPres?.hasHeadShake) {
         this.lifeController.cancelHeadShake();
+      }
+      if (newPres) {
+        const cycle: 1 | 2 = this.cycleCount >= 1 ? 2 : 1;
+        const msg = cycle === 1 ? newPres.messages.cycle1 : newPres.messages.cycle2;
+        this.setMessage(msg, cycle);
+        this.expressionController.setExpression(newPres.reactionExpression, 0.45);
+      } else {
+        this.setMessage(null);
+        this.expressionController.setExpression('neutral', 0.6);
       }
     }
 
@@ -409,11 +488,6 @@ export class PersonaAnalysisController {
       case 'returnToIdle':
       default:
         nextState = 'idle';
-        this.cycleCount++;
-        this.onCycleComplete?.(this.cycleCount);
-        if (this.cycleCount >= this.maxAnalysisCycles) {
-          this.onTransitionToIdle?.();
-        }
         break;
     }
 
@@ -421,6 +495,7 @@ export class PersonaAnalysisController {
   }
 
   public transitionTo(state: AnalysisState, _nowMs = performance.now()): void {
+    const prevState = this.currentState;
     this.isActive = true;
     this.currentState = state;
     this.stateTimer = 0;
@@ -433,6 +508,15 @@ export class PersonaAnalysisController {
       case 'idle': {
         this.currentTarget = 'forward';
         this.lifeController.releaseAnalysisGaze(0.55);
+        this.setMessage(null);
+
+        if (prevState === 'returnToIdle') {
+          this.cycleCount++;
+          this.onCycleComplete?.(this.cycleCount);
+          if (this.cycleCount >= this.maxAnalysisCycles) {
+            this.onTransitionToIdle?.();
+          }
+        }
 
         // Relax temporary analysis facial tension into comfortable resting baseline in expressive idle
         const pres = getScorePresentation(this.assessmentScore);
@@ -482,9 +566,15 @@ export class PersonaAnalysisController {
         if (!pres) {
           // Missing or loading assessments: neutral expression (never treat as 0)
           this.expressionController.setExpression('neutral', 0.6);
+          this.setMessage(null);
         } else {
           // Swift, clear transition into the score reaction expression
           this.expressionController.setExpression(pres.reactionExpression, 0.45);
+
+          // Cycle 1 for cycleCount == 0, Cycle 2 for cycleCount >= 1
+          const cycle: 1 | 2 = this.cycleCount >= 1 ? 2 : 1;
+          const msg = cycle === 1 ? pres.messages.cycle1 : pres.messages.cycle2;
+          this.setMessage(msg, cycle);
         }
         break;
       }
@@ -517,6 +607,9 @@ export class PersonaAnalysisController {
       case 'returnToIdle': {
         this.currentTarget = 'forward';
         const transitionDuration = this.deterministic ? 1.0 : this.stateDuration;
+
+        // Dismiss analysis message smoothly as character settles back to idle
+        this.setMessage(null);
 
         // 1. Return gaze towards natural forward-facing position smoothly over ~1000ms (800-1200ms)
         this.lifeController.releaseAnalysisGaze(transitionDuration);

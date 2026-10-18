@@ -226,6 +226,54 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 }
 
+/* Contextual Score-Based Analysis Reaction Message */
+.persona-analysis-message-container {
+  position: absolute;
+  bottom: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10002;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  max-width: min(90vw, 540px);
+  width: auto;
+}
+
+.persona-analysis-message {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display, 'Inter Tight', sans-serif);
+  font-size: 15px;
+  font-weight: 450;
+  letter-spacing: -0.012em;
+  line-height: 1.45;
+  color: rgba(245, 245, 245, 0.94);
+  background: rgba(18, 18, 18, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 9999px;
+  padding: 9px 22px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.42);
+}
+
+.persona-analysis-message-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00E575;
+  box-shadow: 0 0 10px rgba(0, 229, 117, 0.60);
+  flex-shrink: 0;
+}
+
+.persona-analysis-message-text {
+  white-space: nowrap;
+}
+
 @keyframes personaCaptionFadeIn {
   from {
     opacity: 0;
@@ -1022,6 +1070,17 @@
     font-size: 15px;
     padding: 8px 18px;
   }
+
+  .persona-analysis-message-container {
+    bottom: 24px;
+    max-width: 92vw;
+  }
+
+  .persona-analysis-message {
+    font-size: 14px;
+    padding: 8px 16px;
+    white-space: normal;
+  }
 }
 
 /* Reduced Motion Preference */
@@ -1036,6 +1095,11 @@
 
   .persona-speech-caption-container {
     animation: none !important;
+  }
+
+  .persona-analysis-message-container {
+    animation: none !important;
+    transition: none !important;
   }
 
   .persona-progress-fill {
