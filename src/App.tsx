@@ -20,6 +20,7 @@ import { DEFAULT_MIGRATION_GRAPH_ID } from './services/storage';
 import { GraphProvider, useGraph } from './context/GraphContext';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { personaTransitionController } from './components/persona/personaTransition';
+import { isPersonaIntroCompleted } from './services/personaVisit';
 import type { NavSection, RecentMaterial, ProjectWorkspace } from './types';
 
 export function AppContent() {
@@ -50,7 +51,12 @@ export function AppContent() {
 
   const handleOpenPersona = useCallback(() => {
     if (isPersonaOpen) return; // Prevent double activation
-    personaTransitionController.openPersona();
+    const isReturning = isPersonaIntroCompleted();
+    if (isReturning) {
+      personaTransitionController.openPersona(isReturning);
+    } else {
+      personaTransitionController.openPersona();
+    }
     if (typeof window !== 'undefined') {
       previousPathRef.current = window.location.pathname + window.location.search;
       setIsPersonaOpen(true);
@@ -102,7 +108,8 @@ export function AppContent() {
   // Synchronize Persona open state with shared transition controller
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.pathname.toLowerCase() === '/persona') {
-      personaTransitionController.openPersona();
+      const isReturning = isPersonaIntroCompleted();
+      personaTransitionController.openPersona(isReturning);
     }
     return personaTransitionController.subscribe((state) => {
       if (state === 'ORB_TO_HUMAN' || state === 'PERSONA_READY') {
@@ -223,7 +230,8 @@ export function AppContent() {
           personaTransitionController.triggerReturnToHero();
         }
       } else {
-        personaTransitionController.openPersona();
+        const isReturning = isPersonaIntroCompleted();
+        personaTransitionController.openPersona(isReturning);
         setIsPersonaOpen(true);
       }
     };

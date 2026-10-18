@@ -303,6 +303,7 @@ export const PERSONA_TEST_SENTENCES = [
 ] as const;
 
 export const PERSONA_GREETING_TEXT = PERSONA_TEST_SENTENCES[0];
+export const PERSONA_WELCOME_BACK_TEXT = 'Welcome back. Let’s pick up where you left off.';
 
 export type PersonaTestSentenceIndex = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 

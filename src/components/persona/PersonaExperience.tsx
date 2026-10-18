@@ -9,11 +9,12 @@ import {
 } from './PersonaHumanoidCanvas';
 import { personaTransitionController } from './personaTransition';
 import { usePersonaPresentation } from './usePersonaPresentation';
-import { PERSONA_GREETING_TEXT } from './personaVoiceConfig';
+import { PERSONA_GREETING_TEXT, PERSONA_WELCOME_BACK_TEXT } from './personaVoiceConfig';
 import { PersonaActivityPanel } from './PersonaActivityPanel';
 import { PersonaPerformancePanel } from './PersonaPerformancePanel';
 import { usePersonaStats } from './usePersonaStats';
 import { useOptionalGraph } from '../../context/GraphContext';
+import { isPersonaIntroCompleted, markPersonaIntroCompleted } from '../../services/personaVisit';
 
 export interface PersonaExperienceProps {
   isOpen: boolean;
@@ -23,6 +24,8 @@ export interface PersonaExperienceProps {
   onResumeRevision?: (graphId: string) => void;
   /** Integration slot for Prompt 02: 3D Humanoid character */
   characterSlot?: React.ReactNode;
+  /** Optional override for visit state (useful for testing and deterministic inspection) */
+  initialIsReturningVisit?: boolean;
 }
 
 export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
@@ -31,23 +34,37 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
   onSelectGraph,
   onSelectAssessment,
   onResumeRevision,
-  characterSlot
+  characterSlot,
+  initialIsReturningVisit
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const exitButtonRef = useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const shouldReduceMotion = useReducedMotion();
-  const [animationState, setAnimationState] = useState<PersonaAnimationState>('INITIALIZING');
+
+  const [isReturningVisit] = useState<boolean>(() => {
+    if (typeof initialIsReturningVisit === 'boolean') {
+      return initialIsReturningVisit;
+    }
+    return isPersonaIntroCompleted();
+  });
+
+  const [animationState, setAnimationState] = useState<PersonaAnimationState>(() => {
+    return isReturningVisit ? 'IDLE' : 'INITIALIZING';
+  });
   const [greetingCaptionVisible, setGreetingCaptionVisible] = useState(false);
+  const [welcomeBackCaptionVisible, setWelcomeBackCaptionVisible] = useState(false);
   const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
 
-  // Dedicated unified messaging system: quiet welcome introduction followed by contextual analysis messages.
-  // The two triggers never collide, and AnimatePresence coordinates clean transitions between states.
+  // Dedicated unified messaging system: quiet welcome introduction or returning welcome,
+  // followed by contextual analysis messages.
   const activeMessage = greetingCaptionVisible
     ? PERSONA_GREETING_TEXT
+    : welcomeBackCaptionVisible
+    ? PERSONA_WELCOME_BACK_TEXT
     : analysisMessage;
-  const [isLeftPanelVisible, setIsLeftPanelVisible] = useState(false);
-  const [isRightPanelVisible, setIsRightPanelVisible] = useState(false);
+  const [isLeftPanelVisible, setIsLeftPanelVisible] = useState<boolean>(() => isReturningVisit);
+  const [isRightPanelVisible, setIsRightPanelVisible] = useState<boolean>(() => isReturningVisit);
   const hasTriggeredGreetingRef = useRef(false);
 
   // Reusable silent visual presentation infrastructure
@@ -62,6 +79,10 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
         hasTriggeredGreetingRef.current = true;
         setGreetingCaptionVisible(true);
       }
+    } else if (stage === 'welcome-back') {
+      setWelcomeBackCaptionVisible(true);
+    } else if (stage === 'welcome-back-complete') {
+      setWelcomeBackCaptionVisible(false);
     } else if (stage === 'complete') {
       // 1. Greeting text fades out
       setGreetingCaptionVisible(false);
@@ -87,6 +108,28 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
       }, shouldReduceMotion ? 0 : 350);
     }
   }, [shouldReduceMotion]);
+
+  // Returning visit experience fallback: ensures welcome-back message displays if canvas events are not used (e.g. headless tests or characterSlot)
+  useEffect(() => {
+    if (isReturningVisit) {
+      const showTimer = setTimeout(() => {
+        setWelcomeBackCaptionVisible((prev) => (prev ? prev : true));
+      }, shouldReduceMotion ? 0 : 800);
+
+      const hideTimer = setTimeout(() => {
+        setWelcomeBackCaptionVisible(false);
+      }, shouldReduceMotion ? 2600 : 4800);
+
+      return () => {
+        clearTimeout(showTimer);
+        clearTimeout(hideTimer);
+      };
+    }
+  }, [isReturningVisit, shouldReduceMotion]);
+
+  const handleIntroductionComplete = useCallback(() => {
+    markPersonaIntroCompleted();
+  }, []);
 
   // If characterSlot is provided externally (e.g. test harness without 3D canvas), reveal stats
   useEffect(() => {
@@ -158,14 +201,18 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
   useEffect(() => {
     return personaTransitionController.subscribe((state) => {
       if (state === 'ORB_TO_HUMAN') {
-        setAnimationState('FORMING_HUMANOID');
+        if (!isReturningVisit) {
+          setAnimationState('FORMING_HUMANOID');
+        }
       } else if (state === 'HUMAN_FORMED' || state === 'PERSONA_READY') {
         setAnimationState('IDLE');
       } else {
-        setAnimationState('INITIALIZING');
+        if (!isReturningVisit) {
+          setAnimationState('INITIALIZING');
+        }
       }
     });
-  }, []);
+  }, [isReturningVisit]);
 
   // Always clean up panel timers on unmount to prevent state updates on unmounted component
   useEffect(() => {
@@ -331,6 +378,8 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
               onStateChange={setAnimationState}
               onGreetingChange={handleGreetingChange}
               onAnalysisMessageChange={setAnalysisMessage}
+              onIntroductionComplete={handleIntroductionComplete}
+              isReturningVisit={isReturningVisit}
               assessmentScore={averageScore}
             />
           )}
@@ -384,7 +433,7 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
               animate={{ opacity: 1, x: '-50%', y: 0 }}
               exit={{ opacity: 0, x: '-50%', y: -4 }}
               transition={{
-                duration: shouldReduceMotion ? 0 : 0.42,
+                duration: shouldReduceMotion ? 0 : 0.58,
                 ease: [0.16, 1, 0.3, 1]
               }}
             >

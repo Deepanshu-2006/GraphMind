@@ -46,11 +46,13 @@ class PersonaTransitionController {
    * Bypasses the hero orb idle restriction so profile can open from Overview,
    * Knowledge Graph, Study Space, Sources, Revision, or Settings.
    */
-  openPersona(): boolean {
+  openPersona(): boolean;
+  openPersona(isReturning?: boolean): boolean;
+  openPersona(isReturning = false): boolean {
     if (this._state === 'ORB_TO_HUMAN' || this._state === 'HUMAN_FORMED' || this._state === 'PERSONA_READY') {
       return false; // Already in Persona
     }
-    this._state = 'ORB_TO_HUMAN';
+    this._state = isReturning ? 'PERSONA_READY' : 'ORB_TO_HUMAN';
     this._startTime = performance.now();
     this.notify();
     return true;

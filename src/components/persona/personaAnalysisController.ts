@@ -306,6 +306,13 @@ export class PersonaAnalysisController {
       return;
     }
 
+    if (initialState === 'observeRight' || initialState === 'analysePerformance') {
+      if (this.currentTarget !== 'assessment' && this.currentTarget !== 'revision') {
+        const chooseRevision = !this.deterministic && (this.cycleCount % 3 === 2);
+        this.currentTarget = chooseRevision ? 'revision' : 'assessment';
+      }
+    }
+
     this.transitionTo(initialState, nowMs);
   }
 
@@ -550,6 +557,10 @@ export class PersonaAnalysisController {
 
       case 'analysePerformance': {
         // Hold focused attention on right stats with subtle micro-gaze adjustment
+        if (this.currentTarget !== 'assessment' && this.currentTarget !== 'revision') {
+          const chooseRevision = !this.deterministic && (this.cycleCount % 3 === 2);
+          this.currentTarget = chooseRevision ? 'revision' : 'assessment';
+        }
         const target = SEMANTIC_GAZE_TARGETS[this.currentTarget];
         this.lifeController.setAnalysisGaze(target.x + randX * 0.5, target.y + randY * 0.5, 0.60);
         this.expressionController.setExpression('thinking', 1.0);

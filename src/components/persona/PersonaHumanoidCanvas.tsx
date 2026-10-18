@@ -19,7 +19,8 @@ import {
 import { PersonaLipSyncController } from './personaLipSyncController';
 import { PersonaAnalysisController } from './personaAnalysisController';
 import { personaPresentationController } from './personaPresentationController';
-import { PERSONA_GREETING_TEXT } from './personaVoiceConfig';
+import { PERSONA_GREETING_TEXT, PERSONA_WELCOME_BACK_TEXT } from './personaVoiceConfig';
+import { markPersonaIntroCompleted } from '../../services/personaVisit';
 
 export type PersonaAnimationState =
   | 'INITIALIZING'
@@ -30,13 +31,22 @@ export type PersonaAnimationState =
   | 'FULLY_SOLID'
   | 'IDLE';
 
-export type PersonaGreetingStage = 'idle' | 'pause' | 'greeting' | 'complete' | 'glance-right';
+export type PersonaGreetingStage =
+  | 'idle'
+  | 'pause'
+  | 'greeting'
+  | 'complete'
+  | 'glance-right'
+  | 'welcome-back'
+  | 'welcome-back-complete';
 
 export interface PersonaHumanoidCanvasProps {
   onStateChange?: (state: PersonaAnimationState) => void;
   onSolidificationComplete?: () => void;
   onGreetingChange?: (stage: PersonaGreetingStage) => void;
   onAnalysisMessageChange?: (message: string | null, cycle: 1 | 2) => void;
+  onIntroductionComplete?: () => void;
+  isReturningVisit?: boolean;
   className?: string;
   autoPlay?: boolean;
   assessmentScore?: number | null;
@@ -121,18 +131,25 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
   onSolidificationComplete,
   onGreetingChange,
   onAnalysisMessageChange,
+  onIntroductionComplete,
+  isReturningVisit = false,
   className = '',
   autoPlay = true,
   assessmentScore = null
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [currentState, setCurrentState] = useState<PersonaAnimationState>('INITIALIZING');
-  const currentStateRef = useRef<PersonaAnimationState>('INITIALIZING');
+  const [currentState, setCurrentState] = useState<PersonaAnimationState>(() => {
+    return isReturningVisit ? 'IDLE' : 'INITIALIZING';
+  });
+  const currentStateRef = useRef<PersonaAnimationState>(isReturningVisit ? 'IDLE' : 'INITIALIZING');
+  const [isModelLoaded, setIsModelLoaded] = useState(!isReturningVisit);
 
   const onSolidificationCompleteRef = useRef(onSolidificationComplete);
   const onGreetingChangeRef = useRef(onGreetingChange);
   const onAnalysisMessageChangeRef = useRef(onAnalysisMessageChange);
+  const onIntroductionCompleteRef = useRef(onIntroductionComplete);
+  const isReturningVisitRef = useRef(isReturningVisit);
   const assessmentScoreRef = useRef<number | null>(assessmentScore ?? null);
   const analysisControllerRef = useRef<PersonaAnalysisController | null>(null);
 
@@ -140,7 +157,12 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     onSolidificationCompleteRef.current = onSolidificationComplete;
     onGreetingChangeRef.current = onGreetingChange;
     onAnalysisMessageChangeRef.current = onAnalysisMessageChange;
-  }, [onSolidificationComplete, onGreetingChange, onAnalysisMessageChange]);
+    onIntroductionCompleteRef.current = onIntroductionComplete;
+  }, [onSolidificationComplete, onGreetingChange, onAnalysisMessageChange, onIntroductionComplete]);
+
+  useEffect(() => {
+    isReturningVisitRef.current = isReturningVisit;
+  }, [isReturningVisit]);
 
   useEffect(() => {
     assessmentScoreRef.current = assessmentScore ?? null;
@@ -274,6 +296,14 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       }
     });
     analysisControllerRef.current = analysisController;
+    if (typeof window !== 'undefined') {
+      (window as any).__personaDebug = {
+        analysisController,
+        lifeController,
+        expressionController,
+        ...((window as any).__personaDebug || {})
+      };
+    }
 
     const gltfLoader = new GLTFLoader();
     gltfLoader.setMeshoptDecoder(MeshoptDecoder);
@@ -435,9 +465,10 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
           (window as any).__personaModel = model;
           (window as any).THREE = THREE;
         }
-        // Keep solid model hidden during particle-only phase
-        model.visible = false;
+        // Keep solid model hidden during particle-only phase unless already settled
+        model.visible = isInstantSettled;
         characterGroup.add(model);
+        setIsModelLoaded(true);
       },
       undefined,
       (err) => {
@@ -793,7 +824,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     window.addEventListener('keydown', handleDevKeyDown);
 
     // Check if initial mount is already in settled/inspection state
-    let isInstantSettled = personaTransitionController.state === 'PERSONA_READY' || prefersReducedMotion;
+    let isInstantSettled = isReturningVisitRef.current || personaTransitionController.state === 'PERSONA_READY' || prefersReducedMotion;
 
     // Initial Greeting Sequence Timing (Prompt 20 / Stages B, C, D, E)
     let hasInitiatedGreeting = false;
@@ -801,6 +832,8 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     let greetingCompleteTimeout: ReturnType<typeof setTimeout> | null = null;
     let glanceRightTimeout: ReturnType<typeof setTimeout> | null = null;
     let continuousAnalysisTimeout: ReturnType<typeof setTimeout> | null = null;
+    let returningVoiceTimeout: ReturnType<typeof setTimeout> | null = null;
+    let returningAnalysisTimeout: ReturnType<typeof setTimeout> | null = null;
 
     // ----------------------------------------------------
     // Natural 3D Eye Tracking & Ocular Life Dynamics
@@ -1111,64 +1144,100 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         }
 
         // ----------------------------------------------------
-        // INITIAL GREETING SEQUENCE (Plays once upon solidification)
+        // INITIAL GREETING SEQUENCE (Plays once upon solidification on first visit)
         // ----------------------------------------------------
         if (!hasInitiatedGreeting) {
-          hasInitiatedGreeting = true;
-          onSolidificationCompleteRef.current?.();
+          if (isReturningVisitRef.current) {
+            if (!loadedSolidModel) {
+              // Wait until solid model is loaded before initiating welcome-back greeting
+              renderer.render(scene, camera);
+              animationFrameId = requestAnimationFrame(render);
+              return;
+            }
+            hasInitiatedGreeting = true;
 
-          // Stage B: Brief pause of approximately 400-700 ms (500ms)
-          onGreetingChangeRef.current?.('pause');
-          greetingPauseTimeout = setTimeout(() => {
-            if (isDisposed) return;
-
-            // Stage C: Gently raise/adjust head towards viewer, eyes settle on viewer, subtle warm smile, greeting nod
-            lifeController.startGreetingNod();
-            expressionController.setGreetingLocked(true);
-            expressionController.setExpression('happy', 1.0);
-
-            // Stage D: Display the greeting text and trigger subtle silent mouth articulation
-            onGreetingChangeRef.current?.('greeting');
-            lipSyncController.startArticulation(PERSONA_GREETING_TEXT);
-
-            // Stage E: Keep visual greeting visible for comfortable reading duration (~3.2s)
-            const completeGreeting = () => {
+            // Returning visit:
+            // Skip first-visit introduction, nod, and panel glance sequence.
+            // Model is loaded and fading in. Wait a gentle 450ms pause so the character is smoothly settled.
+            returningVoiceTimeout = setTimeout(() => {
               if (isDisposed) return;
+              // Silently articulate the welcome-back message and show subtitle simultaneously
+              onGreetingChangeRef.current?.('welcome-back');
+              lipSyncController.startArticulation(PERSONA_WELCOME_BACK_TEXT);
 
-              // Smoothly transition smile back to neutral without popping or snapping
-              expressionController.setExpression('neutral', 1.2);
-              expressionController.setGreetingLocked(false);
-              lifeController.resetGreeting();
-              lipSyncController.stopArticulation();
-
-              // Fade greeting text out smoothly
-              onGreetingChangeRef.current?.('complete');
-
-              // Gracefully glance towards the newly revealed learning statistics panel on the left.
-              // Eyes and head remain on the left until all left content has finished rendering (~2.7s animation + 350ms delay = ~3.05s)
-              lifeController.glanceTowards(-0.52, 0.06, 3.2);
-
-              // After observing all left content finish rendering, smoothly shift eyes and head to the right side
-              glanceRightTimeout = setTimeout(() => {
+              // Hold for comfortable reading duration (~3.5s)
+              returningVoiceTimeout = setTimeout(() => {
                 if (isDisposed) return;
+                lipSyncController.stopArticulation();
+                onGreetingChangeRef.current?.('welcome-back-complete');
 
-                // Gracefully glance towards the right side performance panel
-                lifeController.glanceTowards(0.52, 0.06, 2.8);
-
-                // Signal that the character is now directing attention to the right
-                onGreetingChangeRef.current?.('glance-right');
-
-                // After right performance panel completes entrance sequence (~2.8s),
-                // smoothly hand off to the continuous analysis and reaction loop
-                continuousAnalysisTimeout = setTimeout(() => {
+                // Smoothly transition from welcome-back into performance analysis & expression:
+                // Direct eyes and head towards the right side performance panel for analyzing!
+                returningAnalysisTimeout = setTimeout(() => {
                   if (isDisposed) return;
                   analysisController.start('analysePerformance');
-                }, 2800);
-              }, 3150);
-            };
+                }, 400);
+              }, 3500);
+            }, 450);
+          } else {
+            hasInitiatedGreeting = true;
+            onSolidificationCompleteRef.current?.();
 
-            greetingCompleteTimeout = setTimeout(completeGreeting, 3200);
-          }, 500);
+            // Stage B: Brief pause of approximately 400-700 ms (500ms)
+            onGreetingChangeRef.current?.('pause');
+            greetingPauseTimeout = setTimeout(() => {
+              if (isDisposed) return;
+
+              // Stage C: Gently raise/adjust head towards viewer, eyes settle on viewer, subtle warm smile, greeting nod
+              lifeController.startGreetingNod();
+              expressionController.setGreetingLocked(true);
+              expressionController.setExpression('happy', 1.0);
+
+              // Stage D: Display the greeting text and trigger subtle silent mouth articulation
+              onGreetingChangeRef.current?.('greeting');
+              lipSyncController.startArticulation(PERSONA_GREETING_TEXT);
+
+              // Stage E: Keep visual greeting visible for comfortable reading duration (~3.2s)
+              const completeGreeting = () => {
+                if (isDisposed) return;
+
+                // Smoothly transition smile back to neutral without popping or snapping
+                expressionController.setExpression('neutral', 1.2);
+                expressionController.setGreetingLocked(false);
+                lifeController.resetGreeting();
+                lipSyncController.stopArticulation();
+
+                // Fade greeting text out smoothly
+                onGreetingChangeRef.current?.('complete');
+
+                // Gracefully glance towards the newly revealed learning statistics panel on the left.
+                // Eyes and head remain on the left until all left content has finished rendering (~2.7s animation + 350ms delay = ~3.05s)
+                lifeController.glanceTowards(-0.52, 0.06, 3.2);
+
+                // After observing all left content finish rendering, smoothly shift eyes and head to the right side
+                glanceRightTimeout = setTimeout(() => {
+                  if (isDisposed) return;
+
+                  // Gracefully glance towards the right side performance panel
+                  lifeController.glanceTowards(0.52, 0.06, 2.8);
+
+                  // Signal that the character is now directing attention to the right
+                  onGreetingChangeRef.current?.('glance-right');
+
+                  // After right performance panel completes entrance sequence (~2.8s),
+                  // genuine completion of the full introduction sequence!
+                  continuousAnalysisTimeout = setTimeout(() => {
+                    if (isDisposed) return;
+                    markPersonaIntroCompleted();
+                    onIntroductionCompleteRef.current?.();
+                    analysisController.start('analysePerformance');
+                  }, 2800);
+                }, 3150);
+              };
+
+              greetingCompleteTimeout = setTimeout(completeGreeting, 3200);
+            }, 500);
+          }
         }
 
         renderer.render(scene, camera);
@@ -1408,6 +1477,8 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       if (greetingCompleteTimeout) clearTimeout(greetingCompleteTimeout);
       if (glanceRightTimeout) clearTimeout(glanceRightTimeout);
       if (continuousAnalysisTimeout) clearTimeout(continuousAnalysisTimeout);
+      if (returningVoiceTimeout) clearTimeout(returningVoiceTimeout);
+      if (returningAnalysisTimeout) clearTimeout(returningAnalysisTimeout);
       analysisController.dispose();
       lifeController.resetGreeting();
       expressionController.setGreetingLocked(false);
@@ -1445,7 +1516,9 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
         width: '100%',
         height: '100%',
         pointerEvents: 'none',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        opacity: isReturningVisit ? (isModelLoaded ? 1 : 0) : 1,
+        transition: 'opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1)'
       }}
     >
       <canvas
