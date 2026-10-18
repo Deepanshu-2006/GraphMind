@@ -6,6 +6,8 @@ import type { RecentGraphActivity } from '../../types/personaStats';
 
 export interface PersonaActivityPanelProps {
   onSelectGraph?: (graphId: string) => void;
+  onOpenOverview?: () => void;
+  onOpenStudy?: () => void;
   className?: string;
 }
 
@@ -54,6 +56,8 @@ export function formatTabularCount(count: number): string {
  */
 export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = React.memo(({
   onSelectGraph,
+  onOpenOverview,
+  onOpenStudy,
   className = ''
 }) => {
   const { stats, isLoading, error, refresh } = usePersonaStats();
@@ -432,20 +436,28 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = React.m
       <motion.div className="persona-activity-group persona-activity-group--metrics" variants={itemVariants}>
         {/* Metric 1: Knowledge Graphs (Phase C) */}
         <div className="persona-stat-block">
-          <motion.span className="persona-stat-label" variants={metric1LabelVariants}>
-            YOUR GRAPHS
-          </motion.span>
-          <div className="persona-stat-value persona-stat-value-clip" data-testid="persona-total-graphs">
-            <motion.div className="persona-stat-value-inner" variants={metric1ValueVariants}>
-              <PersonaAnimatedNumber
-                value={totalGraphs}
-                format={formatTabularCount}
-                duration={850}
-                delay={shouldReduceMotion ? 0 : 460}
-                min={0}
-              />
-            </motion.div>
-          </div>
+          <button
+            type="button"
+            onClick={onOpenOverview}
+            disabled={!onOpenOverview}
+            className={`persona-stat-trigger ${onOpenOverview ? 'persona-stat-trigger--interactive' : ''}`}
+            aria-label={`Open knowledge graphs overview (${totalGraphs} ${totalGraphs === 1 ? 'graph' : 'graphs'})`}
+          >
+            <motion.span className="persona-stat-label" variants={metric1LabelVariants}>
+              YOUR GRAPHS
+            </motion.span>
+            <span className="persona-stat-value persona-stat-value-clip" data-testid="persona-total-graphs">
+              <motion.span className="persona-stat-value-inner" variants={metric1ValueVariants}>
+                <PersonaAnimatedNumber
+                  value={totalGraphs}
+                  format={formatTabularCount}
+                  duration={850}
+                  delay={shouldReduceMotion ? 0 : 460}
+                  min={0}
+                />
+              </motion.span>
+            </span>
+          </button>
           <motion.span className="persona-stat-subtext" variants={metric1SubtextVariants}>
             {totalGraphs === 0
               ? 'No knowledge graphs created yet'
@@ -457,25 +469,33 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = React.m
 
         {/* Metric 2: Demonstrated Learning Progress (Phase D) */}
         <div className="persona-stat-block">
-          <motion.span className="persona-stat-label" variants={metric2LabelVariants}>
-            LEARNING PROGRESS
-          </motion.span>
-          <div className="persona-stat-value persona-stat-value-clip" data-testid="persona-demonstrated-percentage">
-            <motion.div className="persona-stat-value-inner" variants={metric2ValueVariants}>
-              {totalConcepts === 0 ? (
-                '—%'
-              ) : (
-                <PersonaAnimatedNumber
-                  value={demonstratedPercentage}
-                  suffix="%"
-                  duration={950}
-                  delay={shouldReduceMotion ? 0 : 1080}
-                  min={0}
-                  max={100}
-                />
-              )}
-            </motion.div>
-          </div>
+          <button
+            type="button"
+            onClick={onOpenStudy}
+            disabled={!onOpenStudy}
+            className={`persona-stat-trigger ${onOpenStudy ? 'persona-stat-trigger--interactive' : ''}`}
+            aria-label={`Open learning overview and concept progress (${totalConcepts === 0 ? 'no progress yet' : `${demonstratedPercentage}% demonstrated understanding`})`}
+          >
+            <motion.span className="persona-stat-label" variants={metric2LabelVariants}>
+              LEARNING PROGRESS
+            </motion.span>
+            <span className="persona-stat-value persona-stat-value-clip" data-testid="persona-demonstrated-percentage">
+              <motion.span className="persona-stat-value-inner" variants={metric2ValueVariants}>
+                {totalConcepts === 0 ? (
+                  '—%'
+                ) : (
+                  <PersonaAnimatedNumber
+                    value={demonstratedPercentage}
+                    suffix="%"
+                    duration={950}
+                    delay={shouldReduceMotion ? 0 : 1080}
+                    min={0}
+                    max={100}
+                  />
+                )}
+              </motion.span>
+            </span>
+          </button>
           <motion.span className="persona-stat-subtext" variants={metric2SubtextVariants}>
             {totalConcepts === 0
               ? 'Progress will appear as you study concepts'
@@ -486,13 +506,21 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = React.m
 
           {/* Thin horizontal progress indicator bar (Starts at zero, scales to exact %) */}
           <motion.div
-            className="persona-progress-track"
+            className={`persona-progress-track ${onOpenStudy ? 'persona-progress-track--interactive' : ''}`}
             role="progressbar"
             aria-valuenow={totalConcepts === 0 ? 0 : Math.round(demonstratedPercentage)}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-label="Demonstrated understanding progress"
             variants={progressTrackVariants}
+            onClick={onOpenStudy}
+            tabIndex={onOpenStudy ? 0 : undefined}
+            onKeyDown={(e) => {
+              if (onOpenStudy && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                onOpenStudy();
+              }
+            }}
           >
             <motion.div
               className="persona-progress-fill"

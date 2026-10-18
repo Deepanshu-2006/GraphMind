@@ -630,6 +630,50 @@
   flex-direction: column;
 }
 
+/* Accessible Interactive Metric Trigger */
+.persona-stat-trigger {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: default;
+  width: fit-content;
+  max-width: 100%;
+  border-radius: var(--radius-sm, 4px);
+  transition: opacity 150ms ease;
+}
+
+.persona-stat-trigger--interactive,
+.persona-stat-trigger:not(:disabled) {
+  cursor: pointer;
+}
+
+.persona-stat-trigger:disabled {
+  cursor: default;
+}
+
+.persona-stat-trigger:not(:disabled):hover .persona-stat-label {
+  color: rgba(255, 255, 255, 0.76);
+  transition: color 150ms ease;
+}
+
+.persona-stat-trigger:not(:disabled):hover .persona-stat-value {
+  color: #FFFFFF;
+  text-shadow: 0 0 16px rgba(163, 255, 18, 0.2);
+  transition: color 150ms ease, text-shadow 150ms ease;
+}
+
+.persona-stat-trigger:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: 4px;
+}
+
 /* Level 4: Metric labels */
 .persona-activity-panel .persona-stat-label,
 .persona-performance-panel .persona-stat-label {
@@ -704,6 +748,20 @@
   box-shadow: 0 0 8px rgba(163, 255, 18, 0.35);
   transform-origin: left;
   will-change: transform;
+}
+
+.persona-progress-track--interactive {
+  cursor: pointer;
+  transition: opacity 150ms ease;
+}
+
+.persona-progress-track--interactive:hover {
+  opacity: 0.9;
+}
+
+.persona-progress-track--interactive:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: 3px;
 }
 
 /* Group C — Recent activity / Concepts to revisit */
@@ -911,6 +969,24 @@
   color: #FFFFFF;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
   transform: translateY(-1px);
+}
+
+.persona-concept-chip--interactive {
+  cursor: pointer;
+  outline: none;
+}
+
+.persona-concept-chip--interactive:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: 2px;
+  border-color: rgba(163, 255, 18, 0.6);
+  background: rgba(255, 255, 255, 0.08);
+  color: #FFFFFF;
+}
+
+.persona-concept-chip--interactive:active {
+  transform: translateY(0);
+  opacity: 0.9;
 }
 
 /* Responsive Viewports */

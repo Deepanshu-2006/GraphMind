@@ -13,6 +13,17 @@
 
 export const PERSONA_INTRO_STORAGE_KEY = 'graphmind_persona_intro_completed_v1';
 
+// On initial application load / reload in browser runtime, reset intro state
+// so that fresh opens or page reloads always show the full animation,
+// while reopening within the active session provides the welcome-back experience.
+if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+  try {
+    localStorage.removeItem(PERSONA_INTRO_STORAGE_KEY);
+  } catch {
+    // Ignore storage errors on startup reset
+  }
+}
+
 export interface PersonaIntroRecord {
   version: 1;
   completed: boolean;

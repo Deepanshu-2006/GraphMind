@@ -22,6 +22,10 @@ export interface PersonaExperienceProps {
   onSelectGraph?: (graphId: string) => void;
   onSelectAssessment?: (attemptId: string, graphId?: string) => void;
   onResumeRevision?: (graphId: string) => void;
+  onOpenOverview?: () => void;
+  onOpenStudy?: () => void;
+  onOpenAssessments?: () => void;
+  onOpenRevision?: (conceptName?: string) => void;
   /** Integration slot for Prompt 02: 3D Humanoid character */
   characterSlot?: React.ReactNode;
   /** Optional override for visit state (useful for testing and deterministic inspection) */
@@ -34,6 +38,10 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
   onSelectGraph,
   onSelectAssessment,
   onResumeRevision,
+  onOpenOverview,
+  onOpenStudy,
+  onOpenAssessments,
+  onOpenRevision,
   characterSlot,
   initialIsReturningVisit
 }) => {
@@ -196,6 +204,52 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
       onClose();
     }
   }, [onResumeRevision, graphContext, onClose, presentation]);
+
+  const handleOpenOverview = useCallback(() => {
+    if (leftTimerRef.current) clearTimeout(leftTimerRef.current);
+    if (rightTimerRef.current) clearTimeout(rightTimerRef.current);
+    presentation.cancel();
+    if (onOpenOverview) {
+      onOpenOverview();
+    } else {
+      onClose();
+    }
+  }, [onOpenOverview, onClose, presentation]);
+
+  const handleOpenStudy = useCallback(() => {
+    if (leftTimerRef.current) clearTimeout(leftTimerRef.current);
+    if (rightTimerRef.current) clearTimeout(rightTimerRef.current);
+    presentation.cancel();
+    if (onOpenStudy) {
+      onOpenStudy();
+    } else {
+      onClose();
+    }
+  }, [onOpenStudy, onClose, presentation]);
+
+  const handleOpenAssessments = useCallback(() => {
+    if (leftTimerRef.current) clearTimeout(leftTimerRef.current);
+    if (rightTimerRef.current) clearTimeout(rightTimerRef.current);
+    presentation.cancel();
+    if (onOpenAssessments) {
+      onOpenAssessments();
+    } else if (onOpenStudy) {
+      onOpenStudy();
+    } else {
+      onClose();
+    }
+  }, [onOpenAssessments, onOpenStudy, onClose, presentation]);
+
+  const handleOpenRevision = useCallback((conceptName?: string) => {
+    if (leftTimerRef.current) clearTimeout(leftTimerRef.current);
+    if (rightTimerRef.current) clearTimeout(rightTimerRef.current);
+    presentation.cancel();
+    if (onOpenRevision) {
+      onOpenRevision(conceptName);
+    } else {
+      onClose();
+    }
+  }, [onOpenRevision, onClose, presentation]);
 
   // Synchronize status indicator with the shared persona transition controller
   useEffect(() => {
@@ -399,7 +453,11 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
               transition={{ duration: shouldReduceMotion ? 0 : 0.6, ease: [0.16, 1, 0.3, 1] }}
             >
               <div className="persona-dashboard-left">
-                <PersonaActivityPanel onSelectGraph={handleSelectGraph} />
+                <PersonaActivityPanel
+                  onSelectGraph={handleSelectGraph}
+                  onOpenOverview={handleOpenOverview}
+                  onOpenStudy={handleOpenStudy}
+                />
               </div>
               <div className="persona-dashboard-center" aria-hidden="true" />
               <div className="persona-dashboard-right">
@@ -409,6 +467,8 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
                       onSelectGraph={handleSelectGraph}
                       onSelectAssessment={handleSelectAssessment}
                       onResumeRevision={handleResumeRevision}
+                      onOpenAssessments={handleOpenAssessments}
+                      onOpenRevision={handleOpenRevision}
                     />
                   )}
                 </AnimatePresence>

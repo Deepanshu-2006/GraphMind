@@ -9,6 +9,8 @@ export interface PersonaPerformancePanelProps {
   onSelectGraph?: (graphId: string) => void;
   onSelectAssessment?: (attemptId: string, graphId?: string) => void;
   onResumeRevision?: (graphId: string) => void;
+  onOpenAssessments?: () => void;
+  onOpenRevision?: (conceptName?: string) => void;
   className?: string;
 }
 
@@ -23,6 +25,8 @@ export const PersonaPerformancePanel: React.FC<PersonaPerformancePanelProps> = R
   onSelectGraph,
   onSelectAssessment,
   onResumeRevision,
+  onOpenAssessments,
+  onOpenRevision,
   className = ''
 }) => {
   const { stats, isLoading, error, refresh } = usePersonaStats();
@@ -464,25 +468,33 @@ export const PersonaPerformancePanel: React.FC<PersonaPerformancePanelProps> = R
       <motion.div className="persona-performance-group persona-performance-group--metrics" variants={itemVariants}>
         {/* Metric 1: Assessment Performance (Phase B) */}
         <div className="persona-stat-block">
-          <motion.span className="persona-stat-label" variants={metric1LabelVariants}>
-            ASSESSMENT PERFORMANCE
-          </motion.span>
-          <div className="persona-stat-value persona-stat-value-clip" data-testid="persona-average-score">
-            <motion.div className="persona-stat-value-inner" variants={metric1ValueVariants}>
-              {averageScore !== null && averageScore !== undefined ? (
-                <PersonaAnimatedNumber
-                  value={averageScore}
-                  suffix="%"
-                  duration={850}
-                  delay={shouldReduceMotion ? 0 : 420}
-                  min={0}
-                  max={100}
-                />
-              ) : (
-                '—%'
-              )}
-            </motion.div>
-          </div>
+          <button
+            type="button"
+            onClick={onOpenAssessments}
+            disabled={!onOpenAssessments}
+            className={`persona-stat-trigger ${onOpenAssessments ? 'persona-stat-trigger--interactive' : ''}`}
+            aria-label={`Open assessment history (Average score: ${averageScore !== null && averageScore !== undefined ? `${averageScore}%` : 'no completed tests yet'})`}
+          >
+            <motion.span className="persona-stat-label" variants={metric1LabelVariants}>
+              ASSESSMENT PERFORMANCE
+            </motion.span>
+            <span className="persona-stat-value persona-stat-value-clip" data-testid="persona-average-score">
+              <motion.span className="persona-stat-value-inner" variants={metric1ValueVariants}>
+                {averageScore !== null && averageScore !== undefined ? (
+                  <PersonaAnimatedNumber
+                    value={averageScore}
+                    suffix="%"
+                    duration={850}
+                    delay={shouldReduceMotion ? 0 : 420}
+                    min={0}
+                    max={100}
+                  />
+                ) : (
+                  '—%'
+                )}
+              </motion.span>
+            </span>
+          </button>
           <motion.span className="persona-stat-subtext" variants={metric1SubtextVariants}>
             {totalAttempts === 0
               ? 'No completed tests yet'
@@ -546,25 +558,33 @@ export const PersonaPerformancePanel: React.FC<PersonaPerformancePanelProps> = R
 
         {/* Metric 2: Active Revision Session (Phase C) */}
         <div className="persona-stat-block">
-          <motion.span className="persona-stat-label" variants={metric2LabelVariants}>
-            {revisionProgress ? 'ACTIVE REVISION SESSION' : 'REVISION PROGRESS'}
-          </motion.span>
-          <div className="persona-stat-value persona-stat-value-clip" data-testid="persona-revision-progress">
-            <motion.div className="persona-stat-value-inner" variants={metric2ValueVariants}>
-              {revisionProgress ? (
-                <PersonaAnimatedNumber
-                  value={revisionProgress.progressPercent}
-                  suffix="%"
-                  duration={850}
-                  delay={shouldReduceMotion ? 0 : 1000}
-                  min={0}
-                  max={100}
-                />
-              ) : (
-                '—%'
-              )}
-            </motion.div>
-          </div>
+          <button
+            type="button"
+            onClick={() => revisionProgress && onResumeRevision?.(revisionProgress.graphId)}
+            disabled={!revisionProgress || !onResumeRevision}
+            className={`persona-stat-trigger ${revisionProgress && onResumeRevision ? 'persona-stat-trigger--interactive' : ''}`}
+            aria-label={revisionProgress ? `Resume active revision session in ${revisionProgress.graphName} (${revisionProgress.progressPercent}% completed)` : 'No active revision session'}
+          >
+            <motion.span className="persona-stat-label" variants={metric2LabelVariants}>
+              {revisionProgress ? 'ACTIVE REVISION SESSION' : 'REVISION PROGRESS'}
+            </motion.span>
+            <span className="persona-stat-value persona-stat-value-clip" data-testid="persona-revision-progress">
+              <motion.span className="persona-stat-value-inner" variants={metric2ValueVariants}>
+                {revisionProgress ? (
+                  <PersonaAnimatedNumber
+                    value={revisionProgress.progressPercent}
+                    suffix="%"
+                    duration={850}
+                    delay={shouldReduceMotion ? 0 : 1000}
+                    min={0}
+                    max={100}
+                  />
+                ) : (
+                  '—%'
+                )}
+              </motion.span>
+            </span>
+          </button>
           <motion.span className="persona-stat-subtext" variants={metric2SubtextVariants}>
             {revisionProgress
               ? `${revisionProgress.reviewedCount} of ${revisionProgress.totalConcepts} concepts in ${revisionProgress.graphName}`
@@ -573,13 +593,21 @@ export const PersonaPerformancePanel: React.FC<PersonaPerformancePanelProps> = R
 
           {/* Thin horizontal progress indicator bar */}
           <motion.div
-            className="persona-progress-track"
+            className={`persona-progress-track ${revisionProgress && onResumeRevision ? 'persona-progress-track--interactive' : ''}`}
             role="progressbar"
             aria-valuenow={revisionProgress ? revisionProgress.progressPercent : 0}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-label="Active revision session progress"
             variants={progressTrackVariants}
+            onClick={() => revisionProgress && onResumeRevision?.(revisionProgress.graphId)}
+            tabIndex={revisionProgress && onResumeRevision ? 0 : undefined}
+            onKeyDown={(e) => {
+              if (revisionProgress && onResumeRevision && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                onResumeRevision(revisionProgress.graphId);
+              }
+            }}
           >
             <motion.div
               className="persona-progress-fill"
@@ -613,20 +641,28 @@ export const PersonaPerformancePanel: React.FC<PersonaPerformancePanelProps> = R
 
       {/* Group C — Concepts to Revisit (Phase D) */}
       <motion.div className="persona-performance-group persona-performance-group--revisit persona-stat-block persona-stat-block--revisit" variants={itemVariants}>
-        <motion.span className="persona-stat-label" variants={revisitLabelVariants}>
-          CONCEPTS TO REVISIT
-        </motion.span>
-        <div className="persona-stat-value persona-stat-value-clip" data-testid="persona-concepts-needing-revision">
-          <motion.div className="persona-stat-value-inner" variants={revisitValueVariants}>
-            <PersonaAnimatedNumber
-              value={needsRevisionCount}
-              format={formatTabularCount}
-              duration={750}
-              delay={shouldReduceMotion ? 0 : 1800}
-              min={0}
-            />
-          </motion.div>
-        </div>
+        <button
+          type="button"
+          onClick={() => needsRevisionCount > 0 && onOpenRevision?.()}
+          disabled={needsRevisionCount === 0 || !onOpenRevision}
+          className={`persona-stat-trigger ${needsRevisionCount > 0 && onOpenRevision ? 'persona-stat-trigger--interactive' : ''}`}
+          aria-label={needsRevisionCount > 0 ? `Open revision workspace (${needsRevisionCount} concepts require attention)` : 'No concepts require attention'}
+        >
+          <motion.span className="persona-stat-label" variants={revisitLabelVariants}>
+            CONCEPTS TO REVISIT
+          </motion.span>
+          <span className="persona-stat-value persona-stat-value-clip" data-testid="persona-concepts-needing-revision">
+            <motion.span className="persona-stat-value-inner" variants={revisitValueVariants}>
+              <PersonaAnimatedNumber
+                value={needsRevisionCount}
+                format={formatTabularCount}
+                duration={750}
+                delay={shouldReduceMotion ? 0 : 1800}
+                min={0}
+              />
+            </motion.span>
+          </span>
+        </button>
         <motion.span className="persona-stat-subtext" variants={revisitSubtextVariants}>
           {needsRevisionCount === 0
             ? "You're clear for now"
@@ -646,14 +682,17 @@ export const PersonaPerformancePanel: React.FC<PersonaPerformancePanelProps> = R
             animate="visible"
           >
             {exampleConcepts.map((conceptName) => (
-              <motion.span
+              <motion.button
                 key={conceptName}
-                className="persona-concept-chip"
-                title={conceptName}
+                type="button"
+                className="persona-concept-chip persona-concept-chip--interactive"
+                title={`Revise concept: ${conceptName}`}
+                aria-label={`Revise concept: ${conceptName} in revision workspace`}
+                onClick={() => onOpenRevision?.(conceptName)}
                 variants={chipItemVariants}
               >
                 {conceptName}
-              </motion.span>
+              </motion.button>
             ))}
           </motion.div>
         ) : null}

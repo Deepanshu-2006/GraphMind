@@ -16,11 +16,11 @@ import { demoKnowledgeGraph } from './data/graphData';
 import type { KnowledgeSource, KnowledgeGraph } from './types/knowledgeGraph';
 import { sourceToRecentMaterial } from './services/sourceIngestion';
 import { pipelineOrchestrator, type PipelineStage, type PipelineProgressEvent } from './services/pipelineOrchestrator';
-import { DEFAULT_MIGRATION_GRAPH_ID } from './services/storage';
+import { DEFAULT_MIGRATION_GRAPH_ID, loadGraphData } from './services/storage';
 import { GraphProvider, useGraph } from './context/GraphContext';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { personaTransitionController } from './components/persona/personaTransition';
-import { isPersonaIntroCompleted } from './services/personaVisit';
+import { isPersonaIntroCompleted, resetPersonaIntroCompleted } from './services/personaVisit';
 import type { NavSection, RecentMaterial, ProjectWorkspace } from './types';
 
 export function AppContent() {
@@ -48,6 +48,12 @@ export function AppContent() {
   });
   const previousPathRef = useRef<string | null>(null);
   const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(null);
+
+  // Reset persona intro state on fresh load / reload so the full animation
+  // always plays upon opening, while reopening within the active session provides welcome back
+  useEffect(() => {
+    resetPersonaIntroCompleted();
+  }, []);
 
   const handleOpenPersona = useCallback(() => {
     if (isPersonaOpen) return; // Prevent double activation
@@ -603,6 +609,38 @@ export function AppContent() {
             }}
             onResumeRevision={(graphId) => {
               handleSelectGraph(graphId);
+              handleNavigateFromPersona('revision');
+            }}
+            onOpenOverview={() => {
+              handleNavigateFromPersona('overview');
+            }}
+            onOpenStudy={() => {
+              handleNavigateFromPersona('study');
+            }}
+            onOpenAssessments={() => {
+              handleNavigateFromPersona('study');
+            }}
+            onOpenRevision={(conceptIdentifier) => {
+              if (conceptIdentifier) {
+                const node = effectiveGraph?.nodes.find(
+                  (n) => n.id === conceptIdentifier || n.name.toLowerCase() === conceptIdentifier.toLowerCase()
+                );
+                if (node) {
+                  setFocusedConceptId(node.id);
+                } else {
+                  for (const g of graphs) {
+                    const gd = loadGraphData(g.id);
+                    const gn = gd?.nodes.find(
+                      (n) => n.id === conceptIdentifier || n.name.toLowerCase() === conceptIdentifier.toLowerCase()
+                    );
+                    if (gn) {
+                      handleSelectGraph(g.id);
+                      setFocusedConceptId(gn.id);
+                      break;
+                    }
+                  }
+                }
+              }
               handleNavigateFromPersona('revision');
             }}
           />
