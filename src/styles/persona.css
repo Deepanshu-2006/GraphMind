@@ -931,6 +931,88 @@
   transform: translateX(3px);
 }
 
+/* Contextual Suggested Next Step — Minimal editorial recommendation */
+.persona-recommendation-group {
+  margin-top: 6px;
+}
+
+.persona-recommendation-label {
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.44);
+}
+
+.persona-recommendation-content {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+}
+
+.persona-recommendation-title {
+  font-family: var(--font-display, 'Inter Tight', var(--font-body, 'Inter', sans-serif));
+  font-size: 14.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: rgba(245, 245, 245, 0.94);
+  margin: 0 0 5px 0;
+  letter-spacing: -0.015em;
+}
+
+.persona-recommendation-desc {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.50);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.persona-recommendation-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 4px);
+  padding: 5px 8px;
+  margin-left: -8px;
+  margin-top: 10px;
+  align-self: flex-start;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: rgba(245, 245, 245, 0.85);
+  cursor: pointer;
+  transition: color 200ms cubic-bezier(0.16, 1, 0.3, 1), background 200ms cubic-bezier(0.16, 1, 0.3, 1), transform 150ms ease;
+}
+
+.persona-recommendation-action-btn:hover {
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.persona-recommendation-action-btn:active {
+  transform: scale(0.985);
+  opacity: 0.88;
+}
+
+.persona-recommendation-action-btn:focus-visible {
+  outline: 1px solid var(--accent, #A3FF12);
+  outline-offset: 2px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #FFFFFF;
+}
+
+.persona-recommendation-arrow {
+  color: rgba(255, 255, 255, 0.40);
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), color 200ms ease;
+}
+
+.persona-recommendation-action-btn:hover .persona-recommendation-arrow {
+  color: var(--accent, #A3FF12);
+  transform: translateX(3px);
+}
+
 /* Concepts to Revisit Pills — Refined editorial concept reference pills */
 .persona-concepts-chips-container {
   display: flex;
@@ -1211,6 +1293,15 @@
   }
 
   .persona-resume-arrow {
+    transition: none !important;
+    transform: none !important;
+  }
+
+  .persona-recommendation-action-btn {
+    transition: none !important;
+  }
+
+  .persona-recommendation-arrow {
     transition: none !important;
     transform: none !important;
   }

@@ -457,6 +457,8 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
                   onSelectGraph={handleSelectGraph}
                   onOpenOverview={handleOpenOverview}
                   onOpenStudy={handleOpenStudy}
+                  onResumeRevision={handleResumeRevision}
+                  onOpenRevision={handleOpenRevision}
                 />
               </div>
               <div className="persona-dashboard-center" aria-hidden="true" />

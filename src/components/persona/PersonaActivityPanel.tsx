@@ -1,13 +1,20 @@
 import React, { useMemo } from 'react';
 import { motion, useReducedMotion, type Variants } from 'framer-motion';
+import { ArrowRight } from 'lucide-react';
 import { usePersonaStats } from './usePersonaStats';
 import { PersonaAnimatedNumber } from './PersonaAnimatedNumber';
 import type { RecentGraphActivity } from '../../types/personaStats';
+import { getPersonaNextStepRecommendation, type PersonaNextStepRecommendation } from '../../services/personaRecommendation';
+import { useOptionalGraph } from '../../context/GraphContext';
 
 export interface PersonaActivityPanelProps {
   onSelectGraph?: (graphId: string) => void;
   onOpenOverview?: () => void;
   onOpenStudy?: () => void;
+  onResumeRevision?: (graphId: string) => void;
+  onOpenRevision?: (conceptName?: string) => void;
+  hasExistingResumeAction?: boolean;
+  activeGraphId?: string | null;
   className?: string;
 }
 
@@ -58,9 +65,14 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = React.m
   onSelectGraph,
   onOpenOverview,
   onOpenStudy,
+  onResumeRevision,
+  onOpenRevision,
+  hasExistingResumeAction,
+  activeGraphId,
   className = ''
 }) => {
   const { stats, isLoading, error, refresh } = usePersonaStats();
+  const graphContext = useOptionalGraph();
   const shouldReduceMotion = useReducedMotion();
 
   // Phase 1: Coordinated panel container entrance from bottom (+12px -> 0px)
@@ -346,6 +358,39 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = React.m
     }
   };
 
+  // Phase F: Suggested next step label and editorial content (2,300–2,800ms)
+  const recommendationLabelVariants: Variants = {
+    hidden: {
+      opacity: 0,
+      y: shouldReduceMotion ? 0 : 6
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.35,
+        delay: shouldReduceMotion ? 0 : 2.30,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    }
+  };
+
+  const recommendationContentVariants: Variants = {
+    hidden: {
+      opacity: 0,
+      y: shouldReduceMotion ? 0 : 6
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.38,
+        delay: shouldReduceMotion ? 0 : 2.42,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    }
+  };
+
   const recentList: RecentGraphActivity[] = useMemo(() => {
     if (!stats?.activity) return [];
     if (stats.activity.recentGraphs && stats.activity.recentGraphs.length > 0) {
@@ -356,6 +401,63 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = React.m
     }
     return [];
   }, [stats?.activity]);
+
+  // Contextual next-step recommendation calculation
+  const currentActiveGraphId = activeGraphId ?? graphContext?.activeGraph?.id ?? null;
+  const hasResumeActionRendered = hasExistingResumeAction ?? Boolean(stats?.performance?.activeRevisionProgress && onResumeRevision);
+
+  const recommendation = useMemo<PersonaNextStepRecommendation | null>(() => {
+    return getPersonaNextStepRecommendation(stats, {
+      activeGraphId: currentActiveGraphId,
+      hasExistingResumeAction: hasResumeActionRendered
+    });
+  }, [stats, currentActiveGraphId, hasResumeActionRendered]);
+
+  const handleRecommendationAction = () => {
+    if (!recommendation) return;
+
+    switch (recommendation.type) {
+      case 'resume-revision':
+        if (recommendation.graphId && onResumeRevision) {
+          onResumeRevision(recommendation.graphId);
+        } else if (recommendation.graphId && onSelectGraph) {
+          onSelectGraph(recommendation.graphId);
+        } else if (onOpenStudy) {
+          onOpenStudy();
+        }
+        break;
+
+      case 'review-concepts':
+        if (onOpenRevision) {
+          onOpenRevision(recommendation.conceptName);
+        } else if (recommendation.graphId && onSelectGraph) {
+          onSelectGraph(recommendation.graphId);
+        } else if (onOpenStudy) {
+          onOpenStudy();
+        }
+        break;
+
+      case 'take-assessment':
+        if (recommendation.graphId && onSelectGraph) {
+          onSelectGraph(recommendation.graphId);
+        } else if (onOpenStudy) {
+          onOpenStudy();
+        }
+        break;
+
+      case 'continue-learning':
+        if (recommendation.destination === 'overview') {
+          if (onOpenOverview) {
+            onOpenOverview();
+          }
+        } else if (recommendation.graphId && onSelectGraph) {
+          onSelectGraph(recommendation.graphId);
+        } else if (onOpenOverview) {
+          onOpenOverview();
+        }
+        break;
+    }
+  };
 
   // Handle loading state quietly without layout shifts
   if (isLoading && !stats) {
@@ -596,6 +698,39 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = React.m
           </motion.ul>
         )}
       </motion.div>
+
+      {/* Group D — Suggested Next Step (Phase F) */}
+      {recommendation && (
+        <motion.div
+          className="persona-activity-group persona-recommendation-group persona-stat-block"
+          variants={itemVariants}
+          data-testid="persona-suggested-next-step"
+        >
+          <motion.span
+            className="persona-stat-label persona-recommendation-label"
+            variants={recommendationLabelVariants}
+          >
+            SUGGESTED NEXT STEP
+          </motion.span>
+          <motion.div
+            className="persona-recommendation-content"
+            variants={recommendationContentVariants}
+          >
+            <h4 className="persona-recommendation-title">{recommendation.title}</h4>
+            <p className="persona-recommendation-desc">{recommendation.description}</p>
+            <button
+              type="button"
+              className="persona-recommendation-action-btn"
+              onClick={handleRecommendationAction}
+              aria-label={`${recommendation.actionLabel}: ${recommendation.title}`}
+              data-testid="persona-recommendation-action"
+            >
+              <span>{recommendation.actionLabel}</span>
+              <ArrowRight size={11} className="persona-recommendation-arrow" aria-hidden="true" />
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
     </motion.aside>
   );
 });
