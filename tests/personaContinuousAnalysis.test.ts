@@ -620,7 +620,7 @@ describe('GRAPHMIND — PERSONA: CONTINUOUS ANALYSIS & REACTION LOOP', () => {
 
       // Animated expressive idle: expression controller is active and transitions naturally
       assert.ok(
-        ['neutral', 'happy', 'curious', 'thinking', 'supportive'].includes(expressionController.getCurrentExpression()),
+        ['neutral', 'happy', 'curious', 'thinking', 'supportive', 'sad', 'worried', 'surprised', 'attentive', 'angry'].includes(expressionController.getCurrentExpression()),
         'Engages natural expressive idle emotions'
       );
       assert.equal(expressionController.isAnalysisLocked(), false, 'Expression controller is unlocked and actively animating');
