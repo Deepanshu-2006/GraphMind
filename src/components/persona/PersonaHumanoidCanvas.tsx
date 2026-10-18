@@ -21,6 +21,7 @@ import { PersonaAnalysisController } from './personaAnalysisController';
 import { personaPresentationController } from './personaPresentationController';
 import { PERSONA_GREETING_TEXT, PERSONA_WELCOME_BACK_TEXT } from './personaVoiceConfig';
 import { markPersonaIntroCompleted } from '../../services/personaVisit';
+import type { PersonaStatsData } from '../../types/personaStats';
 
 export type PersonaAnimationState =
   | 'INITIALIZING'
@@ -50,6 +51,7 @@ export interface PersonaHumanoidCanvasProps {
   className?: string;
   autoPlay?: boolean;
   assessmentScore?: number | null;
+  stats?: PersonaStatsData | null;
 }
 
 /**
@@ -135,7 +137,8 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
   isReturningVisit = false,
   className = '',
   autoPlay = true,
-  assessmentScore = null
+  assessmentScore = null,
+  stats = null
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -151,6 +154,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
   const onIntroductionCompleteRef = useRef(onIntroductionComplete);
   const isReturningVisitRef = useRef(isReturningVisit);
   const assessmentScoreRef = useRef<number | null>(assessmentScore ?? null);
+  const statsRef = useRef<PersonaStatsData | null>(stats ?? null);
   const analysisControllerRef = useRef<PersonaAnalysisController | null>(null);
 
   useEffect(() => {
@@ -168,6 +172,11 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
     assessmentScoreRef.current = assessmentScore ?? null;
     analysisControllerRef.current?.setAssessmentScore(assessmentScore ?? null);
   }, [assessmentScore]);
+
+  useEffect(() => {
+    statsRef.current = stats ?? null;
+    analysisControllerRef.current?.setStats(stats ?? null);
+  }, [stats]);
 
   useEffect(() => {
     currentStateRef.current = currentState;
@@ -290,6 +299,7 @@ export const PersonaHumanoidCanvas: React.FC<PersonaHumanoidCanvasProps> = ({
       lifeController,
       expressionController,
       assessmentScore: assessmentScoreRef.current,
+      stats: statsRef.current,
       prefersReducedMotion,
       onMessageChange: (msg, cycle) => {
         onAnalysisMessageChangeRef.current?.(msg, cycle);

@@ -435,6 +435,7 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
               onIntroductionComplete={handleIntroductionComplete}
               isReturningVisit={isReturningVisit}
               assessmentScore={averageScore}
+              stats={stats}
             />
           )}
         </div>

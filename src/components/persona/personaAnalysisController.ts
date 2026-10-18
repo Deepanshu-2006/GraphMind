@@ -1,6 +1,8 @@
 import type { PersonaLifeController } from './personaLifeController';
 import type { PersonaExpressionController } from './personaExpressionController';
 import type { PersonaExpression } from './personaEmotionProfiles';
+import type { PersonaStatsData } from '../../types/personaStats';
+import { getContextualObservationForCycle } from '../../services/personaObservations';
 
 export type AnalysisState =
   | 'idle'
@@ -212,6 +214,7 @@ export interface PersonaAnalysisControllerConfig {
   lifeController: PersonaLifeController;
   expressionController: PersonaExpressionController;
   assessmentScore?: number | null;
+  stats?: PersonaStatsData | null;
   prefersReducedMotion?: boolean;
   deterministic?: boolean;
   maxCycles?: number;
@@ -243,6 +246,7 @@ export class PersonaAnalysisController {
 
   private currentTarget: SemanticGazeTarget = 'forward';
   private assessmentScore: number | null = null;
+  private stats: PersonaStatsData | null = null;
 
   // Reduced motion and determinism controls
   private prefersReducedMotion = false;
@@ -266,7 +270,11 @@ export class PersonaAnalysisController {
   constructor(config: PersonaAnalysisControllerConfig) {
     this.lifeController = config.lifeController;
     this.expressionController = config.expressionController;
-    this.assessmentScore = config.assessmentScore ?? null;
+    this.stats = config.stats ?? null;
+    const resolvedScore = config.assessmentScore !== undefined
+      ? config.assessmentScore
+      : this.stats?.performance?.averageScore ?? null;
+    this.assessmentScore = resolvedScore;
     this.prefersReducedMotion = config.prefersReducedMotion ?? false;
     this.deterministic = config.deterministic ?? false;
     this.maxAnalysisCycles = config.maxCycles ?? 2;
@@ -345,13 +353,18 @@ export class PersonaAnalysisController {
       if (oldPres?.hasHeadShake && !newPres?.hasHeadShake) {
         this.lifeController.cancelHeadShake();
       }
+      const cycle: 1 | 2 = this.cycleCount >= 1 ? 2 : 1;
+      let msg: string | null = null;
+      if (this.stats) {
+        msg = getContextualObservationForCycle(this.stats, cycle);
+      } else if (newPres) {
+        msg = cycle === 1 ? newPres.messages.cycle1 : newPres.messages.cycle2;
+      }
+      this.setMessage(msg, cycle);
+
       if (newPres) {
-        const cycle: 1 | 2 = this.cycleCount >= 1 ? 2 : 1;
-        const msg = cycle === 1 ? newPres.messages.cycle1 : newPres.messages.cycle2;
-        this.setMessage(msg, cycle);
         this.expressionController.setExpression(newPres.reactionExpression, 0.45);
       } else {
-        this.setMessage(null);
         this.expressionController.setExpression('neutral', 0.6);
       }
     }
@@ -362,6 +375,21 @@ export class PersonaAnalysisController {
       const baseline = pres ? pres.baselineExpression : 'neutral';
       this.expressionController.setExpression(baseline, 0.8);
     }
+  }
+
+  public setStats(stats: PersonaStatsData | null): void {
+    this.stats = stats;
+    if (stats?.performance?.averageScore !== undefined) {
+      this.setAssessmentScore(stats.performance.averageScore);
+    } else if (this.currentState === 'reactToScore') {
+      const cycle: 1 | 2 = this.cycleCount >= 1 ? 2 : 1;
+      const msg = this.stats ? getContextualObservationForCycle(this.stats, cycle) : null;
+      this.setMessage(msg, cycle);
+    }
+  }
+
+  public getStats(): PersonaStatsData | null {
+    return this.stats;
   }
 
   public getAssessmentScore(): number | null {
@@ -577,16 +605,20 @@ export class PersonaAnalysisController {
         if (!pres) {
           // Missing or loading assessments: neutral expression (never treat as 0)
           this.expressionController.setExpression('neutral', 0.6);
-          this.setMessage(null);
         } else {
           // Swift, clear transition into the score reaction expression
           this.expressionController.setExpression(pres.reactionExpression, 0.45);
-
-          // Cycle 1 for cycleCount == 0, Cycle 2 for cycleCount >= 1
-          const cycle: 1 | 2 = this.cycleCount >= 1 ? 2 : 1;
-          const msg = cycle === 1 ? pres.messages.cycle1 : pres.messages.cycle2;
-          this.setMessage(msg, cycle);
         }
+
+        // Cycle 1 for cycleCount == 0, Cycle 2 for cycleCount >= 1
+        const cycle: 1 | 2 = this.cycleCount >= 1 ? 2 : 1;
+        let msg: string | null = null;
+        if (this.stats) {
+          msg = getContextualObservationForCycle(this.stats, cycle);
+        } else if (pres) {
+          msg = cycle === 1 ? pres.messages.cycle1 : pres.messages.cycle2;
+        }
+        this.setMessage(msg, cycle);
         break;
       }
 
