@@ -20,8 +20,6 @@ interface HeroSectionProps {
 
 const LINE1_TEXT = 'Make your material';
 const LINE2_TEXT = 'make sense';
-const EMPTY_LINE1_TEXT = 'Turn your notes';
-const EMPTY_LINE2_TEXT = 'into knowledge';
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
   onCreateGraph,
@@ -39,8 +37,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   const effectiveGraph = graph !== undefined ? graph : graphContext?.activeGraph;
 
   const hasGraphs = (graphContext?.graphs?.length || 0) > 0 || Boolean(graphMeta);
-  const line1Text = hasGraphs ? LINE1_TEXT : EMPTY_LINE1_TEXT;
-  const line2Text = hasGraphs ? LINE2_TEXT : EMPTY_LINE2_TEXT;
+  const line1Text = LINE1_TEXT;
+  const line2Text = LINE2_TEXT;
   const heroEyebrowText = hasGraphs ? 'YOUR MATERIAL · NOW CONNECTED' : 'FIRST-TIME LEARNING · GET STARTED';
 
   const [transitionState, setTransitionState] = useState(personaTransitionController.state);
