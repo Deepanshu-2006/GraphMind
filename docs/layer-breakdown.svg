@@ -1,0 +1,324 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 550" width="100%" height="100%" style="background:#0a0a0a; border-radius:8px; font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <defs>
+    <style>
+      .mono { font-family: 'JetBrains Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+      .text-title { font-size: 15px; font-weight: 600; fill: #F5F5F5; letter-spacing: -0.01em; }
+      .text-sub { font-size: 11px; fill: #7A7A7A; }
+      .text-sec-header { font-size: 10px; font-weight: 600; fill: #8A8A8A; letter-spacing: 0.08em; }
+      .text-body { font-size: 11px; fill: #A1A1A1; line-height: 1.45; }
+      .text-tech { font-size: 9.5px; fill: #E5E5E5; }
+      .accent-num { font-size: 11px; font-weight: 600; fill: #A3FF12; letter-spacing: 0.05em; }
+      .stage-card { fill: #101010; stroke: #202020; stroke-width: 1; rx: 6px; }
+      .stage-card-active { fill: #111410; stroke: #263319; stroke-width: 1; rx: 6px; }
+      .inner-card { fill: #141414; stroke: #1E1E1E; stroke-width: 1; rx: 4px; }
+      .inner-card-active { fill: #141812; stroke: #223018; stroke-width: 1; rx: 4px; }
+      .badge-bg { fill: #1A1A1A; stroke: #2A2A2A; stroke-width: 0.8; rx: 3px; }
+      .badge-bg-active { fill: #1C2417; stroke: #324621; stroke-width: 0.8; rx: 3px; }
+      
+      /* Subtle GitHub-compatible pulse on dataflow spine */
+      @keyframes pulseFlow {
+        0% { stroke-dashoffset: 24; }
+        100% { stroke-dashoffset: 0; }
+      }
+      .flow-anim {
+        animation: pulseFlow 3s linear infinite;
+      }
+    </style>
+
+    <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M 1 1.5 L 8 5 L 1 8.5 z" fill="#A3FF12" fill-opacity="0.7" />
+    </marker>
+  </defs>
+
+  <!-- Canvas Outer Border -->
+  <rect x="0.5" y="0.5" width="1179" height="549" rx="8" fill="#0A0A0A" stroke="#1F1F1F" stroke-width="1" />
+
+  <!-- ========================================================================= -->
+  <!-- TOP BRAND HEADER                                                          -->
+  <!-- ========================================================================= -->
+  <g transform="translate(36, 28)">
+    <!-- Minimal Layer Stack Glyph -->
+    <rect x="0" y="2" width="20" height="20" rx="4" fill="#141414" stroke="#242424" stroke-width="1" />
+    <line x1="5" y1="7" x2="15" y2="7" stroke="#A3FF12" stroke-width="1.5" stroke-linecap="round" />
+    <line x1="5" y1="12" x2="15" y2="12" stroke="#F5F5F5" stroke-width="1.2" stroke-linecap="round" />
+    <line x1="5" y1="17" x2="15" y2="17" stroke="#666666" stroke-width="1.2" stroke-linecap="round" />
+
+    <!-- Title & System Subtitle -->
+    <text x="32" y="12" fill="#F5F5F5" font-size="14" font-weight="600" letter-spacing="-0.02em">GraphMind</text>
+    <text x="108" y="12" fill="#5A5A5A" font-size="13" font-weight="400">/ Layer Breakdown &amp; Responsibilities</text>
+    <text x="32" y="27" fill="#7A7A7A" font-size="11">Subsystem Contracts, Actual Source Modules &amp; Pipeline Boundaries</text>
+
+    <!-- Right Side Meta Badge -->
+    <g transform="translate(930, 2)">
+      <rect x="0" y="0" width="178" height="24" rx="4" fill="#121212" stroke="#222222" stroke-width="1" />
+      <circle cx="12" cy="12" r="3" fill="#A3FF12">
+        <animate attributeName="opacity" values="0.4;1;0.4" dur="2.5s" repeatCount="indefinite" />
+      </circle>
+      <text x="22" y="15" fill="#8A8A8A" class="mono" font-size="10" letter-spacing="0.04em">4 SUBSYSTEMS • ISOLATED</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- HORIZONTAL DATAFLOW SPINE (WITH SUBTLE FLOW ANIMATION)                    -->
+  <!-- ========================================================================= -->
+  <g transform="translate(0, 68)">
+    <line x1="36" y1="0" x2="1144" y2="0" stroke="#1A1A1A" stroke-width="1" />
+    <line x1="163" y1="0" x2="1017" y2="0" stroke="#A3FF12" stroke-width="1.2" stroke-opacity="0.4" stroke-dasharray="4 4" class="flow-anim" />
+
+    <!-- Milestone Dots -->
+    <g transform="translate(163, 0)">
+      <circle cx="0" cy="0" r="5" fill="#101010" stroke="#A3FF12" stroke-width="1.5" />
+      <circle cx="0" cy="0" r="2" fill="#A3FF12" />
+    </g>
+    <g transform="translate(448, 0)">
+      <circle cx="0" cy="0" r="5" fill="#101010" stroke="#A3FF12" stroke-width="1.5" />
+      <circle cx="0" cy="0" r="2" fill="#A3FF12" />
+    </g>
+    <g transform="translate(733, 0)">
+      <circle cx="0" cy="0" r="5" fill="#101010" stroke="#A3FF12" stroke-width="1.5" />
+      <circle cx="0" cy="0" r="2" fill="#A3FF12" />
+    </g>
+    <g transform="translate(1017, 0)">
+      <circle cx="0" cy="0" r="5" fill="#101010" stroke="#A3FF12" stroke-width="1.5" />
+      <circle cx="0" cy="0" r="2" fill="#A3FF12" />
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- LAYER 01: MATERIAL INGESTION                                              -->
+  <!-- ========================================================================= -->
+  <g transform="translate(36, 84)">
+    <rect width="255" height="438" class="stage-card" />
+    
+    <!-- Header -->
+    <g transform="translate(18, 24)">
+      <text x="0" y="0" class="accent-num mono">01</text>
+      <text x="24" y="0" class="text-title">Material Ingestion</text>
+      <text x="0" y="18" class="text-sub">Document parsing &amp; text normalization</text>
+    </g>
+
+    <!-- Source Modules -->
+    <g transform="translate(18, 64)">
+      <text x="0" y="0" class="text-sec-header mono">SOURCE MODULES</text>
+      <g transform="translate(0, 10)">
+        <rect width="106" height="20" class="badge-bg" />
+        <text x="6" y="13" class="mono text-tech">textExtraction.ts</text>
+      </g>
+      <g transform="translate(112, 10)">
+        <rect width="107" height="20" class="badge-bg" />
+        <text x="6" y="13" class="mono text-tech">sourceIngestion.ts</text>
+      </g>
+      <g transform="translate(0, 36)">
+        <rect width="154" height="20" class="badge-bg" />
+        <text x="6" y="13" class="mono text-tech">documentUnderstanding.ts</text>
+      </g>
+    </g>
+
+    <!-- Responsibilities -->
+    <g transform="translate(18, 138)">
+      <rect width="219" height="188" class="inner-card" />
+      <text x="12" y="17" class="text-sec-header mono">KEY RESPONSIBILITIES</text>
+      <text x="12" y="38" class="text-body">• Client-side PDF parsing via <tspan fill="#F5F5F5">pdfjs-dist</tspan></text>
+      <text x="12" y="56" class="text-body">• Running header &amp; footer removal</text>
+      <text x="12" y="74" class="text-body">• Soft line-break hyphenation repair</text>
+      <text x="12" y="92" class="text-body">• Markdown &amp; TXT tag sanitization</text>
+      <text x="12" y="110" class="text-body">• Word overlap sliding-window chunks</text>
+      <text x="12" y="128" class="text-body">• Document structure profiling</text>
+      <text x="12" y="146" class="text-body">• Domain acronym candidate index</text>
+      <text x="12" y="170" class="text-sub">Zero telemetry • 100% on-device</text>
+    </g>
+
+    <!-- Pipeline Contract Output -->
+    <g transform="translate(18, 338)">
+      <rect width="219" height="84" class="inner-card" />
+      <text x="12" y="17" class="text-sec-header mono">STAGE OUTPUT CONTRACT</text>
+      <text x="12" y="36" class="mono" font-size="10" fill="#A3FF12">ExtractedDocument</text>
+      <text x="12" y="52" class="text-sub">Clean full text with structural anchors</text>
+      <text x="12" y="70" class="mono" font-size="10" fill="#888888">DocumentChunk[] (500-1000 words)</text>
+    </g>
+  </g>
+
+  <!-- Connector Line 1 -> 2 -->
+  <line x1="291" y1="305" x2="319" y2="305" stroke="#A3FF12" stroke-width="1" stroke-opacity="0.4" marker-end="url(#arrow)" />
+
+  <!-- ========================================================================= -->
+  <!-- LAYER 02: CONCEPT EXTRACTION                                              -->
+  <!-- ========================================================================= -->
+  <g transform="translate(321, 84)">
+    <rect width="255" height="438" class="stage-card" />
+
+    <!-- Header -->
+    <g transform="translate(18, 24)">
+      <text x="0" y="0" class="accent-num mono">02</text>
+      <text x="24" y="0" class="text-title">Concept Extraction</text>
+      <text x="0" y="18" class="text-sub">Dual semantic synthesis engines</text>
+    </g>
+
+    <!-- Source Modules -->
+    <g transform="translate(18, 64)">
+      <text x="0" y="0" class="text-sec-header mono">SOURCE MODULES</text>
+      <g transform="translate(0, 10)">
+        <rect width="126" height="20" class="badge-bg" />
+        <text x="6" y="13" class="mono text-tech">conceptExtraction.ts</text>
+      </g>
+      <g transform="translate(132, 10)">
+        <rect width="87" height="20" class="badge-bg" />
+        <text x="6" y="13" class="mono text-tech">conceptNorm.ts</text>
+      </g>
+      <g transform="translate(0, 36)">
+        <rect width="144" height="20" class="badge-bg" />
+        <text x="6" y="13" class="mono text-tech">relationshipExtraction.ts</text>
+      </g>
+    </g>
+
+    <!-- Responsibilities -->
+    <g transform="translate(18, 138)">
+      <rect width="219" height="188" class="inner-card" />
+      <text x="12" y="17" class="text-sec-header mono">KEY RESPONSIBILITIES</text>
+      <text x="12" y="38" class="text-body">• Cloud AI: <tspan fill="#F5F5F5" font-weight="500">gemini-1.5-flash</tspan> JSON</text>
+      <text x="12" y="56" class="text-body">• Offline fallback: regex heuristic engine</text>
+      <text x="12" y="74" class="text-body">• Stopword &amp; academic filler removal</text>
+      <text x="12" y="92" class="text-body">• Canonical term case normalization</text>
+      <text x="12" y="110" class="text-body">• Exact verbatim excerpt attribution</text>
+      <text x="12" y="128" class="text-body">• Typed relationship candidate mining</text>
+      <text x="12" y="146" class="text-body">• Relevance &amp; pedagogical scoring</text>
+      <text x="12" y="170" class="text-sub">Automatic offline / online switching</text>
+    </g>
+
+    <!-- Pipeline Contract Output -->
+    <g transform="translate(18, 338)">
+      <rect width="219" height="84" class="inner-card" />
+      <text x="12" y="17" class="text-sec-header mono">STAGE OUTPUT CONTRACT</text>
+      <text x="12" y="36" class="mono" font-size="10" fill="#A3FF12">RawConcept[]</text>
+      <text x="12" y="52" class="text-sub">Concept definitions &amp; source citations</text>
+      <text x="12" y="70" class="mono" font-size="10" fill="#888888">RelationshipCandidate[]</text>
+    </g>
+  </g>
+
+  <!-- Connector Line 2 -> 3 -->
+  <line x1="576" y1="305" x2="604" y2="305" stroke="#A3FF12" stroke-width="1" stroke-opacity="0.4" marker-end="url(#arrow)" />
+
+  <!-- ========================================================================= -->
+  <!-- LAYER 03: GRAPH CONSTRUCTION & STORAGE                                    -->
+  <!-- ========================================================================= -->
+  <g transform="translate(606, 84)">
+    <rect width="255" height="438" class="stage-card" />
+
+    <!-- Header -->
+    <g transform="translate(18, 24)">
+      <text x="0" y="0" class="accent-num mono">03</text>
+      <text x="24" y="0" class="text-title">Graph &amp; Storage</text>
+      <text x="0" y="18" class="text-sub">Topology resolution &amp; isolation</text>
+    </g>
+
+    <!-- Source Modules -->
+    <g transform="translate(18, 64)">
+      <text x="0" y="0" class="text-sec-header mono">SOURCE MODULES</text>
+      <g transform="translate(0, 10)">
+        <rect width="98" height="20" class="badge-bg" />
+        <text x="6" y="13" class="mono text-tech">graphBuilder.ts</text>
+      </g>
+      <g transform="translate(104, 10)">
+        <rect width="90" height="20" class="badge-bg" />
+        <text x="6" y="13" class="mono text-tech">graphLayout.ts</text>
+      </g>
+      <g transform="translate(0, 36)">
+        <rect width="68" height="20" class="badge-bg" />
+        <text x="6" y="13" class="mono text-tech">storage.ts</text>
+      </g>
+      <g transform="translate(74, 36)">
+        <rect width="145" height="20" class="badge-bg" />
+        <text x="6" y="13" class="mono text-tech">prerequisiteAnalysis.ts</text>
+      </g>
+    </g>
+
+    <!-- Responsibilities -->
+    <g transform="translate(18, 138)">
+      <rect width="219" height="188" class="inner-card" />
+      <text x="12" y="17" class="text-sec-header mono">KEY RESPONSIBILITIES</text>
+      <text x="12" y="38" class="text-body">• Node &amp; edge topology construction</text>
+      <text x="12" y="56" class="text-body">• Typed edges (<tspan fill="#F5F5F5">prereq</tspan>, <tspan fill="#F5F5F5">extends</tspan>, <tspan fill="#F5F5F5">part_of</tspan>)</text>
+      <text x="12" y="74" class="text-body">• Prerequisite dependency tree resolution</text>
+      <text x="12" y="92" class="text-body">• Force-directed physics coordinates</text>
+      <text x="12" y="110" class="text-body">• Multi-graph isolation boundary</text>
+      <text x="12" y="128" class="text-body">• LocalStorage schema per <tspan fill="#A3FF12" class="mono">graphId</tspan></text>
+      <text x="12" y="146" class="text-body">• Assessment score &amp; revision history</text>
+      <text x="12" y="170" class="text-sub">Zero cross-workspace data leakage</text>
+    </g>
+
+    <!-- Pipeline Contract Output -->
+    <g transform="translate(18, 338)">
+      <rect width="219" height="84" class="inner-card" />
+      <text x="12" y="17" class="text-sec-header mono">STAGE OUTPUT CONTRACT</text>
+      <text x="12" y="36" class="mono" font-size="10" fill="#A3FF12">GraphData { nodes, edges }</text>
+      <text x="12" y="52" class="text-sub">Coordinate-resolved graph network</text>
+      <text x="12" y="70" class="mono" font-size="10" fill="#888888">ConceptMasteryStateRecord</text>
+    </g>
+  </g>
+
+  <!-- Connector Line 3 -> 4 -->
+  <line x1="861" y1="305" x2="889" y2="305" stroke="#A3FF12" stroke-width="1" stroke-opacity="0.4" marker-end="url(#arrow)" />
+
+  <!-- ========================================================================= -->
+  <!-- LAYER 04: LEARNING WORKSPACES (ACTIVE DISTINCTIVE SURFACE)                 -->
+  <!-- ========================================================================= -->
+  <g transform="translate(891, 84)">
+    <rect width="253" height="438" class="stage-card-active" />
+
+    <!-- Header -->
+    <g transform="translate(18, 24)">
+      <text x="0" y="0" class="accent-num mono">04</text>
+      <text x="24" y="0" class="text-title">Learning Workspaces</text>
+      <text x="0" y="18" class="text-sub">Four interactive cognitive surfaces</text>
+    </g>
+
+    <!-- Source Modules -->
+    <g transform="translate(18, 64)">
+      <text x="0" y="0" class="text-sec-header mono">REACT UI COMPONENTS</text>
+      <g transform="translate(0, 10)">
+        <rect width="115" height="20" class="badge-bg-active" />
+        <text x="6" y="13" class="mono text-tech" fill="#C9FF6A">KnowledgeGraph.tsx</text>
+      </g>
+      <g transform="translate(121, 10)">
+        <rect width="96" height="20" class="badge-bg-active" />
+        <text x="6" y="13" class="mono text-tech" fill="#C9FF6A">StudySpace.tsx</text>
+      </g>
+      <g transform="translate(0, 36)">
+        <rect width="128" height="20" class="badge-bg-active" />
+        <text x="6" y="13" class="mono text-tech" fill="#C9FF6A">RevisionWorkspace.tsx</text>
+      </g>
+      <g transform="translate(134, 36)">
+        <rect width="83" height="20" class="badge-bg-active" />
+        <text x="6" y="13" class="mono text-tech" fill="#C9FF6A">Persona.tsx</text>
+      </g>
+    </g>
+
+    <!-- Responsibilities / Workspaces -->
+    <g transform="translate(18, 138)">
+      <rect width="217" height="188" class="inner-card-active" />
+      <text x="12" y="17" class="text-sec-header mono" fill="#9ECD65">ACTIVE WORKSPACES</text>
+      
+      <text x="12" y="36" class="text-body" fill="#D5E8C8">• <tspan fill="#A3FF12" font-weight="600">Knowledge Graph</tspan>: @xyflow/react</text>
+      <text x="20" y="50" class="text-sub">Pan/zoom physics &amp; inspection drawer</text>
+
+      <text x="12" y="72" class="text-body" fill="#D5E8C8">• <tspan fill="#F5F5F5" font-weight="600">Study Space</tspan>: 3-tier deep dive</text>
+      <text x="20" y="86" class="text-sub">Intuition → formal → applied examples</text>
+
+      <text x="12" y="108" class="text-body" fill="#D5E8C8">• <tspan fill="#F5F5F5" font-weight="600">Revision Workspace</tspan>: recall rail</text>
+      <text x="20" y="122" class="text-sub">Targeted queue &amp; mean mastery math</text>
+
+      <text x="12" y="144" class="text-body" fill="#D5E8C8">• <tspan fill="#A3FF12" font-weight="600">3D Persona Stage</tspan>: Three.js</text>
+      <text x="20" y="158" class="text-sub">Procedural humanoid &amp; voice feedback</text>
+    </g>
+
+    <!-- Pipeline Contract Output -->
+    <g transform="translate(18, 338)">
+      <rect width="217" height="84" class="inner-card-active" />
+      <text x="12" y="17" class="text-sec-header mono" fill="#9ECD65">STUDENT OUTCOME CONTRACT</text>
+      <text x="12" y="36" class="mono" font-size="10" fill="#A3FF12">Mastery &amp; Concept Retention</text>
+      <text x="12" y="52" class="text-sub">Empirical retention score &amp; gap alerts</text>
+      <text x="12" y="70" class="mono" font-size="10" fill="#888888">Exportable Study Material &amp; Graph</text>
+    </g>
+  </g>
+
+</svg>

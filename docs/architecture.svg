@@ -12,6 +12,14 @@
       .stage-card-active { fill: #111410; stroke: #263319; stroke-width: 1; rx: 6px; }
       .inner-card { fill: #141414; stroke: #1E1E1E; stroke-width: 1; rx: 4px; }
       .badge-bg { fill: #1A1A1A; stroke: #2A2A2A; stroke-width: 0.8; rx: 3px; }
+
+      @keyframes pulseFlow {
+        0% { stroke-dashoffset: 24; }
+        100% { stroke-dashoffset: 0; }
+      }
+      .flow-anim {
+        animation: pulseFlow 3s linear infinite;
+      }
     </style>
 
     <!-- Arrow Marker -->
@@ -41,7 +49,9 @@
     <!-- Right Side Meta Badge -->
     <g transform="translate(930, 2)">
       <rect x="0" y="0" width="178" height="24" rx="4" fill="#121212" stroke="#222222" stroke-width="1" />
-      <circle cx="12" cy="12" r="3" fill="#A3FF12" />
+      <circle cx="12" cy="12" r="3" fill="#A3FF12">
+        <animate attributeName="opacity" values="0.4;1;0.4" dur="2.5s" repeatCount="indefinite" />
+      </circle>
       <text x="22" y="15" fill="#8A8A8A" class="mono" font-size="10" letter-spacing="0.04em">LOCAL-FIRST • CLIENT SPA</text>
     </g>
   </g>
@@ -54,7 +64,7 @@
     <line x1="36" y1="0" x2="1144" y2="0" stroke="#1A1A1A" stroke-width="1" />
     
     <!-- Accent Flow Path -->
-    <line x1="163" y1="0" x2="1017" y2="0" stroke="#A3FF12" stroke-width="1" stroke-opacity="0.3" stroke-dasharray="3 3" />
+    <line x1="163" y1="0" x2="1017" y2="0" stroke="#A3FF12" stroke-width="1.2" stroke-opacity="0.4" stroke-dasharray="4 4" class="flow-anim" />
 
     <!-- Flow Milestone Dots -->
     <g transform="translate(163, 0)">
