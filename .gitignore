@@ -27,3 +27,4 @@ dist-ssr
 
 # Scratch testing & artifacts
 scratch/
+.vercel
