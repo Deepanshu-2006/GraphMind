@@ -231,9 +231,9 @@ export function getPersonaNextStepRecommendation(
   // Fallback when 0 graphs exist
   return {
     type: 'continue-learning',
-    title: 'Create your first graph',
-    description: 'Upload materials or create a graph to begin exploring concepts.',
-    actionLabel: 'Create graph',
+    title: 'Create your first knowledge graph',
+    description: 'Upload your notes and I’ll help you turn them into connected concepts.',
+    actionLabel: 'Create a graph',
     destination: 'overview'
   };
 }

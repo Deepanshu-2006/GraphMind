@@ -467,9 +467,9 @@ describe('GRAPHMIND — CONTEXTUAL NEXT-STEP RECOMMENDATION (personaRecommendati
       assert.ok(recommendation);
       assert.strictEqual(recommendation.type, 'continue-learning');
       assert.strictEqual(recommendation.destination, 'overview');
-      assert.strictEqual(recommendation.title, 'Create your first graph');
-      assert.strictEqual(recommendation.actionLabel, 'Create graph');
-      assert.strictEqual(recommendation.description, 'Upload materials or create a graph to begin exploring concepts.');
+      assert.strictEqual(recommendation.title, 'Create your first knowledge graph');
+      assert.strictEqual(recommendation.actionLabel, 'Create a graph');
+      assert.strictEqual(recommendation.description, 'Upload your notes and I’ll help you turn them into connected concepts.');
     });
   });
 

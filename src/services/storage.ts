@@ -66,7 +66,22 @@ export function migrateExistingDataIfNeeded(): KnowledgeGraphMeta[] {
       if (Array.isArray(parsed)) return parsed as KnowledgeGraphMeta[];
     }
 
-    // First time or legacy data present: construct default migration graph
+    // Check if actual legacy data exists in storage to migrate
+    const rawSources = localStorage.getItem(STORAGE_KEYS.USER_SOURCES);
+    const rawLegacyGraph = localStorage.getItem(STORAGE_KEYS.LEGACY_USER_GRAPH);
+    const rawCompleted = localStorage.getItem(STORAGE_KEYS.LEGACY_USER_COMPLETED_CONCEPTS);
+
+    const hasLegacySources = Boolean(rawSources && rawSources !== '[]' && rawSources !== 'null');
+    const hasLegacyGraph = Boolean(rawLegacyGraph && rawLegacyGraph !== 'null');
+    const hasLegacyCompleted = Boolean(rawCompleted && rawCompleted !== '[]' && rawCompleted !== 'null');
+
+    // Fresh session without legacy data: initialize empty graphs list
+    if (!hasLegacySources && !hasLegacyGraph && !hasLegacyCompleted) {
+      localStorage.setItem(STORAGE_KEYS.GRAPHS, JSON.stringify([]));
+      return [];
+    }
+
+    // Legacy data present: construct default migration graph and migrate user's existing work
     const defaultGraph: KnowledgeGraphMeta = {
       id: DEFAULT_MIGRATION_GRAPH_ID,
       name: DEFAULT_MIGRATION_GRAPH_NAME,
@@ -76,7 +91,6 @@ export function migrateExistingDataIfNeeded(): KnowledgeGraphMeta[] {
     };
 
     // Migrate legacy sources if present without graphId
-    const rawSources = localStorage.getItem(STORAGE_KEYS.USER_SOURCES);
     if (rawSources) {
       try {
         const parsedSources = JSON.parse(rawSources);
@@ -93,7 +107,6 @@ export function migrateExistingDataIfNeeded(): KnowledgeGraphMeta[] {
     }
 
     // Migrate legacy graph if present
-    const rawLegacyGraph = localStorage.getItem(STORAGE_KEYS.LEGACY_USER_GRAPH);
     if (rawLegacyGraph) {
       try {
         const parsedGraph = JSON.parse(rawLegacyGraph) as KnowledgeGraph;
@@ -114,7 +127,6 @@ export function migrateExistingDataIfNeeded(): KnowledgeGraphMeta[] {
     }
 
     // Migrate legacy completed concepts
-    const rawCompleted = localStorage.getItem(STORAGE_KEYS.LEGACY_USER_COMPLETED_CONCEPTS);
     if (rawCompleted) {
       localStorage.setItem(STORAGE_KEYS.COMPLETED_CONCEPTS_PREFIX + DEFAULT_MIGRATION_GRAPH_ID, rawCompleted);
     }
@@ -496,7 +508,8 @@ export function saveUserSources(sources: KnowledgeSource[], graphId?: string): v
  * Load user-constructed KnowledgeGraph (defaults to active graph)
  */
 export function loadUserGraph(graphId?: string): KnowledgeGraph | null {
-  const targetId = graphId || loadActiveGraphId() || DEFAULT_MIGRATION_GRAPH_ID;
+  const targetId = graphId || loadActiveGraphId();
+  if (!targetId) return null;
   return loadGraphData(targetId);
 }
 
@@ -504,7 +517,8 @@ export function loadUserGraph(graphId?: string): KnowledgeGraph | null {
  * Save user-constructed KnowledgeGraph (defaults to active graph)
  */
 export function saveUserGraph(graph: KnowledgeGraph | null, graphId?: string): void {
-  const targetId = graphId || loadActiveGraphId() || DEFAULT_MIGRATION_GRAPH_ID;
+  const targetId = graphId || loadActiveGraphId();
+  if (!targetId) return;
   saveGraphData(targetId, graph);
 }
 
@@ -515,7 +529,8 @@ export function loadGraphSourceType(graphId?: string): 'user' | 'demo' {
   if (typeof localStorage === 'undefined') return 'demo';
 
   try {
-    const targetId = graphId || loadActiveGraphId() || DEFAULT_MIGRATION_GRAPH_ID;
+    const targetId = graphId || loadActiveGraphId();
+    if (!targetId) return 'demo';
     const scopedKey = STORAGE_KEYS.GRAPH_SOURCE_TYPE_PREFIX + targetId;
     const raw = localStorage.getItem(scopedKey) || localStorage.getItem(STORAGE_KEYS.LEGACY_GRAPH_SOURCE_TYPE);
     if (raw === 'user' || raw === 'demo') {
@@ -535,7 +550,8 @@ export function saveGraphSourceType(type: 'user' | 'demo', graphId?: string): vo
   if (typeof localStorage === 'undefined') return;
 
   try {
-    const targetId = graphId || loadActiveGraphId() || DEFAULT_MIGRATION_GRAPH_ID;
+    const targetId = graphId || loadActiveGraphId();
+    if (!targetId) return;
     localStorage.setItem(STORAGE_KEYS.GRAPH_SOURCE_TYPE_PREFIX + targetId, type);
     localStorage.setItem(STORAGE_KEYS.LEGACY_GRAPH_SOURCE_TYPE, type);
   } catch (err) {
@@ -550,7 +566,8 @@ export function loadCompletedConceptIds(graphId?: string): string[] {
   if (typeof localStorage === 'undefined') return [];
 
   try {
-    const targetId = graphId || loadActiveGraphId() || DEFAULT_MIGRATION_GRAPH_ID;
+    const targetId = graphId || loadActiveGraphId();
+    if (!targetId) return [];
     const raw = localStorage.getItem(STORAGE_KEYS.COMPLETED_CONCEPTS_PREFIX + targetId) 
       || (targetId === DEFAULT_MIGRATION_GRAPH_ID ? localStorage.getItem(STORAGE_KEYS.LEGACY_USER_COMPLETED_CONCEPTS) : null);
     
@@ -875,7 +892,8 @@ export function loadKnowledgeTests(graphId?: string): KnowledgeTest[] {
   if (typeof localStorage === 'undefined') return [];
 
   try {
-    const targetId = graphId || loadActiveGraphId() || DEFAULT_MIGRATION_GRAPH_ID;
+    const targetId = graphId || loadActiveGraphId();
+    if (!targetId) return [];
     const raw = localStorage.getItem(STORAGE_KEYS.TEST_HISTORY_PREFIX + targetId);
     if (!raw) return [];
 
@@ -897,7 +915,8 @@ export function saveKnowledgeTest(test: KnowledgeTest): void {
   if (typeof localStorage === 'undefined' || !test || !test.id) return;
 
   try {
-    const targetId = test.graphId || loadActiveGraphId() || DEFAULT_MIGRATION_GRAPH_ID;
+    const targetId = test.graphId || loadActiveGraphId();
+    if (!targetId) return;
     const existing = loadKnowledgeTests(targetId);
     // Replace if exists, else append to front
     const updated = [test, ...existing.filter(t => t.id !== test.id)];

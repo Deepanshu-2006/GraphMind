@@ -304,8 +304,8 @@ export function getContextualObservations(
 
   // Brand-new learner (0 graphs, 0 tests)
   return {
-    cycle1: 'Welcome to your learning space. Creating your first graph will begin mapping your concepts.',
-    cycle2: "Once you add study materials, I'll help highlight relationships and guide your review.",
+    cycle1: "Welcome to your learning space. Hey! Let's create your first knowledge graph.",
+    cycle2: "Upload your notes and I'll help you turn them into connected concepts. Once you add study materials, I'll help highlight relationships and guide your review.",
     category: 'getting-started'
   };
 }

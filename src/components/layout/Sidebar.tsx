@@ -26,7 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectSection,
   isOpen,
   onCloseMobile,
-  project,
+  project: _project,
   activeGraphMeta,
   onOpenPersona
 }) => {
@@ -37,7 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'sources' as NavSection, label: 'Sources', icon: Files }
   ];
 
-  const currentGraphName = activeGraphMeta?.name || project?.name || 'Knowledge Graph';
+  const currentGraphName = activeGraphMeta?.name || 'No graph selected';
 
   return (
     <aside className={`app-sidebar ${isOpen ? 'open' : ''}`} aria-label="Application sidebar">

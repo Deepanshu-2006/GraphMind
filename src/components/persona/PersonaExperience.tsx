@@ -26,6 +26,7 @@ export interface PersonaExperienceProps {
   onOpenStudy?: () => void;
   onOpenAssessments?: () => void;
   onOpenRevision?: (conceptName?: string) => void;
+  onOpenCreateGraph?: () => void;
   /** Integration slot for Prompt 02: 3D Humanoid character */
   characterSlot?: React.ReactNode;
   /** Optional override for visit state (useful for testing and deterministic inspection) */
@@ -42,6 +43,7 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
   onOpenStudy,
   onOpenAssessments,
   onOpenRevision,
+  onOpenCreateGraph,
   characterSlot,
   initialIsReturningVisit
 }) => {
@@ -64,12 +66,20 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
   const [welcomeBackCaptionVisible, setWelcomeBackCaptionVisible] = useState(false);
   const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
 
+  const graphContext = useOptionalGraph();
+  const { stats } = usePersonaStats();
+  const averageScore = stats?.performance?.averageScore ?? null;
+
+  const hasNoGraphs =
+    stats?.activity?.totalGraphs === 0 ||
+    ((graphContext?.graphs?.length || 0) === 0);
+
   // Dedicated unified messaging system: quiet welcome introduction or returning welcome,
   // followed by contextual analysis messages.
   const activeMessage = greetingCaptionVisible
-    ? PERSONA_GREETING_TEXT
+    ? (hasNoGraphs ? "Hey! Let's create your first knowledge graph." : PERSONA_GREETING_TEXT)
     : welcomeBackCaptionVisible
-    ? PERSONA_WELCOME_BACK_TEXT
+    ? (hasNoGraphs ? "Hey! Let's create your first knowledge graph." : PERSONA_WELCOME_BACK_TEXT)
     : analysisMessage;
   const [isLeftPanelVisible, setIsLeftPanelVisible] = useState<boolean>(() => isReturningVisit);
   const [isRightPanelVisible, setIsRightPanelVisible] = useState<boolean>(() => isReturningVisit);
@@ -151,9 +161,6 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
     };
   }, [characterSlot]);
 
-  const graphContext = useOptionalGraph();
-  const { stats } = usePersonaStats();
-  const averageScore = stats?.performance?.averageScore ?? null;
 
   const handleExit = useCallback(() => {
     if (leftTimerRef.current) clearTimeout(leftTimerRef.current);
@@ -460,6 +467,7 @@ export const PersonaExperience: React.FC<PersonaExperienceProps> = ({
                   onOpenStudy={handleOpenStudy}
                   onResumeRevision={handleResumeRevision}
                   onOpenRevision={handleOpenRevision}
+                  onOpenCreateGraph={onOpenCreateGraph}
                 />
               </div>
               <div className="persona-dashboard-center" aria-hidden="true" />

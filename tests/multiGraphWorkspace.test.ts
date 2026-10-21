@@ -302,6 +302,16 @@ describe('Multi-Graph & Workspace Architecture', () => {
   });
 
   describe('TEST 9: Zero Graphs First-Time Experience', () => {
+    it('initializes with 0 graphs in a fresh session without legacy data', () => {
+      storageMap.clear();
+      // Fresh session: no keys in localStorage
+      const graphs = loadGraphs();
+      assert.equal(graphs.length, 0);
+
+      const activeId = loadActiveGraphId();
+      assert.equal(activeId, null);
+    });
+
     it('handles 0 graphs state safely when all graphs are removed', () => {
       saveGraphs([]);
       saveActiveGraphId(null);

@@ -16,7 +16,7 @@ import { demoKnowledgeGraph } from './data/graphData';
 import type { KnowledgeSource, KnowledgeGraph } from './types/knowledgeGraph';
 import { sourceToRecentMaterial } from './services/sourceIngestion';
 import { pipelineOrchestrator, type PipelineStage, type PipelineProgressEvent } from './services/pipelineOrchestrator';
-import { DEFAULT_MIGRATION_GRAPH_ID, loadGraphData } from './services/storage';
+import { loadGraphData } from './services/storage';
 import { GraphProvider, useGraph } from './context/GraphContext';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { personaTransitionController } from './components/persona/personaTransition';
@@ -288,7 +288,13 @@ export function AppContent() {
     setGraphMode('crafting');
     navigateToSection('graph');
 
-    const targetGraphId = activeGraphId || DEFAULT_MIGRATION_GRAPH_ID;
+    let targetGraphId = activeGraphId;
+    if (!targetGraphId) {
+      const firstSourceName = newSources[0]?.name || newSources[0]?.fileName || 'Knowledge Graph';
+      const cleanName = firstSourceName.replace(/\.[^/.]+$/, '').trim() || 'Knowledge Graph';
+      const newMeta = createGraph(cleanName);
+      targetGraphId = newMeta.id;
+    }
 
     // Tag newly uploaded sources with activeGraphId (Requirement 10)
     const initialNewSources: KnowledgeSource[] = newSources.map(s => ({
@@ -300,7 +306,7 @@ export function AppContent() {
 
     // Combine ONLY with current active graph sources
     const targetUserSources = [...initialNewSources, ...activeSources];
-    updateActiveSources(targetUserSources);
+    updateActiveSources(targetUserSources, targetGraphId);
 
     // Execute complete end-to-end pipeline scoped to activeGraphId:
     try {
@@ -350,8 +356,8 @@ export function AppContent() {
           sources: finalizedSources
         };
 
-        updateActiveSources(finalizedSources);
-        updateActiveGraph(scopedGraph);
+        updateActiveSources(finalizedSources, targetGraphId);
+        updateActiveGraph(scopedGraph, targetGraphId);
 
         setPipelineStage('complete');
         setPipelineStatusMessage('Your knowledge graph is ready.');
@@ -496,8 +502,12 @@ export function AppContent() {
           <OverviewView
             onCreateGraph={() => setCreateModalOpen(true)}
             onExploreDemo={() => {
-              setIsExploringDemo(true);
-              navigateToSection('graph');
+              if (graphs.length === 0) {
+                setCreateModalOpen(true);
+              } else {
+                setIsExploringDemo(true);
+                navigateToSection('graph');
+              }
             }}
             hasContent={(contextActiveGraph?.nodes?.length || 0) > 0}
             graphMeta={activeGraphMeta}
@@ -596,6 +606,10 @@ export function AppContent() {
           <PersonaExperience
             isOpen={isPersonaOpen}
             onClose={handleClosePersona}
+            onOpenCreateGraph={() => {
+              handleNavigateFromPersona('overview');
+              setCreateModalOpen(true);
+            }}
             onSelectGraph={(graphId) => {
               handleSelectGraph(graphId);
               handleNavigateFromPersona('graph');

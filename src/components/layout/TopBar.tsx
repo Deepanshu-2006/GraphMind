@@ -23,7 +23,7 @@ interface TopBarProps {
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
-  project,
+  project: _project,
   graphs = [],
   activeGraphId = null,
   activeGraphMeta = null,
@@ -51,20 +51,14 @@ export const TopBar: React.FC<TopBarProps> = ({
           <Menu size={16} strokeWidth={1.5} aria-hidden="true" />
         </button>
 
-        {graphs.length > 0 ? (
-          <GraphSwitcher
-            graphs={graphs}
-            activeGraphId={activeGraphId}
-            activeGraphMeta={activeGraphMeta}
-            onSelectGraph={onSelectGraph}
-            onOpenNewGraph={onOpenNewGraphModal}
-            onRenameGraph={onRenameGraph}
-          />
-        ) : (
-          <div className="topbar-context" title={project.name}>
-            {project.name}
-          </div>
-        )}
+        <GraphSwitcher
+          graphs={graphs}
+          activeGraphId={activeGraphId}
+          activeGraphMeta={activeGraphMeta}
+          onSelectGraph={onSelectGraph}
+          onOpenNewGraph={onOpenNewGraphModal}
+          onRenameGraph={onRenameGraph}
+        />
       </div>
 
       {/* Right: Search, Upload Material shortcut, User Avatar */}

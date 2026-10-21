@@ -13,6 +13,7 @@ export interface PersonaActivityPanelProps {
   onOpenStudy?: () => void;
   onResumeRevision?: (graphId: string) => void;
   onOpenRevision?: (conceptName?: string) => void;
+  onOpenCreateGraph?: () => void;
   hasExistingResumeAction?: boolean;
   activeGraphId?: string | null;
   className?: string;
@@ -67,6 +68,7 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = React.m
   onOpenStudy,
   onResumeRevision,
   onOpenRevision,
+  onOpenCreateGraph,
   hasExistingResumeAction,
   activeGraphId,
   className = ''
@@ -446,7 +448,9 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = React.m
         break;
 
       case 'continue-learning':
-        if (recommendation.destination === 'overview') {
+        if ((stats?.activity?.totalGraphs || 0) === 0 && onOpenCreateGraph) {
+          onOpenCreateGraph();
+        } else if (recommendation.destination === 'overview') {
           if (onOpenOverview) {
             onOpenOverview();
           }
@@ -656,7 +660,7 @@ export const PersonaActivityPanel: React.FC<PersonaActivityPanelProps> = React.m
               ease: [0.16, 1, 0.3, 1]
             }}
           >
-            Your graphs will appear here as you create and develop them.
+            No learning activity yet
           </motion.p>
         ) : (
           <motion.ul

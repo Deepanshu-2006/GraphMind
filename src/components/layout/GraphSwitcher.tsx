@@ -228,6 +228,15 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
   const handleTitleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
 
+    if (graphs.length === 0) {
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+      }
+      setIsOpen(prev => !prev);
+      return;
+    }
+
     // Catch double-click directly via native event detail counter
     if (e.detail === 2) {
       if (clickTimeoutRef.current) {
@@ -251,6 +260,7 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
   const handleTitleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    if (graphs.length === 0) return;
     if (clickTimeoutRef.current) {
       clearTimeout(clickTimeoutRef.current);
       clickTimeoutRef.current = null;
@@ -269,31 +279,16 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
   };
 
   const handleTriggerKeyDown = (e: React.KeyboardEvent) => {
-    if (isEditing) return;
+    if (isEditing || graphs.length === 0) return;
     if (e.key === 'F2') {
       e.preventDefault();
       startEditing();
     }
   };
 
-  // First-time user experience: 0 graphs available
-  if (graphs.length === 0) {
-    return (
-      <div className="topbar-graph-first-time">
-        <button
-          type="button"
-          className="topbar-create-first-btn"
-          onClick={onOpenNewGraph}
-          id="btn-create-first-graph"
-        >
-          <Plus size={13} strokeWidth={2} aria-hidden="true" />
-          <span>Create your first graph</span>
-        </button>
-      </div>
-    );
-  }
-
-  const currentDisplayName = resolveActiveMeta()?.name || 'Select graph';
+  const currentDisplayName = graphs.length === 0
+    ? 'No graphs yet'
+    : (resolveActiveMeta()?.name || 'Select graph');
   const isActionExit = editPhase === 'settling' || editPhase === 'cancelling';
   const isUnderlineExpanded = editPhase === 'editing' || editPhase === 'saved';
   const underlineOrigin = editPhase === 'saved' || editPhase === 'settling' ? 'right' : 'left';
@@ -467,19 +462,21 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
             </button>
 
             {/* Unobtrusive accessible rename affordance */}
-            <button
-              type="button"
-              className="topbar-graph-rename-affordance"
-              onClick={(e) => {
-                e.stopPropagation();
-                startEditing();
-              }}
-              aria-label={`Rename ${currentDisplayName}`}
-              title="Rename graph (or double-click title)"
-              id="btn-topbar-graph-rename"
-            >
-              <PenLine size={12} strokeWidth={1.6} aria-hidden="true" />
-            </button>
+            {graphs.length > 0 && (
+              <button
+                type="button"
+                className="topbar-graph-rename-affordance"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startEditing();
+                }}
+                aria-label={`Rename ${currentDisplayName}`}
+                title="Rename graph (or double-click title)"
+                id="btn-topbar-graph-rename"
+              >
+                <PenLine size={12} strokeWidth={1.6} aria-hidden="true" />
+              </button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -497,34 +494,40 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
           >
             <div className="graph-switcher-header">YOUR GRAPHS</div>
 
-            <div className="graph-switcher-list" role="none">
-              {graphs.map((g) => {
-                const isSelected = g.id === activeGraphId;
-                return (
-                  <button
-                    key={g.id}
-                    type="button"
-                    role="menuitem"
-                    className={`graph-switcher-item ${isSelected ? 'is-active' : ''}`}
-                    onClick={() => {
-                      onSelectGraph(g.id);
-                      setIsOpen(false);
-                    }}
-                    title={g.name}
-                  >
-                    <span className="graph-switcher-item-name">{g.name}</span>
-                    {isSelected && (
-                      <Check
-                        size={12}
-                        strokeWidth={2.2}
-                        className="graph-switcher-check"
-                        aria-hidden="true"
-                      />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            {graphs.length === 0 ? (
+              <div className="graph-switcher-empty" style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                No graphs yet
+              </div>
+            ) : (
+              <div className="graph-switcher-list" role="none">
+                {graphs.map((g) => {
+                  const isSelected = g.id === activeGraphId;
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      role="menuitem"
+                      className={`graph-switcher-item ${isSelected ? 'is-active' : ''}`}
+                      onClick={() => {
+                        onSelectGraph(g.id);
+                        setIsOpen(false);
+                      }}
+                      title={g.name}
+                    >
+                      <span className="graph-switcher-item-name">{g.name}</span>
+                      {isSelected && (
+                        <Check
+                          size={12}
+                          strokeWidth={2.2}
+                          className="graph-switcher-check"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="graph-switcher-divider" role="separator" />
 
@@ -538,7 +541,7 @@ export const GraphSwitcher: React.FC<GraphSwitcherProps> = ({
               id="btn-switcher-new-graph"
             >
               <Plus size={13} strokeWidth={2} aria-hidden="true" />
-              <span>New graph</span>
+              <span>{graphs.length === 0 ? 'Create first graph' : 'New graph'}</span>
             </button>
           </motion.div>
         )}

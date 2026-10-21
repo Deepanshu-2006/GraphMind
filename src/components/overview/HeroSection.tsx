@@ -20,6 +20,8 @@ interface HeroSectionProps {
 
 const LINE1_TEXT = 'Make your material';
 const LINE2_TEXT = 'make sense';
+const EMPTY_LINE1_TEXT = 'Turn your notes';
+const EMPTY_LINE2_TEXT = 'into knowledge';
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
   onCreateGraph,
@@ -36,6 +38,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   const graphContext = useGraph();
   const effectiveGraph = graph !== undefined ? graph : graphContext?.activeGraph;
 
+  const hasGraphs = (graphContext?.graphs?.length || 0) > 0 || Boolean(graphMeta);
+  const line1Text = hasGraphs ? LINE1_TEXT : EMPTY_LINE1_TEXT;
+  const line2Text = hasGraphs ? LINE2_TEXT : EMPTY_LINE2_TEXT;
+  const heroEyebrowText = hasGraphs ? 'YOUR MATERIAL · NOW CONNECTED' : 'FIRST-TIME LEARNING · GET STARTED';
+
   const [transitionState, setTransitionState] = useState(personaTransitionController.state);
   const [entryKey, setEntryKey] = useState(0);
   useEffect(() => {
@@ -49,8 +56,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
   // Dynamic editorial description derived deterministically from actual graph concepts
   const heroDescription = useMemo(() => {
+    if (!hasGraphs) {
+      return 'Upload your study material to build your first interactive knowledge graph.';
+    }
     return generateGraphDescription(effectiveGraph, { isProcessing });
-  }, [effectiveGraph, isProcessing]);
+  }, [hasGraphs, effectiveGraph, isProcessing]);
 
   // 1. Continuous Scroll Progress with Fluid Spring Physics (Sections 17, 18, 38)
   const targetScrollRef = useRef(0);
@@ -210,14 +220,14 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           }}
         >
           <span className="hero-eyebrow-dot" aria-hidden="true" />
-          <span>YOUR MATERIAL · NOW CONNECTED</span>
+          <span>{heroEyebrowText}</span>
         </motion.div>
 
         {/* Display Headline with Character-by-Character Entrance & Scroll Exit */}
         <h1 className="overview-hero-title">
-          {/* Line 1: Make your material (Weight ~600) */}
+          {/* Line 1 */}
           <span className="hero-title-line hero-title-line-1">
-            {LINE1_TEXT.split('').map((char, index) => {
+            {line1Text.split('').map((char, index) => {
               const speedVar = 1.0 + Math.sin(index * 0.8) * 0.18;
               const charScroll = Math.max(0, smoothScroll - 0.10);
               const charY = smoothScroll > 0.05 ? -charScroll * 135 * speedVar : 0;
@@ -244,10 +254,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             })}
           </span>
 
-          {/* Line 2: make sense. (Weight ~700 with signature green dot) */}
+          {/* Line 2 */}
           <span className="hero-title-line hero-title-line-2">
-            {LINE2_TEXT.split('').map((char, index) => {
-              const globalIndex = LINE1_TEXT.length + index;
+            {line2Text.split('').map((char, index) => {
+              const globalIndex = line1Text.length + index;
               const speedVar = 1.0 + Math.sin(globalIndex * 0.8) * 0.18;
               const charScroll = Math.max(0, smoothScroll - 0.10);
               const charY = smoothScroll > 0.05 ? -charScroll * 135 * speedVar : 0;
@@ -287,7 +297,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   stiffness: 130,
                   damping: 22,
                   mass: 0.55,
-                  delay: smoothScroll > 0.05 ? 0 : 0.10 + (LINE1_TEXT.length + LINE2_TEXT.length) * 0.015
+                  delay: smoothScroll > 0.05 ? 0 : 0.10 + (line1Text.length + line2Text.length) * 0.015
                 }}
               >
                 .
@@ -374,12 +384,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             <span className="hero-action-line" aria-hidden="true" />
           </motion.button>
 
-          {/* Secondary CTA: Quiet editorial text action: Explore a graph → */}
+          {/* Secondary CTA: Quiet editorial text action: Explore a graph → or Create your first graph → */}
           <motion.button 
             type="button"
             className="hero-action-secondary hero-btn-secondary"
-            onClick={onExploreDemo}
-            aria-label="Explore a graph"
+            onClick={hasGraphs ? onExploreDemo : onCreateGraph}
+            aria-label={hasGraphs ? "Explore a graph" : "Create your first graph"}
             id="btn-explore-demo-graph"
             initial="initial"
             whileHover="hover"
@@ -390,7 +400,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             }}
           >
             <span className="hero-action-secondary-inner">
-              <span className="hero-action-text">Explore a graph</span>
+              <span className="hero-action-text">{hasGraphs ? "Explore a graph" : "Create your first graph"}</span>
               <motion.span
                 className="hero-action-arrow-wrap"
                 variants={{
@@ -405,30 +415,28 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         </motion.div>
 
         {/* Active Graph Metrics Line */}
-        {graphMeta && (
-          <motion.div
-            className="hero-graph-metrics"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: Math.min(actionsOpacity, 0.75) }}
-            transition={{ duration: 0.5, delay: 0.52 }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginTop: '16px',
-              fontSize: '12px',
-              fontFamily: 'var(--font-mono)',
-              color: 'var(--text-muted)',
-              letterSpacing: '0.02em'
-            }}
-          >
-            <span>{sourceCount} {sourceCount === 1 ? 'source' : 'sources'}</span>
-            <span aria-hidden="true">·</span>
-            <span>{conceptCount} {conceptCount === 1 ? 'concept' : 'concepts'}</span>
-            <span aria-hidden="true">·</span>
-            <span>{relationshipCount} {relationshipCount === 1 ? 'relationship' : 'relationships'}</span>
-          </motion.div>
-        )}
+        <motion.div
+          className="hero-graph-metrics"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: Math.min(actionsOpacity, 0.75) }}
+          transition={{ duration: 0.5, delay: 0.52 }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginTop: '16px',
+            fontSize: '12px',
+            fontFamily: 'var(--font-mono)',
+            color: 'var(--text-muted)',
+            letterSpacing: '0.02em'
+          }}
+        >
+          <span>{sourceCount} {sourceCount === 1 ? 'source' : 'sources'}</span>
+          <span aria-hidden="true">·</span>
+          <span>{conceptCount} {conceptCount === 1 ? 'concept' : 'concepts'}</span>
+          <span aria-hidden="true">·</span>
+          <span>{relationshipCount} {relationshipCount === 1 ? 'relationship' : 'relationships'}</span>
+        </motion.div>
       </motion.div>
 
       {/* Understated Editorial Bottom Scroll Cue */}

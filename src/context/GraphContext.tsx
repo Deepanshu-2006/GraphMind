@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import type { KnowledgeGraph, KnowledgeGraphMeta, KnowledgeSource } from '../types/knowledgeGraph';
 import {
   loadGraphs,
-  saveGraphs,
   loadActiveGraphId,
   saveActiveGraphId,
   createGraph as createGraphStorage,
@@ -13,9 +12,7 @@ import {
   saveUserSources,
   loadCompletedConceptIds,
   renameGraph as renameGraphStorage,
-  toggleCompletedConceptId as toggleCompletedConceptIdStorage,
-  DEFAULT_MIGRATION_GRAPH_ID,
-  DEFAULT_MIGRATION_GRAPH_NAME
+  toggleCompletedConceptId as toggleCompletedConceptIdStorage
 } from '../services/storage';
 
 export interface GraphContextValue {
@@ -29,8 +26,8 @@ export interface GraphContextValue {
   renameGraph: (graphId: string, newName: string) => KnowledgeGraphMeta | null;
   switchGraph: (graphId: string) => void;
   deleteGraph: (graphId: string) => void;
-  updateActiveGraph: (graph: KnowledgeGraph | null) => void;
-  updateActiveSources: (sources: KnowledgeSource[]) => void;
+  updateActiveGraph: (graph: KnowledgeGraph | null, targetGraphId?: string) => void;
+  updateActiveSources: (sources: KnowledgeSource[], targetGraphId?: string) => void;
   toggleCompleteConcept: (conceptId: string) => string[];
   refreshGraphs: () => void;
 }
@@ -119,52 +116,16 @@ export const GraphProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadScopedDataForGraph(nextActiveId);
   }, [loadScopedDataForGraph]);
 
-  const updateActiveGraph = useCallback((graph: KnowledgeGraph | null) => {
-    const currentId = activeGraphId || DEFAULT_MIGRATION_GRAPH_ID;
-    if (!activeGraphId) {
-      setActiveGraphId(currentId);
-      saveActiveGraphId(currentId);
-      setGraphs(prev => {
-        if (!prev.some(g => g.id === currentId)) {
-          const defaultMeta: KnowledgeGraphMeta = {
-            id: currentId,
-            name: DEFAULT_MIGRATION_GRAPH_NAME,
-            description: `${DEFAULT_MIGRATION_GRAPH_NAME} knowledge graph`,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-          const updated = [defaultMeta, ...prev];
-          saveGraphs(updated);
-          return updated;
-        }
-        return prev;
-      });
-    }
+  const updateActiveGraph = useCallback((graph: KnowledgeGraph | null, targetGraphId?: string) => {
+    const currentId = targetGraphId || activeGraphId;
+    if (!currentId) return;
     setActiveGraph(graph);
     saveGraphData(currentId, graph);
   }, [activeGraphId]);
 
-  const updateActiveSources = useCallback((sources: KnowledgeSource[]) => {
-    const currentId = activeGraphId || DEFAULT_MIGRATION_GRAPH_ID;
-    if (!activeGraphId) {
-      setActiveGraphId(currentId);
-      saveActiveGraphId(currentId);
-      setGraphs(prev => {
-        if (!prev.some(g => g.id === currentId)) {
-          const defaultMeta: KnowledgeGraphMeta = {
-            id: currentId,
-            name: DEFAULT_MIGRATION_GRAPH_NAME,
-            description: 'Neural & Cognitive Architectures knowledge graph',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-          const updated = [defaultMeta, ...prev];
-          saveGraphs(updated);
-          return updated;
-        }
-        return prev;
-      });
-    }
+  const updateActiveSources = useCallback((sources: KnowledgeSource[], targetGraphId?: string) => {
+    const currentId = targetGraphId || activeGraphId;
+    if (!currentId) return;
     setActiveSources(sources);
     saveUserSources(sources, currentId);
   }, [activeGraphId]);
