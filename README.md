@@ -2,10 +2,10 @@
 
 # GraphMind
 
-### Understand the Connections. Master the Concepts.
+### Turn Your Notes Into Knowledge.
 
 <p align="center">
-  GraphMind transforms study materials into interactive knowledge graphs, helping students explore relationships between concepts, assess their understanding, and focus their revision.
+  GraphMind transforms study materials—lecture slides, textbooks, and research papers—into interactive knowledge graphs, helping students explore relationships between concepts, assess their understanding, and focus their revision.
 </p>
 
 <p align="center">
@@ -34,226 +34,253 @@
 </p>
 
 <p align="center">
-  <strong><a href="https://graph-mind-sandy.vercel.app/">🚀 Live Demo</a></strong> &nbsp;&bull;&nbsp;
-  <a href="#getting-started">⚡ Getting Started</a> &nbsp;&bull;&nbsp;
-  <a href="#features">✨ Features</a> &nbsp;&bull;&nbsp;
+  <strong><a href="https://graph-mind-sandy.vercel.app/">🚀 Launch Live Application &rarr;</a></strong> &nbsp;&bull;&nbsp;
   <a href="#product-showcase">📸 Product Showcase</a> &nbsp;&bull;&nbsp;
+  <a href="#features">✨ Core Features</a> &nbsp;&bull;&nbsp;
+  <a href="#how-it-works">⚙️ How It Works</a> &nbsp;&bull;&nbsp;
   <a href="#architecture">🏛️ Architecture</a> &nbsp;&bull;&nbsp;
-  <a href="#privacy--data-handling">🔒 Privacy</a>
+  <a href="#getting-started">⚡ Getting Started</a> &nbsp;&bull;&nbsp;
+  <a href="#privacy--local-first-behavior">🔒 Privacy</a>
 </p>
 
 <br />
 
-<img src="src/assets/hero.png" alt="GraphMind Application Hero Interface" width="100%" />
+<a href="https://graph-mind-sandy.vercel.app/">
+  <img src="docs/screenshots/knowledge-graph.png" alt="GraphMind Interactive Knowledge Graph Canvas with Concept Inspection Drawer" width="100%" />
+</a>
+
+<p align="center">
+  <sub><strong>Figure 1:</strong> The interactive Knowledge Graph canvas showing concept nodes, relationship physics, and the slide-over concept inspection drawer with verbatim source provenance.</sub>
+</p>
 
 </div>
 
 ---
 
 <a id="overview"></a>
-## 🌟 Overview
+## 🌟 What GraphMind Does
 
-Linear reading and rote memorization often fail when dealing with complex, multi-layered topics. Textbooks present ideas sequentially, but real understanding requires seeing how principles, mechanisms, and dependencies interconnect.
+Linear reading and traditional flashcards often fail when studying complex, multi-layered domains. Textbooks and lecture notes present information sequentially, but true comprehension requires understanding how foundational definitions, mechanisms, and advanced applications connect.
 
-**GraphMind** bridges this gap by converting unstructured study materials—such as lecture slides, research papers, and technical book chapters—into structured, navigable knowledge graphs. Rather than flipping through static notes, learners can visually trace prerequisite hierarchies, inspect source provenance, take concept-grounded knowledge checks, and follow adaptive revision queues that focus attention where it is needed most.
+**GraphMind** converts unstructured study materials—such as multi-page PDFs, Markdown lecture notes, and technical articles—into a structured, navigable knowledge graph:
+
+1. **Topological Learning**: Explore concepts visually on an infinite canvas with force-directed physics and explicitly labeled relationship edges.
+2. **Verbatim Source Grounding**: Every concept is anchored to exact citations from your uploaded materials to prevent hallucinations and enable instant verification.
+3. **Active Recall & Mastery**: Deterministically generated knowledge checks evaluate concept retention, tracking mastery state transitions (`untested` &rarr; `developing` &rarr; `mastered`).
+4. **Adaptive Revision Queues**: Spaced review queues surface bottleneck concepts based on empirical assessment scores.
+5. **3D AI Learning Companion**: A procedural WebGL humanoid companion provides contextual observations, natural speech synthesis, and evidence-based study recommendations.
 
 ---
 
 <a id="product-showcase"></a>
 ## 📸 Product Showcase
 
-The core learning workflows of GraphMind are organized around four primary views:
+Explore the actual GraphMind application interfaces across each learning phase:
 
 <br />
 
 ### 1. Interactive Knowledge Graph Canvas *(Core Experience)*
-> **The central visual workspace.** Concepts are mapped as interconnected nodes on an infinite canvas with force-directed physics, labeled relationship edges, bidirectional neighbor highlighting, concept search, and a slide-over inspection drawer for deep dives.
+> **The central visual workspace.** Concepts are rendered as interconnected nodes with force-directed physics, typed relationship edges, neighbor highlighting, and an inspection drawer that details definitions, key ideas, and verbatim citations.
 
-```
-+---------------------------------------------------------------------------------------+
-|  [ KNOWLEDGE GRAPH CANVAS ]                                                           |
-|                                                                                       |
-|      (Concept: Backpropagation)                                                       |
-|             |                                                                         |
-|      [requires gradient] ---> (Concept: Gradient Descent) <--- [optimizes]            |
-|                                         |                         |                   |
-|                              (Concept: Loss Function)   (Concept: Learning Rate)      |
-|                                                                                       |
-|  * Node Inspection Drawer: Depth explanations (ELI5 -> Advanced) & source quotes      |
-|  * Canvas Controls: Force-directed layout, depth filtering, high-res canvas export    |
-+---------------------------------------------------------------------------------------+
-```
-*Tip: To view this live, load a benchmark graph or upload your study material in the [Interactive Workspace](https://graph-mind-sandy.vercel.app/).*
+<div align="center">
+  <img src="docs/screenshots/knowledge-graph.png" alt="Interactive Knowledge Graph Canvas" width="100%" />
+  <p align="center">
+    <sub><strong>Knowledge Graph:</strong> Interactive exploration of neural and cognitive architectures with the concept detail drawer open on the right.</sub>
+  </p>
+</div>
 
 <br />
 
-### 2. Study Space & Concept Trajectories
-> Structured conceptual breakdowns moving progressively from intuitive analogies to formal definitions and worked examples. Every concept retains verbatim source provenance back to the exact passage in your uploaded document.
+### 2. Interactive Node Selection & Drawer Slide-In
+> Selecting any concept node brings up detailed breakdowns—what it means, key prerequisite ideas, exact citations from your uploaded files, and connected downstream concepts.
 
-```
-+---------------------------------------------------------------------------------------+
-|  [ STUDY SPACE ]                                                                      |
-|                                                                                       |
-|  Concept Trajectory: Core Principles -> Mechanisms -> Advanced Applications           |
-|                                                                                       |
-|  [+] Progressive Depth:  Level 1 (Intuitive) | Level 2 (Formal) | Level 3 (Rigorous)  |
-|  [+] Prerequisite Tree:  Bottleneck concept alerts before advancing                   |
-|  [+] Verbatim Evidence:  Click-to-highlight source citations from uploaded PDFs       |
-+---------------------------------------------------------------------------------------+
-```
+<div align="center">
+  <img src="docs/screenshots/graph-interaction.gif" alt="Knowledge Graph Node Selection Animation" width="90%" />
+  <p align="center">
+    <sub><strong>Live Canvas Interaction:</strong> Selecting a concept node immediately highlights connected paths and slides open the concept inspection drawer.</sub>
+  </p>
+</div>
 
 <br />
 
-### 3. Material Ingestion & Extraction Pipeline
-> Drag-and-drop document intake supporting multi-page PDFs, Markdown notes, and plain text. The client-side pipeline extracts clean text, partitions overlapping chunks, and extracts high-precision concepts and relationships using either Google Gemini or the built-in local heuristic engine.
+### 3. Study Space & Concept Trajectories
+> Track your learning progress, review past assessment performance, and follow structured concept trajectories moving progressively from intuitive analogies to formal mathematical definitions.
 
-```
-+---------------------------------------------------------------------------------------+
-|  [ MATERIAL INGESTION PIPELINE ]                                                      |
-|                                                                                       |
-|  Upload: Lecture_04_Optimization.pdf (32 pages)                                       |
-|  Status: [Reading] -> [Analyzing] -> [Extracting Concepts] -> [Synthesizing Graph]    |
-|  Result: 18 Canonical Concepts, 27 Semantic Relationships, 0 Data Leakage             |
-+---------------------------------------------------------------------------------------+
-```
+<div align="center">
+  <img src="docs/screenshots/study-space.png" alt="GraphMind Study Space" width="100%" />
+  <p align="center">
+    <sub><strong>Study Space:</strong> Progress tracking with radial score dials (80% score), active revision status, and concepts flagged for review.</sub>
+  </p>
+</div>
 
 <br />
 
-### 4. 3D AI Persona Learning Companion
-> A full-screen 3D companion rendered via Three.js and WebGL. It reads your real assessment history and revision queues to surface contextual observations, natural speech synthesis, and empirical next-step recommendations without distracting gamification.
+### 4. Adaptive Revision Workspace
+> A focused revision rail organized into progressive stages: *Understand*, *Key Terminology*, *Key Points*, *Related Concepts*, *Check*, and *Source Provenance*.
 
-```
-+---------------------------------------------------------------------------------------+
-|  [ 3D PERSONA STAGE ]                                                                 |
-|                                                                                       |
-|  WebGL Humanoid Canvas: Natural eye saccades, breathing cycles, procedural head yaw   |
-|  Observation Engine:    Identifies lowest-scoring concepts from real quiz attempts    |
-|  Actionable Next Step:  "Let's review Gradient Descent before testing backprop."      |
-+---------------------------------------------------------------------------------------+
-```
+<div align="center">
+  <img src="docs/screenshots/revision-workspace.png" alt="Revision Workspace" width="100%" />
+  <p align="center">
+    <sub><strong>Revision Workspace:</strong> Step-by-step revision breakdown for individual concepts with progressive section rails and source citations.</sub>
+  </p>
+</div>
+
+<br />
+
+### 5. 3D AI Persona Learning Companion
+> A full-screen 3D companion built in Three.js and WebGL. It reads your actual quiz attempts and revision progress to provide contextual observations, natural speech synthesis, and empirical next-step recommendations without gamified distractions.
+
+<div align="center">
+  <img src="docs/screenshots/persona-companion.png" alt="3D Persona Companion Stage" width="100%" />
+  <p align="center">
+    <sub><strong>3D Persona Stage:</strong> Central humanoid stage flanked by the learning activity panel (left) and empirical performance breakdown (right).</sub>
+  </p>
+</div>
+
+<br />
+
+### 6. Document Ingestion & Material Upload
+> Drop in multi-page PDFs, Markdown notes, or plain text files. The client-side pipeline extracts clean text, partitions overlapping chunks, and triggers semantic synthesis.
+
+<div align="center">
+  <img src="docs/screenshots/material-ingestion.png" alt="Material Ingestion Modal" width="100%" />
+  <p align="center">
+    <sub><strong>Material Ingestion:</strong> Drag-and-drop document upload modal supporting PDF, TXT, and Markdown files up to 50 MB.</sub>
+  </p>
+</div>
 
 ---
 
 <a id="features"></a>
 ## ✨ Core Features
 
-GraphMind is engineered around what students and researchers need to achieve mastery:
+GraphMind is organized around what students and researchers need to achieve genuine concept mastery:
 
-### 🕸️ Interactive Knowledge Graphs
-* **Spatial Relationship Mapping**: Visualize conceptual networks using `@xyflow/react` on an infinite pan-and-zoom canvas.
-* **Semantic Edge Labeling**: Relationships are explicitly typed (e.g., `prerequisite_for`, `part_of`, `contrasts_with`, `implements`) rather than generic undirected lines.
-* **Neighborhood Isolation & Highlighting**: Selecting any node automatically highlights immediate prerequisite paths and connected downstream topics.
-* **Canvas Export**: Export publication-ready, high-resolution snapshots of your knowledge graph for study sheets or presentations.
+### 🕸️ Learn Visually
+* **Interactive Pan & Zoom Canvas**: Explore conceptual networks using `@xyflow/react` with smooth force-directed physics and multi-touch canvas controls.
+* **Typed Semantic Relationships**: Edges explicitly describe conceptual relationships (e.g., `prerequisite_for`, `extends`, `part_of`, `used in`) rather than generic undirected lines.
+* **Neighborhood Isolation & Highlighting**: Selecting any node automatically highlights immediate prerequisite paths and downstream dependencies.
+* **High-Resolution Export**: Export crisp, publication-ready snapshots of your knowledge graph for study sheets or presentations.
 
-### 📖 Concept Exploration & Source Provenance
-* **Multi-Tiered Depth**: Move seamlessly from foundational intuitions to rigorous mathematical descriptions and practical worked examples.
-* **Direct Source Attribution**: Every extracted concept is linked to verbatim text excerpts from your uploaded materials, preventing hallucinations and allowing instant verification.
-* **Prerequisite Identification**: Clearly demarcates foundational prerequisite concepts so learners do not jump ahead to advanced topics prematurely.
+### 📖 Understand Concepts
+* **Progressive Conceptual Depth**: Review concepts across three distinct tiers of understanding: foundational intuition, formal definitions, and rigorous worked examples.
+* **Direct Source Attribution**: Every extracted concept is linked to verbatim text excerpts from your uploaded files, ensuring zero hallucinations and immediate provenance verification.
+* **Prerequisite Tree Demarcation**: Identifies foundational bottlenecks so you master core requirements before advancing to downstream topics.
 
-### 🎯 Assessments & Active Recall
-* **Grounded Knowledge Checks**: Automatically generates multiple-choice questions grounded directly in the concepts and relationships present in your graph.
-* **Empirical Score Tracking**: Calculates real arithmetic mean scores and maintains full attempt history per graph, avoiding arbitrary "fluency" gauges.
-* **Mastery State Transitions**: Concepts objectively advance through state stages (`untested` &rarr; `developing` &rarr; `mastered`) based on real quiz performance.
-
-### 🔄 Focused Spaced Revision
-* **Targeted Revision Queue**: Automatically surfaces missed, flagged, or decay-prone concepts to ensure efficient, targeted review sessions.
+### 🔄 Revise Effectively
+* **Targeted Spaced Review Queues**: Automatically surfaces missed, flagged, or decay-prone concepts to ensure efficient, targeted revision sessions.
 * **Spaced Repetition Rail**: Review cards summarize key mechanisms and prompt active recall before re-testing.
-* **Session Persistence**: Revision progress is saved per graph, allowing you to pick up exactly where you left off.
+* **Session Persistence**: Revision progress is saved per graph, allowing you to resume exactly where you left off.
 
-### 🤖 3D Learning Companion
-* **Procedural WebGL Humanoid**: An interactive 3D character powered by Three.js featuring subtle procedural breathing cycles, natural eye saccades, and gaze tracking.
-* **Contextual Observation Engine**: Synthesizes actionable observations derived from your actual assessment history and unfinished revision sessions.
-* **Voice Synthesis & First/Returning Visit Flows**: Welcomes new learners through guided onboarding and greets returning students with targeted study recommendations.
+### 🎯 Test Understanding
+* **Concept-Grounded Knowledge Checks**: Multiple-choice questions constructed directly from the concepts and relationships present in your graph.
+* **Verbatim Question Explanations**: Review detailed feedback explaining why the correct answer is valid based directly on source excerpts.
+* **Baseline Diagnostic Testing**: Quickly evaluate baseline understanding across an entire knowledge graph.
 
-### 📄 Document Ingestion & Processing
-* **Client-Side Document Parsing**: High-fidelity PDF text extraction powered by `pdfjs-dist`, alongside Markdown and plain text file processors.
-* **Text Normalization**: Strips running footers, page numbering artifacts, and soft hyphenations to preserve semantic integrity.
-* **Dual Extraction Engines**: Seamlessly leverages the Google Gemini API (`gemini-1.5-flash`) for deep semantic extraction, with an automatic fallback to local heuristic pattern matchers when no API key is supplied.
+### 📊 Track Learning
+* **Empirical Score Tracking**: Calculates real arithmetic mean scores and maintains a complete historical log of all assessment attempts per graph.
+* **Mastery State Transitions**: Concepts advance through objective states (`untested` &rarr; `developing` &rarr; `mastered`) based on real quiz performance.
+* **Zero Gamification**: Eliminates artificial streak counters and deceptive "fluency percentages" in favor of factual, empirical progress.
+
+### 🤖 Meet Your Learning Companion
+* **Procedural 3D WebGL Humanoid**: An interactive Three.js character featuring procedural breathing cycles, natural eye saccades, and head tracking.
+* **Contextual Observation Engine**: Synthesizes actionable study advice derived from your lowest-scoring concepts and unfinished revision sessions.
+* **Voice Synthesis & Onboarding**: Welcomes first-time visitors with guided onboarding and greets returning students with tailored study suggestions.
 
 ### 🗂️ Multi-Graph Workspace Isolation
-* **Complete Subject Separation**: Create and maintain distinct graphs for different courses or projects (e.g., *Operating Systems*, *Neurobiology*, *Compiler Design*).
-* **Strict Boundary Isolation**: Sources, concepts, relations, quiz attempts, and revision queues never leak across graph boundaries.
-* **Inline Graph Management**: Effortlessly switch, rename, or delete graphs directly from the workspace header.
+* **Independent Subject Workspaces**: Create and maintain distinct graphs for different courses (e.g., *Operating Systems*, *Deep Learning*, *Distributed Systems*).
+* **Strict Boundary Isolation**: Sources, concepts, relations, assessment attempts, and revision queues never leak across graph boundaries.
+* **Instant Switching & Management**: Switch, rename, or delete graphs directly from the workspace header with instant localStorage updates.
 
 ---
 
-<a id="tech-stack"></a>
-## 🛠️ Technology Stack
+<a id="how-it-works"></a>
+## ⚙️ How It Works
 
-GraphMind is built as a modern, high-performance client-side web application:
+GraphMind follows a deterministic, five-stage client-side pipeline:
 
-| Domain | Technology | Version | Purpose & Implementation |
-|---|---|---|---|
-| **Core Framework** | [React](https://react.dev/) | `^19.2.8` | Component architecture, custom hooks, and concurrent UI rendering |
-| **Language** | [TypeScript](https://www.typescriptlang.org/) | `~6.0.2` | End-to-end type safety across graph models, pipelines, and state schemas |
-| **Build & Tooling** | [Vite](https://vitejs.dev/) | `^8.3.0` | Next-generation frontend tooling and rapid HMR development server |
-| **Graph Visualization** | [@xyflow/react](https://github.com/xyflow/xyflow) | `^12.12.0` | Infinite canvas, custom node renderers, dynamic edge labeling, and zoom/pan controls |
-| **3D Graphics** | [Three.js](https://threejs.org/) | `^0.186.1` | WebGL scene graph, procedural humanoid geometry, custom shaders, and lighting |
-| **Animation & Motion** | [Framer Motion](https://www.framer.com/motion/) | `^14.0.0` | Accessible page transitions, modal choreographies, and layout animations |
-| **Document Processing** | [PDF.js](https://mozilla.github.io/pdf.js/) | `^6.4.299` | In-browser PDF parsing and text stream extraction via legacy worker |
-| **AI Integration** | [Google Gemini API](https://ai.google.dev/) | `gemini-1.5-flash` | Structured concept extraction, relationship tagging, and knowledge checks |
-| **Iconography** | [Lucide React](https://lucide.dev/) | `^1.49.0` | Crisp, semantic icon system for workspace navigation and actions |
-| **Testing & Quality** | Node Native Test Runner | `tsx --test` | High-speed native TypeScript unit and integration testing suite |
-| **Code Linting** | [Oxlint](https://oxc.rs/) | `^1.81.0` | High-performance Rust-based static code analyzer |
-| **Deployment** | [Vercel](https://vercel.com/) | Continuous | Edge distribution and continuous deployment pipeline |
+```
+[ Upload Material ] (PDF / Markdown / Plain Text)
+       ↓
+[ Client-Side Extraction ] (pdfjs-dist parses text & removes headers/footers)
+       ↓
+[ Semantic Synthesis ] (Google Gemini API or Built-in Local Heuristic Engine)
+       ↓
+[ Graph Construction ] (Resolves canonical concepts & typed relationships)
+       ↓
+[ Scoped Local Storage ] (Persisted in browser localStorage under unique graphId)
+       ↓
+[ Interactive Workspaces ] (Knowledge Graph • Study Space • Revision • 3D Persona)
+```
+
+1. **Ingest**: You upload study files via the dropzone. Text extraction runs entirely inside your browser using `pdfjs-dist`.
+2. **Normalize**: The system removes running headers, footers, soft hyphenations, and noise filler words.
+3. **Extract**: Concepts and relationships are extracted using either the Google Gemini API (`gemini-1.5-flash`) or the local heuristic engine when running offline.
+4. **Construct**: GraphMind deduplicates candidates into canonical concepts, maps prerequisite relationships, and computes topological layouts.
+5. **Persist & Study**: The graph is stored in your browser's `localStorage` and made available across the Knowledge Graph canvas, Study Space, Revision Workspace, and 3D Persona.
 
 ---
 
 <a id="architecture"></a>
 ## 🏛️ Architecture
 
-GraphMind runs entirely in the browser as a local-first single-page application. This guarantees immediate responsiveness, full privacy, and offline capability for core graph operations.
+GraphMind runs entirely in the browser as a local-first single-page application. This guarantees immediate responsiveness, complete data privacy, and offline operation for core graph features.
 
-### Data & Execution Flow
+<br />
 
-```mermaid
-flowchart TD
-    subgraph INGESTION ["1. Ingestion & Extraction"]
-        DOC["Study Material<br/>(PDF, Markdown, TXT)"] --> PARSE["Client-Side Text Extractor<br/>(pdfjs-dist / Normalizer)"]
-        PARSE --> CHUNK["Text Chunking &<br/>Document Profiler"]
-        CHUNK --> EXTRACT{"Extraction Engine"}
-        EXTRACT -->|"API Key Present"| GEMINI["Google Gemini API<br/>(gemini-1.5-flash)"]
-        EXTRACT -->|"Offline / No Key"| HEURISTIC["Local Heuristic<br/>Pattern Extractor"]
-    end
+<div align="center">
+  <img src="docs/architecture.svg" alt="GraphMind System Architecture Diagram" width="100%" />
+  <p align="center">
+    <sub><strong>Figure 2:</strong> High-level system architecture showing the four core layers: Material Ingestion, Concept Extraction, Graph &amp; Storage, and Learning Workspaces.</sub>
+  </p>
+</div>
 
-    subgraph CORE ["2. Graph Construction & Storage"]
-        GEMINI --> NORM["Concept Normalizer &<br/>Relationship Mapper"]
-        HEURISTIC --> NORM
-        NORM --> BUILD["Graph Builder &<br/>Prerequisite Engine"]
-        BUILD --> STORAGE[("Local-First Storage<br/>(Browser localStorage)")]
-    end
+<br />
 
-    subgraph WORKSPACE ["3. Learning & Interaction Workspaces"]
-        STORAGE --> GRAPH["Interactive Knowledge Graph<br/>(@xyflow/react Canvas)"]
-        STORAGE --> STUDY["Study Space<br/>(Multi-Level Depth & Citations)"]
-        STORAGE --> REVISE["Adaptive Revision Rail<br/>(Knowledge Checks & Spaced Review)"]
-        STORAGE --> PERSONA["3D Persona Companion<br/>(Three.js WebGL & Observations)"]
-    end
-```
+### Layer Breakdown & Responsibilities
 
-### Layer Responsibilities
+| Layer | Module / Service | Key Responsibilities |
+|---|---|---|
+| **Layer 1: Material Ingestion** | `textExtraction.ts`, `sourceIngestion.ts` | Multi-page PDF parsing via `pdfjs-dist`, Markdown tag cleaning, text normalization, and sliding-window chunking. |
+| **Layer 2: Concept Extraction** | `conceptExtraction.ts`, `relationshipExtraction.ts` | Dual-engine extraction: structured Gemini LLM extraction (`gemini-1.5-flash`) with automatic fallback to local heuristic pattern matchers. Strips academic filler and generic noise. |
+| **Layer 3: Graph Construction & Storage** | `graphBuilder.ts`, `graphLayout.ts`, `storage.ts` | Canonical concept deduplication, typed relationship mapping, force-directed layout computation, and scoped multi-graph isolation in `localStorage`. |
+| **Layer 4: Learning Workspaces** | `KnowledgeGraphWorkspace.tsx`, `StudySpaceView.tsx`, `RevisionWorkspace.tsx`, `PersonaExperience.tsx` | High-performance interactive UI layers: `@xyflow/react` infinite canvas, multi-level study explanations, active recall revision rails, and Three.js WebGL humanoid stage. |
 
-1. **Application & Workspace Shell (`App.tsx`, `AppShell`)**: Handles route state, modal overlays, graph switching, and unified navigation across views.
-2. **Material Ingestion (`textExtraction.ts`, `sourceIngestion.ts`)**: Normalizes document formatting, resolves character encodings, strips running headers, and splits text into contextual chunks.
-3. **Concept & Relationship Extraction (`conceptExtraction.ts`, `relationshipExtraction.ts`)**: Identifies core technical concepts, scores relevance against noise words, infers typed semantic relationships, and assigns confidence ratings.
-4. **Graph State & Storage (`GraphContext.tsx`, `storage.ts`)**: Implements strict multi-graph isolation in `localStorage`. Graphs, practice states, assessment attempts, and revision queues are segregated under scoped storage keys.
-5. **Interactive Visualization (`KnowledgeGraphWorkspace.tsx`)**: Bridges canonical graph models into `@xyflow/react` nodes and edges with force-directed positioning and node filtering.
-6. **Learning & Assessment Engine (`knowledgeCheck.ts`, `conceptExplanation.ts`)**: Evaluates concept mastery levels and generates deterministic practice questions.
-7. **Persona & Observation Engine (`PersonaExperience.tsx`, `personaObservations.ts`)**: Drives procedural 3D humanoid animation and translates real study data into contextual voice and text guidance.
+---
+
+<a id="tech-stack"></a>
+## 🛠️ Technology Stack
+
+GraphMind is engineered with a modern, high-performance client-side stack:
+
+| Domain | Technology | Exact Version | Purpose & Implementation |
+|---|---|---|---|
+| **Core Framework** | [React](https://react.dev/) | `^19.2.8` | Component architecture, custom hooks, and concurrent UI rendering |
+| **Language** | [TypeScript](https://www.typescriptlang.org/) | `~6.0.2` | Strict end-to-end type safety across graph models, pipeline stages, and storage schemas |
+| **Build & Tooling** | [Vite](https://vitejs.dev/) | `^8.3.0` | Ultra-fast development server, HMR, and optimized production bundler |
+| **Graph Visualization** | [@xyflow/react](https://github.com/xyflow/xyflow) | `^12.12.0` | Pan-and-zoom infinite canvas, custom node renderers, dynamic edge labeling, and export |
+| **3D Graphics** | [Three.js](https://threejs.org/) | `^0.186.1` | WebGL scene graph, procedural humanoid geometry, custom shaders, and lighting |
+| **Animation & Motion** | [Framer Motion](https://www.framer.com/motion/) | `^14.0.0` | Accessible page transitions, modal choreographies, and layout animations |
+| **Document Processing** | [PDF.js](https://mozilla.github.io/pdf.js/) | `^6.4.299` | In-browser PDF parsing and text stream extraction via legacy worker |
+| **AI Integration** | [Google Gemini API](https://ai.google.dev/) | `gemini-1.5-flash` | High-precision structured concept extraction, relationship tagging, and knowledge checks |
+| **Iconography** | [Lucide React](https://lucide.dev/) | `^1.49.0` | Clean, semantic vector icon system for workspace navigation and actions |
+| **Testing & Quality** | Node Native Test Runner | `tsx --test` | High-speed native TypeScript unit and integration testing suite |
+| **Code Linting** | [Oxlint](https://oxc.rs/) | `^1.81.0` | High-performance Rust-based static code analyzer |
+| **Deployment** | [Vercel](https://vercel.com/) | Continuous | Global edge distribution and automated continuous deployment pipeline |
 
 ---
 
 <a id="getting-started"></a>
 ## 🚀 Getting Started
 
-Follow these steps to run GraphMind locally on your workstation.
+Follow these steps to run GraphMind locally on your development machine.
 
 ### Prerequisites
 
 * **Node.js**: `v20.0.0` or higher
 * **npm**: `v9.0.0` or higher
 * **Modern Web Browser**: Chrome, Firefox, Safari, or Edge with WebGL enabled
-* *(Optional)* **Google Gemini API Key**: [Get an API key from Google AI Studio](https://aistudio.google.com/) for cloud-powered concept extraction. If omitted, GraphMind automatically runs with the built-in local heuristic engine.
+* *(Optional)* **Google Gemini API Key**: [Get an API key from Google AI Studio](https://aistudio.google.com/) for cloud-assisted concept extraction. If omitted, GraphMind automatically runs with the built-in local heuristic engine.
 
 ### Installation
 
@@ -273,7 +300,7 @@ Follow these steps to run GraphMind locally on your workstation.
    ```env
    VITE_GEMINI_API_KEY=your_gemini_api_key_here
    ```
-   > **Note**: GraphMind functions fully without an API key using its deterministic local heuristic extractor. Adding an API key enables Gemini 1.5 Flash for enhanced semantic extraction and question generation.
+   > **Note**: GraphMind functions fully without an API key using its deterministic local heuristic extractor. Adding an API key enables Gemini 1.5 Flash for enhanced semantic concept extraction and knowledge checks.
 
 4. **Start the local development server:**
    ```bash
@@ -304,15 +331,41 @@ npm run preview
 
 ---
 
-<a id="privacy--data-handling"></a>
-## 🔒 Privacy & Data Handling
+<a id="privacy--local-first-behavior"></a>
+## 🔒 Privacy & Local-First Behavior
 
-GraphMind is designed around a transparent, local-first data model:
+GraphMind is engineered around a transparent, local-first data architecture:
 
-* **Local-First Persistence**: All knowledge graphs, generated questions, study notes, assessment scores, and revision sessions are stored directly in your browser's `localStorage`. No server-side database stores your personal study content.
-* **Client-Side Document Parsing**: PDF, Markdown, and text parsing is executed entirely inside your browser using `pdfjs-dist`. Documents are not uploaded to any private backends.
-* **External AI Processing**: When configured with a Google Gemini API key, extracted text chunks and synthesis prompts are transmitted directly from your browser to Google's Generative Language API over HTTPS. When no key is set, extraction runs completely offline on your device.
+* **Local-First Persistence**: All knowledge graphs, study notes, assessment scores, and revision sessions are stored directly in your browser's `localStorage`. No server-side database stores your personal study content.
+* **Client-Side Document Parsing**: PDF, Markdown, and plain text parsing runs entirely on-device inside your browser using `pdfjs-dist`. Documents are never transmitted to any private backend servers.
+* **External AI Processing**: When configured with a Google Gemini API key, extracted text excerpts and synthesis prompts are transmitted directly from your browser to Google's Generative Language API over HTTPS. When no key is set, extraction runs completely offline on your device.
 * **Zero Telemetry**: GraphMind includes no analytics tracking scripts, behavioral telemetry, or third-party advertising cookies.
+
+---
+
+<a id="contributing"></a>
+## 🤝 Contributing
+
+Contributions to GraphMind are welcome! Whether you are fixing bugs, improving documentation, or adding new features:
+
+1. **Fork the repository** on GitHub.
+2. **Create a feature branch:**
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+3. **Commit your changes:**
+   ```bash
+   git commit -m "feat: add your feature description"
+   ```
+4. **Run tests and linting:**
+   ```bash
+   npm test && npm run lint && npm run build
+   ```
+5. **Push to your branch:**
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+6. **Open a Pull Request** with a detailed explanation of your changes.
 
 ---
 

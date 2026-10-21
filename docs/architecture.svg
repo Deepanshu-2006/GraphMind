@@ -1,0 +1,274 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 500" width="100%" height="100%" style="background:#0a0a0a; border-radius:8px; font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <defs>
+    <style>
+      .mono { font-family: 'JetBrains Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+      .text-title { font-size: 15px; font-weight: 600; fill: #F5F5F5; letter-spacing: -0.01em; }
+      .text-sub { font-size: 11px; fill: #7A7A7A; }
+      .text-sec-header { font-size: 10px; font-weight: 600; fill: #8A8A8A; letter-spacing: 0.08em; }
+      .text-body { font-size: 11px; fill: #A1A1A1; line-height: 1.45; }
+      .text-tech { font-size: 10px; fill: #E5E5E5; }
+      .accent-num { font-size: 11px; font-weight: 600; fill: #A3FF12; letter-spacing: 0.05em; }
+      .stage-card { fill: #101010; stroke: #202020; stroke-width: 1; rx: 6px; }
+      .stage-card-active { fill: #111410; stroke: #263319; stroke-width: 1; rx: 6px; }
+      .inner-card { fill: #141414; stroke: #1E1E1E; stroke-width: 1; rx: 4px; }
+      .badge-bg { fill: #1A1A1A; stroke: #2A2A2A; stroke-width: 0.8; rx: 3px; }
+    </style>
+
+    <!-- Arrow Marker -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M 1 1.5 L 8 5 L 1 8.5 z" fill="#A3FF12" fill-opacity="0.7" />
+    </marker>
+  </defs>
+
+  <!-- Canvas Outer Border -->
+  <rect x="0.5" y="0.5" width="1179" height="499" rx="8" fill="#0A0A0A" stroke="#1F1F1F" stroke-width="1" />
+
+  <!-- ========================================================================= -->
+  <!-- TOP BRAND HEADER                                                          -->
+  <!-- ========================================================================= -->
+  <g transform="translate(36, 28)">
+    <!-- Minimal Graph Logo Glyph -->
+    <circle cx="10" cy="12" r="10" fill="#141414" stroke="#242424" stroke-width="1" />
+    <circle cx="7" cy="9" r="2.5" fill="#A3FF12" />
+    <circle cx="13" cy="15" r="2" fill="#F5F5F5" />
+    <line x1="7" y1="9" x2="13" y2="15" stroke="#A3FF12" stroke-width="1.2" stroke-opacity="0.8" />
+
+    <!-- Title & System Architecture Label -->
+    <text x="30" y="12" fill="#F5F5F5" font-size="14" font-weight="600" letter-spacing="-0.02em">GraphMind</text>
+    <text x="108" y="12" fill="#5A5A5A" font-size="13" font-weight="400">/ Architecture</text>
+    <text x="30" y="27" fill="#7A7A7A" font-size="11">Client-Side Pipeline &amp; Scoped Multi-Graph Workspaces</text>
+
+    <!-- Right Side Meta Badge -->
+    <g transform="translate(930, 2)">
+      <rect x="0" y="0" width="178" height="24" rx="4" fill="#121212" stroke="#222222" stroke-width="1" />
+      <circle cx="12" cy="12" r="3" fill="#A3FF12" />
+      <text x="22" y="15" fill="#8A8A8A" class="mono" font-size="10" letter-spacing="0.04em">LOCAL-FIRST • CLIENT SPA</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- HORIZONTAL DATAFLOW SPINE (SIGNATURE MINIMALIST DETAIL)                   -->
+  <!-- ========================================================================= -->
+  <g transform="translate(0, 68)">
+    <!-- Base track line -->
+    <line x1="36" y1="0" x2="1144" y2="0" stroke="#1A1A1A" stroke-width="1" />
+    
+    <!-- Accent Flow Path -->
+    <line x1="163" y1="0" x2="1017" y2="0" stroke="#A3FF12" stroke-width="1" stroke-opacity="0.3" stroke-dasharray="3 3" />
+
+    <!-- Flow Milestone Dots -->
+    <g transform="translate(163, 0)">
+      <circle cx="0" cy="0" r="5" fill="#101010" stroke="#A3FF12" stroke-width="1.5" />
+      <circle cx="0" cy="0" r="2" fill="#A3FF12" />
+    </g>
+    <g transform="translate(448, 0)">
+      <circle cx="0" cy="0" r="5" fill="#101010" stroke="#A3FF12" stroke-width="1.5" />
+      <circle cx="0" cy="0" r="2" fill="#A3FF12" />
+    </g>
+    <g transform="translate(733, 0)">
+      <circle cx="0" cy="0" r="5" fill="#101010" stroke="#A3FF12" stroke-width="1.5" />
+      <circle cx="0" cy="0" r="2" fill="#A3FF12" />
+    </g>
+    <g transform="translate(1017, 0)">
+      <circle cx="0" cy="0" r="5" fill="#101010" stroke="#A3FF12" stroke-width="1.5" />
+      <circle cx="0" cy="0" r="2" fill="#A3FF12" />
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- STAGE 01: MATERIAL INGESTION                                              -->
+  <!-- ========================================================================= -->
+  <g transform="translate(36, 84)">
+    <!-- Card Frame -->
+    <rect width="255" height="388" class="stage-card" />
+    
+    <!-- Stage Header -->
+    <g transform="translate(18, 24)">
+      <text x="0" y="0" class="accent-num mono">01</text>
+      <text x="24" y="0" class="text-title">Material Ingestion</text>
+      <text x="0" y="18" class="text-sub">Client-side document parsing</text>
+    </g>
+
+    <!-- Section 1.1: Inputs -->
+    <g transform="translate(18, 66)">
+      <rect width="219" height="68" class="inner-card" />
+      <text x="12" y="17" class="text-sec-header mono">DOCUMENT SOURCES</text>
+      <text x="12" y="36" class="text-body">• Multi-page PDF (<tspan fill="#F5F5F5">pdfjs-dist</tspan>)</text>
+      <text x="12" y="54" class="text-body">• Markdown (.md) &amp; Plain Text (.txt)</text>
+    </g>
+
+    <!-- Section 1.2: Normalization -->
+    <g transform="translate(18, 144)">
+      <rect width="219" height="98" class="inner-card" />
+      <text x="12" y="17" class="text-sec-header mono">TEXT NORMALIZATION</text>
+      <text x="12" y="36" class="text-body">• Page headers &amp; footers stripped</text>
+      <text x="12" y="53" class="text-body">• Soft line-break hyphenation fix</text>
+      <text x="12" y="70" class="text-body">• Null bytes &amp; noise characters</text>
+      <text x="12" y="88" class="text-sub">Preserves headings &amp; paragraphs</text>
+    </g>
+
+    <!-- Section 1.3: Chunking & Profiling -->
+    <g transform="translate(18, 252)">
+      <rect width="219" height="114" class="inner-card" />
+      <text x="12" y="17" class="text-sec-header mono">CHUNKING &amp; PROFILER</text>
+      <text x="12" y="36" class="text-body">• Sliding window word overlap</text>
+      <text x="12" y="53" class="text-body">• Document structure profiling</text>
+      <text x="12" y="70" class="text-body">• Domain acronym recognition</text>
+      <g transform="translate(12, 83)">
+        <rect width="102" height="18" class="badge-bg" />
+        <text x="6" y="12" class="mono text-tech">textExtraction.ts</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Thin Connecting Arrow: Col 1 -> Col 2 -->
+  <line x1="291" y1="280" x2="319" y2="280" stroke="#A3FF12" stroke-width="1" stroke-opacity="0.4" marker-end="url(#arrow)" />
+
+  <!-- ========================================================================= -->
+  <!-- STAGE 02: CONCEPT EXTRACTION                                              -->
+  <!-- ========================================================================= -->
+  <g transform="translate(321, 84)">
+    <!-- Card Frame -->
+    <rect width="255" height="388" class="stage-card" />
+
+    <!-- Stage Header -->
+    <g transform="translate(18, 24)">
+      <text x="0" y="0" class="accent-num mono">02</text>
+      <text x="24" y="0" class="text-title">Concept Extraction</text>
+      <text x="0" y="18" class="text-sub">Dual semantic synthesis engines</text>
+    </g>
+
+    <!-- Section 2.1: Gemini API Engine -->
+    <g transform="translate(18, 66)">
+      <rect width="219" height="88" class="inner-card" />
+      <text x="12" y="17" class="text-sec-header mono">GOOGLE GEMINI API (OPTIONAL)</text>
+      <text x="12" y="36" class="text-body">• <tspan fill="#F5F5F5" font-weight="500">gemini-1.5-flash</tspan> model</text>
+      <text x="12" y="54" class="text-body">• Structured JSON schema extraction</text>
+      <text x="12" y="72" class="text-body">• Typed relationship discovery</text>
+    </g>
+
+    <!-- Section 2.2: Local Heuristic Engine -->
+    <g transform="translate(18, 164)">
+      <rect width="219" height="88" class="inner-card" />
+      <text x="12" y="17" class="text-sec-header mono">LOCAL HEURISTIC FALLBACK</text>
+      <text x="12" y="36" class="text-body">• Deterministic offline extractor</text>
+      <text x="12" y="54" class="text-body">• Operates with zero API key</text>
+      <text x="12" y="72" class="text-body">• Pattern-based concept mining</text>
+    </g>
+
+    <!-- Section 2.3: Quality Filtering -->
+    <g transform="translate(18, 262)">
+      <rect width="219" height="104" class="inner-card" />
+      <text x="12" y="17" class="text-sec-header mono">QUALITY FILTER &amp; EVIDENCE</text>
+      <text x="12" y="36" class="text-body">• Academic filler exclusion set</text>
+      <text x="12" y="53" class="text-body">• Canonical concept normalization</text>
+      <text x="12" y="70" class="text-body">• Verbatim citation anchoring</text>
+      <g transform="translate(12, 80)">
+        <rect width="118" height="18" class="badge-bg" />
+        <text x="6" y="12" class="mono text-tech">conceptExtraction.ts</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Thin Connecting Arrow: Col 2 -> Col 3 -->
+  <line x1="576" y1="280" x2="604" y2="280" stroke="#A3FF12" stroke-width="1" stroke-opacity="0.4" marker-end="url(#arrow)" />
+
+  <!-- ========================================================================= -->
+  <!-- STAGE 03: GRAPH CONSTRUCTION & STORAGE                                    -->
+  <!-- ========================================================================= -->
+  <g transform="translate(606, 84)">
+    <!-- Card Frame -->
+    <rect width="255" height="388" class="stage-card" />
+
+    <!-- Stage Header -->
+    <g transform="translate(18, 24)">
+      <text x="0" y="0" class="accent-num mono">03</text>
+      <text x="24" y="0" class="text-title">Graph &amp; Storage</text>
+      <text x="0" y="18" class="text-sub">Topology &amp; scoped persistence</text>
+    </g>
+
+    <!-- Section 3.1: Graph Builder -->
+    <g transform="translate(18, 66)">
+      <rect width="219" height="98" class="inner-card" />
+      <text x="12" y="17" class="text-sec-header mono">GRAPH BUILDER</text>
+      <text x="12" y="35" class="text-body">• Canonical node &amp; edge assembly</text>
+      <text x="12" y="52" class="text-body">• Typed relationships (<tspan fill="#F5F5F5">extends</tspan>, <tspan fill="#F5F5F5">part_of</tspan>)</text>
+      <text x="12" y="69" class="text-body">• Prerequisite dependency tree</text>
+      <text x="12" y="87" class="text-sub">Force-directed layout computation</text>
+    </g>
+
+    <!-- Section 3.2: Isolation Boundary -->
+    <g transform="translate(18, 174)">
+      <rect width="219" height="84" class="inner-card" />
+      <text x="12" y="17" class="text-sec-header mono">MULTI-GRAPH ISOLATION</text>
+      <text x="12" y="36" class="text-body">• Independent course workspaces</text>
+      <text x="12" y="54" class="text-body">• Scoped keys per <tspan fill="#A3FF12" class="mono">graphId</tspan></text>
+      <text x="12" y="72" class="text-body">• Zero cross-graph data leakage</text>
+    </g>
+
+    <!-- Section 3.3: Storage Engine -->
+    <g transform="translate(18, 268)">
+      <rect width="219" height="98" class="inner-card" />
+      <text x="12" y="17" class="text-sec-header mono">LOCAL-FIRST STORAGE</text>
+      <text x="12" y="36" class="text-body">• Browser <tspan fill="#F5F5F5">localStorage</tspan> schema</text>
+      <text x="12" y="53" class="text-body">• Revision sessions &amp; test logs</text>
+      <text x="12" y="70" class="text-body">• Instant offline read / write</text>
+      <g transform="translate(12, 77)">
+        <rect width="68" height="18" class="badge-bg" />
+        <text x="6" y="12" class="mono text-tech">storage.ts</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Thin Connecting Arrow: Col 3 -> Col 4 -->
+  <line x1="861" y1="280" x2="889" y2="280" stroke="#A3FF12" stroke-width="1" stroke-opacity="0.4" marker-end="url(#arrow)" />
+
+  <!-- ========================================================================= -->
+  <!-- STAGE 04: LEARNING EXPERIENCE                                             -->
+  <!-- ========================================================================= -->
+  <g transform="translate(891, 84)">
+    <!-- Card Frame (Active GraphMind styling) -->
+    <rect width="253" height="388" class="stage-card-active" />
+
+    <!-- Stage Header -->
+    <g transform="translate(18, 24)">
+      <text x="0" y="0" class="accent-num mono">04</text>
+      <text x="24" y="0" class="text-title">Learning Experience</text>
+      <text x="0" y="18" class="text-sub">Four interactive workspaces</text>
+    </g>
+
+    <!-- Workspace 4.1: Knowledge Graph Canvas -->
+    <g transform="translate(18, 66)">
+      <rect width="217" height="66" class="inner-card" stroke="#25351a" />
+      <text x="12" y="17" fill="#A3FF12" font-size="11" font-weight="600">Knowledge Graph Canvas</text>
+      <text x="12" y="34" class="text-body">@xyflow/react infinite canvas</text>
+      <text x="12" y="50" class="text-sub">Physics layout &amp; concept drawer</text>
+    </g>
+
+    <!-- Workspace 4.2: Study Space -->
+    <g transform="translate(18, 142)">
+      <rect width="217" height="66" class="inner-card" stroke="#222222" />
+      <text x="12" y="17" fill="#F5F5F5" font-size="11" font-weight="600">Study Space</text>
+      <text x="12" y="34" class="text-body">3 progressive explanation depth tiers</text>
+      <text x="12" y="50" class="text-sub">Verbatim source excerpt provenance</text>
+    </g>
+
+    <!-- Workspace 4.3: Revision Workspace -->
+    <g transform="translate(18, 218)">
+      <rect width="217" height="74" class="inner-card" stroke="#222222" />
+      <text x="12" y="17" fill="#F5F5F5" font-size="11" font-weight="600">Revision &amp; Active Recall</text>
+      <text x="12" y="34" class="text-body">Targeted queue for flagged concepts</text>
+      <text x="12" y="49" class="text-body">Arithmetic mean score calculation</text>
+      <text x="12" y="65" class="text-sub">untested → developing → mastered</text>
+    </g>
+
+    <!-- Workspace 4.4: 3D Persona Companion -->
+    <g transform="translate(18, 302)">
+      <rect width="217" height="64" class="inner-card" stroke="#25351a" />
+      <text x="12" y="17" fill="#A3FF12" font-size="11" font-weight="600">3D Persona Companion</text>
+      <text x="12" y="34" class="text-body">Three.js WebGL procedural humanoid</text>
+      <text x="12" y="50" class="text-sub">Empirical study recommendations</text>
+    </g>
+  </g>
+
+</svg>
