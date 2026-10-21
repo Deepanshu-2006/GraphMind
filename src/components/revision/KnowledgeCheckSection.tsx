@@ -329,7 +329,6 @@ export const KnowledgeCheckSection: React.FC<KnowledgeCheckSectionProps> = ({
 
   // Determine actions for the single feedback region
   const isCorrect = currentAttempt?.evaluation.isCorrect ?? false;
-  const isLastQuestion = checkState.activeQuestionIndex >= totalQuestions - 1;
   const hasNextQuestion = checkState.activeQuestionIndex < totalQuestions - 1;
   const hasPrevQuestion = checkState.activeQuestionIndex > 0;
   const reviewSectionId = currentAttempt?.evaluation.reviewSectionId;

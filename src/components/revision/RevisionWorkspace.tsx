@@ -225,7 +225,6 @@ export const createConceptCanvasVariants = (shouldReduceMotion = false): Variant
     opacity: 1,
     x: 0,
     y: 0,
-    staggerChildren: shouldReduceMotion ? 0 : 0.04,
     transition: {
       duration: shouldReduceMotion ? 0 : 0.46,
       ease: [0.16, 1, 0.3, 1],
@@ -976,26 +975,6 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
 
   const sessionMetadataVariants = useMemo(
     () => createSessionMetadataVariants(shouldReduceMotion, hasPlayedEntry),
-    [shouldReduceMotion, hasPlayedEntry]
-  );
-
-  const conceptBadgeVariants = useMemo(
-    () => createConceptBadgeVariants(shouldReduceMotion, hasPlayedEntry),
-    [shouldReduceMotion, hasPlayedEntry]
-  );
-
-  const conceptTitleVariants = useMemo(
-    () => createConceptTitleVariants(shouldReduceMotion, hasPlayedEntry),
-    [shouldReduceMotion, hasPlayedEntry]
-  );
-
-  const conceptDescriptionVariants = useMemo(
-    () => createConceptDescriptionVariants(shouldReduceMotion, hasPlayedEntry),
-    [shouldReduceMotion, hasPlayedEntry]
-  );
-
-  const navigationVariants = useMemo(
-    () => createNavigationVariants(shouldReduceMotion, hasPlayedEntry),
     [shouldReduceMotion, hasPlayedEntry]
   );
 
@@ -1782,7 +1761,7 @@ export const RevisionWorkspace: React.FC<RevisionWorkspaceProps> = ({
   // Active section tracking for section jump nav highlighting
   const [activeSectionId, setActiveSectionId] = useState<string>('section-understanding');
   const isProgrammaticScrollRef = useRef(false);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [prevTrackedConceptId, setPrevTrackedConceptId] = useState<string | undefined>(activeDisplayConcept?.id);
 
   if (activeDisplayConcept?.id !== prevTrackedConceptId) {
